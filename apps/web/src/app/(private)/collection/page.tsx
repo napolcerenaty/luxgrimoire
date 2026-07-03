@@ -1596,7 +1596,7 @@ export default function CollectionPage() {
                               className="p-1.5 rounded-lg text-stone-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
                               title="Record sale"
                             >
-                              <ShoppingBag size={12} />
+                              <Banknote size={12} />
                             </button>
                           )}
                           <button

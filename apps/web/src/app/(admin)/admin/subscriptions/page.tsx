@@ -23,6 +23,99 @@ const LANGUAGES = ['English', 'Polish', 'French', 'German', 'Spanish', 'Italian'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+let _draftKeyCounter = 0
+function newDraftKey() { return String(++_draftKeyCounter) }
+
+interface SkipPolicyDraft {
+  _key: string
+  billingType: string // ALL | MONTHLY | PREPAID
+  type: string        // NONE | UNLIMITED | CALENDAR_YEAR | FROM_FIRST_SKIP | FROM_SUB_START | PREPAID_WINDOW_SKIP
+  maxSkips: string
+  maxConsecutive: string
+  windowMonths: string
+  skipDeadlineType: string
+  skipDeadlineDaysBefore: string
+  skipDeadlineDayOfMonth: string
+  notes: string
+  skipHow: string
+  allowUnskip: boolean
+  unskipDeadlineType: string
+  unskipDeadlineDaysBefore: string
+  unskipDeadlineDayOfMonth: string
+  unskipNotes: string
+  unskipHow: string
+}
+
+function emptySkipPolicyDraft(billingType = 'ALL'): SkipPolicyDraft {
+  return {
+    _key: newDraftKey(),
+    billingType,
+    type: 'NONE',
+    maxSkips: '',
+    maxConsecutive: '',
+    windowMonths: '',
+    skipDeadlineType: 'DAYS_BEFORE',
+    skipDeadlineDaysBefore: '0',
+    skipDeadlineDayOfMonth: '',
+    notes: '',
+    skipHow: '',
+    allowUnskip: false,
+    unskipDeadlineType: 'DAYS_BEFORE',
+    unskipDeadlineDaysBefore: '0',
+    unskipDeadlineDayOfMonth: '',
+    unskipNotes: '',
+    unskipHow: '',
+  }
+}
+
+function apiPolicyToDraft(p: { billingType: string; type: string; maxSkips: number | null; maxConsecutive: number | null; windowMonths: number | null; skipDeadlineDaysBefore: number; skipDeadlineType: string; skipDeadlineDayOfMonth: number | null; notes: string | null; skipHow: string | null; allowUnskip: boolean; unskipDeadlineType: string; unskipDeadlineDaysBefore: number; unskipDeadlineDayOfMonth: number | null; unskipNotes: string | null; unskipHow: string | null }): SkipPolicyDraft {
+  return {
+    _key: newDraftKey(),
+    billingType: p.billingType,
+    type: p.type,
+    maxSkips: p.maxSkips != null ? String(p.maxSkips) : '',
+    maxConsecutive: p.maxConsecutive != null ? String(p.maxConsecutive) : '',
+    windowMonths: p.windowMonths != null ? String(p.windowMonths) : '',
+    skipDeadlineType: p.skipDeadlineType ?? 'DAYS_BEFORE',
+    skipDeadlineDaysBefore: p.skipDeadlineDaysBefore != null ? String(p.skipDeadlineDaysBefore) : '0',
+    skipDeadlineDayOfMonth: p.skipDeadlineDayOfMonth != null ? String(p.skipDeadlineDayOfMonth) : '',
+    notes: p.notes ?? '',
+    skipHow: p.skipHow ?? '',
+    allowUnskip: p.allowUnskip ?? false,
+    unskipDeadlineType: p.unskipDeadlineType ?? 'DAYS_BEFORE',
+    unskipDeadlineDaysBefore: p.unskipDeadlineDaysBefore != null ? String(p.unskipDeadlineDaysBefore) : '0',
+    unskipDeadlineDayOfMonth: p.unskipDeadlineDayOfMonth != null ? String(p.unskipDeadlineDayOfMonth) : '',
+    unskipNotes: p.unskipNotes ?? '',
+    unskipHow: p.unskipHow ?? '',
+  }
+}
+
+function resolveSkipTypeFromDraft(d: SkipPolicyDraft): string {
+  if (d.type === 'UNLIMITED' && d.maxConsecutive) return 'UNLIMITED_MAX_CONSEC'
+  return d.type
+}
+
+function draftToApiBody(d: SkipPolicyDraft, billingType: string) {
+  return {
+    type: resolveSkipTypeFromDraft(d),
+    maxSkips: d.maxSkips ? parseInt(d.maxSkips, 10) : undefined,
+    maxConsecutive: d.maxConsecutive ? parseInt(d.maxConsecutive, 10) : undefined,
+    windowMonths: d.windowMonths ? parseInt(d.windowMonths, 10) : undefined,
+    skipDeadlineType: d.skipDeadlineType || 'DAYS_BEFORE',
+    skipDeadlineDaysBefore: d.skipDeadlineType === 'DAYS_BEFORE' ? parseInt(d.skipDeadlineDaysBefore || '0', 10) : 0,
+    skipDeadlineDayOfMonth: d.skipDeadlineType === 'DAY_OF_MONTH' && d.skipDeadlineDayOfMonth ? parseInt(d.skipDeadlineDayOfMonth, 10) : undefined,
+    notes: d.notes || undefined,
+    skipHow: d.skipHow || undefined,
+    allowUnskip: d.allowUnskip,
+    unskipDeadlineType: d.unskipDeadlineType || 'DAYS_BEFORE',
+    unskipDeadlineDaysBefore: d.unskipDeadlineType === 'DAYS_BEFORE' ? parseInt(d.unskipDeadlineDaysBefore || '0', 10) : 0,
+    unskipDeadlineDayOfMonth: d.unskipDeadlineType === 'DAY_OF_MONTH' && d.unskipDeadlineDayOfMonth ? parseInt(d.unskipDeadlineDayOfMonth, 10) : undefined,
+    unskipNotes: d.unskipNotes || undefined,
+    unskipHow: d.unskipHow || undefined,
+    billingType,
+  }
+}
+
 interface SubFormData {
   companyId: string
   name: string
@@ -53,25 +146,8 @@ interface SubFormData {
   renewalMonthOffset: string
   startDate: string
   endDate: string
-  // Skip policy (saved separately via PUT /skip-policy/:slug)
-  skipPolicyType: string
-  skipMaxSkips: string
-  skipMaxConsecutive: string
-  skipWindowMonths: string
-  skipDeadlineDaysBefore: string
-  skipDeadlineType: string
-  skipDeadlineDayOfMonth: string
-  skipNotes: string
-  skipHow: string
-  // Unskip policy
-  allowUnskip: boolean
-  unskipDeadlineType: string
-  unskipDeadlineDaysBefore: string
-  unskipDeadlineDayOfMonth: string
-  unskipNotes: string
-  unskipHow: string
-  /** Which billing type this policy applies to: "ALL" | "MONTHLY" | "PREPAID" */
-  billingType: string
+  // Skip policies (saved separately via PUT /skip-policy/:slug)
+  skipPoliciesDraft: SkipPolicyDraft[]
   /** Required when any tracked settings field changes (effectiveFrom for the history record) */
   settingsEffectiveFrom: string
 }
@@ -106,27 +182,11 @@ const EMPTY_FORM: SubFormData = {
   renewalMonthOffset: '0',
   startDate: '',
   endDate: '',
-  skipPolicyType: 'NONE',
-  skipMaxSkips: '',
-  skipMaxConsecutive: '',
-  skipWindowMonths: '',
-  skipDeadlineDaysBefore: '0',
-  skipDeadlineType: 'DAYS_BEFORE',
-  skipDeadlineDayOfMonth: '',
-  skipNotes: '',
-  skipHow: '',
-  allowUnskip: false,
-  unskipDeadlineType: 'DAYS_BEFORE',
-  unskipDeadlineDaysBefore: '0',
-  unskipDeadlineDayOfMonth: '',
-  unskipNotes: '',
-  unskipHow: '',
-  billingType: 'ALL',
+  skipPoliciesDraft: [],
   settingsEffectiveFrom: '',
 }
 
 function subToForm(sub: ApiSubscription): SubFormData {
-  const p = sub.skipPolicies?.find(p => p.billingType === 'ALL') ?? sub.skipPolicies?.[0]
   return {
     companyId: sub.companyId,
     name: sub.name,
@@ -157,32 +217,9 @@ function subToForm(sub: ApiSubscription): SubFormData {
     renewalMonthOffset: sub.renewalMonthOffset != null ? String(sub.renewalMonthOffset) : '0',
     startDate: sub.startDate ? sub.startDate.slice(0, 10) : '',
     endDate: sub.endDate ? sub.endDate.slice(0, 10) : '',
-    skipPolicyType: p?.type ?? 'NONE',
-    skipMaxSkips: p?.maxSkips != null ? String(p.maxSkips) : '',
-    skipMaxConsecutive: p?.maxConsecutive != null ? String(p.maxConsecutive) : '',
-    skipWindowMonths: p?.windowMonths != null ? String(p.windowMonths) : '',
-    skipDeadlineDaysBefore: p?.skipDeadlineDaysBefore != null ? String(p.skipDeadlineDaysBefore) : '0',
-    skipDeadlineType: (p as any)?.skipDeadlineType ?? 'DAYS_BEFORE',
-    skipDeadlineDayOfMonth: (p as any)?.skipDeadlineDayOfMonth != null ? String((p as any).skipDeadlineDayOfMonth) : '',
-    skipNotes: p?.notes ?? '',
-    skipHow: p?.skipHow ?? '',
-    allowUnskip: p?.allowUnskip ?? false,
-    unskipDeadlineType: p?.unskipDeadlineType ?? 'DAYS_BEFORE',
-    unskipDeadlineDaysBefore: p?.unskipDeadlineDaysBefore != null ? String(p.unskipDeadlineDaysBefore) : '0',
-    unskipDeadlineDayOfMonth: p?.unskipDeadlineDayOfMonth != null ? String(p.unskipDeadlineDayOfMonth) : '',
-    unskipNotes: p?.unskipNotes ?? '',
-    unskipHow: p?.unskipHow ?? '',
-    billingType: p?.billingType ?? 'ALL',
+    skipPoliciesDraft: (sub.skipPolicies ?? []).map(apiPolicyToDraft),
     settingsEffectiveFrom: '',
   }
-}
-
-// When user picks UNLIMITED + fills maxConsecutive, send UNLIMITED_MAX_CONSEC to API
-function resolveSkipType(form: SubFormData): string {
-  if (form.skipPolicyType === 'UNLIMITED' && form.skipMaxConsecutive) {
-    return 'UNLIMITED_MAX_CONSEC'
-  }
-  return form.skipPolicyType
 }
 
 function formToCreatePayload(form: SubFormData) {
@@ -253,6 +290,184 @@ function formToUpdatePayload(form: SubFormData) {
   }
 }
 
+// ─── SkipPolicyEditor component ────────────────────────────────────────────────
+
+interface SkipPolicyEditorProps {
+  draft: SkipPolicyDraft
+  onChange: (d: SkipPolicyDraft) => void
+  usedBillingTypes: string[]
+  onSave: () => void
+  onCancel: () => void
+  INPUT_CLASS: string
+  SELECT_CLASS: string
+  LABEL_CLASS: string
+}
+
+function SkipPolicyEditor({ draft, onChange, usedBillingTypes, onSave, onCancel, INPUT_CLASS, SELECT_CLASS, LABEL_CLASS }: SkipPolicyEditorProps) {
+  const set = (field: keyof SkipPolicyDraft) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    onChange({ ...draft, [field]: e.target.value })
+  const setChecked = (field: keyof SkipPolicyDraft) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    onChange({ ...draft, [field]: e.target.checked })
+
+  const allBillingTypes = ['ALL', 'MONTHLY', 'PREPAID']
+  const availableForThis = allBillingTypes.filter(bt => !usedBillingTypes.includes(bt))
+
+  return (
+    <div className="p-4 space-y-4 bg-stone-900/50">
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label className={LABEL_CLASS}>Applies to billing type</label>
+          <select className={SELECT_CLASS} value={draft.billingType} onChange={set('billingType')}>
+            {availableForThis.map(bt => (
+              <option key={bt} value={bt}>
+                {bt === 'ALL' ? 'All subscribers' : bt === 'MONTHLY' ? 'Monthly billing only' : 'Prepaid billing only'}
+              </option>
+            ))}
+            {!availableForThis.includes(draft.billingType) && (
+              <option value={draft.billingType}>{draft.billingType}</option>
+            )}
+          </select>
+        </div>
+        <div>
+          <label className={LABEL_CLASS}>Policy type</label>
+          <select className={SELECT_CLASS} value={draft.type} onChange={set('type')}>
+            <option value="NONE">No skips allowed</option>
+            <option value="UNLIMITED">Unlimited skips</option>
+            <option value="CALENDAR_YEAR">X skips per calendar year</option>
+            <option value="FROM_FIRST_SKIP">X skips from first skip date</option>
+            <option value="FROM_SUB_START">X skips from subscription start</option>
+            <option value="PREPAID_WINDOW_SKIP">Prepaid window skip</option>
+          </select>
+        </div>
+      </div>
+
+      {draft.type !== 'NONE' && (
+        <>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div>
+                <label className={LABEL_CLASS}>Deadline type</label>
+                <select className={SELECT_CLASS} value={draft.skipDeadlineType} onChange={set('skipDeadlineType')}>
+                  <option value="DAYS_BEFORE">Days before renewal</option>
+                  <option value="DAY_OF_MONTH">Specific day of month</option>
+                </select>
+              </div>
+              {draft.skipDeadlineType === 'DAYS_BEFORE' ? (
+                <div>
+                  <label className={LABEL_CLASS}>Days before renewal</label>
+                  <input type="number" min={0} max={60} className={INPUT_CLASS}
+                    value={draft.skipDeadlineDaysBefore} onChange={set('skipDeadlineDaysBefore')} placeholder="0" />
+                  <p className="text-xs text-stone-500 mt-1">0 = day of renewal</p>
+                </div>
+              ) : (
+                <div>
+                  <label className={LABEL_CLASS}>Day of month (1–28)</label>
+                  <input type="number" min={1} max={28} className={INPUT_CLASS}
+                    value={draft.skipDeadlineDayOfMonth} onChange={set('skipDeadlineDayOfMonth')} placeholder="e.g. 15" />
+                </div>
+              )}
+            </div>
+            <div className="space-y-3">
+              {draft.type !== 'UNLIMITED' && (
+                <div>
+                  <label className={LABEL_CLASS}>Max skips</label>
+                  <input type="number" min={1} className={INPUT_CLASS}
+                    value={draft.maxSkips} onChange={set('maxSkips')} placeholder="e.g. 2" />
+                </div>
+              )}
+              {(draft.type === 'FROM_FIRST_SKIP' || draft.type === 'FROM_SUB_START') && (
+                <div>
+                  <label className={LABEL_CLASS}>Reset period (months)</label>
+                  <input type="number" min={1} className={INPUT_CLASS}
+                    value={draft.windowMonths} onChange={set('windowMonths')} placeholder="e.g. 12" />
+                </div>
+              )}
+              <div>
+                <label className={LABEL_CLASS}>Max consecutive skips</label>
+                <input type="number" min={1} className={INPUT_CLASS}
+                  value={draft.maxConsecutive} onChange={set('maxConsecutive')} placeholder="optional" />
+                <p className="text-xs text-stone-500 mt-1">Leave blank = no limit</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className={LABEL_CLASS}>Policy notes (shown to users)</label>
+              <textarea rows={2} className={INPUT_CLASS} value={draft.notes} onChange={set('notes')}
+                placeholder="e.g. You can skip up to 2 boxes per calendar year." />
+            </div>
+            <div>
+              <label className={LABEL_CLASS}>How to submit a skip request</label>
+              <textarea rows={2} className={INPUT_CLASS} value={draft.skipHow} onChange={set('skipHow')}
+                placeholder="e.g. Email support@example.com before the deadline." />
+            </div>
+          </div>
+
+          {/* Unskip */}
+          <div className="border border-stone-700 rounded-lg p-3 space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={draft.allowUnskip} onChange={setChecked('allowUnskip')} />
+              <span className="text-sm text-stone-300 font-medium">Allow unskipping</span>
+            </label>
+            {draft.allowUnskip && (
+              <>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div>
+                      <label className={LABEL_CLASS}>Unskip deadline type</label>
+                      <select className={SELECT_CLASS} value={draft.unskipDeadlineType} onChange={set('unskipDeadlineType')}>
+                        <option value="DAYS_BEFORE">Days before renewal</option>
+                        <option value="DAY_OF_MONTH">Specific day of month</option>
+                      </select>
+                    </div>
+                    {draft.unskipDeadlineType === 'DAYS_BEFORE' ? (
+                      <div>
+                        <label className={LABEL_CLASS}>Days before renewal</label>
+                        <input type="number" min={0} max={60} className={INPUT_CLASS}
+                          value={draft.unskipDeadlineDaysBefore} onChange={set('unskipDeadlineDaysBefore')} placeholder="0" />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className={LABEL_CLASS}>Day of month (1–28)</label>
+                        <input type="number" min={1} max={28} className={INPUT_CLASS}
+                          value={draft.unskipDeadlineDayOfMonth} onChange={set('unskipDeadlineDayOfMonth')} placeholder="e.g. 15" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={LABEL_CLASS}>Unskip notes (shown to users)</label>
+                    <textarea rows={2} className={INPUT_CLASS} value={draft.unskipNotes} onChange={set('unskipNotes')}
+                      placeholder="e.g. You can reverse a skip before the renewal day." />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>How to submit an unskip request</label>
+                    <textarea rows={2} className={INPUT_CLASS} value={draft.unskipHow} onChange={set('unskipHow')}
+                      placeholder="e.g. Email support@example.com" />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onSave}
+          className="px-4 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-sm font-semibold hover:bg-amber-400 transition-colors">
+          Save policy
+        </button>
+        <button type="button" onClick={onCancel}
+          className="px-4 py-1.5 rounded-lg border border-stone-700 text-stone-400 text-sm hover:text-stone-200 hover:border-stone-500 transition-colors">
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Form component ───────────────────────────────────────────────────────────
 
 interface SubFormProps {
@@ -297,6 +512,62 @@ function SubscriptionForm({
   ]
   const isEditMode = !!initial.companyId // create form has no companyId yet
   const trackedSettingsDirty = isEditMode && TRACKED_FIELDS.some(f => String(form[f]) !== String(initial[f]))
+
+  // Skip policy inline editor state
+  const [editingPolicyKey, setEditingPolicyKey] = useState<string | null>(null)
+  const [addingPolicy, setAddingPolicy] = useState(false)
+  const [policyDraft, setPolicyDraft] = useState<SkipPolicyDraft | null>(null)
+
+  const usedBillingTypes = form.skipPoliciesDraft.map(d => d.billingType)
+  const availableBillingTypes = (['ALL', 'MONTHLY', 'PREPAID'] as const).filter(bt => !usedBillingTypes.includes(bt))
+
+  function startAddPolicy() {
+    const bt = availableBillingTypes[0] ?? 'ALL'
+    setPolicyDraft(emptySkipPolicyDraft(bt))
+    setAddingPolicy(true)
+    setEditingPolicyKey(null)
+  }
+
+  function startEditPolicy(d: SkipPolicyDraft) {
+    setPolicyDraft({ ...d })
+    setEditingPolicyKey(d._key)
+    setAddingPolicy(false)
+  }
+
+  function cancelPolicyEdit() {
+    setEditingPolicyKey(null)
+    setAddingPolicy(false)
+    setPolicyDraft(null)
+  }
+
+  function savePolicyDraft() {
+    if (!policyDraft) return
+    if (addingPolicy) {
+      setField('skipPoliciesDraft', [...form.skipPoliciesDraft, policyDraft])
+    } else {
+      setField('skipPoliciesDraft', form.skipPoliciesDraft.map(d => d._key === policyDraft._key ? policyDraft : d))
+    }
+    cancelPolicyEdit()
+  }
+
+  function deletePolicy(key: string) {
+    setField('skipPoliciesDraft', form.skipPoliciesDraft.filter(d => d._key !== key))
+    if (editingPolicyKey === key) cancelPolicyEdit()
+  }
+
+  const BILLING_TYPE_LABELS: Record<string, string> = {
+    ALL: 'All subscribers',
+    MONTHLY: 'Monthly billing',
+    PREPAID: 'Prepaid billing',
+  }
+  const SKIP_TYPE_LABELS: Record<string, string> = {
+    NONE: 'No skips allowed',
+    UNLIMITED: 'Unlimited skips',
+    CALENDAR_YEAR: 'X per calendar year',
+    FROM_FIRST_SKIP: 'X from first skip',
+    FROM_SUB_START: 'X from sub start',
+    PREPAID_WINDOW_SKIP: 'Prepaid window skip',
+  }
 
   const genreOptions = Array.from(
     new Set(allSubscriptions.flatMap((s) => s.genres ?? []).filter(Boolean)),
@@ -577,153 +848,65 @@ function SubscriptionForm({
         )}
       </div>
 
-      {/* Skip Policy */}
-      <div className="border border-stone-700 rounded-lg p-4 space-y-4">
-        <p className="text-sm font-semibold text-amber-400">Skip Policy</p>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className={LABEL_CLASS}>Policy type</label>
-            <select className={SELECT_CLASS} value={form.skipPolicyType} onChange={setStr('skipPolicyType')}>
-              <option value="NONE">No skips allowed</option>
-              <option value="UNLIMITED">Unlimited skips</option>
-              <option value="CALENDAR_YEAR">X skips per calendar year</option>
-              <option value="FROM_FIRST_SKIP">X skips from first skip date</option>
-              <option value="FROM_SUB_START">X skips from subscription start</option>
-              <option value="PREPAID_WINDOW_SKIP">Prepaid window skip (skips whole prepaid window)</option>
-            </select>
-          </div>
-          {form.skipPolicyType !== 'NONE' && (
-            <div>
-              <label className={LABEL_CLASS}>Applies to billing type</label>
-              <select className={SELECT_CLASS} value={form.billingType} onChange={setStr('billingType')}>
-                <option value="ALL">All subscribers</option>
-                <option value="MONTHLY">Monthly billing only</option>
-                <option value="PREPAID">Prepaid billing only</option>
-              </select>
-              <p className="text-xs text-stone-500 mt-1">Saved as a separate policy per billing type</p>
-            </div>
-          )}
-          {form.skipPolicyType !== 'NONE' && (
-            <div className="space-y-2">
-              <div>
-                <label className={LABEL_CLASS}>Deadline type</label>
-                <select className={SELECT_CLASS} value={form.skipDeadlineType} onChange={setStr('skipDeadlineType')}>
-                  <option value="DAYS_BEFORE">Days before renewal</option>
-                  <option value="DAY_OF_MONTH">Specific day of month</option>
-                </select>
-              </div>
-              {form.skipDeadlineType === 'DAYS_BEFORE' ? (
-                <div>
-                  <label className={LABEL_CLASS}>Days before renewal</label>
-                  <input type="number" min={0} max={60} className={INPUT_CLASS}
-                    value={form.skipDeadlineDaysBefore} onChange={setStr('skipDeadlineDaysBefore')} placeholder="0" />
-                  <p className="text-xs text-stone-500 mt-1">0 = day of renewal</p>
-                </div>
-              ) : (
-                <div>
-                  <label className={LABEL_CLASS}>Day of month (1–28)</label>
-                  <input type="number" min={1} max={28} className={INPUT_CLASS}
-                    value={form.skipDeadlineDayOfMonth} onChange={setStr('skipDeadlineDayOfMonth')} placeholder="e.g. 15" />
-                  <p className="text-xs text-stone-500 mt-1">Skip must be submitted by this date each month</p>
-                </div>
-              )}
-            </div>
+      {/* Skip Policies */}
+      <div className="border border-stone-700 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-amber-400">Skip Policies</p>
+          {availableBillingTypes.length > 0 && !addingPolicy && (
+            <button type="button" onClick={startAddPolicy}
+              className="text-xs px-2.5 py-1 rounded-lg bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors">
+              + Add policy
+            </button>
           )}
         </div>
 
-        {form.skipPolicyType !== 'NONE' && (
-          <div className="grid sm:grid-cols-3 gap-3">
-            {form.skipPolicyType !== 'UNLIMITED' && (
-              <div>
-                <label className={LABEL_CLASS}>Max skips</label>
-                <input type="number" min={1} className={INPUT_CLASS}
-                  value={form.skipMaxSkips} onChange={setStr('skipMaxSkips')} placeholder="e.g. 2" />
-              </div>
-            )}
-            {(form.skipPolicyType === 'FROM_FIRST_SKIP' || form.skipPolicyType === 'FROM_SUB_START') && (
-              <div>
-                <label className={LABEL_CLASS}>Reset period (months)</label>
-                <input type="number" min={1} className={INPUT_CLASS}
-                  value={form.skipWindowMonths} onChange={setStr('skipWindowMonths')} placeholder="e.g. 12" />
-                <p className="text-xs text-stone-500 mt-1">Skip count resets after this many months</p>
-              </div>
-            )}
-            <div>
-              <label className={LABEL_CLASS}>Max consecutive skips</label>
-              <input type="number" min={1} className={INPUT_CLASS}
-                value={form.skipMaxConsecutive} onChange={setStr('skipMaxConsecutive')} placeholder="optional" />
-              <p className="text-xs text-stone-500 mt-1">Skips in a row (leave blank = no limit)</p>
-            </div>
-          </div>
+        {/* Existing policies list */}
+        {form.skipPoliciesDraft.length === 0 && !addingPolicy && (
+          <p className="text-xs text-stone-500 italic">No skip policies configured.</p>
         )}
 
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className={LABEL_CLASS}>Policy notes (shown to users)</label>
-            <textarea rows={2} className={INPUT_CLASS} value={form.skipNotes} onChange={setStr('skipNotes')}
-              placeholder="e.g. You can skip up to 2 boxes per calendar year." />
-          </div>
-          <div>
-            <label className={LABEL_CLASS}>How to submit a skip request</label>
-            <textarea rows={2} className={INPUT_CLASS} value={form.skipHow} onChange={setStr('skipHow')}
-              placeholder="e.g. Email support@example.com before the deadline." />
-          </div>
-        </div>
-
-        {/* Unskip Policy */}
-        <div className="border border-stone-600 rounded-lg p-4 space-y-4">
-          <div className="flex items-center gap-3">
-            <p className="text-sm font-semibold text-stone-300">Unskip Policy</p>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.allowUnskip}
-                onChange={e => setForm(f => ({ ...f, allowUnskip: e.target.checked }))} />
-              <span className="text-sm text-stone-300">Allow unskipping</span>
-            </label>
-          </div>
-
-          {form.allowUnskip && (
-            <>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div>
-                    <label className={LABEL_CLASS}>Unskip deadline type</label>
-                    <select className={SELECT_CLASS} value={form.unskipDeadlineType} onChange={setStr('unskipDeadlineType')}>
-                      <option value="DAYS_BEFORE">Days before renewal</option>
-                      <option value="DAY_OF_MONTH">Specific day of month</option>
-                    </select>
-                  </div>
-                  {form.unskipDeadlineType === 'DAYS_BEFORE' ? (
-                    <div>
-                      <label className={LABEL_CLASS}>Days before renewal</label>
-                      <input type="number" min={0} max={60} className={INPUT_CLASS}
-                        value={form.unskipDeadlineDaysBefore} onChange={setStr('unskipDeadlineDaysBefore')} placeholder="0" />
-                      <p className="text-xs text-stone-500 mt-1">0 = day of renewal</p>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className={LABEL_CLASS}>Day of month (1–28)</label>
-                      <input type="number" min={1} max={28} className={INPUT_CLASS}
-                        value={form.unskipDeadlineDayOfMonth} onChange={setStr('unskipDeadlineDayOfMonth')} placeholder="e.g. 15" />
-                      <p className="text-xs text-stone-500 mt-1">Unskip must be submitted by this date each month</p>
-                    </div>
-                  )}
-                </div>
+        {form.skipPoliciesDraft.map(d => (
+          <div key={d._key} className="border border-stone-700 rounded-lg overflow-hidden">
+            {editingPolicyKey === d._key && policyDraft ? (
+              <SkipPolicyEditor
+                draft={policyDraft}
+                onChange={setPolicyDraft}
+                usedBillingTypes={usedBillingTypes.filter(bt => bt !== d.billingType)}
+                onSave={savePolicyDraft}
+                onCancel={cancelPolicyEdit}
+                INPUT_CLASS={INPUT_CLASS}
+                SELECT_CLASS={SELECT_CLASS}
+                LABEL_CLASS={LABEL_CLASS}
+              />
+            ) : (
+              <div className="flex items-center gap-3 px-3 py-2">
+                <span className="text-xs font-medium text-amber-400 shrink-0 w-28">{BILLING_TYPE_LABELS[d.billingType] ?? d.billingType}</span>
+                <span className="text-xs text-stone-300 flex-1">{SKIP_TYPE_LABELS[d.type] ?? d.type}</span>
+                {d.allowUnskip && <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-900/50 border border-teal-700/50 text-teal-400">Unskip ✓</span>}
+                <button type="button" onClick={() => startEditPolicy(d)}
+                  className="text-xs text-stone-500 hover:text-amber-400 transition-colors px-1.5">Edit</button>
+                <button type="button" onClick={() => deletePolicy(d._key)}
+                  className="text-xs text-stone-500 hover:text-red-400 transition-colors px-1.5">✕</button>
               </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={LABEL_CLASS}>Unskip notes (shown to users)</label>
-                  <textarea rows={2} className={INPUT_CLASS} value={form.unskipNotes} onChange={setStr('unskipNotes')}
-                    placeholder="e.g. You can reverse a skip before the renewal day." />
-                </div>
-                <div>
-                  <label className={LABEL_CLASS}>How to submit an unskip request</label>
-                  <textarea rows={2} className={INPUT_CLASS} value={form.unskipHow} onChange={setStr('unskipHow')}
-                    placeholder="e.g. Email support@example.com with subject 'Unskip Month Year'." />
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        ))}
+
+        {/* Add new policy inline */}
+        {addingPolicy && policyDraft && (
+          <div className="border border-amber-600/40 rounded-lg overflow-hidden">
+            <SkipPolicyEditor
+              draft={policyDraft}
+              onChange={setPolicyDraft}
+              usedBillingTypes={usedBillingTypes}
+              onSave={savePolicyDraft}
+              onCancel={cancelPolicyEdit}
+              INPUT_CLASS={INPUT_CLASS}
+              SELECT_CLASS={SELECT_CLASS}
+              LABEL_CLASS={LABEL_CLASS}
+            />
+          </div>
+        )}
       </div>
 
       <button type="submit" disabled={submitting}
@@ -1206,27 +1389,11 @@ export default function AdminSubscriptionsPage() {
         method: 'POST',
         body: JSON.stringify(formToCreatePayload(form)),
       })
-      if (form.skipPolicyType && form.skipPolicyType !== 'NONE') {
-        await authFetch(`/skip-policy/${sub.slug}/policies/${form.billingType || 'ALL'}`, {
+      for (const d of form.skipPoliciesDraft) {
+        if (d.type === 'NONE') continue
+        await authFetch(`/skip-policy/${sub.slug}/policies/${d.billingType}`, {
           method: 'PUT',
-          body: JSON.stringify({
-            type: resolveSkipType(form),
-            maxSkips: form.skipMaxSkips ? parseInt(form.skipMaxSkips, 10) : undefined,
-            maxConsecutive: form.skipMaxConsecutive ? parseInt(form.skipMaxConsecutive, 10) : undefined,
-            windowMonths: form.skipWindowMonths ? parseInt(form.skipWindowMonths, 10) : undefined,
-            skipDeadlineType: form.skipDeadlineType || 'DAYS_BEFORE',
-            skipDeadlineDaysBefore: form.skipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.skipDeadlineDaysBefore || '0', 10) : 0,
-            skipDeadlineDayOfMonth: form.skipDeadlineType === 'DAY_OF_MONTH' && form.skipDeadlineDayOfMonth ? parseInt(form.skipDeadlineDayOfMonth, 10) : undefined,
-            notes: form.skipNotes || undefined,
-            skipHow: form.skipHow || undefined,
-            allowUnskip: form.allowUnskip,
-            unskipDeadlineType: form.unskipDeadlineType || 'DAYS_BEFORE',
-            unskipDeadlineDaysBefore: form.unskipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.unskipDeadlineDaysBefore || '0', 10) : 0,
-            unskipDeadlineDayOfMonth: form.unskipDeadlineType === 'DAY_OF_MONTH' && form.unskipDeadlineDayOfMonth ? parseInt(form.unskipDeadlineDayOfMonth, 10) : undefined,
-            unskipNotes: form.unskipNotes || undefined,
-            unskipHow: form.unskipHow || undefined,
-            billingType: form.billingType || 'ALL',
-          }),
+          body: JSON.stringify(draftToApiBody(d, d.billingType)),
         })
       }
       return sub
@@ -1239,37 +1406,28 @@ export default function AdminSubscriptionsPage() {
   })
 
   const editMutation = useMutation({
-    mutationFn: async ({ slug, form }: { slug: string; form: SubFormData }) => {
+    mutationFn: async ({ slug, form, originalBillingTypes }: { slug: string; form: SubFormData; originalBillingTypes: string[] }) => {
       const sub = await authFetch<ApiSubscription>(`/subscriptions/${slug}`, {
         method: 'PATCH',
         body: JSON.stringify(formToUpdatePayload(form)),
       })
-      const billingType = form.billingType || 'ALL'
-      if (form.skipPolicyType === 'NONE') {
-        // Remove only this billing type's policy (leaves other billing-type policies intact)
-        await authFetch(`/skip-policy/${slug}/policies/${billingType}`, { method: 'DELETE' })
-      } else {
-        await authFetch(`/skip-policy/${slug}/policies/${billingType}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            type: resolveSkipType(form) || 'NONE',
-            maxSkips: form.skipMaxSkips ? parseInt(form.skipMaxSkips, 10) : undefined,
-            maxConsecutive: form.skipMaxConsecutive ? parseInt(form.skipMaxConsecutive, 10) : undefined,
-            windowMonths: form.skipWindowMonths ? parseInt(form.skipWindowMonths, 10) : undefined,
-            skipDeadlineType: form.skipDeadlineType || 'DAYS_BEFORE',
-            skipDeadlineDaysBefore: form.skipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.skipDeadlineDaysBefore || '0', 10) : 0,
-            skipDeadlineDayOfMonth: form.skipDeadlineType === 'DAY_OF_MONTH' && form.skipDeadlineDayOfMonth ? parseInt(form.skipDeadlineDayOfMonth, 10) : undefined,
-            notes: form.skipNotes || undefined,
-            skipHow: form.skipHow || undefined,
-            allowUnskip: form.allowUnskip,
-            unskipDeadlineType: form.unskipDeadlineType || 'DAYS_BEFORE',
-            unskipDeadlineDaysBefore: form.unskipDeadlineType === 'DAYS_BEFORE' ? parseInt(form.unskipDeadlineDaysBefore || '0', 10) : 0,
-            unskipDeadlineDayOfMonth: form.unskipDeadlineType === 'DAY_OF_MONTH' && form.unskipDeadlineDayOfMonth ? parseInt(form.unskipDeadlineDayOfMonth, 10) : undefined,
-            unskipNotes: form.unskipNotes || undefined,
-            unskipHow: form.unskipHow || undefined,
-            billingType,
-          }),
-        })
+      const draftBillingTypes = new Set(form.skipPoliciesDraft.map(d => d.billingType))
+      // Delete policies removed from the list
+      for (const bt of originalBillingTypes) {
+        if (!draftBillingTypes.has(bt)) {
+          await authFetch(`/skip-policy/${slug}/policies/${bt}`, { method: 'DELETE' })
+        }
+      }
+      // Upsert all drafts (NONE type → DELETE that billing type)
+      for (const d of form.skipPoliciesDraft) {
+        if (d.type === 'NONE') {
+          await authFetch(`/skip-policy/${slug}/policies/${d.billingType}`, { method: 'DELETE' })
+        } else {
+          await authFetch(`/skip-policy/${slug}/policies/${d.billingType}`, {
+            method: 'PUT',
+            body: JSON.stringify(draftToApiBody(d, d.billingType)),
+          })
+        }
       }
       return sub
     },
@@ -1423,7 +1581,7 @@ export default function AdminSubscriptionsPage() {
             initial={subToForm(editSub)}
             submitLabel="Save Changes"
             submitting={editMutation.isPending}
-            onSubmit={(form) => editMutation.mutate({ slug: editSub.slug, form })}
+            onSubmit={(form) => editMutation.mutate({ slug: editSub.slug, form, originalBillingTypes: (editSub.skipPolicies ?? []).map(p => p.billingType) })}
           />
           <SettingsHistoryPanel slug={editSub.slug} />
           <PrepayOptionsPanel slug={editSub.slug} subscriptionCurrency={editSub.currency} />
