@@ -2436,6 +2436,8 @@ export class SubscriptionsService {
     const sub = await this.findBySlug(slug);
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
+    // For variant subs (parentSubscriptionId set), months live on the parent subscription.
+    const monthsSubscriptionId: string = (sub as any).parentSubscriptionId ?? sub.id;
 
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
       where: { userId, subscriptionId: sub.id },
@@ -2973,7 +2975,7 @@ export class SubscriptionsService {
       : null;
 
     if (startDateObj) {
-      const eligibleMonths = await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj);
+      const eligibleMonths = await this.getEligibleMonths(monthsSubscriptionId, startDateObj, cancellationDateObj);
       const skippableMonths = eligibleMonths
         .filter(m => m.books.length > 0 && !selectedSet.has(m.id))
         .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
