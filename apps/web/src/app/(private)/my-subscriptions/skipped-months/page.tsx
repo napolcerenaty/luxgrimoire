@@ -70,7 +70,7 @@ function SkippedBookCard({ item }: { item: SkippedMonth }) {
         </div>
         <Link
           href={`/subscriptions/${item.subscription.slug}`}
-          className="text-[11px] text-stone-600 hover:text-amber-400 transition-colors mt-1.5 truncate"
+          className="text-[11px] text-stone-600 hover:text-amber-400 transition-colors mt-1.5 truncate block"
         >
           {item.subscription.name}
         </Link>
@@ -118,13 +118,35 @@ export default function SkippedMonthsPage() {
         </div>
       )}
 
-      {data && data.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {data.map((item) => (
-            <SkippedBookCard key={`${item.subscription.slug}-${item.year}-${item.month}`} item={item} />
-          ))}
-        </div>
-      )}
+      {data && data.length > 0 && (() => {
+        // Group by subscription
+        const groups: Record<string, { slug: string; name: string; items: SkippedMonth[] }> = {}
+        for (const item of data) {
+          const key = item.subscription.slug
+          if (!groups[key]) groups[key] = { slug: key, name: item.subscription.name, items: [] }
+          groups[key].items.push(item)
+        }
+        const groupList = Object.values(groups)
+        return (
+          <div className="space-y-8">
+            {groupList.map(group => (
+              <div key={group.slug}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Link href={`/subscriptions/${group.slug}`} className="text-sm font-semibold text-stone-300 hover:text-amber-400 transition-colors">
+                    {group.name}
+                  </Link>
+                  <span className="text-xs text-stone-600">{group.items.length} skipped</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {group.items.map(item => (
+                    <SkippedBookCard key={`${item.subscription.slug}-${item.year}-${item.month}`} item={item} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
     </div>
   )
 }

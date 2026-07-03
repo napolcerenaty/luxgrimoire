@@ -103,6 +103,7 @@ export class SkipPolicyController {
 
   /** GET /skip-policy/:slug — get policy for a subscription (backward compat) */
   @Get(':slug')
+  @Public()
   getPolicy(@Param('slug') slug: string) {
     return this.adminService.getPolicy(slug);
   }
@@ -119,6 +120,7 @@ export class SkipPolicyController {
 
   /** GET /skip-policy/:slug/policies — get all policies (one per billing type) */
   @Get(':slug/policies')
+  @Public()
   getPolicies(@Param('slug') slug: string) {
     return this.adminService.getPolicies(slug);
   }
