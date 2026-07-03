@@ -159,6 +159,7 @@ export class SkipPolicyEngine {
     let targetMonth: { id: string; year: number; month: number; seriesId: string | null } | null = null;
     let subscriptionStarted = true; // assume started unless proven otherwise
     let firstMonthInfo: { firstMonthId: string; firstSeriesId: string | null; year: number; month: number } | null = null;
+    let blockedByNoSkipSeries = false;
 
     {
       // Use subscription.startDate to determine if subscription has started yet.
@@ -206,7 +207,7 @@ export class SkipPolicyEngine {
           where: isCombo
             ? { subscriptionId: { in: componentIds }, ...candidateWhere }
             : { subscriptionId: monthsSubscriptionId, ...candidateWhere },
-          select: { id: true, year: true, month: true, seriesId: true },
+          select: { id: true, year: true, month: true, seriesId: true, series: { select: { skipMode: true } } },
           orderBy: [{ year: 'asc' }, { month: 'asc' }],
           take: isCombo ? 24 : 12,
         });
@@ -226,6 +227,9 @@ export class SkipPolicyEngine {
 
         for (const m of candidates) {
           if (skippedSet.has(`${m.year}-${m.month}`)) continue;
+
+          // Cannot skip months in a NO_SKIP series
+          if (m.series?.skipMode === 'NO_SKIP') { blockedByNoSkipSeries = true; continue; }
 
           // Cannot skip first box (standalone) or any month in the first series
           if (firstMonthInfo) {
@@ -250,6 +254,12 @@ export class SkipPolicyEngine {
 
     // If subscription hasn't started yet, force canSkip=false regardless of policy state
     const status = this.buildStatus(policy, effectiveState, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline, entry.prepaidMonths);
+
+    // Warn when upcoming months are blocked by a NO_SKIP series
+    if (!status.canSkip && targetMonth === null && subscriptionStarted && blockedByNoSkipSeries) {
+      status.warnings.unshift(`Skipping is not available — upcoming months are part of a series that does not allow skips.`);
+    }
+
     if (currentMonthSkipPassed) {
       const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
       const rawBox = (now.getMonth() + 1) + offset;
