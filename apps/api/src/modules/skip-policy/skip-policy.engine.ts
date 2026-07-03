@@ -277,7 +277,7 @@ export class SkipPolicyEngine {
       status.warnings.unshift(`Skipping is not available — upcoming months are part of a series that does not allow skips or is already in progress.`);
     }
 
-    if (currentMonthSkipPassed) {
+    if (currentMonthSkipPassed && !blockedByNoSkipSeries) {
       const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
       const rawBox = (now.getMonth() + 1) + offset;
       const boxMonth = rawBox > 12 ? rawBox - 12 : rawBox;
