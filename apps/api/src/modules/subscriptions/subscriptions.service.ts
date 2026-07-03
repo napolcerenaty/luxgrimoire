@@ -916,14 +916,7 @@ export class SubscriptionsService {
               editionId: true,
               isMainBook: true,
               signatureType: true,
-              book: {
-                select: {
-                  id: true,
-                  title: true,
-                  slug: true,
-                  authors: { select: { author: { select: { name: true } } } },
-                },
-              },
+              book: { select: { id: true, title: true, slug: true } },
               edition: {
                 select: {
                   id: true,
@@ -1204,6 +1197,48 @@ export class SubscriptionsService {
 
     const { skipRecords: _sr, ...entryWithoutSkips } = entry;
     return { ...entryWithoutSkips, nextRenewalDate: storedRenewalDate ? storedRenewalDate.toISOString() : null };
+  }
+
+  async getNextBoxPreview(userId: string, slug: string, year: number, month: number) {
+    const sub = await this.findBySlug(slug);
+    const subId = (sub as any).parentSubscriptionId ?? sub.id;
+    const boxMonth = await this.prisma.subscriptionMonth.findUnique({
+      where: { subscriptionId_year_month: { subscriptionId: subId, year, month } },
+      select: {
+        year: true,
+        month: true,
+        theme: true,
+        isSpoiler: true,
+        books: {
+          select: {
+            isMainBook: true,
+            book: {
+              select: {
+                title: true,
+                authors: { select: { author: { select: { name: true } } } },
+              },
+            },
+            edition: {
+              select: { additionalImages: true },
+            },
+          },
+          orderBy: [{ isMainBook: 'desc' }, { sortOrder: 'asc' }],
+        },
+      },
+    });
+    if (!boxMonth) return null;
+    return {
+      year: boxMonth.year,
+      month: boxMonth.month,
+      theme: boxMonth.theme,
+      isSpoiler: boxMonth.isSpoiler,
+      books: boxMonth.books.map((b) => ({
+        title: b.book.title,
+        authors: b.book.authors.map((a) => a.author.name).join(', '),
+        coverImage: b.edition?.additionalImages?.[0] ?? null,
+        isMainBook: b.isMainBook,
+      })),
+    };
   }
 
   private computeNextRenewalDate(

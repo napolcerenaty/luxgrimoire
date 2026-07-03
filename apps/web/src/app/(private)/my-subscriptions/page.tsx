@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ApiSkipStatus, ApiSubscriptionMonth, ApiFeeTemplate, PaginatedResponse } from '@luxgrimoire/shared-types'
+import type { ApiSkipStatus, ApiFeeTemplate } from '@luxgrimoire/shared-types'
 import Link from 'next/link'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -435,17 +435,9 @@ function SubscriptionOverviewPanel({
     retry: false,
   })
 
-  const nextBoxQuery = useQuery<PaginatedResponse<ApiSubscriptionMonth>>({
-    queryKey: ['sub-next-box', subscriptionSlug, boxMonth?.year ?? null, boxMonth?.month ?? null],
-    queryFn: () => {
-      const bm = boxMonth!
-      // untilYear/Month uses strictly-less-than, so advance by 1 month to include the target month
-      const untilYear = bm.month < 12 ? bm.year : bm.year + 1
-      const untilMonth = bm.month < 12 ? bm.month + 1 : 1
-      return authFetch<PaginatedResponse<ApiSubscriptionMonth>>(
-        `/subscriptions/${subscriptionSlug}/months?fromYear=${bm.year}&fromMonth=${bm.month}&untilYear=${untilYear}&untilMonth=${untilMonth}&all=true`,
-      )
-    },
+  const nextBoxQuery = useQuery<{ year: number; month: number; theme: string | null; isSpoiler: boolean; books: Array<{ title: string; authors: string; coverImage: string | null; isMainBook: boolean }> } | null>({
+    queryKey: ['sub-next-box-preview', subscriptionSlug, boxMonth?.year ?? null, boxMonth?.month ?? null],
+    queryFn: () => authFetch(`/subscriptions/${subscriptionSlug}/next-box-preview/${boxMonth!.year}/${boxMonth!.month}`),
     enabled: isExpanded && !!boxMonth,
   })
 
@@ -478,14 +470,13 @@ function SubscriptionOverviewPanel({
   const detail = detailQuery.data
   const detailCurrency = detail?.costCurrency ?? entry.costCurrency ?? entry.subscription.currency
   const total = detail ? getCostTotal(detail, entry.subscription.currency) : null
-  const nextBoxMonth = nextBoxQuery.data?.data?.[0]
-  const previewEntry = nextBoxMonth?.books?.[0]
-  const previewBook = previewEntry?.book
-  const previewEdition = previewEntry?.edition
-  const previewCover = (previewEdition as any)?.additionalImages?.[0]
-    ? cloudinaryUrl((previewEdition as any).additionalImages[0], 'w_120,h_180,c_fill,q_auto,f_auto')
+  const nextBoxData = nextBoxQuery.data
+  const previewEntry = nextBoxData?.books?.[0]
+  const previewBook = previewEntry
+  const previewCover = previewEntry?.coverImage
+    ? cloudinaryUrl(previewEntry.coverImage, 'w_120,h_180,c_fill,q_auto,f_auto')
     : null
-  const previewAuthors = previewBook?.authors?.map((a: any) => a.author?.name ?? a.name).filter(Boolean).join(', ')
+  const previewAuthors = previewEntry?.authors || null
   const skipStatus = skipQuery.data
   const skipLimit = `${skipStatus?.skipsInWindow ?? 0} / ${skipStatus?.maxSkips ?? '∞'} skips used`
 
@@ -674,8 +665,8 @@ function SubscriptionOverviewPanel({
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-stone-100 leading-snug">{previewBook.title}</p>
                     {previewAuthors && <p className="mt-0.5 text-xs text-stone-400">{previewAuthors}</p>}
-                    {nextBoxMonth && nextBoxMonth.books.length > 1 && (
-                      <p className="mt-1.5 text-[11px] text-stone-500">+{nextBoxMonth.books.length - 1} more book{nextBoxMonth.books.length > 2 ? 's' : ''}</p>
+                    {nextBoxData && nextBoxData.books.length > 1 && (
+                      <p className="mt-1.5 text-[11px] text-stone-500">+{nextBoxData.books.length - 1} more book{nextBoxData.books.length > 2 ? 's' : ''}</p>
                     )}
                   </div>
                 </div>
