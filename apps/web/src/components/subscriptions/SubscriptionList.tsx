@@ -39,26 +39,19 @@ function SkipPolicyBadges({ policies }: { policies: { type: string; billingType?
   if (!policies || policies.length === 0) return null
   const isMulti = policies.length > 1
   return (
-    <>
+    <div className="flex items-center gap-1 flex-wrap pt-1.5 mt-1 border-t border-stone-700/60">
       {policies.map((p) => {
         const label = isMulti && p.billingType && p.billingType !== 'ALL'
           ? `${BILLING_SHORT[p.billingType] ?? p.billingType}: ${SKIP_TYPE_SHORT[p.type] ?? p.type}`
           : (SKIP_TYPE_SHORT[p.type] ?? p.type)
         const isNone = p.type === 'NONE'
         return (
-          <span
-            key={p.billingType ?? 'all'}
-            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-              isNone
-                ? 'bg-red-950/30 border-red-900/40 text-red-400/80'
-                : 'bg-emerald-950/30 border-emerald-900/40 text-emerald-400/80'
-            }`}
-          >
+          <Badge key={p.billingType ?? 'all'} variant={isNone ? 'destructive' : 'success'}>
             {label}
-          </span>
+          </Badge>
         )
       })}
-    </>
+    </div>
   )
 }
 
@@ -231,9 +224,7 @@ export default function SubscriptionList() {
                     {sub.isUpcoming && <Badge variant="outline">🔔 Upcoming</Badge>}
                   </div>
                   {sub.skipPolicies && sub.skipPolicies.length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap mt-1">
-                      <SkipPolicyBadges policies={sub.skipPolicies} />
-                    </div>
+                    <SkipPolicyBadges policies={sub.skipPolicies} />
                   )}
                 </div>
               </Link>
@@ -273,9 +264,7 @@ export default function SubscriptionList() {
                     {sub.isUpcoming && <Badge variant="outline">🔔 Upcoming</Badge>}
                   </div>
                   {sub.skipPolicies && sub.skipPolicies.length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                      <SkipPolicyBadges policies={sub.skipPolicies} />
-                    </div>
+                    <SkipPolicyBadges policies={sub.skipPolicies} />
                   )}
                 </div>
               </Link>
