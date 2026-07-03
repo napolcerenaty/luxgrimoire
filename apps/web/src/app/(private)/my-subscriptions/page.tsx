@@ -552,17 +552,17 @@ function SubscriptionOverviewPanel({
           ) : skipQuery.error ? (
             <p className="text-sm text-red-400">Could not load skip status.</p>
           ) : skipStatus?.policyType === 'NONE' ? (
-            <span className="inline-flex rounded-full border border-stone-700 bg-stone-900/70 px-2.5 py-1 text-xs font-medium text-stone-500">
+            <span className="inline-flex rounded-full border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-500 dark:border-stone-700 dark:bg-stone-900/70 dark:text-stone-400">
               No skipping offered
             </span>
           ) : skipStatus ? (
             <div className="space-y-3">
-              <span className="inline-flex rounded-full border border-stone-700 bg-stone-900/70 px-2.5 py-1 text-xs font-medium text-stone-200">
+              <span className="inline-flex rounded-full border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 dark:border-stone-700 dark:bg-stone-900/70 dark:text-stone-200">
                 {skipLimit}
               </span>
 
               {!skipStatus.canSkip && skipStatus.isPastDeadline && (
-                <p className="text-xs text-amber-400">Skip deadline has already passed for the next eligible box.</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">Skip deadline has already passed for the next eligible box.</p>
               )}
 
               {skipStatus.warnings.length > 0 && (() => {
@@ -576,12 +576,12 @@ function SubscriptionOverviewPanel({
                   {visibleWarnings.map(warning => {
                     const isCritical = /consecutive|cancel/i.test(warning)
                     return isCritical ? (
-                      <div key={warning} className="flex items-start gap-2 rounded-lg border border-red-500/50 bg-red-950/40 px-3 py-2">
-                        <span className="mt-px text-red-400 shrink-0">⚠️</span>
-                        <p className="text-xs font-semibold text-red-300">{warning}</p>
+                      <div key={warning} className="flex items-start gap-2 rounded-lg border border-red-400/50 bg-red-50 px-3 py-2 dark:border-red-500/50 dark:bg-red-950/40">
+                        <span className="mt-px shrink-0">⚠️</span>
+                        <p className="text-xs font-semibold text-red-700 dark:text-red-300">{warning}</p>
                       </div>
                     ) : (
-                      <p key={warning} className="rounded-lg bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
+                      <p key={warning} className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700 dark:border-transparent dark:bg-amber-500/10 dark:text-amber-300">
                         {warning}
                       </p>
                     )
@@ -591,17 +591,17 @@ function SubscriptionOverviewPanel({
               })()}
 
               {skipStatus.canSkip && skipStatus.targetMonth && (
-                <div className="rounded-lg border border-stone-700/60 bg-stone-900/60 p-3">
+                <div className="rounded-lg border border-stone-200 bg-stone-50 p-3 dark:border-stone-700/60 dark:bg-stone-900/60">
                   <p className="text-xs text-stone-500">Next eligible month</p>
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-stone-100">
+                    <span className="text-sm font-medium text-stone-800 dark:text-stone-100">
                       {formatMonthLabel(skipStatus.targetMonth.year, skipStatus.targetMonth.month)}
                     </span>
                     <button
                       type="button"
                       onClick={() => skipMutation.mutate(skipStatus.targetMonth!)}
                       disabled={skipMutation.isPending}
-                      className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/30 disabled:opacity-50"
+                      className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-500/30 disabled:opacity-50 dark:text-amber-300"
                     >
                       {skipMutation.isPending ? 'Skipping…' : 'Skip'}
                     </button>
@@ -616,7 +616,7 @@ function SubscriptionOverviewPanel({
               {skipStatus.skippedMonths.length > 0 && (
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-stone-500">{skipStatus.skippedMonths.length} skipped month{skipStatus.skippedMonths.length !== 1 ? 's' : ''}</p>
-                  <Link href={`/my-subscriptions/skipped-months?sub=${subscriptionSlug}`} className="text-xs text-amber-400 hover:text-amber-300 transition-colors">View all →</Link>
+                  <Link href={`/my-subscriptions/skipped-months?sub=${subscriptionSlug}`} className="text-xs text-amber-600 transition-colors hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300">View all →</Link>
                 </div>
               )}
 
@@ -636,7 +636,7 @@ function SubscriptionOverviewPanel({
                           type="button"
                           onClick={() => unskipMutation.mutate(month)}
                           disabled={unskipMutation.isPending}
-                          className="rounded-lg border border-stone-700 px-2.5 py-1 text-xs text-stone-300 transition-colors hover:border-stone-600 hover:text-stone-100 disabled:opacity-50"
+                          className="rounded-lg border border-stone-300 px-2.5 py-1 text-xs text-stone-600 transition-colors hover:border-stone-400 hover:text-stone-800 disabled:opacity-50 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:text-stone-100"
                         >
                           Unskip {formatMonthLabel(month.year, month.month)}
                         </button>
