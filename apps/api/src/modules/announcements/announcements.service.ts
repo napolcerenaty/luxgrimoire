@@ -130,16 +130,34 @@ export class AnnouncementsService {
       const typeFilter = query.saleType ?? null;
       const activeSaleCondition: Prisma.SaleAnnouncementWhereInput[] = [];
 
-      // LIMITED_PREORDER / OVERSTOCK: active when any date is today or upcoming,
-      // OR when an explicit endsAt is set and still in the future.
-      // Rule: no endsAt = expires at end of generalSaleDate day (so only show if date >= today).
+      // LIMITED_PREORDER: active when any date is today or upcoming, or endsAt is in future
       const lpOrOsActive: Prisma.SaleAnnouncementWhereInput = {
         OR: [
-          { generalSaleDate: { gte: today } },  // upcoming or live today
+          { generalSaleDate: { gte: today } },
           { earlyAccessDate: { gte: today } },
           { firstAccessDate: { gte: today } },
           { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
-          { endsAt: { gt: now } },               // explicit end date still in the future
+          { endsAt: { gt: now } },
+        ],
+      };
+
+      // OVERSTOCK / SALE: if endsAt is set show until it expires; otherwise date-based (as LP)
+      const overstockSaleActive: Prisma.SaleAnnouncementWhereInput = {
+        OR: [
+          { endsAt: { gt: now } },
+          {
+            AND: [
+              { endsAt: null },
+              {
+                OR: [
+                  { generalSaleDate: { gte: today } },
+                  { earlyAccessDate: { gte: today } },
+                  { firstAccessDate: { gte: today } },
+                  { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
+                ],
+              },
+            ],
+          },
         ],
       };
 
@@ -158,11 +176,11 @@ export class AnnouncementsService {
       }
 
       if (!typeFilter || typeFilter === 'OVERSTOCK') {
-        activeSaleCondition.push({ AND: [{ saleType: 'OVERSTOCK' }, lpOrOsActive] });
+        activeSaleCondition.push({ AND: [{ saleType: 'OVERSTOCK' }, overstockSaleActive] });
       }
 
       if (!typeFilter || typeFilter === 'SALE') {
-        activeSaleCondition.push({ AND: [{ saleType: 'SALE' }, lpOrOsActive] });
+        activeSaleCondition.push({ AND: [{ saleType: 'SALE' }, overstockSaleActive] });
       }
 
       andConditions.push({ OR: activeSaleCondition });
