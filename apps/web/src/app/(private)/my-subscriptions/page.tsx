@@ -564,12 +564,20 @@ function SubscriptionOverviewPanel({
               )}
 
               {skipStatus.warnings.length > 0 && (
-                <div className="space-y-1">
-                  {skipStatus.warnings.map(warning => (
-                    <p key={warning} className="rounded-lg bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
-                      {warning}
-                    </p>
-                  ))}
+                <div className="space-y-1.5">
+                  {skipStatus.warnings.map(warning => {
+                    const isCritical = /consecutive|cancel/i.test(warning)
+                    return isCritical ? (
+                      <div key={warning} className="flex items-start gap-2 rounded-lg border border-red-500/50 bg-red-950/40 px-3 py-2">
+                        <span className="mt-px text-red-400 shrink-0">⚠️</span>
+                        <p className="text-xs font-semibold text-red-300">{warning}</p>
+                      </div>
+                    ) : (
+                      <p key={warning} className="rounded-lg bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
+                        {warning}
+                      </p>
+                    )
+                  })}
                 </div>
               )}
 
