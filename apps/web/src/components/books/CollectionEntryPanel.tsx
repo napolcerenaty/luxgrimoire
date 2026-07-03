@@ -1844,7 +1844,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1.5 group/tn">
+                  <div className="flex items-center gap-1.5">
                     <div className="flex-1 min-w-0">
                       {tn.label && <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{tn.label}</p>}
                       <a
@@ -1870,10 +1870,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                         await authFetch(`/collection/${entry.id}/tracking/${tn.id}`, { method: 'DELETE' })
                         await refetchEntry()
                       }}
-                      className="p-1 opacity-0 group-hover/tn:opacity-100 text-stone-600 hover:text-red-400 transition-all shrink-0"
+                      className="p-1 text-stone-500 hover:text-red-400 transition-colors shrink-0"
                       title="Remove"
                     >
-                      <X size={11} />
+                      <Trash2 size={11} />
                     </button>
                   </div>
                 )}
@@ -1944,15 +1944,15 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
             </div>
           ) : entry.orderNumber ? (
             <div className="flex items-center gap-1.5">
-              <span className="text-sm text-stone-200">{entry.orderNumber}</span>
+              <span className="flex-1 min-w-0 text-sm text-stone-200">{entry.orderNumber}</span>
               <EditBtn onClick={openOrderNumberEdit} />
               <button
                 onClick={deleteOrderNumber}
                 disabled={deletingOrderNumber}
-                className="ml-0.5 text-stone-500 hover:text-red-400 transition-colors disabled:opacity-40"
+                className="p-1 text-stone-500 hover:text-red-400 transition-colors disabled:opacity-40 shrink-0"
                 title="Remove order number"
               >
-                <Trash2 size={12} />
+                <Trash2 size={11} />
               </button>
             </div>
           ) : (
