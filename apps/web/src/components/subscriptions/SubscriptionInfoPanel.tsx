@@ -535,26 +535,18 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
-      {/* Price / costs — layout depends on subscriber state */}
-      {isSubscriber ? (
-        /* Subscriber: stacked — costs above, skip status below */
+      {/* 2-column layout on desktop, stacked on mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
         <div className="space-y-4">
-          <div className="max-w-sm">{costPanel}</div>
-          <SkipStatusPanel
-            subscriptionSlug={subscriptionSlug}
-            months={months}
-            onSkipSuccess={refreshEntry}
-          />
-          {skipPolicies && skipPolicies.length > 0 && (
-            <SkipPoliciesInfoPanel policies={skipPolicies} />
-          )}
-        </div>
-      ) : (
-        /* Non-subscriber: 2-column on desktop — price+join on left, skip policy on right */
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          <div className="space-y-4">
-            {costPanel}
-            {user && myEntry !== undefined && (
+          {costPanel}
+          {isSubscriber ? (
+            <SkipStatusPanel
+              subscriptionSlug={subscriptionSlug}
+              months={months}
+              onSkipSuccess={refreshEntry}
+            />
+          ) : (
+            user && myEntry !== undefined && (
               <button
                 type="button"
                 onClick={() => openJoinModal()}
@@ -562,13 +554,13 @@ export default function SubscriptionInfoPanel({
               >
                 + Add to my subscriptions
               </button>
-            )}
-          </div>
-          {skipPolicies && skipPolicies.length > 0 && (
-            <SkipPoliciesInfoPanel policies={skipPolicies} />
+            )
           )}
         </div>
-      )}
+        {skipPolicies && skipPolicies.length > 0 && (
+          <SkipPoliciesInfoPanel policies={skipPolicies} />
+        )}
+      </div>
 
       {showJoinModal && (
         <JoinSubscriptionModal
