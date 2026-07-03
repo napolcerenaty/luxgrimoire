@@ -13,7 +13,7 @@ import { getSaleGroups, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { EditionCard } from '@/components/books/EditionCard'
-import { Plus, Trash2, BookOpen, ShoppingBag, Tag, X, Pencil, Truck, Search, Check, History, LayoutGrid, List, SlidersHorizontal } from 'lucide-react'
+import { Plus, Trash2, BookOpen, Banknote, Tag, X, Pencil, Truck, Search, Check, History, LayoutGrid, List, SlidersHorizontal } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
@@ -1394,7 +1394,7 @@ export default function CollectionPage() {
                           )}
 
                           {/* Quick action buttons */}
-                          <div className="flex gap-1 mt-2 pt-1.5 border-t border-stone-800/60">
+                          <div className="flex flex-wrap gap-1 mt-2 pt-1.5 border-t border-stone-800/60">
                             {/* Track shipment — show if SHIPPING/PREORDER or has tracking numbers */}
                             {(entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'PREORDER' || entry.trackingNumbers.length > 0) && (
                               <button
@@ -1427,7 +1427,7 @@ export default function CollectionPage() {
                                 className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-stone-700 text-stone-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/10 transition-colors"
                                 title="Record sale"
                               >
-                                <ShoppingBag size={10} />
+                                <Banknote size={10} />
                                 Sell
                               </button>
                             )}
