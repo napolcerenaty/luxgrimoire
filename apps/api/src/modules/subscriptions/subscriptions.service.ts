@@ -1104,6 +1104,14 @@ export class SubscriptionsService {
       throw new ConflictException('Book already added to this month');
     }
 
+    // If attaching an existing edition that has no subscriptionId yet, backfill it now
+    if (dto.editionId) {
+      await this.prisma.bookEdition.updateMany({
+        where: { id: dto.editionId, subscriptionId: null },
+        data: { subscriptionId: subscription.id },
+      });
+    }
+
     // Retroactively add this book to users whose renewal for this month already occurred
     if (dto.bookId && dto.editionId) {
       this.renewalCron.retroactivelyAddBookForSubscribers(
