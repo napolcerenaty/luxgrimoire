@@ -179,7 +179,10 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       setBasePrice(subscriptionPrice ? parseFloat(subscriptionPrice).toFixed(2) : '')
     } else {
       const opt = prepayOptions?.find(o => o.id === optionId)
-      if (opt) setBasePrice(parseFloat(String(opt.price)).toFixed(2))
+      if (opt) {
+        setBasePrice(parseFloat(String(opt.price)).toFixed(2))
+        setCostCurrency(opt.currency)
+      }
     }
   }
 
@@ -193,14 +196,17 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
   }, [subscriptionSlug])
 
   // Auto-fill base price when costCurrency changes to one with official price records
-  // Also clear prepay selection if it no longer matches the new currency
+  // Also clear prepay selection if the user manually changes currency away from the option's currency
   useEffect(() => {
-    // Clear prepay selection if it doesn't match the new currency
+    // When a prepaid option is selected, skip monthly price auto-fill entirely.
+    // If the currency changed to something that doesn't match the option (user manually changed it),
+    // clear the prepaid selection — handleSelectPrepay(null) will restore the monthly price.
     if (selectedPrepayOptionId !== null) {
       const opt = prepayOptions?.find(o => o.id === selectedPrepayOptionId)
       if (opt && opt.currency !== costCurrency) {
         handleSelectPrepay(null)
       }
+      return
     }
     const matching = priceChanges.filter(pc => pc.currency === costCurrency)
     if (matching.length === 0) {
@@ -356,7 +362,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 )}
               </div>
             </label>
-            {activePrepayOptions.filter(o => o.currency === costCurrency).map(opt => (
+            {activePrepayOptions.map(opt => (
               <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
                 <input
                   type="radio"
@@ -371,9 +377,6 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 </div>
               </label>
             ))}
-            {activePrepayOptions.filter(o => o.currency === costCurrency).length === 0 && (
-              <p className="text-xs text-stone-500 px-1">No prepaid options available for {costCurrency} — prepaid options use the subscription's default currency.</p>
-            )}
           </div>
           <p className="text-xs text-stone-500 mt-1.5">Sets your scheduled renewal billing mode.</p>
         </div>

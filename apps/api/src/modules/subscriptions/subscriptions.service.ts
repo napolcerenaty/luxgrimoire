@@ -1374,10 +1374,9 @@ export class SubscriptionsService {
       // For prepaid subscriptions, use the scheduled prepay option price as the renewal base
       const scheduledPrepayOption = (entry as any).scheduledPrepayOption as { price: { toString(): string }; currency: string; months: number } | null;
       if (scheduledPrepayOption) {
-        const prepayOptCurrency = scheduledPrepayOption.currency.toUpperCase();
-        if (prepayOptCurrency === subCurrency) {
-          nextBase = parseFloat(scheduledPrepayOption.price.toString());
-        }
+        // Use prepay option price directly — costCurrency is always set to the option's
+        // currency at join time, so the price is already in the user's cost currency.
+        nextBase = parseFloat(scheduledPrepayOption.price.toString());
       } else if (storedRenewalDate) {
         const renewalYear = storedRenewalDate.getUTCFullYear();
         const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
@@ -2817,7 +2816,7 @@ export class SubscriptionsService {
           subscriptionEntryId: entry.id,
           totalAmount: baseAmount,
           shippingAmount: shippingAmt,
-          currency: entry.costCurrency ?? 'USD',
+          currency: (batch ? batch.currency : null) ?? entry.costCurrency ?? 'USD',
           purchasedAt: purchasedAtDate,
           title: `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`,
         },
