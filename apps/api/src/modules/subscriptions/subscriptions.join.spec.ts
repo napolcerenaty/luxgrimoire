@@ -247,73 +247,120 @@ describe('SubscriptionsService — joinSubscription', () => {
     });
   });
 
-  // ── renewalMonthOffset does NOT shift first eligible box month ──────────────
+  // ── Eligible months — comprehensive matrix ────────────────────────────────
   //
-  // Bug: getEligibleMonths added renewalMonthOffset to the first eligible date,
-  // causing signupIncludesCurrentMonth+offset=1 to show March instead of February.
-  // The offset shifts payment dates only — not which months are delivered.
+  // getEligibleMonths determines which subscription box months a user is eligible
+  // for based on their join date and subscription settings.
+  //
+  // Rules:
+  //  signupIncludesCurrentMonth=true  → first box = join month
+  //  signupIncludesCurrentMonth=false → first box = month AFTER join month
+  //  renewalMonthOffset               → shifts payment date only, never box month
 
-  describe('renewalMonthOffset — eligible months start at correct box month', () => {
-    function setupDryRun(subOverrides: Record<string, unknown> = {}) {
-      const sub = makeSub({ paymentOnStartup: true, signupIncludesCurrentMonth: true, renewalMonthOffset: 1, renewalDay: 20, ...subOverrides });
+  describe('eligible months — first box month determination', () => {
+    /** Returns the `where.AND[0].OR` lower-bound clause from the first subscriptionMonth.findMany call */
+    async function getLowerBound(subOverrides: Record<string, unknown>, startDate: string) {
+      jest.clearAllMocks();
+      const sub = makeSub({ renewalDay: 1, renewalMonthOffset: 0, signupIncludesCurrentMonth: false, ...subOverrides });
       jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
       (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ dryRun: true, startDate }));
+
+      const call = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls[0]?.[0];
+      return call?.where?.AND?.[0]?.OR as Array<Record<string, unknown>> | undefined;
     }
 
-    it('signupIncludesCurrentMonth=true + offset=1: eligible months start in Feb, not March', async () => {
-      setupDryRun();
-      const dto = makeJoinDto({ dryRun: true, startDate: '2025-02-05' });
-      await service.joinSubscription(USER_ID, SUB_SLUG, dto);
+    function getMonthGte(lowerBound: Array<Record<string, unknown>> | undefined, year: number) {
+      const clause = lowerBound?.find(c => c.year === year) as any;
+      return clause?.month?.gte as number | undefined;
+    }
 
-      // subscriptionMonth.findMany is called to get eligible months;
-      // verify the lower bound is Feb 2025 (month>=2 in year=2025), not March
-      const findManyCalls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
-      const eligiblesCall = findManyCalls[0][0];
-      const lowerBound = eligiblesCall?.where?.AND?.[0]?.OR;
-      expect(lowerBound).toBeDefined();
-      // Lower bound: year>2025 OR (year=2025 AND month>=2)
-      const sameyearClause = lowerBound.find((c: any) => c.year === 2025);
-      expect(sameyearClause?.month?.gte).toBe(2);  // February, not 3 (March)
+    function getYearGt(lowerBound: Array<Record<string, unknown>> | undefined) {
+      const clause = lowerBound?.find(c => (c.year as any)?.gt !== undefined) as any;
+      return clause?.year?.gt as number | undefined;
+    }
+
+    // ── signupIncludesCurrentMonth=false (default) ──────────────────────────
+
+    it('offset=0, includes=false, Feb join → first box is March', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2025-02-10');
+      expect(getMonthGte(lb, 2025)).toBe(3);
+      expect(getYearGt(lb)).toBe(2025);
     });
 
-    it('signupIncludesCurrentMonth=false + offset=1: eligible months start in March (next month after join)', async () => {
-      setupDryRun({ signupIncludesCurrentMonth: false });
-      const dto = makeJoinDto({ dryRun: true, startDate: '2025-02-05' });
-      await service.joinSubscription(USER_ID, SUB_SLUG, dto);
-
-      const findManyCalls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
-      const eligiblesCall = findManyCalls[0][0];
-      const lowerBound = eligiblesCall?.where?.AND?.[0]?.OR;
-      expect(lowerBound).toBeDefined();
-      // Lower bound: year>2025 OR (year=2025 AND month>=3)
-      const sameyearClause = lowerBound.find((c: any) => c.year === 2025);
-      expect(sameyearClause?.month?.gte).toBe(3);  // March (next month), not April
+    it('offset=1, includes=false, Feb join → first box is still March (offset ignored)', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2025-02-10');
+      expect(getMonthGte(lb, 2025)).toBe(3);
     });
 
-    it('offset=0 + signupIncludesCurrentMonth=true: eligible months start in Feb (baseline, no regression)', async () => {
-      setupDryRun({ renewalMonthOffset: 0 });
-      const dto = makeJoinDto({ dryRun: true, startDate: '2025-02-05' });
-      await service.joinSubscription(USER_ID, SUB_SLUG, dto);
-
-      const findManyCalls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
-      const eligiblesCall = findManyCalls[0][0];
-      const lowerBound = eligiblesCall?.where?.AND?.[0]?.OR;
-      const sameyearClause = lowerBound?.find((c: any) => c.year === 2025);
-      expect(sameyearClause?.month?.gte).toBe(2);  // February
+    it('offset=2, includes=false, Feb join → first box is still March (offset ignored)', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 2 }, '2025-02-10');
+      expect(getMonthGte(lb, 2025)).toBe(3);
     });
 
-    it('offset=1 + Jan join + signupIncludesCurrentMonth=true: eligible months start in Jan, not Feb', async () => {
-      setupDryRun({ renewalMonthOffset: 1 });
-      const dto = makeJoinDto({ dryRun: true, startDate: '2025-01-15' });
-      await service.joinSubscription(USER_ID, SUB_SLUG, dto);
+    it('offset=0, includes=false, Dec join → first box is January next year', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2024-12-15');
+      // Prisma query: year>2025 OR (year=2025 AND month>=1)
+      expect(getYearGt(lb)).toBe(2025);
+      expect(getMonthGte(lb, 2025)).toBe(1);
+    });
 
-      const findManyCalls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
-      const eligiblesCall = findManyCalls[0][0];
-      const lowerBound = eligiblesCall?.where?.AND?.[0]?.OR;
-      const sameyearClause = lowerBound?.find((c: any) => c.year === 2025);
-      expect(sameyearClause?.month?.gte).toBe(1);  // January
+    it('offset=1, includes=false, Dec join → first box is still January next year (offset ignored)', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2024-12-15');
+      expect(getYearGt(lb)).toBe(2025);
+      expect(getMonthGte(lb, 2025)).toBe(1);
+    });
+
+    it('offset=0, includes=false, Nov join → first box is December', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2025-11-01');
+      expect(getMonthGte(lb, 2025)).toBe(12);
+    });
+
+    // ── signupIncludesCurrentMonth=true ─────────────────────────────────────
+
+    it('offset=0, includes=true, Feb join → first box is February', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 0 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(2);
+    });
+
+    it('offset=1, includes=true, Feb join → first box is February (not March)', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(2);
+    });
+
+    it('offset=2, includes=true, Feb join → first box is February (not April)', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 2 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(2);
+    });
+
+    it('offset=1, includes=true, Jan join → first box is January (not February)', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-01-20');
+      expect(getMonthGte(lb, 2025)).toBe(1);
+    });
+
+    it('offset=1, includes=true, Dec join → first box is December (not January next year)', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2024-12-10');
+      expect(getMonthGte(lb, 2024)).toBe(12);
+    });
+
+    it('offset=0, includes=true, Dec join → first box is December', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 0 }, '2024-12-10');
+      expect(getMonthGte(lb, 2024)).toBe(12);
+    });
+
+    // ── paymentOnStartup does not change eligible months ────────────────────
+
+    it('paymentOnStartup=true + includes=true + offset=1 + Feb join → first box is February', async () => {
+      const lb = await getLowerBound({ paymentOnStartup: true, signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(2);
+    });
+
+    it('paymentOnStartup=true + includes=false + offset=1 + Feb join → first box is March', async () => {
+      const lb = await getLowerBound({ paymentOnStartup: true, signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(3);
     });
   });
 });
