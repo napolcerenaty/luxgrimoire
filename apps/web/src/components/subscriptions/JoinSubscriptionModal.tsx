@@ -336,8 +336,8 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
     <form onSubmit={submit} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
       <h3 className="text-lg font-serif text-stone-100 font-semibold">Join Subscription</h3>
 
-      {/* Billing period (only shown if active prepay options exist for the selected currency) */}
-      {activePrepayOptions && activePrepayOptions.filter(o => o.currency === costCurrency).length > 0 && (
+      {/* Billing period (shown whenever any prepay options exist — user may pick a different currency than default) */}
+      {activePrepayOptions && activePrepayOptions.length > 0 && (
         <div>
           <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">Billing period</label>
           <div className="space-y-2">
@@ -371,6 +371,9 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 </div>
               </label>
             ))}
+            {activePrepayOptions.filter(o => o.currency === costCurrency).length === 0 && (
+              <p className="text-xs text-stone-500 px-1">No prepaid options available for {costCurrency} — prepaid options use the subscription's default currency.</p>
+            )}
           </div>
           <p className="text-xs text-stone-500 mt-1.5">Sets your scheduled renewal billing mode.</p>
         </div>
