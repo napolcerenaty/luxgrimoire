@@ -932,13 +932,27 @@ interface SettingsHistoryRecord {
   createdAt: string
 }
 
+interface SettingsHistoryEditState {
+  effectiveFrom: string
+  notes: string
+  renewalDay: string
+  renewalDayUserSet: boolean
+  paymentOnStartup: boolean
+  signupIncludesCurrentMonth: boolean
+  renewalMonthOffset: string
+}
+
+function isInitialSentinel(effectiveFrom: string) {
+  return new Date(effectiveFrom).getTime() === 0
+}
+
 function SettingsHistoryPanel({ slug }: { slug: string }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editDate, setEditDate] = useState('')
-  const [editNotes, setEditNotes] = useState('')
+  const [editState, setEditState] = useState<SettingsHistoryEditState | null>(null)
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const { data: records = [], isLoading } = useQuery<SettingsHistoryRecord[]>({
     queryKey: ['settings-history', slug],
@@ -946,22 +960,63 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
     enabled: open,
   })
 
-  const handleEditSave = async (id: string) => {
+  const startEdit = (r: SettingsHistoryRecord) => {
+    setEditingId(r.id)
+    setEditState({
+      effectiveFrom: r.effectiveFrom.slice(0, 10),
+      notes: r.notes ?? '',
+      renewalDay: r.renewalDay != null ? String(r.renewalDay) : '',
+      renewalDayUserSet: r.renewalDayUserSet,
+      paymentOnStartup: r.paymentOnStartup,
+      signupIncludesCurrentMonth: r.signupIncludesCurrentMonth,
+      renewalMonthOffset: String(r.renewalMonthOffset ?? 0),
+    })
+  }
+
+  const handleEditSave = async (r: SettingsHistoryRecord) => {
+    if (!editState) return
     setSaving(true)
+    const isSentinel = isInitialSentinel(r.effectiveFrom)
     try {
-      await authFetch(`/subscriptions/${slug}/settings-history/${id}`, {
+      const body: Record<string, unknown> = {
+        notes: editState.notes || undefined,
+        renewalDay: editState.renewalDay !== '' ? Number(editState.renewalDay) : null,
+        renewalDayUserSet: editState.renewalDayUserSet,
+        paymentOnStartup: editState.paymentOnStartup,
+        signupIncludesCurrentMonth: editState.signupIncludesCurrentMonth,
+        renewalMonthOffset: Number(editState.renewalMonthOffset) || 0,
+      }
+      if (!isSentinel) body.effectiveFrom = editState.effectiveFrom
+      await authFetch(`/subscriptions/${slug}/settings-history/${r.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ effectiveFrom: editDate, notes: editNotes || undefined }),
+        body: JSON.stringify(body),
       })
       await queryClient.invalidateQueries({ queryKey: ['settings-history', slug] })
       setEditingId(null)
+      setEditState(null)
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to update')
     } finally {
       setSaving(false)
     }
   }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this settings history entry? This cannot be undone.')) return
+    setDeletingId(id)
+    try {
+      await authFetch(`/subscriptions/${slug}/settings-history/${id}`, { method: 'DELETE' })
+      await queryClient.invalidateQueries({ queryKey: ['settings-history', slug] })
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to delete')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const setField = (field: keyof SettingsHistoryEditState, value: string | boolean) =>
+    setEditState(s => s ? { ...s, [field]: value } : s)
 
   return (
     <div className="border border-stone-700 rounded-lg">
@@ -981,91 +1036,153 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
           ) : records.length === 0 ? (
             <p className="text-stone-500">No settings history records.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-stone-300 border-collapse">
-                <thead>
-                  <tr className="text-stone-500 border-b border-stone-700">
-                    <th className="text-left pb-1 pr-3">Effective From</th>
-                    <th className="text-left pb-1 pr-3">Renewal Day</th>
-                    <th className="text-left pb-1 pr-3">User-Set Day</th>
-                    <th className="text-left pb-1 pr-3">Prepaid</th>
-                    <th className="text-left pb-1 pr-3">Current Month</th>
-                    <th className="text-left pb-1 pr-3">Offset</th>
-                    <th className="text-left pb-1 pr-3">Notes</th>
-                    <th className="text-left pb-1">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {records.map(r => (
-                    <tr key={r.id} className="border-b border-stone-800 last:border-0">
-                      <td className="py-1 pr-3 text-stone-400">
-                        {editingId === r.id ? (
-                          <input
-                            type="date"
-                            value={editDate}
-                            onChange={e => setEditDate(e.target.value)}
-                            className="bg-stone-800 border border-amber-500 rounded px-1 py-0.5 text-stone-100 text-xs"
-                          />
-                        ) : (
-                          new Date(r.effectiveFrom).toLocaleDateString()
-                        )}
-                      </td>
-                      <td className="py-1 pr-3">{r.renewalDay ?? '—'}</td>
-                      <td className="py-1 pr-3">{r.renewalDayUserSet ? '✓' : '—'}</td>
-                      <td className="py-1 pr-3">{r.paymentOnStartup ? '✓' : '—'}</td>
-                      <td className="py-1 pr-3">{r.signupIncludesCurrentMonth ? '✓' : '—'}</td>
-                      <td className="py-1 pr-3">{r.renewalMonthOffset}</td>
-                      <td className="py-1 pr-3 text-stone-500">
-                        {editingId === r.id ? (
-                          <input
-                            type="text"
-                            value={editNotes}
-                            onChange={e => setEditNotes(e.target.value)}
-                            placeholder="Notes…"
-                            className="bg-stone-800 border border-amber-500 rounded px-1 py-0.5 text-stone-100 text-xs w-36"
-                          />
-                        ) : (
-                          r.notes ?? ''
-                        )}
-                      </td>
-                      <td className="py-1">
-                        {editingId === r.id ? (
-                          <span className="flex gap-1">
+            <div className="overflow-x-auto space-y-1">
+              {records.map(r => {
+                const sentinel = isInitialSentinel(r.effectiveFrom)
+                const isEditing = editingId === r.id
+                return (
+                  <div key={r.id} className={`border rounded p-2 ${sentinel ? 'border-amber-700/50 bg-amber-950/20' : 'border-stone-800'}`}>
+                    {/* Header row */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-stone-300">
+                        {sentinel
+                          ? '📌 Initial snapshot'
+                          : new Date(r.effectiveFrom).toLocaleDateString()}
+                      </span>
+                      <span className="flex gap-1 shrink-0">
+                        {isEditing ? (
+                          <>
                             <button
                               type="button"
                               disabled={saving}
-                              onClick={() => handleEditSave(r.id)}
-                              className="text-amber-400 hover:text-amber-200 disabled:opacity-50"
+                              onClick={() => handleEditSave(r)}
+                              className="text-amber-400 hover:text-amber-200 disabled:opacity-50 px-1"
                             >
-                              {saving ? '…' : '✓'}
+                              {saving ? '…' : '✓ Save'}
                             </button>
                             <button
                               type="button"
-                              onClick={() => setEditingId(null)}
-                              className="text-stone-500 hover:text-stone-300"
+                              onClick={() => { setEditingId(null); setEditState(null) }}
+                              className="text-stone-500 hover:text-stone-300 px-1"
                             >
                               ✕
                             </button>
-                          </span>
+                          </>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingId(r.id)
-                              setEditDate(r.effectiveFrom.slice(0, 10))
-                              setEditNotes(r.notes ?? '')
-                            }}
-                            className="text-stone-500 hover:text-amber-400 transition-colors"
-                            title="Edit effective from date"
-                          >
-                            ✏️
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => startEdit(r)}
+                              className="text-stone-500 hover:text-amber-400 transition-colors px-1"
+                              title="Edit"
+                            >
+                              ✏️
+                            </button>
+                            {!sentinel && (
+                              <button
+                                type="button"
+                                disabled={deletingId === r.id}
+                                onClick={() => handleDelete(r.id)}
+                                className="text-stone-600 hover:text-red-400 transition-colors disabled:opacity-50 px-1"
+                                title="Delete"
+                              >
+                                🗑️
+                              </button>
+                            )}
+                          </>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </span>
+                    </div>
+
+                    {/* Edit form */}
+                    {isEditing && editState ? (
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                        {!sentinel && (
+                          <label className="col-span-2 flex flex-col gap-0.5">
+                            <span className="text-stone-500">Effective From</span>
+                            <input
+                              type="date"
+                              value={editState.effectiveFrom}
+                              onChange={e => setField('effectiveFrom', e.target.value)}
+                              className="bg-stone-800 border border-amber-500 rounded px-1.5 py-0.5 text-stone-100 text-xs"
+                            />
+                          </label>
+                        )}
+                        <label className="flex flex-col gap-0.5">
+                          <span className="text-stone-500">Renewal Day</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={31}
+                            value={editState.renewalDay}
+                            onChange={e => setField('renewalDay', e.target.value)}
+                            placeholder="null"
+                            className="bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-xs w-20"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-0.5">
+                          <span className="text-stone-500">Offset (months)</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={3}
+                            value={editState.renewalMonthOffset}
+                            onChange={e => setField('renewalMonthOffset', e.target.value)}
+                            className="bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-xs w-20"
+                          />
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editState.renewalDayUserSet}
+                            onChange={e => setField('renewalDayUserSet', e.target.checked)}
+                            className="accent-amber-500"
+                          />
+                          <span className="text-stone-400">User-set day</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editState.paymentOnStartup}
+                            onChange={e => setField('paymentOnStartup', e.target.checked)}
+                            className="accent-amber-500"
+                          />
+                          <span className="text-stone-400">Prepaid</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editState.signupIncludesCurrentMonth}
+                            onChange={e => setField('signupIncludesCurrentMonth', e.target.checked)}
+                            className="accent-amber-500"
+                          />
+                          <span className="text-stone-400">Includes current month</span>
+                        </label>
+                        <label className="col-span-2 flex flex-col gap-0.5">
+                          <span className="text-stone-500">Notes</span>
+                          <input
+                            type="text"
+                            value={editState.notes}
+                            onChange={e => setField('notes', e.target.value)}
+                            placeholder="Notes…"
+                            className="bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-xs"
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      /* Read-only row */
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-stone-500">
+                        <span>Day: <span className="text-stone-300">{r.renewalDay ?? '—'}</span></span>
+                        <span>Offset: <span className="text-stone-300">{r.renewalMonthOffset ?? 0}</span></span>
+                        <span>User-set: <span className="text-stone-300">{r.renewalDayUserSet ? '✓' : '—'}</span></span>
+                        <span>Prepaid: <span className="text-stone-300">{r.paymentOnStartup ? '✓' : '—'}</span></span>
+                        <span>Curr. month: <span className="text-stone-300">{r.signupIncludesCurrentMonth ? '✓' : '—'}</span></span>
+                        {r.notes && <span className="text-stone-500 italic">{r.notes}</span>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

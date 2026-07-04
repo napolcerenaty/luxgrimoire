@@ -679,14 +679,42 @@ export class SubscriptionsService {
       where: { id: recordId, subscriptionId: sub.id },
     });
     if (!record) throw new NotFoundException('Settings history record not found');
-    const newDate = new Date(dto.effectiveFrom);
-    if (isNaN(newDate.getTime())) throw new BadRequestException('Invalid effectiveFrom date');
-    const updateData: Record<string, unknown> = { effectiveFrom: newDate };
+
+    const isInitialSentinel = (record as any).effectiveFrom.getTime() === 0;
+    const updateData: Record<string, unknown> = {};
+
+    // effectiveFrom: editable only for non-sentinel records
+    if (dto.effectiveFrom !== undefined) {
+      if (isInitialSentinel) throw new BadRequestException('Cannot change effectiveFrom of the initial snapshot record');
+      const newDate = new Date(dto.effectiveFrom);
+      if (isNaN(newDate.getTime())) throw new BadRequestException('Invalid effectiveFrom date');
+      updateData.effectiveFrom = newDate;
+    }
+
     if (dto.notes !== undefined) updateData.notes = dto.notes;
+    if (dto.renewalDay !== undefined) updateData.renewalDay = dto.renewalDay;
+    if (dto.renewalDayUserSet !== undefined) updateData.renewalDayUserSet = dto.renewalDayUserSet;
+    if (dto.paymentOnStartup !== undefined) updateData.paymentOnStartup = dto.paymentOnStartup;
+    if (dto.signupIncludesCurrentMonth !== undefined) updateData.signupIncludesCurrentMonth = dto.signupIncludesCurrentMonth;
+    if (dto.renewalMonthOffset !== undefined) updateData.renewalMonthOffset = dto.renewalMonthOffset;
+
+    if (Object.keys(updateData).length === 0) throw new BadRequestException('No fields to update');
+
     return this.prisma.subscriptionSettingsHistory.update({
       where: { id: recordId },
       data: updateData,
     });
+  }
+
+  async deleteSettingsHistory(slug: string, recordId: string) {
+    const sub = await this.findBySlug(slug);
+    const record = await this.prisma.subscriptionSettingsHistory.findFirst({
+      where: { id: recordId, subscriptionId: sub.id },
+    });
+    if (!record) throw new NotFoundException('Settings history record not found');
+    const isInitialSentinel = (record as any).effectiveFrom.getTime() === 0;
+    if (isInitialSentinel) throw new BadRequestException('Cannot delete the initial snapshot record');
+    return this.prisma.subscriptionSettingsHistory.delete({ where: { id: recordId } });
   }
 
   async update(slug: string, dto: UpdateSubscriptionDto, changedByUserId?: string) {

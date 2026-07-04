@@ -875,14 +875,34 @@ export class UpdateBillingModeDto {
 }
 
 export class UpdateSettingsHistoryEffectiveFromDto {
-  /** ISO date string (YYYY-MM-DD or full ISO) for the new effectiveFrom value */
+  /** ISO date string (YYYY-MM-DD or full ISO) for the new effectiveFrom value. Omit to leave unchanged. */
+  @IsOptional()
   @IsString()
-  effectiveFrom!: string;
+  effectiveFrom?: string;
 
-  /** Optional notes for the settings history record */
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsInt()
+  renewalDay?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  renewalDayUserSet?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  paymentOnStartup?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  signupIncludesCurrentMonth?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  renewalMonthOffset?: number;
 }
 
 export class MigrateMonthsDto {
