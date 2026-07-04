@@ -342,8 +342,12 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
     <form onSubmit={submit} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
       <h3 className="text-lg font-serif text-stone-100 font-semibold">Join Subscription</h3>
 
-      {/* Billing period (shown whenever any prepay options exist — user may pick a different currency than default) */}
-      {activePrepayOptions && activePrepayOptions.length > 0 && (
+      {/* Billing period (shown whenever any prepay options exist) */}
+      {activePrepayOptions && activePrepayOptions.length > 0 && (() => {
+        // Show options for the selected currency; if none, fall back to the subscription's default currency
+        const forCurrency = activePrepayOptions.filter(o => o.currency === costCurrency)
+        const displayedOptions = forCurrency.length > 0 ? forCurrency : activePrepayOptions.filter(o => o.currency === currency)
+        return (
         <div>
           <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">Billing period</label>
           <div className="space-y-2">
@@ -362,7 +366,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 )}
               </div>
             </label>
-            {activePrepayOptions.map(opt => (
+            {displayedOptions.map(opt => (
               <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
                 <input
                   type="radio"
@@ -380,7 +384,8 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           </div>
           <p className="text-xs text-stone-500 mt-1.5">Sets your scheduled renewal billing mode.</p>
         </div>
-      )}
+        )
+      })()}
       <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
           {subscriptionRenewalDay != null ? 'First order date' : 'First order date (sets renewal day)'}
