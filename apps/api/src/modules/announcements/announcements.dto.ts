@@ -1,5 +1,8 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, IsEnum, IsInt } from 'class-validator';
 import { BaseNumericPriceCurrencyDto } from '../../common/dto/price.dto';
+
+export type SaleType = 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK' | 'SALE';
+const SALE_TYPES: SaleType[] = ['LIMITED_PREORDER', 'OPEN_PREORDER', 'OVERSTOCK', 'SALE'];
 
 export class CreateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
   @IsString()
@@ -20,6 +23,22 @@ export class CreateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
   @IsOptional()
   @IsString()
   earlyAccessDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endsAt?: string;
+
+  @IsOptional()
+  @IsEnum(SALE_TYPES)
+  saleType?: SaleType;
+
+  @IsOptional()
+  @IsBoolean()
+  isSoldOut?: boolean;
+
+  @IsOptional()
+  @IsString()
+  notes?: string | null;
 
   @IsOptional()
   @IsString()
@@ -83,6 +102,22 @@ export class UpdateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
 
   @IsOptional()
   @IsString()
+  endsAt?: string | null;
+
+  @IsOptional()
+  @IsEnum(SALE_TYPES)
+  saleType?: SaleType;
+
+  @IsOptional()
+  @IsBoolean()
+  isSoldOut?: boolean;
+
+  @IsOptional()
+  @IsString()
+  notes?: string | null;
+
+  @IsOptional()
+  @IsString()
   saleTimezone?: string;
 
   @IsOptional()
@@ -117,4 +152,20 @@ export class UpdateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
   @IsOptional()
   @IsNumber()
   subscriberBasePrice?: number | null;
+}
+
+export class UpsertSaleAnnouncementItemDto {
+  @IsOptional()
+  @IsString()
+  name?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+}
+
+export class AssignEditionToItemDto {
+  @IsOptional()
+  @IsString()
+  itemId?: string | null;
 }

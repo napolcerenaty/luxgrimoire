@@ -297,6 +297,9 @@ function EditSaleModal({
       queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
       queryClient.invalidateQueries({ queryKey: ['collection'] })
       queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-sales'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-collection'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-pl'] })
       setSuccess(true)
       setTimeout(() => { onClose(); setSuccess(false) }, 1000)
     } catch (err) {
@@ -425,11 +428,13 @@ export default function SoldPage() {
   const userCurrency = user?.preferredCurrency ?? null
 
   // ── Tab state ────────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'books' | 'records'>('books')
+  const [activeTab, setActiveTab] = useState<'books' | 'gifted' | 'records'>('books')
   const recordsActivated = useRef(false)
+  const giftedActivated = useRef(false)
 
-  function activateTab(tab: 'books' | 'records') {
+  function activateTab(tab: 'books' | 'gifted' | 'records') {
     if (tab === 'records') recordsActivated.current = true
+    if (tab === 'gifted') giftedActivated.current = true
     setActiveTab(tab)
   }
 
@@ -475,6 +480,37 @@ export default function SoldPage() {
   const soldBooks = booksQuery.data?.data ?? []
   const booksTotalPages = booksQuery.data?.totalPages ?? 1
   const booksTotal = booksQuery.data?.total ?? 0
+
+  // ── Gifted Away tab state ────────────────────────────────────────────────────
+  const [giftedPage, setGiftedPage] = useState(1)
+  const [giftedFilter, setGiftedFilter] = useState('')
+  const [giftedFilterInput, setGiftedFilterInput] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => { setGiftedFilter(giftedFilterInput); setGiftedPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [giftedFilterInput])
+
+  const giftedQuery = useQuery({
+    queryKey: ['gifted-books', giftedPage, giftedFilter],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        isWishlist: 'false',
+        ownershipStatus: 'GIFTED_AWAY',
+        page: String(giftedPage),
+        pageSize: String(BOOKS_PAGE_SIZE),
+      })
+      if (giftedFilter) params.set('search', giftedFilter)
+      return authFetch<{ data: CollectionEntry[]; total: number; totalPages: number }>(`/collection?${params}`)
+    },
+    enabled: giftedActivated.current || activeTab === 'gifted',
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  })
+
+  const giftedBooks = giftedQuery.data?.data ?? []
+  const giftedTotalPages = giftedQuery.data?.totalPages ?? 1
+  const giftedTotal = giftedQuery.data?.total ?? 0
 
   // ── Company + tag filter options (fetched once for filter UI) ──────────────
   const { data: companiesData = [] } = useQuery({
@@ -528,6 +564,9 @@ export default function SoldPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sale-groups-page'] })
       queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-sales'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-collection'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-pl'] })
     },
   })
 
@@ -612,6 +651,7 @@ export default function SoldPage() {
       <div className="flex gap-1 mb-6 border-b border-stone-800">
         {([
           { id: 'books' as const, label: 'Sold Books', count: booksTotal },
+          { id: 'gifted' as const, label: 'Gifted Away', count: giftedTotal },
           { id: 'records' as const, label: 'Sale Records', count: recordsTotal },
         ] as const).map(tab => (
           <button
@@ -763,6 +803,60 @@ export default function SoldPage() {
                 </div>
               )}
               <Pagination page={booksPage} totalPages={booksTotalPages} onPage={setBooksPage} />
+            </>
+          )}
+        </section>
+      )}
+
+      {/* ── Gifted Away tab ── */}
+      {activeTab === 'gifted' && (
+        <section>
+          {giftedQuery.isLoading ? (
+            <div className="flex items-center justify-center py-20 text-stone-400 animate-pulse">Loading…</div>
+          ) : giftedTotal === 0 && !giftedFilter ? (
+            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+              <BookOpen size={48} className="mb-4 opacity-30" />
+              <p className="font-serif text-lg">No gifted away books yet</p>
+              <p className="text-sm mt-1">Books you mark as gifted away will appear here</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2 flex-wrap items-center mb-6">
+                <input
+                  type="text"
+                  value={giftedFilterInput}
+                  onChange={e => setGiftedFilterInput(e.target.value)}
+                  placeholder="Search by title…"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors min-w-[160px]"
+                />
+              </div>
+              {giftedBooks.length === 0 ? (
+                <p className="text-stone-500 text-sm py-8 text-center">No books match these filters.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                  {giftedBooks.map(entry => (
+                    <div key={entry.id}>
+                      <EditionCard
+                        href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
+                        coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
+                        title={entry.edition.book.title}
+                        authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
+                        companyName={entry.edition.bookBoxCompany?.name}
+                        companySlug={entry.edition.bookBoxCompany?.slug}
+                        companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
+                        seriesName={entry.edition.book.seriesName}
+                        volumeNumber={entry.edition.book.volumeNumber}
+                        footer={
+                          <div className="mt-1">
+                            <Badge variant="default">GIFTED</Badge>
+                          </div>
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Pagination page={giftedPage} totalPages={giftedTotalPages} onPage={setGiftedPage} />
             </>
           )}
         </section>

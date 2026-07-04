@@ -37,10 +37,13 @@ import { findBySlugOrThrow } from '../../common/prisma.utils';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
-import { resolveEffectiveBasePrice } from './price-change.util';
+import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
+import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 import { StatsService } from '../stats/stats.service';
+import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
+import { MediaAssetsService } from '../media-assets/media-assets.service';
 
 function formatIntervalForTypesense(intervalMonths: number): string {
   if (intervalMonths === 1) return 'Monthly';
@@ -69,11 +72,44 @@ export class SubscriptionsService {
     private readonly typesense: TypesenseService,
     private readonly skipPolicyEngine: SkipPolicyEngine,
     private readonly renewalCron: RenewalCronService,
+    private readonly countryFeeSnapshotService: CountryFeeSnapshotCronService,
     private readonly uploadService: UploadService,
     private readonly crowdStatsService: CrowdStatsService,
     private readonly statsService: StatsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly mediaAssetsService?: MediaAssetsService,
+    private readonly scheduledReminders?: ScheduledRemindersService,
   ) {}
+
+  private mapCompanyAssets(company: any) {
+    if (!company) return company;
+    return {
+      ...company,
+      logoUrl: company.logoAsset?.publicId ?? company.logoUrl,
+    };
+  }
+
+  private mapMonthAssets(month: any) {
+    if (!month) return month;
+    return {
+      ...month,
+      coverImage: month.coverImageAsset?.publicId ?? month.coverImage,
+      spoilerImage: month.spoilerImageAsset?.publicId ?? month.spoilerImage,
+    };
+  }
+
+  private mapSubscriptionAssets(subscription: any) {
+    if (!subscription) return subscription;
+    return {
+      ...subscription,
+      coverImage: subscription.coverImageAsset?.publicId ?? subscription.coverImage,
+      logoUrl: subscription.logoAsset?.publicId ?? subscription.logoUrl,
+      company: this.mapCompanyAssets(subscription.company),
+      months: Array.isArray(subscription.months)
+        ? subscription.months.map((month: any) => this.mapMonthAssets(month))
+        : subscription.months,
+    };
+  }
 
   private readonly SUB_SLUG_TTL = 60_000; // 60 seconds (content is date-dynamic)
   private readonly subSlugKey = (slug: string) => `subscriptions:slug:${slug}`;
@@ -151,14 +187,18 @@ export class SubscriptionsService {
 
     const slug = generateSubscriptionSlug(company.name, dto.name);
     const currency = dto.currency ?? 'EUR';
-    const subscription = await this.prisma.subscription.create({
+    const coverImageAsset = dto.coverImage ? await this.mediaAssetsService?.ensureForPublicId(dto.coverImage) : null;
+    const logoAsset = dto.logoUrl ? await this.mediaAssetsService?.ensureForPublicId(dto.logoUrl) : null;
+    const subscription = await (this.prisma.subscription as any).create({
       data: {
         slug,
         companyId: dto.companyId,
         name: dto.name,
         description: dto.description,
         coverImage: dto.coverImage,
+        coverImageAssetId: coverImageAsset?.id ?? null,
         logoUrl: dto.logoUrl,
+        logoAssetId: logoAsset?.id ?? null,
         genre: dto.genres?.[0] ?? dto.genre ?? null,
         genres: dto.genres ?? (dto.genre ? [dto.genre] : []),
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
@@ -219,7 +259,15 @@ export class SubscriptionsService {
 
     await this.indexSubscription(subscription.id);
     await this.cache.del(`companies:slug:${company.slug}`);
-    return subscription;
+    return this.mapSubscriptionAssets({
+      ...subscription,
+      coverImageAsset: coverImageAsset
+        ? { id: coverImageAsset.id, publicId: coverImageAsset.publicId }
+        : null,
+      logoAsset: logoAsset
+        ? { id: logoAsset.id, publicId: logoAsset.publicId }
+        : null,
+    });
   }
 
   async findGenres(search?: string): Promise<string[]> {
@@ -254,6 +302,25 @@ export class SubscriptionsService {
     if (query.isContentStream !== undefined) {
       where.isContentStream = query.isContentStream;
     }
+    if (query.skipPolicyType) {
+      const billingType = query.skipPolicyBillingType;
+      if (query.skipPolicyType === 'NONE') {
+        if (billingType && billingType !== 'ALL') {
+          where.skipPolicies = {
+            some: { type: 'NONE', billingType: { in: [billingType, 'ALL'] } },
+          };
+        } else {
+          // any billing type having a NONE policy
+          where.skipPolicies = { some: { type: 'NONE' } };
+        }
+      } else {
+        const policyFilter: Record<string, unknown> = { type: query.skipPolicyType };
+        if (billingType && billingType !== 'ALL') {
+          policyFilter['billingType'] = { in: [billingType, 'ALL'] };
+        }
+        where.skipPolicies = { some: policyFilter };
+      }
+    }
     if (query.status === 'active') {
       const now = new Date();
       where.isDiscontinued = false;
@@ -270,23 +337,34 @@ export class SubscriptionsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.subscription.findMany({
+      (this.prisma.subscription as any).findMany({
         where,
         skip,
         take: pageSize,
         include: {
-          company: { select: { id: true, slug: true, name: true, logoUrl: true, brandColors: true } },
-          skipPolicy: true,
+          company: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              logoUrl: true,
+              logoAsset: { select: { id: true, publicId: true } },
+              brandColors: true,
+            },
+          },
+          skipPolicies: { select: { type: true, billingType: true } },
           comboComponents: { select: { componentId: true } },
           priceChanges: { where: { effectiveYear: 1900, effectiveMonth: 1 } },
+          coverImageAsset: { select: { id: true, publicId: true } },
+          logoAsset: { select: { id: true, publicId: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.subscription.count({ where }),
     ]);
 
-    const mapped = data.map(({ comboComponents, priceChanges, ...rest }) => ({
-      ...rest,
+    const mapped = data.map(({ comboComponents, priceChanges, ...rest }: any) => ({
+      ...this.mapSubscriptionAssets(rest),
       price: this.computeCurrentPrice(priceChanges, (rest as any).currency),
       componentIds: comboComponents.map((c: { componentId: string }) => c.componentId),
     }));
@@ -315,7 +393,15 @@ export class SubscriptionsService {
   async findBySlugForAdmin(slug: string) {
     const sub = await this.prisma.subscription.findUnique({
       where: { slug },
-      select: { id: true, name: true, companyId: true },
+      select: {
+        id: true,
+        name: true,
+        companyId: true,
+        coverImage: true,
+        logoUrl: true,
+        coverImageAsset: { select: { id: true, publicId: true } },
+        logoAsset: { select: { id: true, publicId: true } },
+      },
     });
     if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
     return sub;
@@ -353,12 +439,15 @@ export class SubscriptionsService {
             slug: true,
             name: true,
             logoUrl: true,
+            logoAsset: { select: { id: true, publicId: true } },
             country: true,
             hasOfficialImagePermission: true,
             brandColors: true,
           },
         },
-        skipPolicy: true,
+        skipPolicies: true,
+        coverImageAsset: { select: { id: true, publicId: true } },
+        logoAsset: { select: { id: true, publicId: true } },
         prepayOptions: { orderBy: { months: 'asc' } },
         parent: { select: { slug: true, name: true } },
         priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
@@ -370,6 +459,10 @@ export class SubscriptionsService {
                 slug: true,
                 name: true,
                 coverImage: true,
+                coverImageAsset: { select: { id: true, publicId: true } },
+                parentSubscriptionId: true,
+                startDate: true,
+                endDate: true,
                 months: {
                   where: {
                     OR: [
@@ -380,6 +473,8 @@ export class SubscriptionsService {
                   orderBy: [{ year: 'desc' }, { month: 'desc' }],
                   include: {
                     cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+                    coverImageAsset: { select: { id: true, publicId: true } },
+                    spoilerImageAsset: { select: { id: true, publicId: true } },
                     books: {
                       include: {
                         book: {
@@ -416,6 +511,8 @@ export class SubscriptionsService {
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           include: {
             cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
+            spoilerImageAsset: { select: { id: true, publicId: true } },
             books: {
               include: {
                 book: {
@@ -469,6 +566,8 @@ export class SubscriptionsService {
         orderBy: [{ year: 'desc' }, { month: 'desc' }],
         include: {
           cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+          coverImageAsset: { select: { id: true, publicId: true } },
+          spoilerImageAsset: { select: { id: true, publicId: true } },
           books: {
             include: {
               book: {
@@ -494,9 +593,62 @@ export class SubscriptionsService {
     }
 
     const { comboComponents, months: _months, priceChanges, ...rest } = subscription;
+
+    // For combo subscriptions: if any component is a content stream variant,
+    // its months live on the parent subscription — replace the empty months array.
+    const processedComboComponents = await Promise.all(
+      comboComponents.map(async (cc) => {
+        const comp = cc.component as any;
+        if (!comp.parentSubscriptionId) return cc;
+        const andConds: Record<string, unknown>[] = [
+          { OR: [{ year: { gt: nowYear } }, { year: nowYear, month: { gte: nowMonth } }] },
+        ];
+        if (comp.startDate) {
+          const sy = (comp.startDate as Date).getFullYear();
+          const sm = (comp.startDate as Date).getMonth() + 1;
+          andConds.push({ OR: [{ year: { gt: sy } }, { year: sy, month: { gte: sm } }] });
+        }
+        if (comp.endDate) {
+          const ey = (comp.endDate as Date).getFullYear();
+          const em = (comp.endDate as Date).getMonth() + 1;
+          andConds.push({ OR: [{ year: { lt: ey } }, { year: ey, month: { lte: em } }] });
+        }
+        const parentMonths = await this.prisma.subscriptionMonth.findMany({
+          where: { subscriptionId: comp.parentSubscriptionId, AND: andConds },
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
+          include: {
+            cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
+            coverImageAsset: { select: { id: true, publicId: true } },
+            spoilerImageAsset: { select: { id: true, publicId: true } },
+            books: {
+              include: {
+                book: {
+                  select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    authors: { select: { author: { select: { name: true, slug: true } } } },
+                  },
+                },
+                edition: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    publisher: true,
+                    additionalImages: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        return { ...cc, component: { ...comp, months: parentMonths } };
+      }),
+    );
+
     const sentinelRecord = priceChanges.find((pc) => pc.effectiveYear === 1900 && pc.effectiveMonth === 1 && pc.currency === rest.currency);
     return {
-      ...rest,
+      ...this.mapSubscriptionAssets(rest),
       price: this.computeCurrentPrice(priceChanges, rest.currency),
       // Original price: the sentinel record's value — represents the price from the very beginning,
       // before any explicit price changes. Used by the frontend as a fallback when resolving
@@ -504,9 +656,12 @@ export class SubscriptionsService {
       originalBasePrice: sentinelRecord
         ? parseFloat(sentinelRecord.newBasePrice.toString()).toFixed(2)
         : this.computeCurrentPrice(priceChanges, rest.currency),
-      months,
+      months: months.map((month: any) => this.mapMonthAssets(month)),
       componentIds: comboComponents.map((c) => c.componentId),
-      components: comboComponents.map((c) => ({ componentId: c.componentId, component: c.component })),
+      components: processedComboComponents.map((c) => ({
+        componentId: c.componentId,
+        component: this.mapSubscriptionAssets(c.component),
+      })),
     };
   }
 
@@ -540,7 +695,15 @@ export class SubscriptionsService {
     const data: Record<string, unknown> = { ...rest };
     if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
     if (dto.endDate !== undefined) data.endDate = dto.endDate ? new Date(dto.endDate) : null;
-    const updated = await this.prisma.subscription.update({ where: { slug }, data });
+    if (dto.coverImage !== undefined) {
+      const coverImageAsset = dto.coverImage ? await this.mediaAssetsService?.ensureForPublicId(dto.coverImage) : null;
+      data.coverImageAssetId = coverImageAsset?.id ?? null;
+    }
+    if (dto.logoUrl !== undefined) {
+      const logoAsset = dto.logoUrl ? await this.mediaAssetsService?.ensureForPublicId(dto.logoUrl) : null;
+      data.logoAssetId = logoAsset?.id ?? null;
+    }
+    const updated = await (this.prisma.subscription as any).update({ where: { slug }, data });
 
     // Record settings history if any tracked field changed
     const settingsFields: (keyof SubscriptionSettings)[] = [
@@ -641,7 +804,7 @@ export class SubscriptionsService {
     if (existing.company?.slug) {
       await this.cache.del(`companies:slug:${existing.company.slug}`);
     }
-    return updated;
+    return this.mapSubscriptionAssets(updated);
   }
 
   async delete(slug: string) {
@@ -729,7 +892,7 @@ export class SubscriptionsService {
     const skip = (page - 1) * pageSize;
 
     const [data, total] = await Promise.all([
-      this.prisma.subscriptionMonth.findMany({
+      (this.prisma.subscriptionMonth as any).findMany({
         where,
         skip,
         take: pageSize,
@@ -741,6 +904,9 @@ export class SubscriptionsService {
           theme: true,
           seriesId: true,
           coverImage: true,
+          coverImageAsset: { select: { id: true, publicId: true } },
+          spoilerImage: true,
+          spoilerImageAsset: { select: { id: true, publicId: true } },
           isSpoiler: true,
           signatureType: true,
           cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
@@ -767,7 +933,13 @@ export class SubscriptionsService {
       this.prisma.subscriptionMonth.count({ where }),
     ]);
 
-    const result = { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    const result = {
+      data: data.map((month: any) => this.mapMonthAssets(month)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
     await this.cache.set(cacheKey, result, this.SUB_MONTHS_TTL);
     return result;
   }
@@ -790,12 +962,16 @@ export class SubscriptionsService {
       );
     }
 
+    const coverImageAsset = dto.coverImage ? await this.mediaAssetsService?.ensureForPublicId(dto.coverImage) : null;
+    const spoilerImageAsset = dto.spoilerImage ? await this.mediaAssetsService?.ensureForPublicId(dto.spoilerImage) : null;
     const monthData = {
       year: dto.year,
       month: dto.month,
       theme: dto.theme,
       coverImage: dto.coverImage,
+      coverImageAssetId: coverImageAsset?.id ?? null,
       spoilerImage: dto.spoilerImage,
+      spoilerImageAssetId: spoilerImageAsset?.id ?? null,
       isSpoiler: dto.isSpoiler ?? false,
       actualShipping: dto.actualShipping ? dto.actualShipping : undefined,
       boxPrice: dto.boxPrice ? dto.boxPrice : undefined,
@@ -808,7 +984,15 @@ export class SubscriptionsService {
     });
 
     void this.invalidateMonthsCache(subscriptionSlug);
-    return created;
+    return this.mapMonthAssets({
+      ...created,
+      coverImageAsset: coverImageAsset
+        ? { id: coverImageAsset.id, publicId: coverImageAsset.publicId }
+        : null,
+      spoilerImageAsset: spoilerImageAsset
+        ? { id: spoilerImageAsset.id, publicId: spoilerImageAsset.publicId }
+        : null,
+    });
   }
 
   async updateMonth(
@@ -825,23 +1009,42 @@ export class SubscriptionsService {
     });
     if (!existing) throw new NotFoundException(`Month ${month}/${year} not found`);
 
-    if (dto.coverImage !== undefined && dto.coverImage !== existing.coverImage) {
-      await this.uploadService.deleteImages([existing.coverImage]);
+    // Capture old publicIds before update (needed for cleanup after DB write)
+    const oldCoverImage = dto.coverImage !== undefined && dto.coverImage !== existing.coverImage
+      ? (existing.coverImage as string | null)
+      : null;
+    const oldSpoilerImage = dto.spoilerImage !== undefined && dto.spoilerImage !== existing.spoilerImage
+      ? (existing.spoilerImage as string | null)
+      : null;
+
+    const data: Record<string, unknown> = {
+      ...dto,
+      cardArtistId: dto.cardArtistId === null ? null : dto.cardArtistId,
+    };
+    if (dto.coverImage !== undefined) {
+      const coverImageAsset = dto.coverImage ? await this.mediaAssetsService?.ensureForPublicId(dto.coverImage) : null;
+      data.coverImageAssetId = coverImageAsset?.id ?? null;
     }
-    if (dto.spoilerImage !== undefined && dto.spoilerImage !== existing.spoilerImage) {
-      await this.uploadService.deleteImages([existing.spoilerImage]);
+    if (dto.spoilerImage !== undefined) {
+      const spoilerImageAsset = dto.spoilerImage ? await this.mediaAssetsService?.ensureForPublicId(dto.spoilerImage) : null;
+      data.spoilerImageAssetId = spoilerImageAsset?.id ?? null;
     }
 
-    const updated = await this.prisma.subscriptionMonth.update({
+    const updated = await (this.prisma.subscriptionMonth as any).update({
       where: { id: existing.id },
-      data: {
-        ...dto,
-        cardArtistId: dto.cardArtistId === null ? null : dto.cardArtistId,
-      },
+      data,
     });
 
+    // After DB update, old assets may be unused — delete from media library + Cloudinary if so
+    if (oldCoverImage) {
+      void this.mediaAssetsService?.deleteIfUnused(oldCoverImage, this.uploadService);
+    }
+    if (oldSpoilerImage) {
+      void this.mediaAssetsService?.deleteIfUnused(oldSpoilerImage, this.uploadService);
+    }
+
     void this.invalidateMonthsCache(subscriptionSlug);
-    return updated;
+    return this.mapMonthAssets(updated);
   }
 
   async deleteMonth(subscriptionSlug: string, year: number, month: number) {
@@ -856,6 +1059,11 @@ export class SubscriptionsService {
     await this.uploadService.deleteImages([existing.coverImage, existing.spoilerImage]);
 
     const deleted = await this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
+
+    // Clean up orphaned media assets after record is deleted
+    for (const publicId of [existing.coverImage, existing.spoilerImage]) {
+      if (publicId) void this.mediaAssetsService?.deleteIfUnused(publicId as string, this.uploadService);
+    }
 
     void this.invalidateMonthsCache(subscriptionSlug);
     return deleted;
@@ -991,6 +1199,48 @@ export class SubscriptionsService {
     return { ...entryWithoutSkips, nextRenewalDate: storedRenewalDate ? storedRenewalDate.toISOString() : null };
   }
 
+  async getNextBoxPreview(userId: string, slug: string, year: number, month: number) {
+    const sub = await this.findBySlug(slug);
+    const subId = (sub as any).parentSubscriptionId ?? sub.id;
+    const boxMonth = await this.prisma.subscriptionMonth.findUnique({
+      where: { subscriptionId_year_month: { subscriptionId: subId, year, month } },
+      select: {
+        year: true,
+        month: true,
+        theme: true,
+        isSpoiler: true,
+        books: {
+          select: {
+            isMainBook: true,
+            book: {
+              select: {
+                title: true,
+                authors: { select: { author: { select: { name: true } } } },
+              },
+            },
+            edition: {
+              select: { additionalImages: true },
+            },
+          },
+          orderBy: [{ isMainBook: 'desc' }, { sortOrder: 'asc' }],
+        },
+      },
+    });
+    if (!boxMonth) return null;
+    return {
+      year: boxMonth.year,
+      month: boxMonth.month,
+      theme: boxMonth.theme,
+      isSpoiler: boxMonth.isSpoiler,
+      books: boxMonth.books.map((b) => ({
+        title: b.book.title,
+        authors: b.book.authors.map((a) => a.author.name).join(', '),
+        coverImage: b.edition?.additionalImages?.[0] ?? null,
+        isMainBook: b.isMainBook,
+      })),
+    };
+  }
+
   private computeNextRenewalDate(
     renewalDay: number,
     intervalMonths: number,
@@ -998,8 +1248,9 @@ export class SubscriptionsService {
     userStartDate: string | null,
     skippedMonths: { year: number; month: number }[] = [],
     paidUpFrontDate: Date | null = null,
+    subscriptionEarliestDate: Date | null = null,
   ): Date | null {
-    return computeNextRenewalDate(renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths, paidUpFrontDate);
+    return computeNextRenewalDate(renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths, paidUpFrontDate, subscriptionEarliestDate);
   }
 
   private incrementMonth(year: number, month: number): [number, number] {
@@ -1021,6 +1272,7 @@ export class SubscriptionsService {
         costCurrency: true,
         basePrice: true,
         shippingCost: true,
+        isForwarding: true,
         scheduledPrepayOptionId: true,
         scheduledPrepayOption: {
           select: { price: true, currency: true, months: true },
@@ -1045,6 +1297,8 @@ export class SubscriptionsService {
             name: true,
             coverImage: true,
             logoUrl: true,
+            coverImageAsset: { select: { id: true, publicId: true } },
+            logoAsset: { select: { id: true, publicId: true } },
             currency: true,
             priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
             isDiscontinued: true,
@@ -1052,15 +1306,35 @@ export class SubscriptionsService {
             renewalDay: true,
             intervalMonths: true,
             startingMonth: true,
-            company: { select: { name: true, slug: true, brandColors: true } },
+            renewalMonthOffset: true,
+            company: {
+              select: {
+                name: true,
+                slug: true,
+                brandColors: true,
+                logoUrl: true,
+                logoAsset: { select: { id: true, publicId: true } },
+              },
+            },
           },
+        },
+        // First purchase group ordered by title (format: "Subscription – YYYY/MM") to determine
+        // the user's first billing month in this subscription window (for grandfathered price logic).
+        purchaseGroups: {
+          where: { fromSubscription: true },
+          orderBy: { title: 'asc' },
+          take: 1,
+          select: { title: true },
         },
       },
     });
 
     return Promise.all(entries.map(async (entry) => {
       const { priceChanges: subPriceChanges, ...subRest } = entry.subscription as any;
-      const sub = { ...subRest, price: this.computeCurrentPrice(subPriceChanges ?? [], subRest.currency) };
+      const sub = {
+        ...this.mapSubscriptionAssets(subRest),
+        price: this.computeCurrentPrice(subPriceChanges ?? [], subRest.currency),
+      };
 
       // Use stored nextRenewalDate from DB; fall back to computing if not yet populated
       let storedRenewalDate = (entry as any).nextRenewalDate as Date | null;
@@ -1107,6 +1381,13 @@ export class SubscriptionsService {
       } else if (storedRenewalDate) {
         const renewalYear = storedRenewalDate.getUTCFullYear();
         const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
+        // Determine user's first billing month in this subscription window for grandfathered price check.
+        const firstPurchaseGroup = ((entry as any).purchaseGroups as Array<{ title: string }> | undefined)?.[0];
+        const userFirstBilledYearMonth = parseFirstBilledYearMonth(
+          firstPurchaseGroup?.title,
+          renewalYear,
+          renewalMonth,
+        );
         // Pass targetCurrency so multi-currency records are resolved correctly.
         // If no records exist for the user's currency, resolveEffectiveBasePrice
         // returns fromPriceChange: false and the user's custom price is preserved.
@@ -1116,6 +1397,7 @@ export class SubscriptionsService {
           renewalMonth,
           fallbackBase,
           entry.costCurrency,
+          userFirstBilledYearMonth,
         );
         if (resolved.fromPriceChange && resolved.price !== fallbackBase) {
           nextBase = resolved.price;
@@ -1130,15 +1412,28 @@ export class SubscriptionsService {
         ? (nextBase + (shipping ?? 0) + sameCurrencyFees)
         : null;
 
-      const { skipRecords: _sr, feeTemplates: _ft, scheduledPrepayOption: _spo, ...entryWithoutSkips } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown };
+      // Compute box month from renewal month by adding the renewalMonthOffset
+      // e.g. renewal in Oct + offset=1 → box month = Nov
+      let nextBoxMonth: { year: number; month: number } | null = null;
+      if (storedRenewalDate) {
+        const offset: number = (subRest as any).renewalMonthOffset ?? 0;
+        let bm = storedRenewalDate.getUTCMonth() + 1 + offset; // 1-12 based
+        let by = storedRenewalDate.getUTCFullYear();
+        while (bm > 12) { bm -= 12; by += 1; }
+        while (bm < 1)  { bm += 12; by -= 1; }
+        nextBoxMonth = { year: by, month: bm };
+      }
+
+      const { skipRecords: _sr, feeTemplates: _ft, scheduledPrepayOption: _spo, purchaseGroups: _pg, ...entryWithoutExtras } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown; purchaseGroups: unknown[] };
       return {
-        ...entryWithoutSkips,
+        ...entryWithoutExtras,
         subscription: { ...sub },
         nextRenewalDate: storedRenewalDate ? storedRenewalDate.toISOString() : null,
         nextRenewalAmount: nextRenewalAmount !== null ? nextRenewalAmount.toFixed(2) : null,
         nextRenewalCurrency: cur,
         nextRenewalPriceChanged,
         nextRenewalNewPrice,
+        nextBoxMonth,
       };
     }));
   }
@@ -1161,9 +1456,19 @@ export class SubscriptionsService {
             name: true,
             coverImage: true,
             logoUrl: true,
+            coverImageAsset: { select: { id: true, publicId: true } },
+            logoAsset: { select: { id: true, publicId: true } },
             currency: true,
             isDiscontinued: true,
-            company: { select: { name: true, slug: true, brandColors: true } },
+            company: {
+              select: {
+                name: true,
+                slug: true,
+                brandColors: true,
+                logoUrl: true,
+                logoAsset: { select: { id: true, publicId: true } },
+              },
+            },
           },
         },
       },
@@ -1184,7 +1489,7 @@ export class SubscriptionsService {
     for (const r of orphaned) {
       const key = r.subscriptionId;
       if (!grouped.has(key)) {
-        grouped.set(key, { subscription: r.subscription, records: [] });
+        grouped.set(key, { subscription: this.mapSubscriptionAssets(r.subscription), records: [] });
       }
       grouped.get(key)!.records.push({
         id: r.id,
@@ -1384,6 +1689,7 @@ export class SubscriptionsService {
     });
     this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
     this.statsService.markStatsStale(userId);
+    this.scheduledReminders?.cancelByEntry(entry.id).catch(() => {});
     return updated;
   }
 
@@ -1424,6 +1730,7 @@ export class SubscriptionsService {
       await this.prisma.userSubscriptionEntry.deleteMany({
         where: { id: { in: entryIds }, userId },
       });
+      for (const id of entryIds) { this.scheduledReminders?.cancelByEntry(id).catch(() => {}); }
       this.statsService.markStatsStale(userId);
       return { success: true };
     }
@@ -1451,6 +1758,7 @@ export class SubscriptionsService {
 
       await this.prisma.userSubscriptionSkipState.deleteMany({ where: { userId, subscriptionId: sub.id } });
       await this.prisma.userSubscriptionEntry.delete({ where: { id: activeEntry.id } });
+      this.scheduledReminders?.cancelByEntry(activeEntry.id).catch(() => {});
       this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
       this.statsService.markStatsStale(userId);
       return { success: true };
@@ -1496,6 +1804,7 @@ export class SubscriptionsService {
     if (hadActive) {
       this.crowdStatsService.decrementSubscriberCount(sub.id).catch(() => {});
     }
+    for (const e of targetEntries) { this.scheduledReminders?.cancelByEntry(e.id).catch(() => {}); }
     this.statsService.markStatsStale(userId);
     return { success: true };
   }
@@ -1552,7 +1861,14 @@ export class SubscriptionsService {
   async updateMyEntryCosts(
     userId: string,
     slug: string,
-    dto: { basePrice?: string; shippingCost?: string; costCurrency?: string; linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number; customCurrency?: string }> },
+    dto: {
+      basePrice?: string;
+      shippingCost?: string;
+      costCurrency?: string;
+      trackingNumber?: string | null;
+      isForwarding?: boolean;
+      linkedFeeTemplates?: Array<{ templateId: string; customAmount?: number; customCurrency?: string }>;
+    },
   ) {
     const sub = await this.findBySlug(slug);
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
@@ -1567,8 +1883,18 @@ export class SubscriptionsService {
         ...(dto.shippingCost !== undefined && { shippingCost: dto.shippingCost }),
         ...(dto.costCurrency !== undefined && { costCurrency: dto.costCurrency }),
         ...('trackingNumber' in dto && { trackingNumber: dto.trackingNumber ?? null }),
+        ...(dto.isForwarding !== undefined && { isForwarding: dto.isForwarding }),
       },
     });
+
+    // isForwarding change affects country-fee snapshot — refresh fire-and-forget
+    if (dto.isForwarding !== undefined && dto.isForwarding !== entry.isForwarding) {
+      this.countryFeeSnapshotService.refreshSnapshotForEntry(entry.id).catch(() => {});
+      // Bust L1 cache for this subscription (country unknown here, clear all keys for slug)
+      for (const key of this.countryFeeCache.keys()) {
+        if (key.startsWith(`${slug}:`)) this.countryFeeCache.delete(key);
+      }
+    }
 
     // Propagate currency to book entries that are missing it
     if (dto.costCurrency) {
@@ -1703,6 +2029,7 @@ export class SubscriptionsService {
         startDate: startDateStr,
         basePrice: dto.basePrice ? parseFloat(dto.basePrice) : null,
         shippingCost: dto.shippingCost ? parseFloat(dto.shippingCost) : null,
+        isForwarding: dto.isForwarding ?? false,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         renewalDay,
         ...(resolvedPrepayOptionId !== null && {
@@ -1777,6 +2104,7 @@ export class SubscriptionsService {
     }
 
     this.statsService.markStatsStale(userId);
+    this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
     return { entry, eligibleMonths };
   }
 
@@ -1844,6 +2172,20 @@ export class SubscriptionsService {
    * ALL component subscriptions' months for the same year/month slot.
    * Synthetic ID format: `COMBO_${year}_${month}` (no colons to avoid key-parsing issues).
    */
+  /**
+   * For combo components that are content stream variants (parentSubscriptionId set),
+   * months live on the parent subscription — not on the variant itself.
+   * Returns the effective subscription IDs to use when querying SubscriptionMonth records.
+   */
+  private async resolveEffectiveComponentIds(componentIds: string[]): Promise<string[]> {
+    if (componentIds.length === 0) return [];
+    const subs = await this.prisma.subscription.findMany({
+      where: { id: { in: componentIds } },
+      select: { id: true, parentSubscriptionId: true },
+    });
+    return subs.map((s) => s.parentSubscriptionId ?? s.id);
+  }
+
   private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0) {
     if (!startDateObj || componentIds.length === 0) return [];
 
@@ -1864,9 +2206,10 @@ export class SubscriptionsService {
       return [];
     }
 
+    const effectiveComponentIds = await this.resolveEffectiveComponentIds(componentIds);
     const componentMonths = await this.prisma.subscriptionMonth.findMany({
       where: {
-        subscriptionId: { in: componentIds },
+        subscriptionId: { in: effectiveComponentIds },
         AND: [
           {
             OR: [
@@ -2093,6 +2436,8 @@ export class SubscriptionsService {
     const sub = await this.findBySlug(slug);
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
+    // For variant subs (parentSubscriptionId set), months live on the parent subscription.
+    const monthsSubscriptionId: string = (sub as any).parentSubscriptionId ?? sub.id;
 
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
       where: { userId, subscriptionId: sub.id },
@@ -2147,6 +2492,9 @@ export class SubscriptionsService {
       const eligibleComboMonths = await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj, fallbackSettings.signupIncludesCurrentMonth);
       const eligibleIds = new Set(eligibleComboMonths.map(m => m.id));
 
+      // Resolve effective IDs once — for content stream variants, months live on the parent.
+      const effectiveComponentIds = await this.resolveEffectiveComponentIds(componentIds);
+
       const validComboIds = dto.selectedMonthIds.filter(id => eligibleIds.has(id));
 
       const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : 0;
@@ -2173,6 +2521,7 @@ export class SubscriptionsService {
       // Use fallbackSettings (subscription-level setting at backfill time — resolved per-month in loop)
       const comboPaymentOnStartup = fallbackSettings.paymentOnStartup;
       let earliestComboId: string | null = null;
+      let comboFirstBilledYearMonth: { year: number; month: number } | null = null;
       if (comboPaymentOnStartup && entry.startDate) {
         let earliestYear = Infinity; let earliestMonth = Infinity;
         for (const comboId of validComboIds) {
@@ -2181,6 +2530,15 @@ export class SubscriptionsService {
           if (y < earliestYear || (y === earliestYear && m < earliestMonth)) {
             earliestYear = y; earliestMonth = m; earliestComboId = comboId;
           }
+        }
+      }
+      // Compute first billed year/month for combo window (grandfathered price logic).
+      for (const comboId of validComboIds) {
+        const parts = comboId.split('_');
+        const y = parseInt(parts[1]); const m = parseInt(parts[2]);
+        if (!comboFirstBilledYearMonth || y < comboFirstBilledYearMonth.year ||
+            (y === comboFirstBilledYearMonth.year && m < comboFirstBilledYearMonth.month)) {
+          comboFirstBilledYearMonth = { year: y, month: m };
         }
       }
 
@@ -2192,7 +2550,7 @@ export class SubscriptionsService {
 
         // Fetch books from all component months for this year/month
         const componentMonths = await this.prisma.subscriptionMonth.findMany({
-          where: { subscriptionId: { in: componentIds }, year, month },
+          where: { subscriptionId: { in: effectiveComponentIds }, year, month },
           select: { books: { select: { bookId: true, editionId: true, signatureType: true } } },
         });
         // Deduplicate books by editionId
@@ -2223,7 +2581,7 @@ export class SubscriptionsService {
                   })();
               return new Date(Date.UTC(ry, rm - 1, comboRenewalDay));
             })();
-        const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase, entry.costCurrency);
+        const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase, entry.costCurrency, comboFirstBilledYearMonth);
         const basePrice = resolved.price ?? fallbackBase;
 
         const group = await this.prisma.userPurchaseGroup.create({
@@ -2293,9 +2651,15 @@ export class SubscriptionsService {
       // Uses the same component month ID approach as recordSkip() so skip records are consistent.
       const subWithComboPolicy = await this.prisma.subscription.findUnique({
         where: { id: sub.id },
-        include: { skipPolicy: true },
+        include: { skipPolicies: true },
       });
-      const comboPolicy = subWithComboPolicy?.skipPolicy ?? null;
+      const comboIsPrepaid = (entry.prepaidMonths ?? 1) > 1;
+      const comboTargetType = comboIsPrepaid ? 'PREPAID' : 'MONTHLY';
+      const comboPolicies = subWithComboPolicy?.skipPolicies ?? [];
+      const comboPolicy =
+        comboPolicies.find((p) => p.billingType === comboTargetType) ??
+        comboPolicies.find((p) => p.billingType === 'ALL') ??
+        null;
       const selectedComboSet = new Set(dto.selectedMonthIds);
       const skippableComboMonths = eligibleComboMonths
         .filter(m => m.books.length > 0 && !selectedComboSet.has(m.id))
@@ -2306,7 +2670,7 @@ export class SubscriptionsService {
       for (const m of skippableComboMonths) {
         // Resolve the real DB month ID from any component subscription (same as recordSkip)
         const compMonth = await this.prisma.subscriptionMonth.findFirst({
-          where: { subscriptionId: { in: componentIds }, year: m.year, month: m.month },
+          where: { subscriptionId: { in: effectiveComponentIds }, year: m.year, month: m.month },
           orderBy: { subscriptionId: 'asc' },
         });
         if (!compMonth) continue;
@@ -2385,6 +2749,16 @@ export class SubscriptionsService {
       earliestMonthId = earliest?.id ?? null;
     }
 
+    // Compute first billed year/month for this subscription window (used for grandfathered price logic).
+    // This is the minimum year/month across all selected months — represents when user started in this window.
+    let backfillFirstBilledYearMonth: { year: number; month: number } | null = null;
+    for (const m of monthRecords) {
+      if (!backfillFirstBilledYearMonth || m.year < backfillFirstBilledYearMonth.year ||
+          (m.year === backfillFirstBilledYearMonth.year && m.month < backfillFirstBilledYearMonth.month)) {
+        backfillFirstBilledYearMonth = { year: m.year, month: m.month };
+      }
+    }
+
     // Build all fee records in memory first
     const feesToCreate: {
       userId: string; feeTemplateId?: string | null; name: string; amount: number;
@@ -2424,7 +2798,7 @@ export class SubscriptionsService {
       const batchIdx = batchInfo?.batchIndex;
 
       // Determine amounts
-      const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, entryCostCurrency);
+      const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, entryCostCurrency, backfillFirstBilledYearMonth);
       const baseAmount = batch
         ? batch.baseAmount / batch.monthsCovered
         : (resolvedBase.price ?? fallbackBase);
@@ -2583,9 +2957,15 @@ export class SubscriptionsService {
 
     const subWithPolicy = await this.prisma.subscription.findUnique({
       where: { id: sub.id },
-      include: { skipPolicy: true },
+      include: { skipPolicies: true },
     });
-    const policy = subWithPolicy?.skipPolicy ?? null;
+    const isPrepaidBackfill = (entry.prepaidMonths ?? 1) > 1;
+    const targetBillingType = isPrepaidBackfill ? 'PREPAID' : 'MONTHLY';
+    const backfillPolicies = subWithPolicy?.skipPolicies ?? [];
+    const policy =
+      backfillPolicies.find((p) => p.billingType === targetBillingType) ??
+      backfillPolicies.find((p) => p.billingType === 'ALL') ??
+      null;
 
     const cancellationDateObj = entry.cancellationDate
       ? (() => {
@@ -2595,7 +2975,7 @@ export class SubscriptionsService {
       : null;
 
     if (startDateObj) {
-      const eligibleMonths = await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj);
+      const eligibleMonths = await this.getEligibleMonths(monthsSubscriptionId, startDateObj, cancellationDateObj);
       const skippableMonths = eligibleMonths
         .filter(m => m.books.length > 0 && !selectedSet.has(m.id))
         .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
@@ -2720,14 +3100,28 @@ export class SubscriptionsService {
     });
     if (existing) throw new ConflictException('Already on the waitlist for this subscription');
 
-    return this.prisma.subscriptionWaitlistEntry.create({
+    const created = await this.prisma.subscriptionWaitlistEntry.create({
       data: {
         userId,
         subscriptionId: sub.id,
         ...(joinedAt ? { joinedAt: new Date(joinedAt) } : {}),
       },
-      include: { subscription: { select: { id: true, slug: true, name: true, coverImage: true } } },
+      include: {
+        subscription: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            coverImage: true,
+            coverImageAsset: { select: { id: true, publicId: true } },
+          },
+        },
+      },
     });
+    return {
+      ...created,
+      subscription: this.mapSubscriptionAssets(created.subscription),
+    };
   }
 
   async updateWaitlistJoinDate(userId: string, subscriptionSlug: string, joinedAt: string) {
@@ -2776,8 +3170,17 @@ export class SubscriptionsService {
             slug: true,
             name: true,
             coverImage: true,
+            coverImageAsset: { select: { id: true, publicId: true } },
             isDiscontinued: true,
-            company: { select: { id: true, name: true, slug: true, logoUrl: true } },
+            company: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                logoUrl: true,
+                logoAsset: { select: { id: true, publicId: true } },
+              },
+            },
           },
         },
       },
@@ -2787,6 +3190,7 @@ export class SubscriptionsService {
     const now = new Date();
     return entries.map((e) => ({
       ...e,
+      subscription: this.mapSubscriptionAssets(e.subscription),
       daysOnList: e.leftAt
         ? Math.floor((new Date(e.leftAt).getTime() - new Date(e.joinedAt).getTime()) / 86400000)
         : Math.floor((now.getTime() - new Date(e.joinedAt).getTime()) / 86400000),
@@ -2815,113 +3219,20 @@ export class SubscriptionsService {
     const subscription = await this.prisma.subscription.findUnique({ where: { slug }, select: { id: true } });
     if (!subscription) return [];
 
-    // Try to read from DB snapshot first (calculated by cron every 3 days)
+    // Try DB snapshot first (written by cron or isForwarding change)
     const snapshot = await this.prisma.subscriptionCountryFeeSnapshot.findUnique({
       where: { subscriptionId_country: { subscriptionId: subscription.id, country: country.toUpperCase() } },
     });
 
     if (snapshot) {
       const data = snapshot.data as unknown as CountryFeeHint[];
-      this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 }); // 1h L1 cache
+      this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 });
       return data;
     }
 
-    // Fallback: live aggregation (snapshot not yet calculated — first visit before first cron run)
-    const countryUpper = country.toUpperCase();
-
-    const entries = await this.prisma.userSubscriptionEntry.findMany({
-      where: {
-        subscriptionId: subscription.id,
-        active: true,
-        OR: [
-          { shippingCountry: countryUpper },
-          { shippingCountry: null, user: { shippingCountry: countryUpper } },
-        ],
-      },
-      select: {
-        id: true,
-        shippingCost: true,
-        costCurrency: true,
-        feeTemplates: {
-          select: {
-            customAmount: true,
-            customCurrency: true,
-            feeTemplate: {
-              select: {
-                category: true,
-                defaultAmount: true,
-                defaultCurrency: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!entries.length) return [];
-
-    // Aggregate shipping costs
-    const shippingAmounts: number[] = [];
-    let shippingCurrency: string | null = null;
-    let shippingMixed = false;
-    for (const entry of entries) {
-      if (entry.shippingCost != null) {
-        const cur = entry.costCurrency ?? null;
-        shippingAmounts.push(Number(entry.shippingCost));
-        if (shippingCurrency === null) shippingCurrency = cur;
-        else if (shippingCurrency !== cur) shippingMixed = true;
-      }
-    }
-    if (shippingMixed) shippingCurrency = null;
-
-    const byCategory = new Map<string, { count: number; amounts: number[]; currency: string | null }>();
-    for (const entry of entries) {
-      for (const link of entry.feeTemplates) {
-        const cat = link.feeTemplate.category as string;
-        const amt = link.customAmount ?? link.feeTemplate.defaultAmount;
-        const cur = link.customCurrency ?? link.feeTemplate.defaultCurrency;
-        if (!byCategory.has(cat)) byCategory.set(cat, { count: 0, amounts: [], currency: cur });
-        const agg = byCategory.get(cat)!;
-        agg.count++;
-        if (amt != null) agg.amounts.push(Number(amt));
-        if (agg.currency !== cur) agg.currency = null;
-      }
-    }
-
-    const totalEntries = entries.length;
-    const avgShipping = shippingAmounts.length > 0
-      ? shippingAmounts.reduce((a, b) => a + b, 0) / shippingAmounts.length
-      : null;
-
-    const data: CountryFeeHint[] = Array.from(byCategory.entries()).map(([category, agg]) => ({
-      category,
-      count: agg.count,
-      totalSubscribers: totalEntries,
-      avgAmount: agg.amounts.length > 0 ? agg.amounts.reduce((a, b) => a + b, 0) / agg.amounts.length : null,
-      currency: agg.currency,
-      avgShipping,
-      shippingCurrency,
-      shippingCount: shippingAmounts.length,
-    }));
-
-    // Add a synthetic "shipping" entry if there's shipping data but no SHIPPING fee category
-    const hasShippingCat = data.some(d => d.category === 'SHIPPING');
-    if (!hasShippingCat && avgShipping !== null) {
-      data.push({
-        category: '__shipping__',
-        count: shippingAmounts.length,
-        totalSubscribers: totalEntries,
-        avgAmount: avgShipping,
-        currency: shippingCurrency,
-        avgShipping,
-        shippingCurrency,
-        shippingCount: shippingAmounts.length,
-      });
-    }
-
-    data.sort((a, b) => b.count - a.count);
-
-    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 }); // 1h TTL (fallback path)
+    // No snapshot yet — compute live (purchase groups → entry-settings fallback)
+    const data = await this.countryFeeSnapshotService.computeForSubscriptionAndCountry(subscription.id, country);
+    this.countryFeeCache.set(key, { data, expiresAt: Date.now() + 3_600_000 });
     return data;
   }
 
@@ -2979,25 +3290,31 @@ export class SubscriptionsService {
         newBasePrice: dto.newBasePrice,
         currency: dto.currency,
         notes: dto.notes ?? null,
+        grandfatheredPrice: dto.grandfatheredPrice ?? false,
       },
       update: {
         newBasePrice: dto.newBasePrice,
         currency: dto.currency,
         notes: dto.notes ?? null,
+        grandfatheredPrice: dto.grandfatheredPrice ?? false,
       },
     });
     await this.cache.del(this.subSlugKey(slug));
     return result;
   }
 
-  async updatePriceChange(slug: string, id: string, dto: { newBasePrice: number; notes?: string }) {
+  async updatePriceChange(slug: string, id: string, dto: { newBasePrice: number; notes?: string; grandfatheredPrice?: boolean }) {
     const sub = await this.findBySlug(slug);
     const change = await this.prisma.subscriptionPriceChange.findUnique({ where: { id } });
     if (!change) throw new NotFoundException('Price change not found');
     if (change.subscriptionId !== sub.id) throw new ForbiddenException();
     const result = await this.prisma.subscriptionPriceChange.update({
       where: { id },
-      data: { newBasePrice: dto.newBasePrice, notes: dto.notes ?? null },
+      data: {
+        newBasePrice: dto.newBasePrice,
+        notes: dto.notes ?? null,
+        ...(dto.grandfatheredPrice !== undefined && { grandfatheredPrice: dto.grandfatheredPrice }),
+      },
     });
     await this.cache.del(this.subSlugKey(slug));
     return result;

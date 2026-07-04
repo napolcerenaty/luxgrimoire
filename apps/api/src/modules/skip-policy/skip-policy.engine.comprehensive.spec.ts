@@ -28,12 +28,13 @@ function makePolicy(
     maxConsecutive?: number | null;
     windowMonths?: number | null;
     allowUnskip?: boolean;
-    eligibleBillingTypes?: string | null;
+    billingType?: string;
   } = {},
 ) {
   if (type === 'NONE') return null;
   return {
     type,
+    billingType: opts.billingType ?? 'ALL',
     maxSkips: opts.maxSkips ?? null,
     maxConsecutive: opts.maxConsecutive ?? null,
     windowMonths: opts.windowMonths ?? null,
@@ -44,7 +45,6 @@ function makePolicy(
     unskipNotes: null,
     skipDeadlineDaysBefore: 3,
     unskipDeadlineDaysBefore: 0,
-    eligibleBillingTypes: opts.eligibleBillingTypes ?? null,
   };
 }
 
@@ -120,13 +120,13 @@ function makePrismaForGetStatus(opts: {
   const subscription = {
     id: 'sub-1',
     slug: 'test-sub',
-    renewalDay: 1,
+    renewalDay: null,
     renewalMonthOffset: 0,
     isCombo: opts.isCombo ?? false,
     paymentOnStartup: false,
     signupIncludesCurrentMonth: false,
     startDate: null,
-    skipPolicy: policy,
+    skipPolicies: policy ? [policy] : [],
     comboComponents: (opts.componentIds ?? []).map((id) => ({ componentId: id })),
     userEntries: [
       {
@@ -440,24 +440,17 @@ describe('SkipPolicyEngine — comprehensive', () => {
     const call = (policy: any, state: any, prepaid?: number) =>
       (engine as any).evaluateCanSkip(policy, state, prepaid);
 
-    it('MONTHLY_ONLY: blocks prepaid subscriptions', () => {
-      const p = makePolicy('FROM_FIRST_SKIP', { maxSkips: 4, eligibleBillingTypes: 'MONTHLY_ONLY' });
-      expect(call(p, { skipsInWindow: 0, consecutiveSkips: 0 }, 3)).toBe(false);
-    });
-
-    it('MONTHLY_ONLY: allows monthly subscriptions', () => {
-      const p = makePolicy('FROM_FIRST_SKIP', { maxSkips: 4, eligibleBillingTypes: 'MONTHLY_ONLY' });
-      expect(call(p, { skipsInWindow: 0, consecutiveSkips: 0 }, 1)).toBe(true);
-    });
-
-    it('PREPAID_ONLY: blocks monthly subscriptions', () => {
-      const p = makePolicy('FROM_FIRST_SKIP', { maxSkips: 4, eligibleBillingTypes: 'PREPAID_ONLY' });
-      expect(call(p, { skipsInWindow: 0, consecutiveSkips: 0 }, 1)).toBe(false);
-    });
-
-    it('PREPAID_ONLY: allows prepaid subscriptions', () => {
-      const p = makePolicy('FROM_FIRST_SKIP', { maxSkips: 4, eligibleBillingTypes: 'PREPAID_ONLY' });
+    it('PREPAID_WINDOW_SKIP: counts window skip against maxSkips', () => {
+      const p = makePolicy('FROM_FIRST_SKIP', { maxSkips: 1 });
       expect(call(p, { skipsInWindow: 0, consecutiveSkips: 0 }, 6)).toBe(true);
+      expect(call(p, { skipsInWindow: 1, consecutiveSkips: 0 }, 6)).toBe(false);
+    });
+
+    it('billing type restriction is no longer enforced by evaluateCanSkip (handled by selection)', () => {
+      const p = makePolicy('FROM_FIRST_SKIP', { maxSkips: 4, billingType: 'MONTHLY' });
+      // evaluateCanSkip ignores billing type — a prepaid subscriber under the limit can still skip
+      expect(call(p, { skipsInWindow: 0, consecutiveSkips: 0 }, 3)).toBe(true);
+      expect(call(p, { skipsInWindow: 0, consecutiveSkips: 0 }, 1)).toBe(true);
     });
 
     it('null state with window limit → treated as 0 skips (can skip)', () => {
@@ -925,6 +918,14 @@ describe('SkipPolicyEngine — comprehensive', () => {
   describe('getStatus — UNLIMITED', () => {
     const uid = 'user-1';
     const slug = 'test-sub';
+
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-05-15T10:00:00Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
 
     it('always canSkip=true, even with huge skip history', async () => {
       const prisma = makePrismaForGetStatus({

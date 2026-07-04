@@ -42,9 +42,10 @@ afterEach(() => {
 
 // ─── Factory helpers ──────────────────────────────────────────────────────────
 
-function makePolicy(type: string, opts: { maxSkips?: number | null; maxConsecutive?: number | null; windowMonths?: number | null; allowUnskip?: boolean } = {}) {
+function makePolicy(type: string, opts: { maxSkips?: number | null; maxConsecutive?: number | null; windowMonths?: number | null; allowUnskip?: boolean; billingType?: string } = {}) {
   return {
     type,
+    billingType: opts.billingType ?? 'ALL',
     maxSkips: opts.maxSkips ?? null,
     maxConsecutive: opts.maxConsecutive ?? null,
     windowMonths: opts.windowMonths ?? null,
@@ -52,7 +53,6 @@ function makePolicy(type: string, opts: { maxSkips?: number | null; maxConsecuti
     notes: null, skipHow: null, unskipHow: null, unskipNotes: null,
     skipDeadlineDaysBefore: 3,
     unskipDeadlineDaysBefore: 0,
-    eligibleBillingTypes: null,
   };
 }
 
@@ -77,7 +77,7 @@ function makeQuarterlyBundleSubscription(overrides: {
     paymentOnStartup: false,
     signupIncludesCurrentMonth: false,
     startDate: null,
-    skipPolicy: policy,
+    skipPolicies: policy ? [policy] : [],
     comboComponents: [],
     userEntries: [
       {

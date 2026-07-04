@@ -7,6 +7,7 @@ import { UploadService } from '../upload/upload.service';
 import { CreateArtistDto, UpdateArtistDto, ArtistQueryDto } from './artists.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+import { MediaAssetsService } from '../media-assets/media-assets.service';
 
 const ARTIST_SLUG_TTL = 24 * 60 * 60 * 1000;
 const ARTIST_CONTRIBUTIONS_TTL = 60 * 60 * 1000;
@@ -22,17 +23,20 @@ export class ArtistsService {
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
+    private readonly mediaAssetsService: MediaAssetsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async create(dto: CreateArtistDto) {
     const slug = generateSlug(dto.name);
-    const artist = await this.prisma.artist.create({
+    const photoAsset = dto.photoUrl ? await this.mediaAssetsService.ensureForPublicId(dto.photoUrl) : null;
+    const artist = await (this.prisma.artist as any).create({
       data: {
         slug,
         name: dto.name,
         bio: dto.bio,
         photoUrl: dto.photoUrl,
+        photoAssetId: photoAsset?.id ?? null,
         specialty: dto.specialty,
         website: dto.website,
         instagram: dto.instagram,
@@ -42,7 +46,11 @@ export class ArtistsService {
       },
     });
     await this.indexArtist(artist);
-    return artist;
+    return {
+      ...artist,
+      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
+      photoUrl: photoAsset?.publicId ?? artist.photoUrl,
+    };
   }
 
   async findAll(query: ArtistQueryDto) {
@@ -54,7 +62,7 @@ export class ArtistsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.artist.findMany({
+      (this.prisma.artist as any).findMany({
         where,
         skip,
         take: pageSize,
@@ -64,6 +72,7 @@ export class ArtistsService {
           slug: true,
           name: true,
           photoUrl: true,
+          photoAsset: { select: { id: true, publicId: true } },
           specialty: true,
           website: true,
           instagram: true,
@@ -77,7 +86,13 @@ export class ArtistsService {
       this.prisma.artist.count({ where }),
     ]);
 
-    return { data, ...buildPageMeta(total, page, pageSize) };
+    return {
+      data: data.map((artist: any) => ({
+        ...artist,
+        photoUrl: artist.photoAsset?.publicId ?? artist.photoUrl,
+      })),
+      ...buildPageMeta(total, page, pageSize),
+    };
   }
 
   async findBySlug(slug: string) {
@@ -89,7 +104,7 @@ export class ArtistsService {
   }
 
   private async _fetchArtistProfile(slug: string) {
-    const artist = await this.prisma.artist.findUnique({
+    const artist = await (this.prisma.artist as any).findUnique({
       where: { slug },
       select: {
         id: true,
@@ -97,6 +112,7 @@ export class ArtistsService {
         name: true,
         bio: true,
         photoUrl: true,
+        photoAsset: { select: { id: true, publicId: true } },
         specialty: true,
         website: true,
         instagram: true,
@@ -106,27 +122,41 @@ export class ArtistsService {
       },
     });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
-    return artist;
+    return {
+      ...artist,
+      photoUrl: artist.photoAsset?.publicId ?? artist.photoUrl,
+    };
   }
 
-  async findContributions(slug: string) {
-    const cached = await this.cache.get(artistContributionsKey(slug));
-    if (cached) return cached as Awaited<ReturnType<typeof this._fetchArtistContributions>>;
-    await this.findBySlug(slug); // ensure artist exists
-    const contributions = await this._fetchArtistContributions(slug);
-    await this.cache.set(artistContributionsKey(slug), contributions, ARTIST_CONTRIBUTIONS_TTL);
-    return contributions;
-  }
+  async findContributions(slug: string, page = 1, pageSize = 24) {
+    const { skip, take, page: p, pageSize: ps } = parsePagination({ page, pageSize });
+    const cacheKey = `${artistContributionsKey(slug)}:${p}:${ps}`;
+    const cached = await this.cache.get(cacheKey);
+    if (cached) return cached as any;
 
-  private async _fetchArtistContributions(slug: string) {
-    const artist = await this.prisma.artist.findUnique({
-      where: { slug },
-      select: { id: true },
-    });
+    const artist = await this.prisma.artist.findUnique({ where: { slug }, select: { id: true } });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
 
+    // Count & fetch distinct editions (paginated)
+    const [grouped, editionIdRows] = await Promise.all([
+      this.prisma.artistContribution.groupBy({
+        by: ['editionId'] as any,
+        where: { artistId: artist.id },
+      }),
+      (this.prisma.artistContribution as any).findMany({
+        where: { artistId: artist.id },
+        select: { editionId: true },
+        distinct: ['editionId'],
+        skip,
+        take,
+      }),
+    ]);
+    const total = grouped.length;
+    const editionIds: string[] = editionIdRows.map((r: any) => r.editionId);
+
+    // Fetch all contributions for those editions (to collect roles)
     const contributions = await this.prisma.artistContribution.findMany({
-      where: { artistId: artist.id },
+      where: { artistId: artist.id, editionId: { in: editionIds } },
       select: {
         role: true,
         edition: {
@@ -146,43 +176,72 @@ export class ArtistsService {
       },
     });
 
-    return contributions.map((contrib) => {
-      const { communityImages, ...editionRest } = contrib.edition as typeof contrib.edition & { communityImages: Array<{ url: string }> };
-      return {
-        role: contrib.role,
-        edition: {
-          ...editionRest,
-          communityPhotoCover: (contrib.edition.additionalImages as string[]).length === 0
-            ? (communityImages?.[0]?.url ?? null)
-            : null,
-        },
-      };
-    });
+    // Group roles per edition, preserving paginated order
+    const editionMap = new Map<string, any>();
+    for (const c of contributions) {
+      const ed = c.edition as any;
+      const existing = editionMap.get(ed.id);
+      if (existing) {
+        existing.roles.push(c.role);
+      } else {
+        const { communityImages, ...editionRest } = ed;
+        editionMap.set(ed.id, {
+          roles: [c.role],
+          edition: {
+            ...editionRest,
+            communityPhotoCover:
+              (ed.additionalImages as string[]).length === 0
+                ? (communityImages?.[0]?.url ?? null)
+                : null,
+          },
+        });
+      }
+    }
+    const data = editionIds.map((id) => editionMap.get(id)).filter(Boolean);
+
+    const result = { data, ...buildPageMeta(total, p, ps) };
+    await this.cache.set(cacheKey, result, ARTIST_CONTRIBUTIONS_TTL);
+    return result;
   }
 
-  async findCardMonths(slug: string) {
+  async findCardMonths(slug: string, page = 1, pageSize = 24) {
+    const { skip, take, page: p, pageSize: ps } = parsePagination({ page, pageSize });
+
     const artist = await this.prisma.artist.findUnique({
       where: { slug },
       select: { id: true },
     });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
 
-    const months = await this.prisma.subscriptionMonth.findMany({
-      where: { cardArtistId: artist.id },
-      orderBy: [{ year: 'desc' }, { month: 'desc' }],
-      select: {
-        id: true,
-        year: true,
-        month: true,
-        theme: true,
-        coverImage: true,
-        isSpoiler: true,
-        subscription: {
-          select: { id: true, name: true, slug: true },
+    const [months, total] = await Promise.all([
+      (this.prisma.subscriptionMonth as any).findMany({
+        where: { cardArtistId: artist.id },
+        orderBy: [{ year: 'desc' }, { month: 'desc' }],
+        skip,
+        take,
+        select: {
+          id: true,
+          year: true,
+          month: true,
+          theme: true,
+          coverImage: true,
+          coverImageAsset: { select: { id: true, publicId: true } },
+          isSpoiler: true,
+          subscription: {
+            select: { id: true, name: true, slug: true },
+          },
         },
-      },
-    });
-    return months;
+      }),
+      (this.prisma.subscriptionMonth as any).count({ where: { cardArtistId: artist.id } }),
+    ]);
+
+    return {
+      data: months.map((month: any) => ({
+        ...month,
+        coverImage: month.coverImageAsset?.publicId ?? month.coverImage,
+      })),
+      ...buildPageMeta(total, p, ps),
+    };
   }
 
   async update(slug: string, dto: UpdateArtistDto) {
@@ -190,13 +249,25 @@ export class ArtistsService {
     if (dto.photoUrl !== undefined && dto.photoUrl !== existing.photoUrl) {
       await this.uploadService.deleteImages([existing.photoUrl]);
     }
-    const artist = await this.prisma.artist.update({ where: { slug }, data: dto });
+    const data: Record<string, unknown> = { ...dto };
+    if (dto.photoUrl !== undefined) {
+      const photoAsset = dto.photoUrl ? await this.mediaAssetsService.ensureForPublicId(dto.photoUrl) : null;
+      data.photoAssetId = photoAsset?.id ?? null;
+    }
+    const artist = await (this.prisma.artist as any).update({ where: { slug }, data });
     await this.indexArtist(artist);
     await Promise.all([
       this.cache.del(artistProfileKey(slug)),
       this.cache.del(artistContributionsKey(slug)),
     ]);
-    return artist;
+    const photoAsset = dto.photoUrl !== undefined && dto.photoUrl
+      ? await this.mediaAssetsService.ensureForPublicId(dto.photoUrl)
+      : null;
+    return {
+      ...artist,
+      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
+      photoUrl: photoAsset?.publicId ?? artist.photoUrl,
+    };
   }
 
   async delete(slug: string) {

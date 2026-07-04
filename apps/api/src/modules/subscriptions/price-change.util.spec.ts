@@ -10,9 +10,12 @@
  *  6. targetCurrency filtering: matching, non-matching, multi-currency, null/undefined
  *  7. nextRenewalPriceChanged trigger conditions (fromPriceChange + price !== fallback)
  *  8. Price parsing from string / Decimal-like objects
+ *  9. Backfill price selection across months
+ * 10. grandfatheredPrice — existing subscribers keep old price, new subscribers get new price
+ * 11. parseFirstBilledYearMonth — title parsing with fallbacks
  */
 
-import { resolveEffectiveBasePrice } from './price-change.util';
+import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 
 // Helper to build a price change fixture with minimal boilerplate
 function pc(
@@ -20,12 +23,14 @@ function pc(
   month: number,
   price: number | string,
   currency = 'EUR',
+  grandfatheredPrice = false,
 ) {
   return {
     effectiveYear: year,
     effectiveMonth: month,
     newBasePrice: { toString: () => String(price) },
     currency,
+    grandfatheredPrice,
   };
 }
 
@@ -374,6 +379,194 @@ describe('resolveEffectiveBasePrice', () => {
       const gbpResult = resolveEffectiveBasePrice(mixedHistory, 2024, 3, 5.0, 'GBP');
       expect(eurResult.price).toBeCloseTo(14.0);
       expect(gbpResult.price).toBeCloseTo(11.0);
+    });
+  });
+
+  // ── 10. grandfatheredPrice ───────────────────────────────────────────────────
+
+  describe('grandfatheredPrice — existing subscribers keep old price', () => {
+    /**
+     * Fairyloot scenario:
+     *   - Subscription has sentinel (base) EUR 30 and a grandfathered change effective Jan 2026 → EUR 35.
+     *   - Users whose firstBilled < Jan 2026 keep EUR 30 (grandfathered).
+     *   - Users whose firstBilled >= Jan 2026 pay EUR 35 (new subscribers).
+     */
+
+    const history = [
+      pc(1900, 1, 30.0, 'EUR'),              // sentinel: base price 30
+      pc(2026, 1, 35.0, 'EUR', true),        // Jan 2026: new price 35, grandfathered
+    ];
+
+    it('existing subscriber (firstBilled Nov 2025) keeps old price for Jan 2026 billing', () => {
+      const result = resolveEffectiveBasePrice(
+        history, 2026, 1, 30.0, 'EUR',
+        { year: 2025, month: 11 }, // firstBilled Nov 2025 < Jan 2026 → grandfathered
+      );
+      // Grandfathered change is skipped → falls back to sentinel (30)
+      expect(result.price).toBeCloseTo(30.0);
+    });
+
+    it('existing subscriber (firstBilled Dec 2025) keeps old price for Jan 2026 billing', () => {
+      const result = resolveEffectiveBasePrice(
+        history, 2026, 1, 30.0, 'EUR',
+        { year: 2025, month: 12 }, // firstBilled Dec 2025 < Jan 2026 → grandfathered
+      );
+      expect(result.price).toBeCloseTo(30.0);
+    });
+
+    it('new subscriber (firstBilled Jan 2026) pays new price', () => {
+      const result = resolveEffectiveBasePrice(
+        history, 2026, 1, 30.0, 'EUR',
+        { year: 2026, month: 1 }, // firstBilled Jan 2026 = effectiveMonth → NOT grandfathered
+      );
+      expect(result.price).toBeCloseTo(35.0);
+    });
+
+    it('new subscriber (firstBilled Feb 2026) pays new price for Mar 2026 billing', () => {
+      const result = resolveEffectiveBasePrice(
+        history, 2026, 3, 30.0, 'EUR',
+        { year: 2026, month: 2 }, // firstBilled Feb > Jan 2026 → NOT grandfathered
+      );
+      expect(result.price).toBeCloseTo(35.0);
+    });
+
+    it('existing subscriber is grandfathered across multiple future billing months', () => {
+      for (const billingMonth of [1, 3, 6, 12] as number[]) {
+        const result = resolveEffectiveBasePrice(
+          history, 2026, billingMonth, 30.0, 'EUR',
+          { year: 2025, month: 6 }, // joined Jun 2025 → always grandfathered
+        );
+        expect(result.price).toBeCloseTo(30.0);
+      }
+    });
+
+    it('grandfatheredPrice=false (regular change) always applies regardless of firstBilled', () => {
+      const regularHistory = [
+        pc(1900, 1, 30.0, 'EUR'),
+        pc(2026, 1, 35.0, 'EUR', false), // NOT grandfathered → all subscribers get new price
+      ];
+      const oldSubscriber = resolveEffectiveBasePrice(
+        regularHistory, 2026, 1, 30.0, 'EUR',
+        { year: 2025, month: 1 },
+      );
+      const newSubscriber = resolveEffectiveBasePrice(
+        regularHistory, 2026, 1, 30.0, 'EUR',
+        { year: 2026, month: 1 },
+      );
+      expect(oldSubscriber.price).toBeCloseTo(35.0); // both pay new price
+      expect(newSubscriber.price).toBeCloseTo(35.0);
+    });
+
+    it('without userFirstBilledYearMonth, grandfathered changes apply to everyone (backward-compat)', () => {
+      const result = resolveEffectiveBasePrice(
+        history, 2026, 3, 30.0, 'EUR',
+        // no userFirstBilledYearMonth → grandfatheredPrice flag is ignored
+      );
+      expect(result.price).toBeCloseTo(35.0);
+    });
+
+    it('stacks with targetCurrency: grandfathered EUR change skipped for EUR user with old firstBilled', () => {
+      const multiHistory = [
+        pc(1900, 1, 30.0, 'EUR'),
+        pc(1900, 1, 24.0, 'GBP'),
+        pc(2026, 1, 35.0, 'EUR', true),  // grandfathered EUR change
+        pc(2026, 1, 28.0, 'GBP', false), // regular GBP change
+      ];
+      const oldEurUser = resolveEffectiveBasePrice(
+        multiHistory, 2026, 3, 30.0, 'EUR',
+        { year: 2025, month: 6 },
+      );
+      const oldGbpUser = resolveEffectiveBasePrice(
+        multiHistory, 2026, 3, 24.0, 'GBP',
+        { year: 2025, month: 6 },
+      );
+      expect(oldEurUser.price).toBeCloseTo(30.0); // EUR grandfathered → old price
+      expect(oldGbpUser.price).toBeCloseTo(28.0); // GBP not grandfathered → new price
+    });
+
+    it('new EUR subscriber gets new price even when grandfathered change exists', () => {
+      const multiHistory = [
+        pc(1900, 1, 30.0, 'EUR'),
+        pc(2026, 1, 35.0, 'EUR', true),
+      ];
+      const newEurUser = resolveEffectiveBasePrice(
+        multiHistory, 2026, 1, 30.0, 'EUR',
+        { year: 2026, month: 1 }, // firstBilled = effectiveMonth → new subscriber
+      );
+      expect(newEurUser.price).toBeCloseTo(35.0);
+    });
+
+    it('multiple grandfathered changes: old subscriber always skips all of them', () => {
+      const multiChanges = [
+        pc(1900, 1, 20.0, 'EUR'),
+        pc(2025, 1, 25.0, 'EUR', true), // grandfathered
+        pc(2026, 6, 30.0, 'EUR', true), // grandfathered
+      ];
+      // User firstBilled = Jan 2025 (exactly at the first change boundary)
+      // Jan 2025 >= Jan 2025 → NOT grandfathered from first change → pays 25
+      // Jan 2025 < Jun 2026 → IS grandfathered from second change → stays at 25
+      const atBoundaryUser = resolveEffectiveBasePrice(
+        multiChanges, 2026, 6, 20.0, 'EUR',
+        { year: 2025, month: 1 },
+      );
+      expect(atBoundaryUser.price).toBeCloseTo(25.0);
+
+      // User joined Nov 2024 → firstBilled Dec 2024
+      // Dec 2024 < Jan 2025 → grandfathered from both changes → stays at sentinel (20)
+      const oldUser = resolveEffectiveBasePrice(
+        multiChanges, 2026, 6, 20.0, 'EUR',
+        { year: 2024, month: 12 },
+      );
+      expect(oldUser.price).toBeCloseTo(20.0); // both changes skipped → sentinel
+    });
+
+    it('paymentOnStartup scenario: subscriber pays in Dec for Jan box — not grandfathered for Jan change', () => {
+      // Fairyloot-equivalent: renewalDay=15, user joins Dec 20 (after Dec 15 renewal)
+      // In the cron: billing month = Jan 2026 (box month), firstBilledYearMonth = Jan 2026
+      const result = resolveEffectiveBasePrice(
+        history, 2026, 1, 30.0, 'EUR',
+        { year: 2026, month: 1 }, // firstBilled = Jan 2026 = effective → NOT grandfathered
+      );
+      expect(result.price).toBeCloseTo(35.0); // new price
+    });
+
+    it('with renewal offset: billing month (box month) determines grandfathering, not payment month', () => {
+      // Example: renewalMonthOffset=1. Payment in Dec 2025 is for Jan 2026 box.
+      // In the cron: year=2026, month=1 (box month). firstBilledYearMonth = Jan 2026.
+      // Change Jan 2026 grandfathered. firstBilled (Jan 2026) >= effective (Jan 2026) → NOT grandfathered.
+      const result = resolveEffectiveBasePrice(
+        history, 2026, 1, 30.0, 'EUR',
+        { year: 2026, month: 1 }, // BOX month = Jan 2026 = firstBilled
+      );
+      expect(result.price).toBeCloseTo(35.0);
+    });
+  });
+
+  // ── 11. parseFirstBilledYearMonth ────────────────────────────────────────────
+
+  describe('parseFirstBilledYearMonth', () => {
+    it('parses standard format "Subscription – YYYY/MM"', () => {
+      expect(parseFirstBilledYearMonth('Subscription – 2025/12', 2026, 1)).toEqual({ year: 2025, month: 12 });
+    });
+
+    it('parses zero-padded month', () => {
+      expect(parseFirstBilledYearMonth('Subscription – 2026/01', 2026, 3)).toEqual({ year: 2026, month: 1 });
+    });
+
+    it('returns fallback when title is null', () => {
+      expect(parseFirstBilledYearMonth(null, 2026, 1)).toEqual({ year: 2026, month: 1 });
+    });
+
+    it('returns fallback when title is undefined', () => {
+      expect(parseFirstBilledYearMonth(undefined, 2025, 6)).toEqual({ year: 2025, month: 6 });
+    });
+
+    it('returns fallback when title does not match expected format', () => {
+      expect(parseFirstBilledYearMonth('some other title', 2026, 2)).toEqual({ year: 2026, month: 2 });
+    });
+
+    it('handles hyphen separator variant "Subscription - YYYY/MM"', () => {
+      expect(parseFirstBilledYearMonth('Subscription - 2025/11', 2026, 1)).toEqual({ year: 2025, month: 11 });
     });
   });
 });

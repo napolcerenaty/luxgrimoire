@@ -1,15 +1,17 @@
 'use client'
 
 import { useState, useRef, useMemo, useEffect } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/AuthProvider'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import StatsSettingsPanel from '@/components/stats/StatsSettingsPanel'
 import { useRouter } from 'next/navigation'
-import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle, Upload, BookMarked } from 'lucide-react'
+import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle, Upload, BookMarked, Bell } from 'lucide-react'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
 import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
 import { CURRENCIES_LABELED } from '@/lib/currencies'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 
 
@@ -45,13 +47,14 @@ interface UploadResponse {
   url: string
 }
 
-type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'photos' | 'import'
+type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'notifications' | 'photos' | 'import'
 
 const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'account', label: 'Account', icon: Settings },
   { id: 'preferences', label: 'Preferences', icon: CreditCard },
   { id: 'subscriptions', label: 'Taxes & Fees', icon: BookOpen },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'photos', label: 'My Photos', icon: Image },
   { id: 'import', label: 'Import', icon: Upload },
 ]
@@ -83,6 +86,7 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('profile')
+  const [mobileShowContent, setMobileShowContent] = useState(false)
 
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const DELETE_PHRASE = 'yes i want to delete my account'
@@ -235,28 +239,39 @@ export default function ProfilePage() {
   const initials = (user.displayName ?? user.username).slice(0, 2).toUpperCase()
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-serif font-bold text-stone-100">Settings</h1>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 bg-stone-900 border border-stone-800 rounded-2xl p-1 mb-6">
-        {TAB_CONFIG.map(({ id, label, icon: Icon }) => (
+      <div className="flex gap-6 items-start">
+        {/* Sidebar nav */}
+        <nav className={`w-52 shrink-0 bg-stone-900 border border-stone-800 rounded-2xl p-2 ${mobileShowContent ? 'hidden md:block' : 'block w-full md:w-52'}`}>
+          {TAB_CONFIG.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => { setActiveTab(id); setMobileShowContent(true) }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
+                activeTab === id
+                  ? 'bg-amber-500/10 text-amber-400'
+                  : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
+              }`}
+            >
+              <Icon size={15} className="shrink-0" />
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Content panel */}
+        <div className={`flex-1 min-w-0 ${!mobileShowContent ? 'hidden md:block' : 'block'}`}>
+          {/* Back button — mobile only */}
           <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
-              activeTab === id
-                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
-            }`}
+            onClick={() => setMobileShowContent(false)}
+            className="md:hidden flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-200 mb-4 transition-colors"
           >
-            <Icon size={14} />
-            <span className="hidden sm:inline">{label}</span>
+            ← Settings
           </button>
-        ))}
-      </div>
 
       {/* Profile tab */}
       {activeTab === 'profile' && (
@@ -418,68 +433,74 @@ export default function ProfilePage() {
 
       {/* Preferences tab */}
       {activeTab === 'preferences' && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            updateProfileMutation.mutate({ preferredCurrency, timezone, timeFormat, shippingCountry: shippingCountry.toUpperCase() || undefined })
-          }}
-          className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5"
-        >
-          <h2 className="font-serif font-semibold text-stone-100">Preferences</h2>
-          <div>
-            <label className={LABEL}>Preferred Currency</label>
-            <select value={preferredCurrency} onChange={(e) => setPreferredCurrency(e.target.value)} className={INPUT}>
-              {CURRENCIES_LABELED.map(([code, label]) => (
-                <option key={code} value={code}>{label}</option>
-              ))}
-            </select>
-            <p className="text-xs text-stone-500 mt-1">Used for spending statistics and cost summaries</p>
-          </div>
-          <div>
-            <label className={LABEL}>Default Shipping Country</label>
-            <select value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} className={INPUT}>
-              <option value="">— None —</option>
-              {COUNTRIES.map(([code, name]) => (
-                <option key={code} value={code}>{name}</option>
-              ))}
-            </select>
-            <p className="text-xs text-stone-500 mt-1">Used as default when adding subscription shipping costs</p>
-          </div>
-          <div>
-            <label className={LABEL}>Timezone</label>
-            <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={INPUT}>
-              {timezoneOptions.map(({ tz, label }) => (
-                <option key={tz} value={tz}>{label}</option>
-              ))}
-            </select>
-            <p className="text-xs text-stone-500 mt-1">Used for skip deadlines and renewal date display</p>
-          </div>
-          <div>
-            <label className={LABEL}>Time Format</label>
-            <div className="flex gap-3">
-              {([['24h', '24-hour (e.g. 14:30)'], ['12h', '12-hour (e.g. 2:30 PM)']] as [string, string][]).map(([val, desc]) => (
-                <label key={val} className={`flex-1 flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                  timeFormat === val
-                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
-                    : 'border-stone-700 bg-stone-800/50 text-stone-400 hover:border-stone-600'
-                }`}>
-                  <input type="radio" name="timeFormat" value={val} checked={timeFormat === val}
-                    onChange={() => setTimeFormat(val)} className="accent-amber-400" />
-                  <div>
-                    <div className="text-sm font-medium">{val.toUpperCase()}</div>
-                    <div className="text-xs text-stone-500">{desc}</div>
-                  </div>
-                </label>
-              ))}
+        <div className="space-y-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              updateProfileMutation.mutate({ preferredCurrency, timezone, timeFormat, shippingCountry: shippingCountry.toUpperCase() || undefined })
+            }}
+            className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5"
+          >
+            <h2 className="font-serif font-semibold text-stone-100">Preferences</h2>
+            <div>
+              <label className={LABEL}>Preferred Currency</label>
+              <select value={preferredCurrency} onChange={(e) => setPreferredCurrency(e.target.value)} className={INPUT}>
+                {CURRENCIES_LABELED.map(([code, label]) => (
+                  <option key={code} value={code}>{label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-stone-500 mt-1">Used for spending statistics and cost summaries</p>
             </div>
+            <div>
+              <label className={LABEL}>Default Shipping Country</label>
+              <select value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} className={INPUT}>
+                <option value="">— None —</option>
+                {COUNTRIES.map(([code, name]) => (
+                  <option key={code} value={code}>{name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-stone-500 mt-1">Used as default when adding subscription shipping costs</p>
+            </div>
+            <div>
+              <label className={LABEL}>Timezone</label>
+              <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={INPUT}>
+                {timezoneOptions.map(({ tz, label }) => (
+                  <option key={tz} value={tz}>{label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-stone-500 mt-1">Used for skip deadlines and renewal date display</p>
+            </div>
+            <div>
+              <label className={LABEL}>Time Format</label>
+              <div className="flex gap-3">
+                {([['24h', '24-hour (e.g. 14:30)'], ['12h', '12-hour (e.g. 2:30 PM)']] as [string, string][]).map(([val, desc]) => (
+                  <label key={val} className={`flex-1 flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    timeFormat === val
+                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
+                      : 'border-stone-700 bg-stone-800/50 text-stone-400 hover:border-stone-600'
+                  }`}>
+                    <input type="radio" name="timeFormat" value={val} checked={timeFormat === val}
+                      onChange={() => setTimeFormat(val)} className="accent-amber-400" />
+                    <div>
+                      <div className="text-sm font-medium">{val.toUpperCase()}</div>
+                      <div className="text-xs text-stone-500">{desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+            {prefsError && (
+              <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{prefsError}</p>
+            )}
+            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+              {updateProfileMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : prefsSuccess ? <><Check size={14} /> Saved!</> : 'Save Preferences'}
+            </button>
+          </form>
+
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+            <StatsSettingsPanel />
           </div>
-          {prefsError && (
-            <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{prefsError}</p>
-          )}
-          <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
-            {updateProfileMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : prefsSuccess ? <><Check size={14} /> Saved!</> : 'Save Preferences'}
-          </button>
-        </form>
+        </div>
       )}
 
       {/* Subscriptions & Fees tab */}
@@ -495,6 +516,11 @@ export default function ProfilePage() {
 
       {/* Import tab */}
       {activeTab === 'import' && <ReadingHistoryImport />}
+
+      {/* Notifications tab */}
+      {activeTab === 'notifications' && <NotificationsTab />}
+        </div>{/* end content panel */}
+      </div>{/* end flex row */}
     </div>
   )
 }
@@ -894,6 +920,275 @@ function ReadingHistoryImport() {
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+interface ReminderSettings {
+  renewalEnabled: boolean
+  renewalInAppEnabled: boolean
+  renewalPushEnabled: boolean
+  renewalDaysBefore: number
+  renewalHour: number | null
+  renewalDigest: boolean
+  saleEnabled: boolean
+  saleInAppEnabled: boolean
+  salePushEnabled: boolean
+  saleDaysBefore: number
+  saleMinutesBefore: number | null
+  saleDigest: boolean
+  appNotifPushEnabled: boolean
+}
+
+interface PushNotifPreferences {
+  pushEnabled: boolean
+}
+
+const SECTION = 'bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4'
+const TOGGLE_ROW = 'flex items-center justify-between'
+const TOGGLE_LABEL = 'text-sm text-stone-200'
+const TOGGLE_SUBLABEL = 'text-xs text-stone-500 mt-0.5'
+
+function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${checked ? 'bg-amber-500' : 'bg-stone-700'}`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
+      />
+    </button>
+  )
+}
+
+function NotificationsTab() {
+  const queryClient = useQueryClient()
+  const { permission, isSubscribed, isLoading: pushLoading, isSupported, subscribe, unsubscribe } = usePushNotifications()
+
+  const { data: prefs } = useQuery({
+    queryKey: ['notification-preferences'],
+    queryFn: () => authFetch<PushNotifPreferences>('/notifications/preferences'),
+  })
+
+  const { data: settings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['reminder-settings'],
+    queryFn: () => authFetch<ReminderSettings>('/reminder-settings'),
+  })
+
+  const prefsMutation = useMutation({
+    mutationFn: (dto: Partial<PushNotifPreferences>) =>
+      authFetch('/notifications/preferences', { method: 'PUT', body: JSON.stringify(dto) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notification-preferences'] }),
+  })
+
+  const settingsMutation = useMutation({
+    mutationFn: (dto: Partial<ReminderSettings>) =>
+      authFetch<ReminderSettings>('/reminder-settings', { method: 'PUT', body: JSON.stringify(dto) }),
+    onSuccess: (data) => queryClient.setQueryData(['reminder-settings'], data),
+  })
+
+  const update = (dto: Partial<ReminderSettings>) => settingsMutation.mutate(dto)
+  const HOURS = Array.from({ length: 24 }, (_, i) => i)
+
+  if (settingsLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-32 bg-stone-800 rounded-2xl animate-pulse" />
+        <div className="h-32 bg-stone-800 rounded-2xl animate-pulse" />
+      </div>
+    )
+  }
+
+  const s: ReminderSettings = settings ?? {
+    renewalEnabled: false, renewalInAppEnabled: true, renewalPushEnabled: false,
+    renewalDaysBefore: 1, renewalHour: null, renewalDigest: true,
+    saleEnabled: false, saleInAppEnabled: true, salePushEnabled: false,
+    saleDaysBefore: 0, saleMinutesBefore: 180, saleDigest: false,
+    appNotifPushEnabled: false,
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Push Notifications */}
+      {isSupported && (
+        <section className={SECTION}>
+          <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Push Notifications</h3>
+          {permission === 'denied' ? (
+            <p className="text-sm text-amber-400">Push notifications are blocked in your browser. Enable them in browser settings to use this feature.</p>
+          ) : (
+            <div className={TOGGLE_ROW}>
+              <div>
+                <p className={TOGGLE_LABEL}>This browser / device</p>
+                <p className={TOGGLE_SUBLABEL}>Register this browser to receive push notifications. You can enable it on multiple devices independently.</p>
+              </div>
+              <Toggle
+                checked={isSubscribed}
+                onChange={(v) => { v ? subscribe() : unsubscribe(); prefsMutation.mutate({ pushEnabled: v }) }}
+                disabled={pushLoading}
+              />
+            </div>
+          )}
+          {isSubscribed && (
+            <div className={TOGGLE_ROW}>
+              <div>
+                <p className={TOGGLE_LABEL}>Push notifications globally</p>
+                <p className={TOGGLE_SUBLABEL}>Master switch — turn off to pause all push notifications across every device without unregistering them.</p>
+              </div>
+              <Toggle checked={prefs?.pushEnabled ?? false} onChange={(v) => prefsMutation.mutate({ pushEnabled: v })} />
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* App Notifications */}
+      <section className={SECTION}>
+        <div className={TOGGLE_ROW}>
+          <div>
+            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">App Notifications</h3>
+            <p className={TOGGLE_SUBLABEL}>Updates, bug fixes and announcements from the LuxGrimoire team</p>
+          </div>
+        </div>
+        <div className="space-y-3 pt-1">
+          <div className={TOGGLE_ROW}>
+            <div>
+              <p className={TOGGLE_LABEL}>In-app</p>
+              <p className={TOGGLE_SUBLABEL}>Always shown in your notification bell</p>
+            </div>
+            <Toggle checked={true} onChange={() => {}} disabled={true} />
+          </div>
+          {isSubscribed && (
+            <div className={TOGGLE_ROW}>
+              <div>
+                <p className={TOGGLE_LABEL}>Push</p>
+                <p className={TOGGLE_SUBLABEL}>Send to this device when a new announcement is posted</p>
+              </div>
+              <Toggle checked={s.appNotifPushEnabled} onChange={(v) => update({ appNotifPushEnabled: v })} />
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Renewal Reminders */}
+      <section className={SECTION}>
+        <div className={TOGGLE_ROW}>
+          <div>
+            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Renewal Reminders</h3>
+            <p className={TOGGLE_SUBLABEL}>Get reminded before your subscriptions renew</p>
+          </div>
+          <Toggle checked={s.renewalEnabled} onChange={(v) => update({ renewalEnabled: v })} />
+        </div>
+
+        {s.renewalEnabled && (
+          <div className="space-y-4 pt-2 border-t border-stone-800">
+            {/* Delivery channels */}
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <Toggle checked={s.renewalInAppEnabled} onChange={(v) => update({ renewalInAppEnabled: v })} />
+                <span className={TOGGLE_LABEL}>In-app</span>
+              </label>
+              {isSupported && isSubscribed && (
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <Toggle checked={s.renewalPushEnabled} onChange={(v) => update({ renewalPushEnabled: v })} />
+                  <span className={TOGGLE_LABEL}>Push</span>
+                </label>
+              )}
+            </div>
+
+            {/* Timing */}
+            <div>
+              <p className="text-xs text-stone-400 mb-2">When to remind</p>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={s.renewalDaysBefore}
+                  onChange={(e) => update({ renewalDaysBefore: Number(e.target.value) })}
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                >
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((d) => (
+                    <option key={d} value={d}>{d === 0 ? 'On the day of renewal' : `${d} day${d > 1 ? 's' : ''} before`}</option>
+                  ))}
+                </select>
+                <select
+                  value={s.renewalHour ?? ''}
+                  onChange={(e) => update({ renewalHour: e.target.value === '' ? null : Number(e.target.value) })}
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                >
+                  <option value="">at 18:00 (default)</option>
+                  {HOURS.map((h) => (
+                    <option key={h} value={h}>at {String(h).padStart(2, '0')}:00</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className={TOGGLE_ROW}>
+              <div>
+                <p className={TOGGLE_LABEL}>Digest mode</p>
+                <p className={TOGGLE_SUBLABEL}>Combine multiple renewals into one notification</p>
+              </div>
+              <Toggle checked={s.renewalDigest} onChange={(v) => update({ renewalDigest: v })} />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Sale Reminders */}
+      <section className={SECTION}>
+        <div className={TOGGLE_ROW}>
+          <div>
+            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Sale Reminders</h3>
+            <p className={TOGGLE_SUBLABEL}>Get reminded about sales you're interested in</p>
+          </div>
+          <Toggle checked={s.saleEnabled} onChange={(v) => update({ saleEnabled: v })} />
+        </div>
+
+        {s.saleEnabled && (
+          <div className="space-y-4 pt-2 border-t border-stone-800">
+            {/* Delivery channels */}
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <Toggle checked={s.saleInAppEnabled} onChange={(v) => update({ saleInAppEnabled: v })} />
+                <span className={TOGGLE_LABEL}>In-app</span>
+              </label>
+              {isSupported && isSubscribed && (
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <Toggle checked={s.salePushEnabled} onChange={(v) => update({ salePushEnabled: v })} />
+                  <span className={TOGGLE_LABEL}>Push</span>
+                </label>
+              )}
+            </div>
+
+            {/* Timing */}
+            <div>
+              <p className="text-xs text-stone-400 mb-2">When to remind</p>
+              <select
+                value={s.saleMinutesBefore ?? 180}
+                onChange={(e) => update({ saleMinutesBefore: Number(e.target.value) })}
+                className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+              >
+                <option value={0}>At sale time</option>
+                <option value={15}>15 min before</option>
+                <option value={30}>30 min before</option>
+                {[1, 2, 3, 6, 12, 24].map((h) => (
+                  <option key={h} value={h * 60}>{h}h before</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={TOGGLE_ROW}>
+              <div>
+                <p className={TOGGLE_LABEL}>Digest mode</p>
+                <p className={TOGGLE_SUBLABEL}>Combine multiple sales on the same day into one notification</p>
+              </div>
+              <Toggle checked={s.saleDigest} onChange={(v) => update({ saleDigest: v })} />
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

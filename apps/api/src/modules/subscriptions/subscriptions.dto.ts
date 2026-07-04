@@ -474,7 +474,7 @@ export class MonthQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(50)
+  @Max(500)
   pageSize?: number;
 
   @IsOptional()
@@ -565,6 +565,16 @@ export class SubscriptionQueryDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  /** Filter by skip policy type: NONE | UNLIMITED | UNLIMITED_MAX_CONSEC | CALENDAR_YEAR | FROM_FIRST_SKIP | FROM_SUB_START | PREPAID_WINDOW_SKIP */
+  @IsOptional()
+  @IsString()
+  skipPolicyType?: string;
+
+  /** Filter by billing type the skip policy applies to: ALL | MONTHLY | PREPAID */
+  @IsOptional()
+  @IsString()
+  skipPolicyBillingType?: string;
 }
 export class LinkedFeeTemplateDto {
   @IsString()
@@ -600,6 +610,10 @@ export class JoinSubscriptionDto {
   @IsOptional()
   @IsString()
   shippingCost?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isForwarding?: boolean;
 
   @IsOptional()
   @IsInt()
@@ -802,6 +816,10 @@ export class UpdateMyEntryCostsDto {
   @IsString()
   trackingNumber?: string | null;
 
+  @IsOptional()
+  @IsBoolean()
+  isForwarding?: boolean;
+
   /** Full replacement list of linked fee templates */
   @IsOptional()
   @IsArray()
@@ -830,6 +848,10 @@ export class CreatePriceChangeDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  grandfatheredPrice?: boolean;
 }
 
 export class UpdatePriceChangeDto {
@@ -840,6 +862,10 @@ export class UpdatePriceChangeDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  grandfatheredPrice?: boolean;
 }
 
 export class UpdateBillingModeDto {

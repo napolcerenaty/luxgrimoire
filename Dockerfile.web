@@ -15,7 +15,11 @@ COPY packages/shared-types/package.json ./packages/shared-types/
 
 RUN pnpm install --frozen-lockfile
 
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+# Limit memory and webpack parallelism to avoid saturating build servers
+ENV NODE_OPTIONS="--max-old-space-size=1024"
+ENV NEXT_WEBPACK_PARALLELISM="1"
+ENV NEXT_TELEMETRY_DISABLED="1"
+ENV GENERATE_SOURCEMAP="false"
 
 # Copy source
 COPY tsconfig.base.json ./
@@ -26,7 +30,7 @@ COPY apps/web             ./apps/web
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-RUN pnpm --filter @luxgrimoire/web build
+RUN nice -n 19 pnpm --filter @luxgrimoire/web build
 
 # ── Stage 2: Production runtime ───────────────────────────────────────────────
 FROM node:20-alpine AS runner

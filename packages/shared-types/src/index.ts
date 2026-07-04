@@ -51,6 +51,12 @@ export interface ApiUser {
   createdAt: string;
 }
 
+export interface ApiBookSeries {
+  id: string;
+  slug: string;
+  name: string;
+}
+
 export interface ApiBook {
   id: string;
   slug: string;
@@ -58,6 +64,7 @@ export interface ApiBook {
   description: string | null;
   language: string;
   seriesName: string | null;
+  series?: ApiBookSeries | null;
   volumeNumber: number | null;
   genres: string[];
   authors: ApiAuthor[];
@@ -229,8 +236,8 @@ export interface ApiSubscriptionSkipPolicy {
   unskipDeadlineDayOfMonth: number | null;
   unskipNotes: string | null;
   unskipHow: string | null;
-  /** "ALL" | "MONTHLY_ONLY" | "PREPAID_ONLY" */
-  eligibleBillingTypes: string;
+  /** "ALL" | "MONTHLY" | "PREPAID" */
+  billingType: string;
 }
 
 export interface ApiSkipStatus {
@@ -292,7 +299,7 @@ export interface ApiSubscription {
   renewalMonthOffset: number;
   paymentOnStartup: boolean;
   signupIncludesCurrentMonth: boolean;
-  skipPolicy?: ApiSubscriptionSkipPolicy | null;
+  skipPolicies?: ApiSubscriptionSkipPolicy[];
   company?: ApiBookBoxCompany;
   months?: ApiSubscriptionMonth[];
   components?: { componentId: string; component?: ApiSubscription }[];
@@ -501,7 +508,7 @@ export interface ApiPurchaseFee {
 export interface ApiPurchaseDiscount {
   id: string;
   userId: string;
-  name: string;
+  name: string | null;
   amount: number;
   currency: string;
   date: string;
@@ -581,6 +588,15 @@ export interface ApiSaleGroup {
   profitLoss: number | null;
 }
 
+export type SaleType = 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK';
+
+export interface ApiSaleAnnouncementItem {
+  id: string;
+  name: string | null;
+  sortOrder: number;
+  editions?: Array<{ id: string; editionId: string }>;
+}
+
 export interface ApiSaleAnnouncement {
   id: string;
   slug: string;
@@ -597,6 +613,10 @@ export interface ApiSaleAnnouncement {
   extraImagesJson: string[] | null;
   imageUrl: string | null;
 
+  saleType: SaleType;
+  isSoldOut: boolean;
+  notes: string | null;
+
   isBundle: boolean;
   expectedShipping: string | null;
   photoCredit: string | null;
@@ -610,6 +630,10 @@ export interface ApiSaleAnnouncement {
     edition: (ApiBookEdition & { book: ApiBook }) | null;
     editionId: string;
     sortOrder: number;
+    isReprint: boolean;
+    isStandalone: boolean;
+    itemId: string | null;
+    item?: { id: string; name: string | null } | null;
     price: number | null;
     currency: string;
     variants: Array<{
@@ -619,6 +643,7 @@ export interface ApiSaleAnnouncement {
       currency: string | null;
     }>;
   }>;
+  items?: ApiSaleAnnouncementItem[];
   regions?: Array<{
     id: string;
     name: string;
@@ -628,11 +653,40 @@ export interface ApiSaleAnnouncement {
     firstAccessDate: string | null;
     earlyAccessDate: string | null;
     endsAt: string | null;
+    isSoldOut: boolean;
     saleTimezone: string | null;
     basePrice: number | null;
     subscriberBasePrice: number | null;
     currency: string | null;
   }>;
+}
+
+export interface ApiPlatformStats {
+  editionsCount: number;
+  companiesCount: number;
+  subscriptionsCount: number;
+  activeSalesCount: number;
+}
+
+export interface ApiTrendingEdition {
+  id: string;
+  slug: string;
+  additionalImages: string[];
+  book: (Pick<ApiBook, 'title' | 'seriesName' | 'volumeNumber'> & {
+    authors: ApiAuthor[];
+  }) | null;
+  bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null;
+  wishlistCount: number;
+}
+
+export interface ApiTrendingSaleAnnouncement {
+  id: string;
+  title: string;
+  generalSaleDate: string | null;
+  imageUrl: string | null;
+  company?: { name: string; slug?: string | null; brandColors?: string[] } | null;
+  editions?: ApiSaleAnnouncement['editions'];
+  interestCount: number;
 }
 
 export interface ApiFeatureRequest {

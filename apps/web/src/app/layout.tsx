@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
@@ -7,6 +7,15 @@ import { DevBanner } from '@/components/layout/DevBanner'
 import { BugReportButton } from '@/components/layout/BugReportButton'
 import { CookieBanner } from '@/components/layout/CookieBanner'
 import { Providers } from '@/components/Providers'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#0c0a09' },
+    { media: '(prefers-color-scheme: light)', color: '#fafaf9' },
+  ],
+}
 
 export const metadata: Metadata = {
   title: {
@@ -18,6 +27,19 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_BASE_URL ?? 'https://luxgrimoire.com',
   ),
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'LuxGrimoire',
+  },
+  icons: {
+    apple: '/apple-touch-icon.png',
+    icon: [
+      { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+  },
   openGraph: {
     siteName: 'LuxGrimoire',
     type: 'website',
@@ -37,7 +59,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" data-theme={theme} suppressHydrationWarning>
-      <body className="bg-stone-950 text-stone-200 min-h-screen font-sans antialiased">
+      <body className="bg-stone-950 text-stone-200 min-h-screen font-sans antialiased overflow-x-hidden">
         <Providers initialTheme={theme}>
           <DevBanner />
           <Navbar />

@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useMemo, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
+import StatsSettingsPanel from '@/components/stats/StatsSettingsPanel'
 import {
   TrendingUp, BookOpen, DollarSign, Truck, Receipt, Tag, BarChart2, Award,
   Calendar, ShoppingBag, TrendingDown, Library, Sparkles, ChevronLeft, ChevronRight,
-  RefreshCw, Layers, Scale, Info,
+  RefreshCw, Layers, Scale, Info, Settings,
 } from 'lucide-react'
 import { CURRENCIES } from '@/lib/currencies'
 
@@ -70,6 +71,7 @@ interface SpendingData {
   booksThisMonth: number
   totalBasePrice: number
   totalShipping: number
+  totalForwarding: number
   totalTax: number
   totalOtherFees: number
   totalDiscounts: number
@@ -111,10 +113,28 @@ interface ModuleResponse<T> {
   isStale: boolean
 }
 
+interface StatsSettings {
+  spending: boolean
+  sales: boolean
+  reading: boolean
+  features: boolean
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(amount: number, currency: string) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount)
+}
+
+function formatTimeAgo(isoDate: string): string {
+  const diff = Date.now() - new Date(isoDate).getTime()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`
+  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`
+  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
+  return 'just now'
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -128,7 +148,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, color }: {
         <Icon size={14} className={color ?? (accent ? 'text-amber-400' : 'text-stone-500')} />
         <span className="text-xs uppercase tracking-wider text-stone-500">{label}</span>
       </div>
-      <p className={`text-2xl font-serif font-bold ${color ?? (accent ? 'text-amber-400' : 'text-stone-100')}`}>{value}</p>
+      <p className={`text-base sm:text-xl font-serif font-bold leading-tight ${color ?? (accent ? 'text-amber-400' : 'text-stone-100')}`}>{value}</p>
       {sub && <p className="text-xs text-stone-500">{sub}</p>}
     </div>
   )
@@ -699,25 +719,52 @@ function PLByCompanyChart({ data, currency }: {
 
 export default function SpendingPage() {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const [currency, setCurrency] = useState<string>(user?.preferredCurrency ?? 'EUR')
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
+  const [selectedCollectionYear, setSelectedCollectionYear] = useState<number>(0)
   const [salesYear, setSalesYear] = useState<number>(new Date().getFullYear())
-  const [activeTab, setActiveTab] = useState<TabId>('spending')
-  const [loadedTabs, setLoadedTabs] = useState<Set<TabId>>(new Set<TabId>(['spending']))
+  const [activeTab, setActiveTab] = useState<TabId>('collection')
+  const [loadedTabs, setLoadedTabs] = useState<Set<TabId>>(new Set<TabId>(['collection']))
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const { data: statsSettings } = useQuery<StatsSettings>({
+    queryKey: ['stats-settings'],
+    queryFn: () => authFetch('/stats/settings'),
+    staleTime: 5 * 60_000,
+  })
+
+  const effectiveSettings: StatsSettings = statsSettings ?? { spending: true, sales: true, reading: true, features: true }
+  const visibleTabs = TABS.filter(tab => {
+    if (tab.id === 'spending') return effectiveSettings.spending
+    if (tab.id === 'sales') return effectiveSettings.sales
+    if (tab.id === 'pl') return effectiveSettings.spending && effectiveSettings.sales
+    if (tab.id === 'reading') return effectiveSettings.reading
+    if (tab.id === 'features') return effectiveSettings.features
+    return true
+  })
 
   // ── Per-module queries ───────────────────────────────────────────────────────
   const { data: collResp, isLoading: collLoading } = useQuery<ModuleResponse<{ collection: CollectionStats }>>({
-    queryKey: ['stats-collection', currency],
-    queryFn: () => authFetch(`/stats?currency=${currency}&module=collection`),
+    queryKey: ['stats-collection', currency, selectedCollectionYear],
+    queryFn: () => authFetch(`/stats?currency=${currency}&module=collection${selectedCollectionYear > 0 ? `&year=${selectedCollectionYear}` : ''}`),
     enabled: loadedTabs.has('collection') || loadedTabs.has('reading'),
     staleTime: 5 * 60_000,
+    refetchInterval: (query) => {
+      const data = query.state.data as ModuleResponse<{ collection: CollectionStats }> | undefined
+      return data?.isStale === true ? 3000 : false
+    },
   })
 
   const { data: spResp, isLoading: spLoading } = useQuery<ModuleResponse<SpendingData>>({
     queryKey: ['stats-spending', currency, selectedYear],
     queryFn: () => authFetch(`/stats?currency=${currency}&module=spending&year=${selectedYear}`),
-    enabled: loadedTabs.has('spending'),
+    enabled: loadedTabs.has('collection') || loadedTabs.has('spending'),
     staleTime: 5 * 60_000,
+    refetchInterval: (query) => {
+      const data = query.state.data as ModuleResponse<SpendingData> | undefined
+      return data?.isStale === true ? 3000 : false
+    },
   })
 
   const { data: salesResp, isLoading: salesLoading } = useQuery<ModuleResponse<SalesData>>({
@@ -725,6 +772,10 @@ export default function SpendingPage() {
     queryFn: () => authFetch(`/stats?currency=${currency}&module=sales&year=${salesYear}`),
     enabled: loadedTabs.has('sales') || loadedTabs.has('pl'),
     staleTime: 5 * 60_000,
+    refetchInterval: (query) => {
+      const data = query.state.data as ModuleResponse<SalesData> | undefined
+      return data?.isStale === true ? 3000 : false
+    },
   })
 
   const { data: featResp, isLoading: featLoading } = useQuery<ModuleResponse<{ features: FeaturesStats }>>({
@@ -732,6 +783,10 @@ export default function SpendingPage() {
     queryFn: () => authFetch(`/stats?currency=${currency}&module=features`),
     enabled: loadedTabs.has('features'),
     staleTime: 5 * 60_000,
+    refetchInterval: (query) => {
+      const data = query.state.data as ModuleResponse<{ features: FeaturesStats }> | undefined
+      return data?.isStale === true ? 3000 : false
+    },
   })
 
   // Reading tab reuses collection data (same snapshot)
@@ -749,10 +804,23 @@ export default function SpendingPage() {
   const collection = collResp?.data?.collection
   const features = featResp?.data?.features
 
-  const isStale = spResp?.isStale || collResp?.isStale || salesResp?.isStale || featResp?.isStale
+  const activeModuleData = activeTab === 'collection' || activeTab === 'reading'
+    ? collResp
+    : activeTab === 'spending'
+      ? spResp
+      : activeTab === 'sales' || activeTab === 'pl'
+        ? salesResp
+        : featResp
+
+  const anyStale = !!(spResp?.isStale || collResp?.isStale || salesResp?.isStale || featResp?.isStale)
 
   const availableYears = useMemo(() => {
     if (!spending?.byYear?.length) return [new Date().getFullYear()]
+    return spending.byYear.map(y => y.year).sort((a, b) => b - a)
+  }, [spending?.byYear])
+
+  const availableCollectionYears = useMemo(() => {
+    if (!spending?.byYear?.length) return []
     return spending.byYear.map(y => y.year).sort((a, b) => b - a)
   }, [spending?.byYear])
 
@@ -775,7 +843,7 @@ export default function SpendingPage() {
 
   const totalGross = useMemo(() => {
     if (!spending) return 0
-    return spending.totalBasePrice + spending.totalShipping + spending.totalTax + spending.totalOtherFees
+    return spending.totalBasePrice + spending.totalShipping + spending.totalForwarding + spending.totalTax + spending.totalOtherFees
   }, [spending])
 
   const savings = useMemo(() => {
@@ -788,6 +856,13 @@ export default function SpendingPage() {
     setActiveTab(tab)
   }
 
+  useEffect(() => {
+    if (!visibleTabs.some(tab => tab.id === activeTab)) {
+      setLoadedTabs(prev => new Set([...prev, 'collection']))
+      setActiveTab('collection')
+    }
+  }, [activeTab, visibleTabs])
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
@@ -797,12 +872,6 @@ export default function SpendingPage() {
           <p className="text-stone-400 text-sm mt-1">Your collection &amp; spending analytics</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {isStale && (
-            <div className="flex items-center gap-1.5 text-xs text-stone-500 animate-pulse">
-              <RefreshCw size={11} className="animate-spin" />
-              <span>Refreshing…</span>
-            </div>
-          )}
           <span className="text-xs text-stone-500 uppercase tracking-wider">Display in</span>
           <select
             value={currency}
@@ -811,8 +880,32 @@ export default function SpendingPage() {
           >
             {(currencyData?.currencies?.length ? currencyData.currencies : CURRENCIES).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          <button
+            onClick={() => {
+              void queryClient.invalidateQueries({ queryKey: ['stats-settings'] })
+              setSettingsOpen(true)
+            }}
+            className="flex items-center gap-1.5 border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-500 px-3 py-2 rounded-xl text-sm transition-colors"
+          >
+            <Settings size={13} />
+            <span className="hidden sm:inline">Stats settings</span>
+          </button>
         </div>
       </div>
+
+      {anyStale && (
+        <div className="bg-amber-950/30 border border-amber-800/40 rounded-2xl px-5 py-3 flex items-center gap-3">
+          <RefreshCw size={14} className="text-amber-400 animate-spin shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-amber-300 font-medium">Refreshing statistics…</p>
+            {activeModuleData?.computedAt && (
+              <p className="text-xs text-stone-500 mt-0.5">
+                Showing data from {formatTimeAgo(activeModuleData.computedAt)}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Disclaimer */}
       <div className="flex items-start gap-2 text-xs text-stone-600 leading-relaxed">
@@ -821,22 +914,41 @@ export default function SpendingPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-stone-800">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === tab.id
-                ? 'border-amber-500 text-amber-400'
-                : 'border-transparent text-stone-500 hover:text-stone-300 hover:border-stone-600'
-            }`}
-          >
-            <tab.icon size={13} />
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-1.5 mb-4 p-1 bg-stone-900/60 border border-stone-800 rounded-xl">
+        {visibleTabs.map(tab => {
+          const tabIsStale = (
+            (tab.id === 'collection' || tab.id === 'reading') ? collResp?.isStale
+              : tab.id === 'spending' ? spResp?.isStale
+                : (tab.id === 'sales' || tab.id === 'pl') ? salesResp?.isStale
+                  : featResp?.isStale
+          )
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors rounded-lg relative ${
+                activeTab === tab.id
+                  ? 'bg-stone-800 text-amber-400 border border-stone-700'
+                  : 'text-stone-500 hover:text-stone-300 hover:bg-stone-800/50'
+              }`}
+            >
+              <tab.icon size={13} />
+              {tab.label}
+              {tabIsStale && loadedTabs.has(tab.id) && (
+                <span className="absolute top-1.5 right-1 w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              )}
+            </button>
+          )
+        })}
       </div>
+
+      {settingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-sm">
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl w-full max-w-sm overflow-hidden">
+            <StatsSettingsPanel onClose={() => setSettingsOpen(false)} />
+          </div>
+        </div>
+      )}
 
       {/* ── Collection Tab ─────────────────────────────────────────────────── */}
       {loadedTabs.has('collection') && (
@@ -845,6 +957,32 @@ export default function SpendingPage() {
             <div className="text-center py-20 text-stone-500">No data yet.</div>
           ) : (
             <>
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                <button
+                  onClick={() => setSelectedCollectionYear(0)}
+                  className={`px-3 py-1 rounded-lg text-sm border transition-colors ${
+                    selectedCollectionYear === 0
+                      ? 'bg-amber-900/40 border-amber-700/60 text-amber-400'
+                      : 'border-stone-700 text-stone-500 hover:border-stone-500 hover:text-stone-300'
+                  }`}
+                >
+                  Overall
+                </button>
+                {availableCollectionYears.map(y => (
+                  <button
+                    key={y}
+                    onClick={() => setSelectedCollectionYear(y)}
+                    className={`px-3 py-1 rounded-lg text-sm border transition-colors ${
+                      selectedCollectionYear === y
+                        ? 'bg-amber-900/40 border-amber-700/60 text-amber-400'
+                        : 'border-stone-700 text-stone-500 hover:border-stone-500 hover:text-stone-300'
+                    }`}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 <StatCard
                   label="Total Books"
@@ -865,34 +1003,38 @@ export default function SpendingPage() {
                   sub={`${collection.unreadCount} unread owned`}
                   icon={BookOpen}
                 />
-                <StatCard
-                  label="Currently Reading"
-                  value={String(collection.readingCount)}
-                  sub={`${collection.readCount} read total`}
-                  icon={BookOpen}
-                />
+                {effectiveSettings.reading && (
+                  <StatCard
+                    label="Currently Reading"
+                    value={String(collection.readingCount)}
+                    sub={`${collection.readCount} read total`}
+                    icon={BookOpen}
+                  />
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatCard
-                  label="Unread Shelf Value"
-                  value={fmt(collection.unreadShelfValue, currency)}
-                  sub="books owned &amp; unread"
-                  icon={BookOpen}
-                />
-                <StatCard
-                  label="Preorder Pipeline"
-                  value={fmt(collection.preorderValue, currency)}
-                  sub={`${collection.preorderCount} on preorder`}
-                  icon={Calendar}
-                />
-                <StatCard
-                  label="Shipping Pipeline"
-                  value={fmt(collection.shippingValue, currency)}
-                  sub={`${collection.shippingCount} books shipping`}
-                  icon={Truck}
-                />
-              </div>
+              {effectiveSettings.spending && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <StatCard
+                    label="Unread Shelf Value"
+                    value={fmt(collection.unreadShelfValue, currency)}
+                    sub="books owned &amp; unread"
+                    icon={BookOpen}
+                  />
+                  <StatCard
+                    label="Preorder Pipeline"
+                    value={fmt(collection.preorderValue, currency)}
+                    sub={`${collection.preorderCount} on preorder`}
+                    icon={Calendar}
+                  />
+                  <StatCard
+                    label="Shipping Pipeline"
+                    value={fmt(collection.shippingValue, currency)}
+                    sub={`${collection.shippingCount} books shipping`}
+                    icon={Truck}
+                  />
+                </div>
+              )}
 
               {collection.byCompanyAll.length > 0 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1037,7 +1179,7 @@ export default function SpendingPage() {
                 <div className="lg:col-span-2 bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5">
                   <div className="flex items-center gap-2">
                     <BarChart2 size={14} className="text-amber-400" />
-                    {spending.salesByMonth.some(m => m.amount > 0) ? (
+                    {effectiveSettings.sales && spending.salesByMonth.some(m => m.amount > 0) ? (
                       <>
                         <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Spending vs Sales — {selectedYear}</h2>
                         <div className="ml-auto flex items-center gap-3 text-[10px] text-stone-500">
@@ -1051,7 +1193,7 @@ export default function SpendingPage() {
                   </div>
                   {spending.byMonth.length === 0 ? (
                     <p className="text-stone-600 text-sm text-center py-8">No data for {selectedYear}</p>
-                  ) : spending.salesByMonth.some(m => m.amount > 0) ? (
+                  ) : effectiveSettings.sales && spending.salesByMonth.some(m => m.amount > 0) ? (
                     <DualMonthChart spending={spending.byMonth} sales={spending.salesByMonth} currency={currency} />
                   ) : (
                     <MonthBarChart data={spending.byMonth} currency={currency} />
@@ -1063,14 +1205,14 @@ export default function SpendingPage() {
                           <Library size={12} className="text-indigo-400" />
                           <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Books — {selectedYear}</span>
                         </div>
-                        {spending.salesByMonthCount?.some(m => m.count > 0) && (
+                        {effectiveSettings.sales && spending.salesByMonthCount?.some(m => m.count > 0) && (
                           <div className="flex items-center gap-3 text-[10px] text-stone-500">
                             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-indigo-500/60 inline-block" /> Acquired</span>
                             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-500/55 inline-block" /> Sold</span>
                           </div>
                         )}
                       </div>
-                      {spending.salesByMonthCount?.some(m => m.count > 0) ? (
+                      {effectiveSettings.sales && spending.salesByMonthCount?.some(m => m.count > 0) ? (
                         <DualMonthBooksChart acquired={spending.byMonthBooks} sold={spending.salesByMonthCount} />
                       ) : (
                         <MonthBooksChart data={spending.byMonthBooks} />
@@ -1087,7 +1229,7 @@ export default function SpendingPage() {
                   </div>
                   {spending.byYear.length === 0 ? (
                     <p className="text-stone-600 text-sm text-center py-8">No data</p>
-                  ) : spending.salesByYear && spending.salesByYear.length > 0 ? (
+                  ) : effectiveSettings.sales && spending.salesByYear && spending.salesByYear.length > 0 ? (
                     <>
                       <div className="flex items-center gap-3 text-[10px] text-stone-500">
                         <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-600/70" /> Spending</span>
@@ -1119,6 +1261,9 @@ export default function SpendingPage() {
                   </div>
                   <CategoryBar label="Books (base price)" amount={spending.totalBasePrice} total={totalGross} currency={currency} color="#d97706" />
                   <CategoryBar label="Shipping" amount={spending.totalShipping} total={totalGross} currency={currency} color="#0891b2" />
+                  {spending.totalForwarding > 0 && (
+                    <CategoryBar label="Forwarding" amount={spending.totalForwarding} total={totalGross} currency={currency} color="#0d9488" />
+                  )}
                   <CategoryBar label="Taxes & Customs" amount={spending.totalTax} total={totalGross} currency={currency} color="#7c3aed" />
                   <CategoryBar label="Other Fees" amount={spending.totalOtherFees} total={totalGross} currency={currency} color="#6b7280" />
                   {savings > 0 && (
@@ -1255,7 +1400,7 @@ export default function SpendingPage() {
                         : <TrendingDown size={14} className="text-red-400" />}
                       <span className="text-xs uppercase tracking-wider text-stone-500">Net P&amp;L</span>
                     </div>
-                    <p className={`text-2xl font-serif font-bold ${sales.totalSalesProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <p className={`text-base sm:text-xl font-serif font-bold leading-tight ${sales.totalSalesProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {sales.totalSalesProfit >= 0 ? '+' : ''}{fmt(sales.totalSalesProfit, currency)}
                     </p>
                     <p className="text-xs text-stone-500">revenue − purchase cost</p>
@@ -1406,7 +1551,7 @@ export default function SpendingPage() {
                         <Scale size={14} className={totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'} />
                         <span className="text-xs uppercase tracking-wider text-stone-500">Overall P&amp;L</span>
                       </div>
-                      <p className={`text-2xl font-serif font-bold ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <p className={`text-base sm:text-xl font-serif font-bold leading-tight ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {totalPL >= 0 ? '+' : ''}{fmt(totalPL, currency)}
                       </p>
                       <p className="text-xs text-stone-500">revenue − purchase cost</p>
@@ -1544,14 +1689,6 @@ export default function SpendingPage() {
             <div className="text-center py-20 text-stone-500">No feature data yet.</div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <StatCard
-                  label="Books with Features"
-                  value={`${features.booksWithAnyFeaturePercent}%`}
-                  sub={`${features.booksWithAnyFeature} of ${features.totalBooksAnalyzed}`}
-                  icon={Sparkles}
-                />
-              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Object.entries(features.byGroup).map(([group, items]) => (
                   <div key={group} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-3">
@@ -1692,4 +1829,3 @@ export default function SpendingPage() {
     </div>
   )
 }
-

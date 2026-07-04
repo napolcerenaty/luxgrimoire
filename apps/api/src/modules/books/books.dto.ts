@@ -104,6 +104,10 @@ export class BookQueryDto {
 
   @IsOptional()
   @IsString()
+  seriesSlug?: string;
+
+  @IsOptional()
+  @IsString()
   authorId?: string;
 
   @IsOptional()

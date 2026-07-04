@@ -119,12 +119,16 @@ function pillStyle(
     const textColor = isLightBrand
       ? `color-mix(in srgb, ${c} 15%, #111111)` // dark text on light-brand pill
       : `color-mix(in srgb, ${c} 25%, #f0ece6)` // light text on dark-brand pill
-    const outlineText = isLightBrand
-      ? `color-mix(in srgb, ${c} 50%, #c0b8d4)`
-      : `color-mix(in srgb, ${c} 60%, #f0ece6)`
+    // Renewal (outline) colors: dark brands need a much lighter mix so they're visible on dark bg
+    const outlineColor = isLightBrand
+      ? `color-mix(in srgb, ${c} 55%, #c0b8d4)`
+      : `color-mix(in srgb, ${c} 30%, #b0cce0)` // heavily diluted toward light for dark brands
+    const outlineBorder = isLightBrand
+      ? `${c}cc`
+      : `color-mix(in srgb, ${c} 40%, #7ab0cc)` // ensure visible border for dark brands
     return isFilled
       ? { background: `${c}${bgOpacity}`, color: textColor, border: `1px solid ${c}` }
-      : { background: 'transparent', color: outlineText, border: `1px solid ${c}aa` }
+      : { background: 'transparent', color: outlineColor, border: `1px solid ${outlineBorder}` }
   }
 
   // Fallback: hue-based
@@ -138,7 +142,6 @@ function pillStyle(
     : { background: 'transparent', color: `hsl(${hue},80%,75%)`, border: `1px solid hsla(${hue},55%,65%,0.55)` }
 }
 
-// Returns the renewal day for a given (year, month0) if this is a renewal month, else null
 // month0 is 0-indexed (JavaScript Date convention)
 function renewalDayInMonth(entry: CalEntry, year: number, month0: number): number | null {
   const sub = entry.subscription
@@ -423,7 +426,7 @@ export default function CalendarPage() {
               <div
                 key={idx}
                 className={[
-                  'min-h-[48px] sm:min-h-[80px] p-1 sm:p-1.5 flex flex-col gap-0.5',
+                  'min-h-[48px] sm:min-h-[80px] p-0.5 sm:p-1.5 flex flex-col gap-0.5',
                   cell.current ? 'cursor-pointer sm:cursor-default' : '',
                   !cell.current ? 'bg-stone-950/40' : '',
                   cell.current && isToday(cell.day)
@@ -437,7 +440,7 @@ export default function CalendarPage() {
               >
                 <span
                   className={[
-                    'text-xs leading-none mb-0.5 w-5 h-5 flex items-center justify-center rounded-full shrink-0',
+                    'text-[9px] sm:text-xs leading-none mb-0.5 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full shrink-0',
                     !cell.current
                       ? 'text-stone-700'
                       : isToday(cell.day)
@@ -507,15 +510,21 @@ export default function CalendarPage() {
                 {totalEvents > 0 && cell.current && (
                   <div className="sm:hidden flex flex-wrap gap-0.5 mt-auto pb-0.5">
                     {[
-                      ...renewals.map(r => ({ color: r.brandColors?.[0] ?? `hsl(${r.hue},60%,55%)`, outline: true })),
+                      ...renewals.map(r => {
+                        const bc = r.brandColors?.[0]
+                        const dotColor = bc && hexLuminance(bc) < 0.1
+                          ? `color-mix(in srgb, ${bc} 35%, #7ab0cc)`
+                          : (bc ?? `hsl(${r.hue},60%,55%)`)
+                        return { color: dotColor, outline: true }
+                      }),
                       ...sales.map(s => ({ color: s.brandColors?.[0] ?? `hsl(${s.hue},60%,55%)`, outline: false })),
                     ].slice(0, 3).map((dot, i) => (
                       <span
                         key={i}
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        className="w-2 h-2 rounded-full shrink-0"
                         style={dot.outline
-                          ? { backgroundColor: 'transparent', outline: `1.5px solid ${dot.color}` }
-                          : { backgroundColor: dot.color }}
+                          ? { backgroundColor: 'transparent', outline: `1.5px solid ${dot.color}`, boxShadow: `0 0 0 1px rgba(255,255,255,0.2), 0 0 5px ${dot.color}88` }
+                          : { backgroundColor: dot.color, boxShadow: `0 0 0 1.5px rgba(255,255,255,0.2), 0 0 5px ${dot.color}` }}
                       />
                     ))}
                     {totalEvents > 3 && (
@@ -527,6 +536,72 @@ export default function CalendarPage() {
             )
           })}
         </div>
+      </div>
+
+      {/* Mobile agenda — shown below calendar grid, above spending, on small screens */}
+      <div className="sm:hidden overflow-hidden min-w-0">
+        {selectedDay ? (
+          <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
+              <h3 className="text-sm font-semibold text-stone-300 truncate min-w-0">
+                {new Date(year, month0, selectedDay).toLocaleDateString('en-GB', {
+                  weekday: 'long', day: 'numeric', month: 'long',
+                })}
+              </h3>
+              <button
+                onClick={() => setSelectedDay(null)}
+                className="p-1 text-stone-500 hover:text-stone-300 transition-colors shrink-0"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            {renewalsForDay(selectedDay).length === 0 && salesForDay(selectedDay).length === 0 ? (
+              <p className="text-sm text-stone-500 italic text-center py-4">No events this day</p>
+            ) : (
+              <div className="space-y-2">
+                {renewalsForDay(selectedDay).map(r => {
+                  const ps = pillStyle(r.brandColors, r.hue, 'renewal', lightMode)
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/subscriptions/${r.slug}`}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80 overflow-hidden min-w-0 w-full"
+                      style={ps}
+                    >
+                      <span className="text-base shrink-0">🔄</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-snug">{r.label}</p>
+                        {r.companyName && <p className="text-xs opacity-70">{r.companyName}</p>}
+                      </div>
+                      <span className="text-xs opacity-50 shrink-0">Renewal</span>
+                    </Link>
+                  )
+                })}
+                {salesForDay(selectedDay).map(s => {
+                  const ps = pillStyle(s.brandColors, s.hue, 'sale', lightMode)
+                  return (
+                    <Link
+                      key={s.id}
+                      href={s.href}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80 overflow-hidden min-w-0 w-full"
+                      style={ps}
+                    >
+                      <Bell size={15} className="shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-snug">{s.label}</p>
+                        <p className="text-xs opacity-70">
+                          {TIER_LABELS[s.tier]}{s.time ? ` · ${s.time}` : ''}{s.companyName ? ` · ${s.companyName}` : ''}
+                        </p>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-stone-500 text-center py-2">Tap a date to see events</p>
+        )}
       </div>
 
       {/* Monthly spending estimate */}
@@ -613,72 +688,6 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Mobile agenda — shown below calendar grid on small screens */}
-      <div className="sm:hidden">
-        {selectedDay ? (
-          <div className="bg-stone-900 border border-stone-800 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-stone-300">
-                {new Date(year, month0, selectedDay).toLocaleDateString('en-GB', {
-                  weekday: 'long', day: 'numeric', month: 'long',
-                })}
-              </h3>
-              <button
-                onClick={() => setSelectedDay(null)}
-                className="p-1 text-stone-500 hover:text-stone-300 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </div>
-            {renewalsForDay(selectedDay).length === 0 && salesForDay(selectedDay).length === 0 ? (
-              <p className="text-sm text-stone-500 italic text-center py-4">No events this day</p>
-            ) : (
-              <div className="space-y-2">
-                {renewalsForDay(selectedDay).map(r => {
-                  const ps = pillStyle(r.brandColors, r.hue, 'renewal', lightMode)
-                  return (
-                    <Link
-                      key={r.id}
-                      href={`/subscriptions/${r.slug}`}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80"
-                      style={ps}
-                    >
-                      <span className="text-base shrink-0">🔄</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{r.label}</p>
-                        {r.companyName && <p className="text-xs opacity-70 truncate">{r.companyName}</p>}
-                      </div>
-                      <span className="text-xs opacity-50 shrink-0">Renewal</span>
-                    </Link>
-                  )
-                })}
-                {salesForDay(selectedDay).map(s => {
-                  const ps = pillStyle(s.brandColors, s.hue, 'sale', lightMode)
-                  return (
-                    <Link
-                      key={s.id}
-                      href={s.href}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80"
-                      style={ps}
-                    >
-                      <Bell size={15} className="shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{s.label}</p>
-                        <p className="text-xs opacity-70 truncate">
-                          {TIER_LABELS[s.tier]}{s.time ? ` · ${s.time}` : ''}{s.companyName ? ` · ${s.companyName}` : ''}
-                        </p>
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-stone-500 text-center py-2">Tap a date to see events</p>
-        )}
-      </div>
-
       {activeEntries.length === 0 && interests.length === 0 && (
         <p className="text-center text-stone-500 py-8 text-sm">
           No active subscriptions.{' '}
@@ -715,17 +724,17 @@ export default function CalendarPage() {
                   <Link
                     key={`${i.announcementId}-${i.tier}`}
                     href={`/sale-announcements/${i.announcementId}`}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg border hover:opacity-90 transition-opacity group"
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg border hover:opacity-90 transition-opacity group overflow-hidden min-w-0"
                     style={bStyle}
                   >
-                    <Bell size={13} style={{ color: 'currentColor' }} className="shrink-0 opacity-80" />
+                    <Bell size={13} style={{ color: 'currentColor' }} className="shrink-0 opacity-80 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: 'currentColor' }}>{i.announcement.title}</p>
+                      <p className="text-sm font-medium leading-snug" style={{ color: 'currentColor' }}>{i.announcement.title}</p>
                       {i.announcement.company && (
-                        <p className="text-xs truncate opacity-70">{i.announcement.company.name}</p>
+                        <p className="text-xs opacity-70">{i.announcement.company.name}</p>
                       )}
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 self-start">
                       <p className="text-xs font-semibold opacity-95">{TIER_LABELS[i.tier]}</p>
                       <p className="text-xs opacity-75">{label}{time !== '00:00' ? ` · ${time}` : ''}</p>
                     </div>

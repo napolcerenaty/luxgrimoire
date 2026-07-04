@@ -6,6 +6,7 @@ import { TypesenseService } from '../typesense/typesense.service';
 import { CreateAuthorDto, UpdateAuthorDto, AuthorQueryDto } from './authors.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+import { MediaAssetsService } from '../media-assets/media-assets.service';
 
 const AUTHOR_SLUG_TTL = 24 * 60 * 60 * 1000;
 const AUTHOR_BOOKS_TTL = 60 * 60 * 1000;
@@ -20,17 +21,20 @@ export class AuthorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
+    private readonly mediaAssetsService: MediaAssetsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async create(dto: CreateAuthorDto) {
     const slug = generateSlug(dto.name);
-    const author = await this.prisma.author.create({
+    const photoAsset = dto.photoUrl ? await this.mediaAssetsService.ensureForPublicId(dto.photoUrl) : null;
+    const author = await (this.prisma.author as any).create({
       data: {
         slug,
         name: dto.name,
         bio: dto.bio,
         photoUrl: dto.photoUrl,
+        photoAssetId: photoAsset?.id ?? null,
         nationality: dto.nationality,
         website: dto.website,
         instagram: dto.instagram,
@@ -40,7 +44,11 @@ export class AuthorsService {
       },
     });
     await this.indexAuthor(author);
-    return author;
+    return {
+      ...author,
+      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
+      photoUrl: photoAsset?.publicId ?? author.photoUrl,
+    };
   }
 
   async findAll(query: AuthorQueryDto) {
@@ -52,7 +60,7 @@ export class AuthorsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.author.findMany({
+      (this.prisma.author as any).findMany({
         where,
         skip,
         take: pageSize,
@@ -62,6 +70,7 @@ export class AuthorsService {
           slug: true,
           name: true,
           photoUrl: true,
+          photoAsset: { select: { id: true, publicId: true } },
           nationality: true,
           website: true,
           instagram: true,
@@ -75,7 +84,13 @@ export class AuthorsService {
       this.prisma.author.count({ where }),
     ]);
 
-    return { data, ...buildPageMeta(total, page, pageSize) };
+    return {
+      data: data.map((author: any) => ({
+        ...author,
+        photoUrl: author.photoAsset?.publicId ?? author.photoUrl,
+      })),
+      ...buildPageMeta(total, page, pageSize),
+    };
   }
 
   async findBySlug(slug: string) {
@@ -87,7 +102,7 @@ export class AuthorsService {
   }
 
   private async _fetchAuthorProfile(slug: string) {
-    const author = await this.prisma.author.findUnique({
+    const author = await (this.prisma.author as any).findUnique({
       where: { slug },
       select: {
         id: true,
@@ -95,6 +110,7 @@ export class AuthorsService {
         name: true,
         bio: true,
         photoUrl: true,
+        photoAsset: { select: { id: true, publicId: true } },
         nationality: true,
         website: true,
         instagram: true,
@@ -104,7 +120,10 @@ export class AuthorsService {
       },
     });
     if (!author) throw new NotFoundException(`Author '${slug}' not found`);
-    return author;
+    return {
+      ...author,
+      photoUrl: author.photoAsset?.publicId ?? author.photoUrl,
+    };
   }
 
   async findBooks(slug: string) {
@@ -128,6 +147,7 @@ export class AuthorsService {
                 slug: true,
                 title: true,
                 seriesName: true,
+                series: { select: { id: true, slug: true, name: true } },
                 volumeNumber: true,
                 editions: {
                   select: {
@@ -168,14 +188,26 @@ export class AuthorsService {
 
   async update(slug: string, dto: UpdateAuthorDto) {
     await this.findBySlug(slug);
-    const author = await this.prisma.author.update({ where: { slug }, data: dto });
+    const data: Record<string, unknown> = { ...dto };
+    if (dto.photoUrl !== undefined) {
+      const photoAsset = dto.photoUrl ? await this.mediaAssetsService.ensureForPublicId(dto.photoUrl) : null;
+      data.photoAssetId = photoAsset?.id ?? null;
+    }
+    const author = await (this.prisma.author as any).update({ where: { slug }, data });
     await this.indexAuthor(author);
     await this.reindexAuthorBooks(author.id);
     await Promise.all([
       this.cache.del(authorProfileKey(slug)),
       this.cache.del(authorBooksKey(slug)),
     ]);
-    return author;
+    const photoAsset = dto.photoUrl !== undefined && dto.photoUrl
+      ? await this.mediaAssetsService.ensureForPublicId(dto.photoUrl)
+      : null;
+    return {
+      ...author,
+      photoAsset: photoAsset ? { id: photoAsset.id, publicId: photoAsset.publicId } : null,
+      photoUrl: photoAsset?.publicId ?? author.photoUrl,
+    };
   }
 
   async delete(slug: string) {

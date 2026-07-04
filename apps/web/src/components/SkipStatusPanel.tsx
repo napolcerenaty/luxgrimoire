@@ -201,6 +201,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
 
           <div className="flex flex-wrap gap-2">
             {status.skippedMonths
+              .filter((s) => { const n = new Date(); const cy = n.getFullYear(), cm = n.getMonth() + 1; return s.year > cy || (s.year === cy && s.month >= cm) })
               .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
               .map((s) => (
                 <button

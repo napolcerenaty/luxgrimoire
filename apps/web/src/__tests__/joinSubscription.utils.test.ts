@@ -44,12 +44,14 @@ import {
   lookupPrepayPriceAt,
   resolveBackfillFallbackPrice,
   computeAutoBatches,
+  computeFirstBillingMonth,
+  isGrandfatheredExcluded,
 } from '../lib/joinSubscription.utils'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-function pc(year: number, month: number, price: string, currency = 'USD') {
-  return { effectiveYear: year, effectiveMonth: month, newBasePrice: price, currency }
+function pc(year: number, month: number, price: string, currency = 'USD', grandfatheredPrice = false) {
+  return { effectiveYear: year, effectiveMonth: month, newBasePrice: price, currency, grandfatheredPrice }
 }
 
 function prepayOpt(months: number, price: number | string, currency = 'USD', validFrom?: string, validUntil?: string) {
@@ -262,5 +264,67 @@ describe('computeAutoBatches', () => {
     expect(batches).toHaveLength(2)
     expect(batches[0].amount).toBe('79.99')  // Jan 2025 batch → old price still valid
     expect(batches[1].amount).toBe('89.99')  // Apr 2025 batch → new price
+  })
+})
+
+// ── computeFirstBillingMonth ──────────────────────────────────────────────────
+
+describe('computeFirstBillingMonth', () => {
+  it('27. signupIncludesCurrentMonth=true → same month as join', () => {
+    expect(computeFirstBillingMonth(2025, 11, true)).toEqual({ year: 2025, month: 11 })
+  })
+
+  it('28. signupIncludesCurrentMonth=false → next month', () => {
+    expect(computeFirstBillingMonth(2025, 11, false)).toEqual({ year: 2025, month: 12 })
+  })
+
+  it('29. signupIncludesCurrentMonth=false, December → wraps to January next year', () => {
+    expect(computeFirstBillingMonth(2025, 12, false)).toEqual({ year: 2026, month: 1 })
+  })
+
+  it('30. signupIncludesCurrentMonth=true, December → stays December', () => {
+    expect(computeFirstBillingMonth(2025, 12, true)).toEqual({ year: 2025, month: 12 })
+  })
+})
+
+// ── isGrandfatheredExcluded ───────────────────────────────────────────────────
+
+describe('isGrandfatheredExcluded', () => {
+  it('31. non-grandfathered change → never excluded', () => {
+    const change = pc(2026, 1, '21.00', 'GBP', false)
+    expect(isGrandfatheredExcluded(change, 2025, 11)).toBe(false)
+    expect(isGrandfatheredExcluded(change, 2026, 1)).toBe(false)
+  })
+
+  it('32. grandfathered change, first billing month BEFORE change → excluded (won\'t affect user)', () => {
+    const change = pc(2026, 1, '21.00', 'GBP', true)
+    // joining in Nov 2025, signupIncludesCurrentMonth=true → first billing Nov 2025 < Jan 2026
+    expect(isGrandfatheredExcluded(change, 2025, 11)).toBe(true)
+    // joining in Dec 2025, signupIncludesCurrentMonth=true → first billing Dec 2025 < Jan 2026
+    expect(isGrandfatheredExcluded(change, 2025, 12)).toBe(true)
+  })
+
+  it('33. grandfathered change, first billing month ON change effective month → NOT excluded (affected)', () => {
+    const change = pc(2026, 1, '21.00', 'GBP', true)
+    // joining in Dec 2025 with signupIncludesCurrentMonth=false → first billing Jan 2026 = Jan 2026
+    expect(isGrandfatheredExcluded(change, 2026, 1)).toBe(false)
+  })
+
+  it('34. grandfathered change, first billing month AFTER change → NOT excluded (affected)', () => {
+    const change = pc(2026, 1, '21.00', 'GBP', true)
+    // joining in Jan 2026 → first billing Feb 2026 > Jan 2026
+    expect(isGrandfatheredExcluded(change, 2026, 2)).toBe(false)
+  })
+
+  it('35. FairyLoot scenario: join Nov 2025, signupIncludesCurrentMonth=false → first billing Dec 2025, grandfathered Jan 2026 change → excluded', () => {
+    const change = pc(2026, 1, '21.00', 'GBP', true)
+    const { year, month } = computeFirstBillingMonth(2025, 11, false) // Dec 2025
+    expect(isGrandfatheredExcluded(change, year, month)).toBe(true)
+  })
+
+  it('36. FairyLoot scenario: join Dec 2025, signupIncludesCurrentMonth=false → first billing Jan 2026, grandfathered Jan 2026 change → NOT excluded (pays new price)', () => {
+    const change = pc(2026, 1, '21.00', 'GBP', true)
+    const { year, month } = computeFirstBillingMonth(2025, 12, false) // Jan 2026
+    expect(isGrandfatheredExcluded(change, year, month)).toBe(false)
   })
 })

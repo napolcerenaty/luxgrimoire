@@ -11,6 +11,7 @@ import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type Editio
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { GoodreadsParser, type AiBookResult } from './BookForm'
 import { INP, LBL, BTN_PRIMARY, BTN_GHOST } from '@/lib/adminFormStyles'
+import { computeGeneralSaleDatePrefill } from '@/lib/generalSalePrefill'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const ISO_TO_LANGUAGE: Record<string, string> = {
@@ -31,6 +32,8 @@ export interface CreateBookEditionFormProps {
   defaultCompanyId?: string | null
   defaultPrice?: number | null
   renewalDay?: number | null
+  renewalDayUserSet?: boolean | null
+  renewalMonthOffset?: number | null
   defaultLanguage?: string | null
   monthYear?: number
   monthMonth?: number
@@ -56,7 +59,7 @@ export interface CreateBookEditionFormProps {
 
 export default function CreateBookEditionForm({
   subscriptionSlug, subscriptionId, defaultCurrency, defaultCompanyId,
-  defaultPrice, renewalDay, defaultLanguage,
+  defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage,
   monthYear, monthMonth, existingBookId, bookOnly,
   defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate,
   defaultPublisher, defaultCollectionId, defaultPhotoCredit, defaultArtists, defaultFeatureTags,
@@ -90,10 +93,7 @@ export default function CreateBookEditionForm({
   const [earlyAccessDate, setEarlyAccessDate] = useState(defaultEarlyAccessDate ?? '')
   const [generalSaleDate, setGeneralSaleDate] = useState(() => {
     if (defaultGeneralSaleDate) return defaultGeneralSaleDate
-    if (renewalDay == null || monthMonth == null || monthYear == null) return ''
-    const mm = String(monthMonth).padStart(2, '0')
-    const dd = String(renewalDay).padStart(2, '0')
-    return `${monthYear}-${mm}-${dd}`
+    return computeGeneralSaleDatePrefill(monthYear, monthMonth, renewalDay, renewalDayUserSet, renewalMonthOffset)
   })
   const [allImages, setAllImages] = useState<string[]>([])
   const [language, setLanguage] = useState(resolveLanguage(defaultLanguage))

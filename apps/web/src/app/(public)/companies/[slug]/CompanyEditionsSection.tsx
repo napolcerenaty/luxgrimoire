@@ -33,6 +33,7 @@ export function CompanyEditionsSection({ companySlug, subscriptions, collections
       label: 'Exclusive Editions',
       href: null,
       fetchPath: `/companies/${companySlug}/editions?noCollection=true`,
+      hideIfEmpty: true,
     },
     ...collections.map((c) => ({
       label: c.name,

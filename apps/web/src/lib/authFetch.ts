@@ -17,6 +17,9 @@ export async function authFetch<T>(path: string, options?: RequestInit): Promise
   })
   if (!res.ok) {
     const err = await res.text()
+    if ((res.status === 401 || res.status === 403) && typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
     throw new Error(err)
   }
   // 204 No Content or empty body — return undefined without trying to parse JSON

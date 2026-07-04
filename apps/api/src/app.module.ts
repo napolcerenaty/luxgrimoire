@@ -49,6 +49,9 @@ import { CrowdStatsModule } from './modules/crowd-stats/crowd-stats.module';
 import { FeatureCategoriesModule } from './modules/feature-categories/feature-categories.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { ReadingImportModule } from './modules/reading-import/reading-import.module';
+import { MediaAssetsModule } from './modules/media-assets/media-assets.module';
+import { BookSeriesModule } from './modules/book-series/book-series.module';
+import { HomepageFeaturesModule } from './modules/homepage-features/homepage-features.module';
 
 @Module({
   imports: [
@@ -135,6 +138,7 @@ import { ReadingImportModule } from './modules/reading-import/reading-import.mod
     CollectionModule,
     SearchModule,
     UploadModule,
+    MediaAssetsModule,
     SpendingModule,
     FeesModule,
     NotificationsModule,
@@ -157,8 +161,10 @@ import { ReadingImportModule } from './modules/reading-import/reading-import.mod
     BackupModule,
     CrowdStatsModule,
     FeatureCategoriesModule,
+    HomepageFeaturesModule,
     StatsModule,
     ReadingImportModule,
+    BookSeriesModule,
   ],
   providers: [
     ...(process.env.SENTRY_DSN ? [{ provide: APP_FILTER, useClass: SentryGlobalFilter }] : []),

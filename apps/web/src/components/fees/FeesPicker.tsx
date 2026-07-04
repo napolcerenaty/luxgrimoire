@@ -107,7 +107,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
           category: f.category, notes: f.notes ?? '', isNew: false, markedForDelete: false,
         })))
         setDiscountRows(discounts.map((d) => ({
-          localId: nextLocalId(), savedId: d.id, name: d.name, amount: String(d.amount),
+          localId: nextLocalId(), savedId: d.id, name: d.name ?? '', amount: String(d.amount),
           currency: d.currency, date: d.date.slice(0, 10), notes: d.notes ?? '',
           isNew: false, markedForDelete: false,
         })))
@@ -212,7 +212,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
         Promise.all(
           discountRows.filter((r) => r.isNew && !r.markedForDelete).map((r) =>
             createPurchaseDiscount({
-              name: r.name, amount: parseDecimalInput(r.amount), currency: r.currency,
+              name: r.name || undefined, amount: parseDecimalInput(r.amount), currency: r.currency,
               date: r.date, billingPeriodId, userBookEntryId, purchaseGroupId, notes: r.notes || undefined,
             })
           )
@@ -240,7 +240,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
       setDiscountRows(
         discountRows.filter((r) => !r.markedForDelete && !r.isNew).concat(
           createdDiscounts.map((d: ApiPurchaseDiscount) => ({
-            localId: nextLocalId(), savedId: d.id, name: d.name, amount: String(d.amount),
+            localId: nextLocalId(), savedId: d.id, name: d.name ?? '', amount: String(d.amount),
             currency: d.currency, date: d.date.slice(0, 10), notes: d.notes ?? '',
             isNew: false, markedForDelete: false,
           }))

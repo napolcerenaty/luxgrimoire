@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySubscriptionEntry, getCountryFeeHints } from '@/lib/api'
 import type { CountryFeeHint } from '@/lib/api'
-import { authFetch } from '@/lib/authFetch'
+import { authFetch, API_BASE } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
+import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth, ApiSubscriptionSkipPolicy } from '@luxgrimoire/shared-types'
 import JoinSubscriptionModal from './JoinSubscriptionModal'
 import { CancelSubscriptionModal } from './CancelSubscriptionModal'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
@@ -29,6 +29,8 @@ interface Props {
   prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
+  signupIncludesCurrentMonth?: boolean
+  skipPolicies?: ApiSubscriptionSkipPolicy[]
 }
 
 type FeeTemplateLink = {
@@ -48,6 +50,7 @@ type MyEntry = {
   basePrice: string | null
   costCurrency: string | null
   active: boolean
+  isForwarding: boolean
   prepaidMonths: number
   renewalDay: number | null
   nextRenewalDate: string | null
@@ -104,6 +107,8 @@ export default function SubscriptionInfoPanel({
   prepayOptions,
   isDiscontinued,
   subscriptionEndDate,
+  signupIncludesCurrentMonth,
+  skipPolicies,
 }: Props) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -121,7 +126,8 @@ export default function SubscriptionInfoPanel({
   const [allPriceChanges, setAllPriceChanges] = useState<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>([])
 
   useEffect(() => {
-    authFetch<Array<{ effectiveYear: number; effectiveMonth: number; newBasePrice: string; currency: string }>>(`/subscriptions/${subscriptionSlug}/price-changes`)
+    fetch(`${API_BASE}/subscriptions/${subscriptionSlug}/price-changes`)
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!Array.isArray(data)) return
         setAllPriceChanges(data)
@@ -148,7 +154,7 @@ export default function SubscriptionInfoPanel({
   const { data: skipStatus } = useQuery({
     queryKey: ['skip-status', subscriptionSlug],
     queryFn: () => authFetch<{ skippedMonths: { year: number; month: number }[] }>(`/skip-policy/${subscriptionSlug}/status`),
-    enabled: !!user,
+    enabled: !!user && !!myEntry?.active,
     retry: false,
   })
 
@@ -368,6 +374,12 @@ export default function SubscriptionInfoPanel({
                 </span>
               </div>
             )}
+            {myEntry?.isForwarding && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-blue-400">📦</span>
+                <span className="text-blue-300 font-medium">Forwarding packages</span>
+              </div>
+            )}
           </div>
           {(prepayOptions?.length ?? 0) > 0 && (
             <div className="pt-3 border-t border-stone-700/60">
@@ -523,23 +535,11 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
-      {/* Active subscriber: 2-column layout — costs on left, skip policy on right */}
-      {isSubscriber ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          <div>{costPanel}</div>
-          <div>
-            <SkipStatusPanel
-              subscriptionSlug={subscriptionSlug}
-              months={months}
-              onSkipSuccess={refreshEntry}
-            />
-          </div>
-        </div>
-      ) : (
-        /* Non-subscriber: compact single column, max-w-sm */
-        <div className="max-w-sm space-y-4">
+      {/* 2-column layout on desktop, stacked on mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+        <div className="space-y-4">
           {costPanel}
-          {user && !isSubscriber && myEntry !== undefined && (
+          {!isSubscriber && user && myEntry !== undefined && (
             <button
               type="button"
               onClick={() => openJoinModal()}
@@ -549,7 +549,18 @@ export default function SubscriptionInfoPanel({
             </button>
           )}
         </div>
-      )}
+        {isSubscriber ? (
+          <SkipStatusPanel
+            subscriptionSlug={subscriptionSlug}
+            months={months}
+            onSkipSuccess={refreshEntry}
+          />
+        ) : (
+          skipPolicies && skipPolicies.length > 0 && (
+            <SkipPoliciesInfoPanel policies={skipPolicies} />
+          )
+        )}
+      </div>
 
       {showJoinModal && (
         <JoinSubscriptionModal
@@ -563,6 +574,7 @@ export default function SubscriptionInfoPanel({
           prepayOptions={prepayOptions}
           isDiscontinued={isDiscontinued}
           subscriptionEndDate={subscriptionEndDate}
+          signupIncludesCurrentMonth={signupIncludesCurrentMonth}
           onJoined={() => {
             closeJoinModal()
             refreshEntry()
@@ -617,6 +629,7 @@ function EditEntryCostsModal({
 }) {
   const [basePrice, setBasePrice] = useState(entry.basePrice ?? '')
   const [shippingCost, setShippingCost] = useState(entry.shippingCost ?? '')
+  const [isForwarding, setIsForwarding] = useState(entry.isForwarding)
   const [costCurrency, setCostCurrency]= useState(entry.costCurrency ?? subscriptionCurrency)
   const [scheduledPrepayOptionId, setScheduledPrepayOptionId] = useState<string | null>(entry.scheduledPrepayOptionId ?? null)
   const savedCurrency = entry.costCurrency ?? subscriptionCurrency
@@ -658,6 +671,7 @@ function EditEntryCostsModal({
         basePrice: basePrice || undefined,
         shippingCost: shippingCost || undefined,
         costCurrency: costCurrency || undefined,
+        isForwarding,
         linkedFeeTemplates: feeLinks.map(f => ({
           templateId: f.templateId,
           customAmount: f.customAmount ? parseDecimalInput(f.customAmount) : null,
@@ -735,6 +749,16 @@ function EditEntryCostsModal({
               className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
             />
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isForwarding}
+              onChange={e => setIsForwarding(e.target.checked)}
+              className="rounded border-stone-600 bg-stone-800 text-amber-500"
+            />
+            <span className="text-sm text-stone-300">📦 Forwarding packages</span>
+          </label>
 
           {/* Fee templates */}
           <div>
@@ -866,3 +890,98 @@ function EditEntryCostsModal({
 }
 
 // ─── Cancel Subscription Modal → shared component (CancelSubscriptionModal.tsx)
+
+// ─── Read-only Skip Policy Info Panel ─────────────────────────────────────────
+
+function policyTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    NONE: 'Skipping not available',
+    UNLIMITED: 'Unlimited skips allowed',
+    UNLIMITED_MAX_CONSEC: 'Unlimited skips (max consecutive limit)',
+    CALENDAR_YEAR: 'Limited skips per calendar year',
+    FROM_FIRST_SKIP: 'Limited skips per rolling window',
+    FROM_SUB_START: 'Limited skips from subscription start',
+    PREPAID_WINDOW_SKIP: 'Prepaid: skips entire renewal window',
+  }
+  return labels[type] ?? type
+}
+
+function billingTypeLabel(billingType: string): string {
+  const labels: Record<string, string> = {
+    ALL: 'All subscribers',
+    MONTHLY: 'Monthly billing',
+    PREPAID: 'Prepaid billing',
+  }
+  return labels[billingType] ?? billingType
+}
+
+function SkipPolicyInfoPanel({ policy }: { policy: ApiSubscriptionSkipPolicy }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs text-stone-400">{policyTypeLabel(policy.type)}</p>
+
+      {policy.maxSkips !== null && (
+        <p className="text-xs text-stone-400">
+          Max skips: <span className="text-stone-300 font-medium">{policy.maxSkips}</span>
+          {policy.windowMonths ? ` per ${policy.windowMonths}-month window` : ''}
+        </p>
+      )}
+
+      {policy.maxConsecutive !== null && (
+        <p className="text-xs text-stone-400">
+          Max consecutive skips: <span className="text-stone-300 font-medium">{policy.maxConsecutive}</span>
+        </p>
+      )}
+
+      {policy.skipHow && (
+        <p className="text-xs text-stone-400">
+          How to skip: <span className="text-stone-300">{policy.skipHow}</span>
+        </p>
+      )}
+
+      {policy.notes && (
+        <p className="text-xs text-stone-500 italic whitespace-pre-line">{policy.notes}</p>
+      )}
+
+      {policy.allowUnskip && (
+        <div className="border-t border-stone-700 pt-2 flex flex-col gap-1 mt-1">
+          <p className="text-xs text-stone-400 font-medium">Unskip allowed</p>
+          {policy.unskipHow && (
+            <p className="text-xs text-stone-400">
+              How to unskip: <span className="text-stone-300">{policy.unskipHow}</span>
+            </p>
+          )}
+          {policy.unskipNotes && (
+            <p className="text-xs text-stone-500 italic">{policy.unskipNotes}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SkipPoliciesInfoPanel({ policies }: { policies: ApiSubscriptionSkipPolicy[] }) {
+  if (policies.length === 0) return null
+
+  const isMulti = policies.length > 1
+
+  return (
+    <div className="rounded-lg border border-stone-700 p-4 flex flex-col gap-3">
+      <p className="text-sm font-semibold text-stone-200">Skip Policy</p>
+      {isMulti ? (
+        <div className="flex flex-col gap-4">
+          {policies.map(policy => (
+            <div key={policy.billingType} className="flex flex-col gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500/80">
+                {billingTypeLabel(policy.billingType ?? 'ALL')}
+              </p>
+              <SkipPolicyInfoPanel policy={policy} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <SkipPolicyInfoPanel policy={policies[0]!} />
+      )}
+    </div>
+  )
+}

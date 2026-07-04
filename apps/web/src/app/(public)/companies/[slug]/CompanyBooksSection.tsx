@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
@@ -10,6 +10,8 @@ export interface EditionGroup {
   label: string
   href: string | null
   fetchPath: string
+  /** Hide this tab entirely if the loaded total is 0 */
+  hideIfEmpty?: boolean
 }
 
 interface Props {
@@ -36,7 +38,8 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
   // Server-reported total per tab (used for hasMore)
   const [totals, setTotals] = useState<Record<number, number>>({})
   const [loadingTab, setLoadingTab] = useState<number | null>(null)
-  const didAutoSwitch = useRef(false)
+  // Tabs hidden after loading with 0 results (hideIfEmpty groups)
+  const [hiddenTabs, setHiddenTabs] = useState<Set<number>>(new Set())
 
   if (groups.length === 0) return null
 
@@ -69,25 +72,41 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Auto-switch away from tab 0 ("Exclusive Editions") if it's empty
+  // Hide tabs marked hideIfEmpty once we know they're empty, then switch away
   useEffect(() => {
-    if (
-      !didAutoSwitch.current &&
-      activeTab === 0 &&
-      totals[0] === 0 &&
-      loadedEditions[0] !== undefined &&
-      loadingTab !== 0 &&
-      groups.length > 1
-    ) {
-      didAutoSwitch.current = true
-      setActiveTab(1)
-      setSearch('')
-      if (loadedEditions[1] === undefined) {
-        loadPage(1, 0)
+    const newHidden = new Set(hiddenTabs)
+    let changed = false
+    groups.forEach((group, idx) => {
+      if (
+        group.hideIfEmpty &&
+        totals[idx] === 0 &&
+        loadedEditions[idx] !== undefined &&
+        loadingTab !== idx &&
+        !newHidden.has(idx)
+      ) {
+        newHidden.add(idx)
+        changed = true
       }
+    })
+    if (changed) {
+      setHiddenTabs(newHidden)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totals, loadedEditions, loadingTab])
+
+  // Auto-switch away from active tab if it becomes hidden
+  useEffect(() => {
+    if (!hiddenTabs.has(activeTab)) return
+    const nextVisible = groups.findIndex((_, idx) => !hiddenTabs.has(idx))
+    if (nextVisible !== -1) {
+      setActiveTab(nextVisible)
+      setSearch('')
+      if (loadedEditions[nextVisible] === undefined) {
+        loadPage(nextVisible, 0)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenTabs])
 
   const activeEditions = loadedEditions[activeTab] ?? []
   const isLoading = loadingTab === activeTab && activeEditions.length === 0
@@ -141,22 +160,25 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
       {/* Tabs */}
       <div className="border-b border-stone-800 mb-6">
         <div className="flex flex-wrap gap-0">
-          {groups.map((group, idx) => (
-            <button
-              key={group.label}
-              onClick={() => handleTabChange(idx)}
-              className={`px-4 py-2.5 text-sm font-medium font-serif whitespace-nowrap transition-colors border-b-2 -mb-px ${
-                activeTab === idx
-                  ? 'border-amber-600 text-amber-400'
-                  : 'border-transparent text-stone-400 hover:text-stone-200'
-              }`}
-            >
-              {group.label}
-              {totals[idx] !== undefined && (
-                <span className="ml-1.5 text-xs text-stone-500">({totals[idx]})</span>
-              )}
-            </button>
-          ))}
+          {groups.map((group, idx) => {
+            if (hiddenTabs.has(idx)) return null
+            return (
+              <button
+                key={group.label}
+                onClick={() => handleTabChange(idx)}
+                className={`px-4 py-2.5 text-sm font-medium font-serif whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                  activeTab === idx
+                    ? 'border-amber-600 text-amber-400'
+                    : 'border-transparent text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                {group.label}
+                {totals[idx] !== undefined && (
+                  <span className="ml-1.5 text-xs text-stone-500">({totals[idx]})</span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
 

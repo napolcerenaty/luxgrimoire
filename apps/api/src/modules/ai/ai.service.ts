@@ -21,6 +21,8 @@ export interface AiSaleAnnouncementResult {
   companyName?: string;
   subscriberBasePrice?: number;
   expectedShipping?: string;
+  saleType?: 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK';
+  endsAt?: string;
   regions?: AiSaleRegion[];
 }
 
@@ -130,9 +132,10 @@ FEATURES RULES:
 - ORDER PRESERVATION: List features and artists in the EXACT ORDER they appear in the source text. Do not sort, reorder, or group them. The first feature mentioned in the text must be first in the array, and so on.
 - FEATURE ORDER FIELD: Always populate "featureOrder" — a flat list of ALL feature raw values (both standalone features[] values AND the base feature names from artist roles) in the exact order they appear in the source text. This is the authoritative display order. Standalone features that have no artist appear in features[]; artist-attributed features appear only in artists[]; featureOrder combines both in source-text sequence.
   Example: if source mentions "cover art by @artist, ribbon bookmark, sprayed edges by @artist2, signed" → featureOrder: ["Cover art", "Ribbon bookmark", "Sprayed edges", "signed"]
-- CASING: The FIRST letter of every feature string must always be uppercase (sentence-start capitalisation). Preserve the original capitalisation of all subsequent words exactly as they appear in the source — if the source capitalises a word (e.g. "Foiled", "Exclusive"), keep it capitalised; if it uses lowercase (e.g. "ribbon bookmark"), keep it lowercase. EXCEPTION: if a word in the source appears in ALL CAPS (e.g. "SPECIAL", "SIGNED"), convert it to lowercase (e.g. "special", "signed"). Never fully uppercase or fully lowercase an entire phrase.
-- Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc.
-- Also include: signed, numbered, exclusive content notes
+- CASING: The FIRST letter of every feature string must always be uppercase (sentence-start capitalisation). Preserve the original capitalisation of all subsequent words exactly as they appear in the source — if the source capitalises a word (e.g. "Foiled", "Exclusive"), keep it capitalised; if it uses lowercase (e.g. "ribbon bookmark"), keep it lowercase. EXCEPTION: if a word in the source appears in ALL CAPS (e.g. "SPECIAL", "SIGNED"), convert it to lowercase (e.g. "special", "signed"). Never fully uppercase phrase.
+- Extract ALL physical extras: sprayed/dyed edges, foil details, ribbon bookmarks, art prints, bookplates, stickers, maps, endpapers, gilded pages, dust jacket, slipcase, etc AND try to keep as much of the descriptive detail as possible (e.g. "exclusive art print of [character]", "foil-stamped cover with a colourway variation of the trade cover", "ribbon bookmark in the same colour as the sprayed edges", "gilded page edges with a unique pattern", "map of [location] on the endpapers", etc.)
+- Also include: signed, numbered, exclusive content notes AND try to keep descriptive detail (e.g. "signed by the author", "numbered copy", "exclusive content: first chapter of [title]", "exclusive content: preview of Book 2", etc.)
+- If the text describes coombined features like "endpapers with author signature" keep it as one feature. Do NOT split into separate "endpapers" and "signed" features.
 - BINDING/FORMAT: If the text explicitly mentions a binding or format type such as "hardcover", "paperback", "cloth bound", "leatherette", "naked hardcover (no dust jacket)", etc., add it as a feature. These are physical characteristics of the edition.
   Example: "hardcover edition with sprayed edges" → features: ["hardcover", "sprayed edges"]
   Example: "paperback with foiled cover" → features: ["paperback", "foiled cover"]
@@ -218,7 +221,7 @@ FEATURES RULES:
   Example: "limited edition of 500 copies" → features: ["limited to 500 copies"]
   Example: "print run: 2000" → features: ["limited to 2000 copies"]
 - BINDING DETAILS: Physical binding features such as "Smyth sewn binding", "head and tail bands", "rounded and backed", "French links", etc. are physical characteristics and should always be added as features.
-
+- For features try to keep as much of the original text as possible without losing important descriptive detail, even if it results in longer feature strings. Do NOT overly truncate or summarise features — the more detail the better, as long as it's not excessively verbose. The goal is to capture the richness of the edition's physical characteristics and artistic contributions.
 For dates, use ISO format YYYY-MM-DD. If only month/year is given, use the first day of that month.
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
 
@@ -235,12 +238,12 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
 }
 
 RULES:
-- title: only the actual book title. Remove any "Series Name #N" prefix/suffix.
-- seriesName: extract from a line like "Series Name #N" at the top, or from parenthetical in title.
+- title: take full title as provided, keep any volume numbers that may be a part of a title AND do not remove parts after a colon (e.g. "The Name of the Wind: The Kingkiller Chronicle Book 1" → title: "The Name of the Wind: The Kingkiller Chronicle Book 1"). Do NOT remove parentheticals from the title if they are part of the original title on Goodreads.
+- seriesName: extract from a line like "Series Name #N" at the top, or from parenthetical in title, if series starts with THE keep it.
 - volumeNumber: extract the number from "#N" — must be a number (integer or decimal).
 - description: the book blurb only. Do NOT include ratings, reviews count, genres, or author names.
-- genres: take at most 5 genres from the Genres section. Omit if not present. NEVER include "Audiobook" or "Book Club" in genres — skip them entirely.
-- authors: list all authors found.`;
+- genres: take all provided genres from the Genres section. Omit if not present. NEVER include "Audiobook" or "Book Club" in genres — skip them entirely.
+- authors: list only book authors found, remove translators, editors, narrators, or other contributors. If multiple authors are listed, include them all in the authors array.`;
 
 const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.
 Given a sale announcement post (usually from a book subscription box company), extract structured information.
@@ -251,6 +254,8 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
   "companyName": "name of the book subscription company, e.g. 'The Locked Library', 'Illumicrate', 'Owlcrate'",
   "subscriberBasePrice": 22.00,
   "expectedShipping": "e.g. November/December 2025",
+  "saleType": "LIMITED_PREORDER | OPEN_PREORDER | OVERSTOCK",
+  "endsAt": "ISO 8601 local datetime when the sale closes, no Z suffix",
   "regions": [
     {
       "name": "region name, e.g. UK/INT or US/Canada",
@@ -312,6 +317,17 @@ REGION RULES:
 SHIPPING:
 - Extract expected shipping timeframe if mentioned (e.g. "ships around November/December", "expected to ship in Q1 2026")
 - Include year if determinable from context (current year is 2026)
+
+SALE TYPE RULES:
+- LIMITED_PREORDER: a preorder that is limited in quantity and/or time — phrases like "limited edition", "limited slots", "only X copies", "while stocks last", "preorder closes [date]", "sold out when gone"
+- OPEN_PREORDER: an open preorder with no stated quantity limit but with a set end date — phrases like "order by [date]", "preorder window closes", "open until [date]"
+- OVERSTOCK: in-stock/clearance items available to buy immediately — phrases like "available now", "ships immediately", "in stock", "overstock", "warehouse clearance", "buy now"
+- Default to LIMITED_PREORDER if a preorder but no other signals
+
+ENDS AT RULES:
+- Extract the date/time when the sale closes (e.g. "orders close on 15 July at 11pm BST", "preorder ends 31 Jan 2026")
+- Use the same LOCAL-time format as other dates (no Z suffix); the saleTimezone field in the matching region indicates the timezone
+- If no explicit close date is mentioned, omit endsAt
 
 For dates, use ISO 8601 format WITHOUT Z suffix (local time, not UTC). If only a date is given without time, use 00:00:00.000 (no Z).
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
@@ -397,6 +413,8 @@ function localToUtcIso(localStr: string, tz: string): string {
  * using the saleTimezone, resolving ambiguous US abbreviations (ET→EDT/EST etc).
  */
 function normalizeSaleAnnouncementDates(result: AiSaleAnnouncementResult): AiSaleAnnouncementResult {
+  // Use the timezone from the first/default region (or UTC) for top-level endsAt
+  const globalTz = result.regions?.[0]?.saleTimezone ?? 'UTC'
   const convertRegion = (r: AiSaleRegion): AiSaleRegion => {
     const tz = r.saleTimezone ?? 'UTC'
     const resolved = r.firstAccessDate ? resolveUsDst(tz, r.firstAccessDate) :
@@ -412,6 +430,7 @@ function normalizeSaleAnnouncementDates(result: AiSaleAnnouncementResult): AiSal
   }
   return {
     ...result,
+    endsAt: result.endsAt ? localToUtcIso(result.endsAt, globalTz) : result.endsAt,
     regions: result.regions?.map(convertRegion),
   }
 }
@@ -432,7 +451,11 @@ function normalizePlurals(value: string): string {
     .replace(/\bhardcases\b/gi,        m => m.slice(0, -1))   // hardcases → hardcase
     .replace(/\bhardbacks\b/gi,        m => m.slice(0, -1))   // hardbacks → hardback
     .replace(/\bpaperbacks\b/gi,       m => m.slice(0, -1))   // paperbacks → paperback
-    .replace(/\bcovers\b/gi,           m => m.slice(0, -1));  // covers → cover
+    .replace(/\bcovers\b/gi,           m => m.slice(0, -1))   // covers → cover
+    .replace(/\bhardcovers\b/gi,       m => m.slice(0, -1))   // hardcovers → hardcover
+    .replace(/\bsheets\b/gi,          m => m.slice(0, -1))   // sheets → sheet
+    .replace(/\bbookplates\b/gi,      m => m.slice(0, -1))   // bookplates → bookplate
+    .replace(/\btip-ins\b/gi,         () => 'tip-in');        // tip-ins → tip-in
 }
 
 @Injectable()

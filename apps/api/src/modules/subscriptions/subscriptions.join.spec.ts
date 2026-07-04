@@ -81,6 +81,7 @@ describe('SubscriptionsService — joinSubscription', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any, // CountryFeeSnapshotCronService
       {} as any,
       crowdStatsMock as any,
       { markStatsStale: jest.fn() } as any,

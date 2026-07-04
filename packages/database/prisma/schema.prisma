@@ -30,6 +30,7 @@ model User {
   privacyAcceptedAt        DateTime?
   privacyVersion           String?
   onboardingCompletedAt    DateTime?
+  statsSettings            Json?                       // { spending, sales, reading, features } booleans; null = all true
   accounts                 Account[]
   auditLogs                AuditLog[]
   submittedEditions        BookEdition[]               @relation("SubmittedEditions")
@@ -42,6 +43,10 @@ model User {
   bookEntryTags            UserBookEntryTag[]
   feeTemplates             UserFeeTemplate[]
   notifications            UserNotification[]
+  notificationPreference   UserNotificationPreference?
+  pushSubscriptions        PushSubscription[]
+  reminderSettings         UserReminderSettings?
+  scheduledReminders       ScheduledReminder[]
   purchaseDiscounts        UserPurchaseDiscount[]
   purchaseFees             UserPurchaseFee[]
   purchaseGroups           UserPurchaseGroup[]
@@ -60,6 +65,7 @@ model User {
   dataRequests             DataRequest[]
   saleAnnouncementRequests SaleAnnouncementRequest[]
   managedCompany           BookBoxCompany?             @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
+  uploadedAssets           MediaAsset[]                @relation("MediaAssetUploads")
 
   @@index([shippingCountry])
   @@map("users")
@@ -118,6 +124,18 @@ model EmailVerificationToken {
   @@map("email_verification_tokens")
 }
 
+model BookSeries {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  books     Book[]
+
+  @@index([name])
+  @@map("book_series")
+}
+
 model Book {
   id           String                  @id @default(uuid())
   slug         String                  @unique
@@ -125,11 +143,13 @@ model Book {
   description  String?
   language     String                  @default("en")
   seriesName   String?
+  seriesId     String?
   volumeNumber Float?
   createdAt    DateTime                @default(now())
   updatedAt    DateTime                @updatedAt
   status       String                  @default("approved")
   genres       String[]
+  series            BookSeries?             @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   authors           BookAuthor[]
   editions          BookEdition[]
   monthBooks        SubscriptionMonthBook[]
@@ -138,6 +158,7 @@ model Book {
 
   @@index([language])
   @@index([seriesName])
+  @@index([seriesId])
   @@index([status])
   @@map("books")
 }
@@ -148,6 +169,7 @@ model Author {
   name        String
   bio         String?
   photoUrl    String?
+  photoAssetId String?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   facebook    String?
@@ -157,6 +179,7 @@ model Author {
   twitter     String?
   website     String?
   books       BookAuthor[]
+  photoAsset  MediaAsset?          @relation("AuthorPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
 
   @@index([nationality])
   @@index([name])
@@ -180,6 +203,7 @@ model Artist {
   name          String
   bio           String?
   photoUrl      String?
+  photoAssetId  String?
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   facebook      String?
@@ -190,6 +214,7 @@ model Artist {
   website       String?
   contributions ArtistContribution[]
   cardArtistMonths SubscriptionMonth[]
+  photoAsset    MediaAsset?          @relation("ArtistPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
 
   @@index([specialty])
   @@index([name])
@@ -217,6 +242,7 @@ model BookEdition {
   publisher String?
   photoCredit              String?
   additionalImages         String[]
+  editionImages            BookEditionMediaAsset[]
   isSpecial                Boolean                   @default(false)
   isOmnibus                Boolean                   @default(false)
   componentCount           Int                       @default(0)
@@ -289,6 +315,7 @@ model BookBoxCompany {
   name              String
   description       String?
   logoUrl           String?
+  logoAssetId       String?
   website           String?
   country           String?
   createdAt         DateTime              @default(now())
@@ -308,6 +335,7 @@ model BookBoxCompany {
   saleAnnouncements SaleAnnouncement[]
   subscriptions     Subscription[]
   managers          User[]                @relation("CompanyManagers")
+  logoAsset         MediaAsset?           @relation("CompanyLogo", fields: [logoAssetId], references: [id], onDelete: SetNull)
   @@index([country])
   @@map("book_box_companies")
 }
@@ -334,6 +362,7 @@ model Subscription {
   name                 String
   description          String?
   coverImage           String?
+  coverImageAssetId    String?
   genre                String?
   startDate            DateTime?
   endDate              DateTime?
@@ -345,6 +374,7 @@ model Subscription {
   genres               String[]
   isCombo              Boolean                      @default(false)
   logoUrl              String?
+  logoAssetId          String?
   parentSubscriptionId String?
   renewalDay           Int?
   renewalDayUserSet    Boolean                      @default(false)
@@ -370,7 +400,7 @@ model Subscription {
   months               SubscriptionMonth[]
   prepayOptions        SubscriptionPrepayOption[]
   series               SubscriptionSeries[]
-  skipPolicy           SubscriptionSkipPolicy?
+  skipPolicies         SubscriptionSkipPolicy[]
   waitlistEntries      SubscriptionWaitlistEntry[]
   company              BookBoxCompany               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   parent               Subscription?                @relation("SubVariants", fields: [parentSubscriptionId], references: [id], onUpdate: NoAction)
@@ -379,6 +409,8 @@ model Subscription {
 
   statsSnapshot        SubscriptionStatsSnapshot?
   countryFeeSnapshots  SubscriptionCountryFeeSnapshot[]
+  coverImageAsset      MediaAsset?                  @relation("SubscriptionCover", fields: [coverImageAssetId], references: [id], onDelete: SetNull)
+  logoAsset            MediaAsset?                  @relation("SubscriptionLogo", fields: [logoAssetId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
   @@index([intervalMonths])
@@ -397,25 +429,27 @@ model SubscriptionComboComponent {
 }
 
 model SubscriptionSkipPolicy {
-  subscriptionId         String       @id
-  type                   String       @default("NONE")
-  maxSkips               Int?
-  maxConsecutive         Int?
-  windowMonths           Int?
-  notes                  String?
-  skipHow                String?
-  skipDeadlineDaysBefore Int          @default(0)
-  skipDeadlineType       String       @default("DAYS_BEFORE")
-  skipDeadlineDayOfMonth Int?
-  allowUnskip              Boolean  @default(false)
-  unskipDeadlineType       String   @default("DAYS_BEFORE")
-  unskipDeadlineDaysBefore Int      @default(0)
+  id                       String       @id @default(uuid())
+  subscriptionId           String
+  billingType              String       @default("ALL")
+  type                     String       @default("NONE")
+  maxSkips                 Int?
+  maxConsecutive           Int?
+  windowMonths             Int?
+  notes                    String?
+  skipHow                  String?
+  skipDeadlineDaysBefore   Int          @default(0)
+  skipDeadlineType         String       @default("DAYS_BEFORE")
+  skipDeadlineDayOfMonth   Int?
+  allowUnskip              Boolean      @default(false)
+  unskipDeadlineType       String       @default("DAYS_BEFORE")
+  unskipDeadlineDaysBefore Int          @default(0)
   unskipDeadlineDayOfMonth Int?
   unskipNotes              String?
   unskipHow                String?
-  eligibleBillingTypes     String   @default("ALL")
-  subscription           Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscription             Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
+  @@unique([subscriptionId, billingType])
   @@map("subscription_skip_policies")
 }
 
@@ -426,6 +460,7 @@ model SubscriptionSeries {
   name            String
   description     String?
   coverImage      String?
+  coverImageAssetId String?
   startMonth      Int
   startYear       Int
   endMonth        Int
@@ -438,6 +473,7 @@ model SubscriptionSeries {
   months          SubscriptionMonth[]
   subscription    Subscription        @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   skipRecords     UserSkipRecord[]
+  coverImageAsset MediaAsset?         @relation("SeriesCover", fields: [coverImageAssetId], references: [id], onDelete: SetNull)
 
   @@index([subscriptionId])
   @@map("subscription_series")
@@ -499,7 +535,9 @@ model SubscriptionMonth {
   month          Int
   theme          String?
   coverImage     String?
+  coverImageAssetId String?
   spoilerImage   String?
+  spoilerImageAssetId String?
   isSpoiler      Boolean                 @default(false)
   announcedAt    DateTime?
   createdAt      DateTime                @default(now())
@@ -517,6 +555,8 @@ model SubscriptionMonth {
   subscription   Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   skipRecords    UserSkipRecord[]
   userMonths     UserSubBillingPeriod[]
+  coverImageAsset  MediaAsset?           @relation("MonthCover", fields: [coverImageAssetId], references: [id], onDelete: SetNull)
+  spoilerImageAsset MediaAsset?          @relation("MonthSpoiler", fields: [spoilerImageAssetId], references: [id], onDelete: SetNull)
 
   @@unique([subscriptionId, year, month])
   @@index([subscriptionId])
@@ -553,6 +593,7 @@ model SaleAnnouncement {
   currency             String?
   extraImagesJson      Json?
   imageUrl             String?
+  imageAssetId         String?
   saleTimezone         String?
   availableForPurchase Boolean                   @default(false)
   isBundle             Boolean                   @default(false)
@@ -562,15 +603,23 @@ model SaleAnnouncement {
   earlyAccessDate      DateTime?
   firstAccessDate      DateTime?
   generalSaleDate      DateTime?
+  saleType             SaleType                  @default(LIMITED_PREORDER)
+  endsAt               DateTime?
+  isSoldOut            Boolean                   @default(false)
+  notes                String?
   editions             SaleAnnouncementEdition[]
+  items                SaleAnnouncementItem[]
   regions              SaleAnnouncementRegion[]
   company              BookBoxCompany?           @relation(fields: [companyId], references: [id])
   purchaseGroups       UserPurchaseGroup[]
   interests            UserSaleInterest[]
+  imageAsset           MediaAsset?               @relation("SAMainImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+  extraImages          SaleAnnouncementMediaAsset[]
 
   @@index([companyId])
   @@index([generalSaleDate])
   @@index([createdAt])
+  @@index([saleType])
   @@map("sale_announcements")
 }
 
@@ -580,13 +629,17 @@ model SaleAnnouncementEdition {
   saleId       String
   sortOrder    Int                              @default(0)
   isReprint    Boolean                          @default(false)
+  isStandalone Boolean                          @default(false)
+  itemId       String?
   edition      BookEdition                      @relation(fields: [editionId], references: [id])
   announcement SaleAnnouncement                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  item         SaleAnnouncementItem?            @relation(fields: [itemId], references: [id], onDelete: SetNull)
   variants        SaleAnnouncementEditionVariant[]
   userBookEntries UserBookEntry[]
 
   @@unique([saleId, editionId])
   @@index([editionId])
+  @@index([itemId])
   @@map("sale_announcement_editions")
 }
 
@@ -612,6 +665,7 @@ model SaleAnnouncementRegion {
   firstAccessDate DateTime?
   earlyAccessDate DateTime?
   endsAt          DateTime?
+  isSoldOut       Boolean          @default(false)
   saleTimezone    String?
   basePrice       Decimal?         @db.Decimal(10, 2)
   subscriberBasePrice Decimal?     @db.Decimal(10, 2)
@@ -621,6 +675,18 @@ model SaleAnnouncementRegion {
 
   @@index([saleId])
   @@map("sale_announcement_regions")
+}
+
+model SaleAnnouncementItem {
+  id        String                    @id @default(uuid())
+  saleId    String
+  name      String?
+  sortOrder Int                       @default(0)
+  sale      SaleAnnouncement          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  editions  SaleAnnouncementEdition[]
+
+  @@index([saleId])
+  @@map("sale_announcement_items")
 }
 
 model UserSaleInterest {
@@ -679,6 +745,7 @@ model UserBookEntry {
   @@index([userId, ownershipStatus])
   @@index([userId, readingStatus])
   @@index([userId, ownershipStatus, readingStatus])
+  @@index([userId, signatureType])
   @@index([purchaseGroupId])
   @@index([subscriptionEntryId])
   @@index([editionId])
@@ -748,6 +815,7 @@ model UserSubscriptionEntry {
   shippingCountry    String?                            @db.VarChar(2)
   trackingNumber     String?
   scheduledPrepayOptionId String?
+  isForwarding            Boolean                            @default(false)
   skipRecords        UserSkipRecord[]
   billingPeriods     UserSubBillingPeriod[]
   tags               UserSubEntryTag[]
@@ -840,15 +908,16 @@ model SubscriptionSettingsHistory {
 }
 
 model SubscriptionPriceChange {
-  id              String       @id @default(uuid())
-  subscriptionId  String
-  effectiveMonth  Int
-  effectiveYear   Int
-  newBasePrice    Decimal      @db.Decimal(10, 2)
-  currency        String       @db.VarChar(3)
-  notes           String?
-  createdAt       DateTime     @default(now())
-  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  id                 String       @id @default(uuid())
+  subscriptionId     String
+  effectiveMonth     Int
+  effectiveYear      Int
+  newBasePrice       Decimal      @db.Decimal(10, 2)
+  currency           String       @db.VarChar(3)
+  notes              String?
+  grandfatheredPrice Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  subscription       Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@unique([subscriptionId, effectiveYear, effectiveMonth, currency])
   @@index([subscriptionId])
@@ -936,6 +1005,75 @@ model UserNotification {
   @@index([userId])
   @@index([userId, createdAt])
   @@map("user_notifications")
+}
+
+model UserNotificationPreference {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  pushEnabled Boolean @default(false)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_notification_preferences")
+}
+
+model UserReminderSettings {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+
+  renewalEnabled       Boolean  @default(false)
+  renewalInAppEnabled  Boolean  @default(true)
+  renewalPushEnabled   Boolean  @default(false)
+  renewalDaysBefore    Int      @default(1)
+  renewalHour          Int?
+  renewalDigest        Boolean  @default(true)
+
+  saleEnabled          Boolean  @default(false)
+  saleInAppEnabled     Boolean  @default(true)
+  salePushEnabled      Boolean  @default(false)
+  saleDaysBefore       Int      @default(0)
+  saleMinutesBefore    Int?     @default(180)
+  saleDigest           Boolean  @default(false)
+
+  appNotifPushEnabled  Boolean  @default(false)
+
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_reminder_settings")
+}
+
+model ScheduledReminder {
+  id             String    @id @default(uuid())
+  userId         String
+  type           String
+  scheduledAt    DateTime
+  sentAt         DateTime?
+  cancelledAt    DateTime?
+  entryId        String?
+  announcementId String?
+  tier           String?
+  createdAt      DateTime  @default(now())
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([scheduledAt, sentAt, cancelledAt])
+  @@index([entryId])
+  @@index([userId, announcementId])
+  @@map("scheduled_reminders")
+}
+
+model PushSubscription {
+  id        String    @id @default(uuid())
+  userId    String
+  endpoint  String    @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime  @default(now())
+  lastError String?
+  failedAt  DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model AppSetting {
@@ -1104,7 +1242,7 @@ model UserPurchaseFee {
 model UserPurchaseDiscount {
   id              String                @id @default(uuid())
   userId          String
-  name            String
+  name            String?
   amount          Decimal               @db.Decimal(10, 2)
   currency        String
   date            DateTime              @db.Date
@@ -1225,6 +1363,13 @@ enum SignatureType {
   digitally_signed
   signed_bookplate
   stamped
+}
+
+enum SaleType {
+  LIMITED_PREORDER
+  OPEN_PREORDER
+  OVERSTOCK
+  SALE
 }
 
 enum FeeCategory {
@@ -1426,4 +1571,70 @@ model EditionFeatureTag {
   @@index([editionId])
   @@index([editionId, sortOrder])
   @@map("edition_feature_tags")
+}
+
+// ─── Media Asset Library ──────────────────────────────────────────────────────
+
+model MediaAsset {
+  id           String   @id @default(uuid())
+  publicId     String   @unique
+  folder       String?
+  createdAt    DateTime @default(now())
+  uploadedById String?
+  uploadedBy   User?    @relation("MediaAssetUploads", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  // Back-relations from all models that reference this asset
+  authorPhotos         Author[]                     @relation("AuthorPhoto")
+  artistPhotos         Artist[]                     @relation("ArtistPhoto")
+  companyLogos         BookBoxCompany[]              @relation("CompanyLogo")
+  subscriptionCovers   Subscription[]               @relation("SubscriptionCover")
+  subscriptionLogos    Subscription[]               @relation("SubscriptionLogo")
+  seriesCovers         SubscriptionSeries[]         @relation("SeriesCover")
+  monthCovers          SubscriptionMonth[]          @relation("MonthCover")
+  monthSpoilers        SubscriptionMonth[]          @relation("MonthSpoiler")
+  saMainImages         SaleAnnouncement[]           @relation("SAMainImage")
+  editionImages        BookEditionMediaAsset[]
+  saExtraImages        SaleAnnouncementMediaAsset[]
+
+  @@index([uploadedById])
+  @@map("media_assets")
+}
+
+model BookEditionMediaAsset {
+  editionId String
+  assetId   String
+  sortOrder Int         @default(0)
+  edition   BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  asset     MediaAsset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([editionId, assetId])
+  @@index([assetId])
+  @@map("book_edition_media_assets")
+}
+
+model SaleAnnouncementMediaAsset {
+  announcementId String
+  assetId        String
+  sortOrder      Int              @default(0)
+  announcement   SaleAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  asset          MediaAsset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, assetId])
+  @@index([assetId])
+  @@map("sale_announcement_media_assets")
+}
+
+model HomepageFeature {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  iconName    String   @default("Star")
+  ctaLabel    String?
+  ctaHref     String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("homepage_features")
 }

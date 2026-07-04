@@ -96,7 +96,7 @@ export function EditionCard({
                 </p>
               )}
               {companyName && (
-                <p className="text-[10px] text-amber-700 font-medium truncate mt-0.5">
+                <p className="text-[10px] text-amber-700 font-medium leading-tight line-clamp-2 mt-0.5">
                   {companySlug ? (
                     <span
                       role="link"
@@ -111,7 +111,7 @@ export function EditionCard({
             </>
           ) : (
             /* No title mode: only show company/edition name prominently */
-            <p className="font-serif font-semibold text-stone-100 text-sm leading-snug group-hover:text-amber-400 transition-colors truncate">
+            <p className="font-serif font-semibold text-stone-100 text-sm leading-snug group-hover:text-amber-400 transition-colors line-clamp-2">
               {companySlug ? (
                 <span
                   role="link"

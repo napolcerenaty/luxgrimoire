@@ -73,6 +73,58 @@ describe('computeNextRenewalDate', () => {
     const result = computeNextRenewalDate(20, 1, null, null, [{ year: 2025, month: 3 }]);
     expect(result).toEqual(new Date(Date.UTC(2025, 3, 20)));
   });
+
+  describe('subscriptionEarliestDate: user joins before subscription starts', () => {
+    // FIXED_NOW = 2025-03-15. Subscription starts Nov 1 2026, 4-month interval,
+    // startingMonth=11 (cycle: Nov, Mar, Jul, Nov...).
+    // User joins now and sets their start to Jan 2025.
+    // Without fix: July 2026 would be returned (aligned to cycle, after now, after userStart).
+    // With fix: Nov 20 2026 is returned (first cycle month >= subscription start).
+
+    it('non-paymentOnStartup: skips cycle dates before subscription start, returns first valid renewal', () => {
+      // now = Mar 15 2025, sub starts Nov 1 2026, 4-month cycle from Nov
+      // Aligned months from now: Jul 2025 (skip <Nov2026), Nov 2025 (skip), Mar 2026 (skip), Jul 2026 (skip), Nov 2026 ✓
+      const subStart = new Date(Date.UTC(2026, 10, 1)); // Nov 1 2026
+      const result = computeNextRenewalDate(20, 4, 11, '2025-01-01', [], null, subStart);
+      expect(result).toEqual(new Date(Date.UTC(2026, 10, 20))); // Nov 20 2026
+    });
+
+    it('paymentOnStartup: skips sub-start cycle date (paid at signup), returns next cycle', () => {
+      // Same setup, but paymentOnStartup: Nov 2026 is paid at signup, next renewal = Mar 2027
+      const subStart = new Date(Date.UTC(2026, 10, 1)); // Nov 1 2026
+      const paidUpFront = new Date(Date.UTC(2026, 10, 20)); // Nov 20 2026 (paid at signup)
+      const result = computeNextRenewalDate(20, 4, 11, '2025-01-01', [], paidUpFront, subStart);
+      expect(result).toEqual(new Date(Date.UTC(2027, 2, 20))); // Mar 20 2027
+    });
+
+    it('no effect when user joins after subscription start (normal case)', () => {
+      // sub started Jan 2025 (in the past) — subscriptionEarliestDate doesn't block anything
+      const subStart = new Date(Date.UTC(2025, 0, 1)); // Jan 1 2025
+      const result = computeNextRenewalDate(20, 1, null, null, [], null, subStart);
+      expect(result).toEqual(new Date(Date.UTC(2025, 2, 20))); // Mar 20 2025 (normal)
+    });
+
+    it('renewalMonthOffset=1: subscriptionEarliestDate shifted back by 1 month → returns Oct renewal', () => {
+      // Sub's first BOX is Nov 2026, renewalMonthOffset=1 → first RENEWAL is Oct 2026.
+      // DB stores startingMonth in renewal-month space: box Nov, offset=1 → startingMonth=10.
+      // refreshNextRenewalDate shifts sub.startDate back by offset before passing here:
+      //   Nov 2026 - 1 month = Oct 2026 → subscriptionEarliestDate = Oct 1 2026.
+      // Aligned 4-monthly renewal months from Oct: Oct, Feb, Jun, Oct...
+      // First aligned renewal >= Oct 1 2026 is Oct 20 2026.
+      const subStartShifted = new Date(Date.UTC(2026, 9, 1)); // Oct 1 2026 (Nov - offset=1)
+      const result = computeNextRenewalDate(20, 4, 10, '2025-01-01', [], null, subStartShifted);
+      expect(result).toEqual(new Date(Date.UTC(2026, 9, 20))); // Oct 20 2026
+    });
+
+    it('renewalMonthOffset=1 + paymentOnStartup: Oct renewal paid at signup → next is Feb 2027', () => {
+      // Same setup with payment on signup: Oct 2026 renewal paid at signup.
+      // Next renewal after Oct (skipped) in 4-monthly cycle (Oct,Feb,Jun) = Feb 2027.
+      const subStartShifted = new Date(Date.UTC(2026, 9, 1)); // Oct 1 2026
+      const paidUpFront = new Date(Date.UTC(2026, 9, 20)); // Oct 20 2026 (paid at signup)
+      const result = computeNextRenewalDate(20, 4, 10, '2025-01-01', [], paidUpFront, subStartShifted);
+      expect(result).toEqual(new Date(Date.UTC(2027, 1, 20))); // Feb 20 2027
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

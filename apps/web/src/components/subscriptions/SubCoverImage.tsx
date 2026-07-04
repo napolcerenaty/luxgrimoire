@@ -8,7 +8,7 @@ interface Props {
   hoverScale?: boolean
 }
 
-export function SubCoverImage({ coverUrl, name, brandColors, aspectClass = 'aspect-[2/1]', hoverScale = true }: Props) {
+export function SubCoverImage({ coverUrl, name, brandColors, aspectClass = 'aspect-square', hoverScale = true }: Props) {
   const tc = brandTextClasses(brandColors)
   return (
     <div className={`${aspectClass} relative overflow-hidden bg-stone-950 flex items-center justify-center`}>

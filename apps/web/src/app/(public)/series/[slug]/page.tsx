@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
-import type { PaginatedResponse } from '@luxgrimoire/shared-types'
 import { BackButton } from '@/components/ui/BackButton'
 import { EditionCard } from '@/components/books/EditionCard'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
@@ -10,7 +9,7 @@ import { resolveEditionCoverRaw } from '@/lib/editionCover'
 export const dynamic = 'force-dynamic'
 
 interface Props {
-  params: Promise<{ name: string }>
+  params: Promise<{ slug: string }>
 }
 
 interface RawEdition {
@@ -32,27 +31,33 @@ interface RawBook {
   editions?: RawEdition[]
 }
 
+interface SeriesDetail {
+  id: string
+  slug: string
+  name: string
+  books: RawBook[]
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { name } = await params
-  const seriesName = decodeURIComponent(name)
-  return {
-    title: `${seriesName} – Series · LuxGrimoire`,
-    description: `All books in the ${seriesName} series`,
+  const { slug } = await params
+  try {
+    const series = await apiFetch<SeriesDetail>(`/book-series/${slug}`)
+    return {
+      title: `${series.name} – Series · LuxGrimoire`,
+      description: `All books in the ${series.name} series`,
+    }
+  } catch {
+    return { title: 'Series not found' }
   }
 }
 
 export default async function SeriesPage({ params }: Props) {
-  const { name } = await params
-  const seriesName = decodeURIComponent(name)
+  const { slug } = await params
 
-  const res = await apiFetch<PaginatedResponse<RawBook>>(
-    `/books?seriesName=${encodeURIComponent(seriesName)}&pageSize=100`
-  ).catch(() => null)
+  const series = await apiFetch<SeriesDetail>(`/book-series/${slug}`).catch(() => null)
+  if (!series || series.books.length === 0) notFound()
 
-  const books = res?.data ?? []
-  if (books.length === 0) notFound()
-
-  const sorted = [...books].sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0))
+  const sorted = [...series.books].sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0))
 
   const seriesAuthors = Array.from(
     new Map(
@@ -67,7 +72,7 @@ export default async function SeriesPage({ params }: Props) {
       {/* Header */}
       <div className="mb-8">
         <p className="text-xs text-stone-500 uppercase tracking-widest mb-1">Series</p>
-        <h1 className="text-3xl font-serif font-bold text-amber-400">{seriesName}</h1>
+        <h1 className="text-3xl font-serif font-bold text-amber-400">{series.name}</h1>
         {seriesAuthors.length > 0 && (
           <p className="text-stone-400 text-sm mt-1">
             by{' '}
@@ -137,5 +142,3 @@ function SeriesBookSection({ book }: { book: RawBook }) {
     </div>
   )
 }
-
-

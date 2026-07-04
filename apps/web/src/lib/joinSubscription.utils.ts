@@ -13,6 +13,7 @@ export interface PriceChangeRecord {
   effectiveMonth: number
   newBasePrice: string
   currency: string
+  grandfatheredPrice?: boolean
 }
 
 export interface PrepayOptionRecord {
@@ -115,6 +116,49 @@ export function resolveBackfillFallbackPrice(
   const fromPrepay = prepayOptionPrice != null ? parseDecimalInput(String(prepayOptionPrice)) : 0
   if (fromPrepay > 0) return String(fromPrepay)
   return '0'
+}
+
+// ── Grandfathered price helpers ───────────────────────────────────────────────
+
+/**
+ * Compute the first billing month (year + month) for a subscriber joining on a
+ * given date. When `signupIncludesCurrentMonth` is false the subscription's
+ * first box is the NEXT month after the join date.
+ */
+export function computeFirstBillingMonth(
+  joinYear: number,
+  joinMonth: number,
+  signupIncludesCurrentMonth: boolean,
+): { year: number; month: number } {
+  if (signupIncludesCurrentMonth) return { year: joinYear, month: joinMonth }
+  const nextMonth = joinMonth === 12 ? 1 : joinMonth + 1
+  const nextYear = joinMonth === 12 ? joinYear + 1 : joinYear
+  return { year: nextYear, month: nextMonth }
+}
+
+/**
+ * Returns true when a grandfathered price change does NOT apply to a new
+ * subscriber — i.e. their first billing month is before the change's
+ * effective month, so they are considered a pre-existing subscriber who
+ * keeps the old price.
+ *
+ * Returns false when:
+ * - the change is not grandfathered
+ * - the first billing month is on or after the effective month (user pays new price)
+ */
+export function isGrandfatheredExcluded(
+  pc: PriceChangeRecord,
+  firstBillingYear: number,
+  firstBillingMonth: number,
+): boolean {
+  if (!pc.grandfatheredPrice) return false
+  // User's first billing month is on or after change → they pay the new price (not excluded)
+  if (
+    firstBillingYear > pc.effectiveYear ||
+    (firstBillingYear === pc.effectiveYear && firstBillingMonth >= pc.effectiveMonth)
+  ) return false
+  // User's first billing month is before the change → grandfathered, excluded
+  return true
 }
 
 // ── computeAutoBatches ────────────────────────────────────────────────────────

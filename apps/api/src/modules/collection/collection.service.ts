@@ -28,7 +28,7 @@ export class CollectionService {
     return (this.prisma as PrismaService & { readingHistory: ReadingHistoryDelegate }).readingHistory;
   }
 
-  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string, search?: string, companyName?: string, tag?: string) {
+  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string, search?: string, companyName?: string, tag?: string, signatureType?: string, readingStatus?: string, subscriptionId?: string) {
     const { skip, take, page: p } = parsePagination({ page, pageSize });
     pageSize = take;
     page = p;
@@ -38,6 +38,13 @@ export class CollectionService {
     if (search) where.edition = { ...where.edition, book: { title: { contains: search, mode: 'insensitive' } } };
     if (companyName) where.edition = { ...where.edition, bookBoxCompany: { name: companyName } };
     if (tag) where.entryTags = { some: { tag, userId } };
+    if (signatureType === 'UNSIGNED') {
+      where.signatureType = null;
+    } else if (signatureType) {
+      where.signatureType = signatureType.toLowerCase();
+    }
+    if (readingStatus) where.readingStatus = readingStatus;
+    if (subscriptionId) where.subscriptionEntry = { subscription: { id: subscriptionId } };
 
     if (slim) {
       const [data, total] = await Promise.all([
@@ -198,6 +205,25 @@ export class CollectionService {
       };
     });
     return { data: dataWithTags, total, page, pageSize };
+  }
+
+  async getCollectionCompanies(userId: string): Promise<{ id: string; name: string; slug: string }[]> {
+    const rows = await this.prisma.userBookEntry.findMany({
+      where: { userId, isWishlist: false, edition: { bookBoxCompany: { isNot: null } } },
+      select: {
+        edition: {
+          select: {
+            bookBoxCompany: { select: { id: true, name: true, slug: true } },
+          },
+        },
+      },
+    });
+    const seen = new Map<string, { id: string; name: string; slug: string }>();
+    for (const r of rows) {
+      const c = r.edition?.bookBoxCompany;
+      if (c && !seen.has(c.id)) seen.set(c.id, c);
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async getCollectionSubscriptions(userId: string): Promise<{ id: string; name: string; parentSubscriptionId: string | null }[]> {
@@ -436,10 +462,10 @@ export class CollectionService {
         ...(dto.saleVenue !== undefined && { saleVenue: dto.saleVenue }),
         ...(dto.saleNotes !== undefined && { saleNotes: dto.saleNotes }),
         ...(dto.signatureType !== undefined && { signatureType: (dto.signatureType ?? null) as SignatureType | null }),
-        ...('saleAnnouncementEditionId' in dto && { saleAnnouncementEditionId: dto.saleAnnouncementEditionId ?? null }),
+        ...(dto.saleAnnouncementEditionId !== undefined && { saleAnnouncementEditionId: dto.saleAnnouncementEditionId ?? null }),
         // When saleAnnouncementEditionId is explicitly set/cleared, derive isOriginalPrint automatically
         // unless isOriginalPrint is explicitly provided in the DTO
-        ...('saleAnnouncementEditionId' in dto && dto.isOriginalPrint === undefined && {
+        ...(dto.saleAnnouncementEditionId !== undefined && dto.isOriginalPrint === undefined && {
           isOriginalPrint: !dto.saleAnnouncementEditionId,
         }),
         ...(dto.isOriginalPrint !== undefined && { isOriginalPrint: dto.isOriginalPrint }),
@@ -711,19 +737,35 @@ export class CollectionService {
   }
 
   async getStats(userId: string) {
-    const [totalOwned, totalWishlist, groupResult] = await Promise.all([
-      this.prisma.userBookEntry.count({ where: { userId, isWishlist: false } }),
+    const [totalOwned, totalWishlist, groupResult, aggregates] = await Promise.all([
+      this.prisma.userBookEntry.count({ where: { userId, isWishlist: false, ownershipStatus: { not: 'SOLD' } } }),
       this.prisma.userBookEntry.count({ where: { userId, isWishlist: true } }),
       this.prisma.userBookEntry.groupBy({
         by: ['editionId'],
         where: { userId, editionId: { not: null }, isWishlist: false },
         _count: { editionId: true },
       }),
+      // Single SQL query for series + author counts across the full collection (not paged)
+      this.prisma.$queryRaw<[{ unique_series: bigint; unique_authors: bigint }]>`
+        SELECT
+          COUNT(DISTINCT b."seriesId")    FILTER (WHERE b."seriesId" IS NOT NULL AND e."ownershipStatus" != 'SOLD') AS unique_series,
+          COUNT(DISTINCT ba."authorId")   FILTER (WHERE e."ownershipStatus" != 'SOLD')                               AS unique_authors
+        FROM "user_book_entries" e
+        JOIN "book_editions" ed ON ed.id = e."editionId"
+        JOIN "books"          b  ON b.id  = ed."bookId"
+        LEFT JOIN "book_authors" ba ON ba."bookId" = b.id
+        WHERE e."userId" = ${userId}
+          AND e."isWishlist" = false
+      `,
     ]);
+
+    const { unique_series, unique_authors } = aggregates[0];
     return {
       totalOwned,
       totalWishlist,
       totalEditions: groupResult.length,
+      uniqueSeries: Number(unique_series),
+      uniqueAuthors: Number(unique_authors),
     };
   }
 }

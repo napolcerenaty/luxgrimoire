@@ -292,6 +292,8 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           prepayOptions={(sub as unknown as { prepayOptions?: { id: string; months: number; price: number | string; label: string | null; currency: string; validFrom?: string | null; validUntil?: string | null }[] }).prepayOptions}
           isDiscontinued={sub.isDiscontinued ?? false}
           subscriptionEndDate={sub.endDate ?? null}
+          signupIncludesCurrentMonth={sub.signupIncludesCurrentMonth}
+          skipPolicies={sub.skipPolicies ?? []}
         />
       </div>
 
@@ -562,7 +564,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
           <p className={`text-stone-500 italic ${compact ? 'text-xs mb-2' : 'text-sm mb-3'}`}>Theme not announced yet</p>
         )}
 
-        {!compact && monthData.cardArtist && (
+        {monthData.cardArtist && (
           <Link
             href={`/artists/${monthData.cardArtist.slug}`}
             className="inline-block text-xs text-stone-500 hover:text-amber-400 transition-colors mb-3"

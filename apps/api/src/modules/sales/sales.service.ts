@@ -284,13 +284,15 @@ export class SalesService {
               ...(dto.currency !== undefined && { saleCurrency: dto.currency }),
               ...(dto.soldAt !== undefined && { saleDate: dto.soldAt }),
               ...(dto.platform !== undefined && { saleVenue: dto.platform }),
+              ...(dto.notes !== undefined && { saleNotes: dto.notes }),
             },
           });
         }
       } else if (
         dto.currency !== undefined ||
         dto.soldAt !== undefined ||
-        dto.platform !== undefined
+        dto.platform !== undefined ||
+        dto.notes !== undefined
       ) {
         for (const entry of existing.entries) {
           await tx.userBookEntry.update({
@@ -299,6 +301,7 @@ export class SalesService {
               ...(dto.currency !== undefined && { saleCurrency: dto.currency }),
               ...(dto.soldAt !== undefined && { saleDate: dto.soldAt }),
               ...(dto.platform !== undefined && { saleVenue: dto.platform }),
+              ...(dto.notes !== undefined && { saleNotes: dto.notes }),
             },
           });
         }
