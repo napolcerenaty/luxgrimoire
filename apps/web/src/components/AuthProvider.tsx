@@ -46,13 +46,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
+    fetch(`${API_BASE}/auth/status`, { credentials: 'include' })
       .then(async (r) => {
         if (r.ok) {
-          const data: AuthUser = await r.json()
-          setUser(data)
+          const data: { isLoggedIn: boolean; user?: AuthUser } = await r.json()
+          if (data.isLoggedIn && data.user) setUser(data.user)
         }
-        // 401 = not logged in, ignore
       })
       .catch(() => {
         // Network error: server may be down, ignore

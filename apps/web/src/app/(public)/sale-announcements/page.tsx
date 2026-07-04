@@ -51,15 +51,20 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const now = Date.now()
   const todayStart = new Date(); todayStart.setHours(0,0,0,0)
   const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
-  // For LP/OVERSTOCK: live if generalSaleDate is today + no endsAt, or endsAt still in future
-  const isLpOsLive = saleStarted && (
+  const isOsOrSale = a.saleType === 'OVERSTOCK' || a.saleType === 'SALE'
+  // OVERSTOCK/SALE: live until endsAt expires; if no endsAt, live while generalSaleDate is today
+  const isOsOrSaleLive = isOsOrSale && saleStarted && (
+    a.endsAt ? new Date(a.endsAt).getTime() > now
+             : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
+  )
+  const isLpLive = !isOsOrSale && saleStarted && (
     a.endsAt ? new Date(a.endsAt).getTime() > now
              : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
   )
   // "Live" badge — sold out takes priority in the JSX (renders instead of Live)
-  const isLive = saleStarted && (
-    a.saleType === 'OPEN_PREORDER' ? (!a.endsAt || new Date(a.endsAt).getTime() > now)
-                                   : isLpOsLive
+  const isLive = isOsOrSaleLive || (
+    a.saleType === 'OPEN_PREORDER' ? saleStarted && (!a.endsAt || new Date(a.endsAt).getTime() > now)
+                                   : isLpLive
   )
 
   return (
@@ -156,13 +161,18 @@ function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
   const now = Date.now()
   const todayStart = new Date(); todayStart.setHours(0,0,0,0)
   const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
-  const isLpOsLive = saleStarted && (
+  const isOsOrSale = a.saleType === 'OVERSTOCK' || a.saleType === 'SALE'
+  const isOsOrSaleLive = isOsOrSale && saleStarted && (
     a.endsAt ? new Date(a.endsAt).getTime() > now
              : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
   )
-  const isLive = saleStarted && (
-    a.saleType === 'OPEN_PREORDER' ? (!a.endsAt || new Date(a.endsAt).getTime() > now)
-                                   : isLpOsLive
+  const isLpLive = !isOsOrSale && saleStarted && (
+    a.endsAt ? new Date(a.endsAt).getTime() > now
+             : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
+  )
+  const isLive = isOsOrSaleLive || (
+    a.saleType === 'OPEN_PREORDER' ? saleStarted && (!a.endsAt || new Date(a.endsAt).getTime() > now)
+                                   : isLpLive
   )
 
   return (
@@ -323,6 +333,7 @@ export default function SaleAnnouncementsPage() {
           <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
           <option value="OPEN_PREORDER">🔓 Open Preorder</option>
           <option value="OVERSTOCK">📦 Overstock</option>
+          <option value="SALE">🏷️ Sale</option>
         </select>
 
         {/* Date from */}
@@ -374,7 +385,7 @@ export default function SaleAnnouncementsPage() {
           <span className="text-xs text-stone-500">Active filters:</span>
           {debouncedSearch && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">"{debouncedSearch}"</span>}
           {companyId && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{companies.find(c => c.id === companyId)?.name ?? companyId}</span>}
-          {saleType && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{{ LIMITED_PREORDER: '⏳ Limited Preorder', OPEN_PREORDER: '🔓 Open Preorder', OVERSTOCK: '📦 Overstock' }[saleType] ?? saleType}</span>}
+          {saleType && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{{ LIMITED_PREORDER: '⏳ Limited Preorder', OPEN_PREORDER: '🔓 Open Preorder', OVERSTOCK: '📦 Overstock', SALE: '🏷️ Sale' }[saleType] ?? saleType}</span>}
           {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
           {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
           <button onClick={clearFilters} className="text-xs text-stone-500 hover:text-stone-300 flex items-center gap-0.5 transition-colors">

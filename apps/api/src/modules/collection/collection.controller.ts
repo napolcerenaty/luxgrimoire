@@ -19,6 +19,11 @@ export class CollectionController {
     return this.collectionService.getStats(user.id);
   }
 
+  @Get('companies')
+  getCollectionCompanies(@CurrentUser() user: { id: string }) {
+    return this.collectionService.getCollectionCompanies(user.id);
+  }
+
   @Get('subscriptions')
   getCollectionSubscriptions(@CurrentUser() user: { id: string }) {
     return this.collectionService.getCollectionSubscriptions(user.id);
@@ -40,6 +45,9 @@ export class CollectionController {
     @Query('search') search?: string,
     @Query('companyName') companyName?: string,
     @Query('tag') tag?: string,
+    @Query('signatureType') signatureType?: string,
+    @Query('readingStatus') readingStatus?: string,
+    @Query('subscriptionId') subscriptionId?: string,
   ) {
     const wishlistFilter = isWishlist !== undefined ? isWishlist === 'true' : undefined;
     const slimMode = slim === 'true';
@@ -53,6 +61,9 @@ export class CollectionController {
       search,
       companyName,
       tag,
+      signatureType,
+      readingStatus,
+      subscriptionId,
     );
   }
 

@@ -113,7 +113,8 @@ export class UpdatePurchaseFeeDto {
 
 export class CreatePurchaseDiscountDto {
   @IsString()
-  name: string = '';
+  @IsOptional()
+  name?: string;
 
   @IsNumber()
   @Min(0)

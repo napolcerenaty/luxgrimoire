@@ -20,28 +20,66 @@ const TAB_LABELS: Record<Tab, string> = {
   discontinued: 'Discontinued',
 }
 
+const SKIP_TYPE_SHORT: Record<string, string> = {
+  NONE: 'No skips',
+  UNLIMITED: 'Unlimited skips',
+  UNLIMITED_MAX_CONSEC: 'Unlimited skips',
+  CALENDAR_YEAR: 'Limited skips',
+  FROM_FIRST_SKIP: 'Limited skips',
+  FROM_SUB_START: 'Limited skips',
+  PREPAID_WINDOW_SKIP: 'Prepaid window skip',
+}
+
+const BILLING_SHORT: Record<string, string> = {
+  MONTHLY: 'Monthly',
+  PREPAID: 'Prepaid',
+}
+
+function SkipPolicyBadges({ policies }: { policies: { type: string; billingType?: string | null }[] }) {
+  if (!policies || policies.length === 0) return null
+  const isMulti = policies.length > 1
+  return (
+    <div className="flex items-center gap-1 flex-wrap pt-1.5 mt-1 border-t border-stone-700/60">
+      {policies.map((p) => {
+        const label = isMulti && p.billingType && p.billingType !== 'ALL'
+          ? `${BILLING_SHORT[p.billingType] ?? p.billingType}: ${SKIP_TYPE_SHORT[p.type] ?? p.type}`
+          : (SKIP_TYPE_SHORT[p.type] ?? p.type)
+        const isNone = p.type === 'NONE'
+        return (
+          <Badge key={p.billingType ?? 'all'} variant={isNone ? 'destructive' : 'success'}>
+            {label}
+          </Badge>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function SubscriptionList() {
   const [tab, setTab] = useState<Tab>('active')
   const [loadedTabs, setLoadedTabs] = useState<Set<Tab>>(new Set(['active']))
   const [search, setSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState('')
   const [genreFilter, setGenreFilter] = useState('')
+  const [skipPolicyFilter, setSkipPolicyFilter] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const getBrandColors = useBrandColors()
 
+  const skipParam = skipPolicyFilter || undefined
+
   const { data: activeData, isLoading: activeLoading } = useQuery({
-    queryKey: ['subscriptions', 'active'],
-    queryFn: () => getSubscriptions({ status: 'active', pageSize: 200 }),
+    queryKey: ['subscriptions', 'active', skipPolicyFilter],
+    queryFn: () => getSubscriptions({ status: 'active', pageSize: 200, skipPolicyType: skipParam }),
     enabled: loadedTabs.has('active'),
   })
   const { data: upcomingData, isLoading: upcomingLoading } = useQuery({
-    queryKey: ['subscriptions', 'upcoming'],
-    queryFn: () => getSubscriptions({ status: 'upcoming', pageSize: 200 }),
+    queryKey: ['subscriptions', 'upcoming', skipPolicyFilter],
+    queryFn: () => getSubscriptions({ status: 'upcoming', pageSize: 200, skipPolicyType: skipParam }),
     enabled: loadedTabs.has('upcoming'),
   })
   const { data: discontinuedData, isLoading: discontinuedLoading } = useQuery({
-    queryKey: ['subscriptions', 'discontinued'],
-    queryFn: () => getSubscriptions({ status: 'discontinued', pageSize: 200 }),
+    queryKey: ['subscriptions', 'discontinued', skipPolicyFilter],
+    queryFn: () => getSubscriptions({ status: 'discontinued', pageSize: 200, skipPolicyType: skipParam }),
     enabled: loadedTabs.has('discontinued'),
   })
 
@@ -139,6 +177,16 @@ export default function SubscriptionList() {
             <option key={genre} value={genre}>{genre}</option>
           ))}
         </select>
+        <select className={SELECT_CLASS} value={skipPolicyFilter} onChange={(e) => { setSkipPolicyFilter(e.target.value) }}>
+          <option value="">All skip policies</option>
+          <option value="NONE">No skips</option>
+          <option value="UNLIMITED">Unlimited</option>
+          <option value="UNLIMITED_MAX_CONSEC">Unlimited (max consecutive)</option>
+          <option value="CALENDAR_YEAR">Calendar year</option>
+          <option value="FROM_FIRST_SKIP">Rolling window from first skip</option>
+          <option value="FROM_SUB_START">Rolling window from sub start</option>
+          <option value="PREPAID_WINDOW_SKIP">Prepaid window skip</option>
+        </select>
         <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-lg p-1 self-start sm:self-auto">
           <button onClick={() => setView('grid')} className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="Grid view">
             <LayoutGrid className="w-4 h-4" />
@@ -175,6 +223,9 @@ export default function SubscriptionList() {
                     {sub.isDiscontinued && <Badge variant="destructive">Discontinued</Badge>}
                     {sub.isUpcoming && <Badge variant="outline">🔔 Upcoming</Badge>}
                   </div>
+                  {sub.skipPolicies && sub.skipPolicies.length > 0 && (
+                    <SkipPolicyBadges policies={sub.skipPolicies} />
+                  )}
                 </div>
               </Link>
             )
@@ -212,6 +263,9 @@ export default function SubscriptionList() {
                     {sub.isDiscontinued && <Badge variant="destructive">Discontinued</Badge>}
                     {sub.isUpcoming && <Badge variant="outline">🔔 Upcoming</Badge>}
                   </div>
+                  {sub.skipPolicies && sub.skipPolicies.length > 0 && (
+                    <SkipPolicyBadges policies={sub.skipPolicies} />
+                  )}
                 </div>
               </Link>
             )

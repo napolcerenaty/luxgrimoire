@@ -400,7 +400,7 @@ model Subscription {
   months               SubscriptionMonth[]
   prepayOptions        SubscriptionPrepayOption[]
   series               SubscriptionSeries[]
-  skipPolicy           SubscriptionSkipPolicy?
+  skipPolicies         SubscriptionSkipPolicy[]
   waitlistEntries      SubscriptionWaitlistEntry[]
   company              BookBoxCompany               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   parent               Subscription?                @relation("SubVariants", fields: [parentSubscriptionId], references: [id], onUpdate: NoAction)
@@ -429,25 +429,27 @@ model SubscriptionComboComponent {
 }
 
 model SubscriptionSkipPolicy {
-  subscriptionId         String       @id
-  type                   String       @default("NONE")
-  maxSkips               Int?
-  maxConsecutive         Int?
-  windowMonths           Int?
-  notes                  String?
-  skipHow                String?
-  skipDeadlineDaysBefore Int          @default(0)
-  skipDeadlineType       String       @default("DAYS_BEFORE")
-  skipDeadlineDayOfMonth Int?
-  allowUnskip              Boolean  @default(false)
-  unskipDeadlineType       String   @default("DAYS_BEFORE")
-  unskipDeadlineDaysBefore Int      @default(0)
+  id                       String       @id @default(uuid())
+  subscriptionId           String
+  billingType              String       @default("ALL")
+  type                     String       @default("NONE")
+  maxSkips                 Int?
+  maxConsecutive           Int?
+  windowMonths             Int?
+  notes                    String?
+  skipHow                  String?
+  skipDeadlineDaysBefore   Int          @default(0)
+  skipDeadlineType         String       @default("DAYS_BEFORE")
+  skipDeadlineDayOfMonth   Int?
+  allowUnskip              Boolean      @default(false)
+  unskipDeadlineType       String       @default("DAYS_BEFORE")
+  unskipDeadlineDaysBefore Int          @default(0)
   unskipDeadlineDayOfMonth Int?
   unskipNotes              String?
   unskipHow                String?
-  eligibleBillingTypes     String   @default("ALL")
-  subscription           Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscription             Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
+  @@unique([subscriptionId, billingType])
   @@map("subscription_skip_policies")
 }
 
@@ -743,6 +745,7 @@ model UserBookEntry {
   @@index([userId, ownershipStatus])
   @@index([userId, readingStatus])
   @@index([userId, ownershipStatus, readingStatus])
+  @@index([userId, signatureType])
   @@index([purchaseGroupId])
   @@index([subscriptionEntryId])
   @@index([editionId])
@@ -1239,7 +1242,7 @@ model UserPurchaseFee {
 model UserPurchaseDiscount {
   id              String                @id @default(uuid())
   userId          String
-  name            String
+  name            String?
   amount          Decimal               @db.Decimal(10, 2)
   currency        String
   date            DateTime              @db.Date
@@ -1366,6 +1369,7 @@ enum SaleType {
   LIMITED_PREORDER
   OPEN_PREORDER
   OVERSTOCK
+  SALE
 }
 
 enum FeeCategory {

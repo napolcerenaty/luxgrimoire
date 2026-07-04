@@ -254,6 +254,17 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
+  @Get(':slug/next-box-preview/:year/:month')
+  getNextBoxPreview(
+    @CurrentUser() user: CurrentUserType,
+    @Param('slug') slug: string,
+    @Param('year') year: string,
+    @Param('month') month: string,
+  ) {
+    return this.subscriptionsService.getNextBoxPreview(user.id, slug, parseInt(year, 10), parseInt(month, 10));
+  }
+
+  @ApiBearerAuth()
   @Patch(':slug/my-entry/cancel')
   async cancelMyEntry(
     @CurrentUser() user: CurrentUserType,

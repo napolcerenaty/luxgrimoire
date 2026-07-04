@@ -302,6 +302,25 @@ export class SubscriptionsService {
     if (query.isContentStream !== undefined) {
       where.isContentStream = query.isContentStream;
     }
+    if (query.skipPolicyType) {
+      const billingType = query.skipPolicyBillingType;
+      if (query.skipPolicyType === 'NONE') {
+        if (billingType && billingType !== 'ALL') {
+          where.skipPolicies = {
+            some: { type: 'NONE', billingType: { in: [billingType, 'ALL'] } },
+          };
+        } else {
+          // any billing type having a NONE policy
+          where.skipPolicies = { some: { type: 'NONE' } };
+        }
+      } else {
+        const policyFilter: Record<string, unknown> = { type: query.skipPolicyType };
+        if (billingType && billingType !== 'ALL') {
+          policyFilter['billingType'] = { in: [billingType, 'ALL'] };
+        }
+        where.skipPolicies = { some: policyFilter };
+      }
+    }
     if (query.status === 'active') {
       const now = new Date();
       where.isDiscontinued = false;
@@ -333,7 +352,7 @@ export class SubscriptionsService {
               brandColors: true,
             },
           },
-          skipPolicy: true,
+          skipPolicies: { select: { type: true, billingType: true } },
           comboComponents: { select: { componentId: true } },
           priceChanges: { where: { effectiveYear: 1900, effectiveMonth: 1 } },
           coverImageAsset: { select: { id: true, publicId: true } },
@@ -426,7 +445,7 @@ export class SubscriptionsService {
             brandColors: true,
           },
         },
-        skipPolicy: true,
+        skipPolicies: true,
         coverImageAsset: { select: { id: true, publicId: true } },
         logoAsset: { select: { id: true, publicId: true } },
         prepayOptions: { orderBy: { months: 'asc' } },
@@ -1180,6 +1199,48 @@ export class SubscriptionsService {
     return { ...entryWithoutSkips, nextRenewalDate: storedRenewalDate ? storedRenewalDate.toISOString() : null };
   }
 
+  async getNextBoxPreview(userId: string, slug: string, year: number, month: number) {
+    const sub = await this.findBySlug(slug);
+    const subId = (sub as any).parentSubscriptionId ?? sub.id;
+    const boxMonth = await this.prisma.subscriptionMonth.findUnique({
+      where: { subscriptionId_year_month: { subscriptionId: subId, year, month } },
+      select: {
+        year: true,
+        month: true,
+        theme: true,
+        isSpoiler: true,
+        books: {
+          select: {
+            isMainBook: true,
+            book: {
+              select: {
+                title: true,
+                authors: { select: { author: { select: { name: true } } } },
+              },
+            },
+            edition: {
+              select: { additionalImages: true },
+            },
+          },
+          orderBy: [{ isMainBook: 'desc' }, { sortOrder: 'asc' }],
+        },
+      },
+    });
+    if (!boxMonth) return null;
+    return {
+      year: boxMonth.year,
+      month: boxMonth.month,
+      theme: boxMonth.theme,
+      isSpoiler: boxMonth.isSpoiler,
+      books: boxMonth.books.map((b) => ({
+        title: b.book.title,
+        authors: b.book.authors.map((a) => a.author.name).join(', '),
+        coverImage: b.edition?.additionalImages?.[0] ?? null,
+        isMainBook: b.isMainBook,
+      })),
+    };
+  }
+
   private computeNextRenewalDate(
     renewalDay: number,
     intervalMonths: number,
@@ -1187,8 +1248,9 @@ export class SubscriptionsService {
     userStartDate: string | null,
     skippedMonths: { year: number; month: number }[] = [],
     paidUpFrontDate: Date | null = null,
+    subscriptionEarliestDate: Date | null = null,
   ): Date | null {
-    return computeNextRenewalDate(renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths, paidUpFrontDate);
+    return computeNextRenewalDate(renewalDay, intervalMonths, startingMonth, userStartDate, skippedMonths, paidUpFrontDate, subscriptionEarliestDate);
   }
 
   private incrementMonth(year: number, month: number): [number, number] {
@@ -1244,6 +1306,7 @@ export class SubscriptionsService {
             renewalDay: true,
             intervalMonths: true,
             startingMonth: true,
+            renewalMonthOffset: true,
             company: {
               select: {
                 name: true,
@@ -1349,6 +1412,18 @@ export class SubscriptionsService {
         ? (nextBase + (shipping ?? 0) + sameCurrencyFees)
         : null;
 
+      // Compute box month from renewal month by adding the renewalMonthOffset
+      // e.g. renewal in Oct + offset=1 → box month = Nov
+      let nextBoxMonth: { year: number; month: number } | null = null;
+      if (storedRenewalDate) {
+        const offset: number = (subRest as any).renewalMonthOffset ?? 0;
+        let bm = storedRenewalDate.getUTCMonth() + 1 + offset; // 1-12 based
+        let by = storedRenewalDate.getUTCFullYear();
+        while (bm > 12) { bm -= 12; by += 1; }
+        while (bm < 1)  { bm += 12; by -= 1; }
+        nextBoxMonth = { year: by, month: bm };
+      }
+
       const { skipRecords: _sr, feeTemplates: _ft, scheduledPrepayOption: _spo, purchaseGroups: _pg, ...entryWithoutExtras } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown; purchaseGroups: unknown[] };
       return {
         ...entryWithoutExtras,
@@ -1358,6 +1433,7 @@ export class SubscriptionsService {
         nextRenewalCurrency: cur,
         nextRenewalPriceChanged,
         nextRenewalNewPrice,
+        nextBoxMonth,
       };
     }));
   }
@@ -2360,6 +2436,8 @@ export class SubscriptionsService {
     const sub = await this.findBySlug(slug);
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
+    // For variant subs (parentSubscriptionId set), months live on the parent subscription.
+    const monthsSubscriptionId: string = (sub as any).parentSubscriptionId ?? sub.id;
 
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
       where: { userId, subscriptionId: sub.id },
@@ -2573,9 +2651,15 @@ export class SubscriptionsService {
       // Uses the same component month ID approach as recordSkip() so skip records are consistent.
       const subWithComboPolicy = await this.prisma.subscription.findUnique({
         where: { id: sub.id },
-        include: { skipPolicy: true },
+        include: { skipPolicies: true },
       });
-      const comboPolicy = subWithComboPolicy?.skipPolicy ?? null;
+      const comboIsPrepaid = (entry.prepaidMonths ?? 1) > 1;
+      const comboTargetType = comboIsPrepaid ? 'PREPAID' : 'MONTHLY';
+      const comboPolicies = subWithComboPolicy?.skipPolicies ?? [];
+      const comboPolicy =
+        comboPolicies.find((p) => p.billingType === comboTargetType) ??
+        comboPolicies.find((p) => p.billingType === 'ALL') ??
+        null;
       const selectedComboSet = new Set(dto.selectedMonthIds);
       const skippableComboMonths = eligibleComboMonths
         .filter(m => m.books.length > 0 && !selectedComboSet.has(m.id))
@@ -2873,9 +2957,15 @@ export class SubscriptionsService {
 
     const subWithPolicy = await this.prisma.subscription.findUnique({
       where: { id: sub.id },
-      include: { skipPolicy: true },
+      include: { skipPolicies: true },
     });
-    const policy = subWithPolicy?.skipPolicy ?? null;
+    const isPrepaidBackfill = (entry.prepaidMonths ?? 1) > 1;
+    const targetBillingType = isPrepaidBackfill ? 'PREPAID' : 'MONTHLY';
+    const backfillPolicies = subWithPolicy?.skipPolicies ?? [];
+    const policy =
+      backfillPolicies.find((p) => p.billingType === targetBillingType) ??
+      backfillPolicies.find((p) => p.billingType === 'ALL') ??
+      null;
 
     const cancellationDateObj = entry.cancellationDate
       ? (() => {
@@ -2885,7 +2975,7 @@ export class SubscriptionsService {
       : null;
 
     if (startDateObj) {
-      const eligibleMonths = await this.getEligibleMonths(sub.id, startDateObj, cancellationDateObj);
+      const eligibleMonths = await this.getEligibleMonths(monthsSubscriptionId, startDateObj, cancellationDateObj);
       const skippableMonths = eligibleMonths
         .filter(m => m.books.length > 0 && !selectedSet.has(m.id))
         .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);

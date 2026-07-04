@@ -27,8 +27,10 @@ export class SpendingStatsComputer extends StatsComputer {
     let totalRefunds = 0;
     let totalFees = 0;
     let totalShippingFees = 0;
+    let totalForwardingFees = 0;
     let totalBasePrice = 0;
     let totalShipping = 0;
+    let totalForwarding = 0;
     let totalTax = 0;
 
     const r = (v: number) => Math.round(v * 100) / 100;
@@ -70,11 +72,13 @@ export class SpendingStatsComputer extends StatsComputer {
 
       let feesPerEntry = 0;
       let shippingFeesPerEntry = 0;
+      let forwardingFeesPerEntry = 0;
       let taxFeesPerEntry = 0;
       for (const fee of group.fees) {
         const amt = (await convert(toNum(fee.amount), fee.currency, new Date(fee.date))) / entryCount;
         feesPerEntry += amt;
-        if (fee.category === 'SHIPPING' || fee.category === 'FORWARDING') shippingFeesPerEntry += amt;
+        if (fee.category === 'SHIPPING') shippingFeesPerEntry += amt;
+        else if (fee.category === 'FORWARDING') forwardingFeesPerEntry += amt;
         else if (fee.category === 'VAT' || fee.category === 'CUSTOMS') taxFeesPerEntry += amt;
       }
 
@@ -95,6 +99,8 @@ export class SpendingStatsComputer extends StatsComputer {
       totalBasePrice += baseConverted;
       totalShipping += shippingConverted + shippingFeesPerEntry;
       totalShippingFees += shippingFeesPerEntry;
+      totalForwarding += forwardingFeesPerEntry;
+      totalForwardingFees += forwardingFeesPerEntry;
       totalTax += taxFeesPerEntry;
       totalFees += feesPerEntry;
       totalDiscounts += discountsPerEntry;
@@ -232,8 +238,9 @@ export class SpendingStatsComputer extends StatsComputer {
       booksThisMonth,
       totalBasePrice: r(totalBasePrice),
       totalShipping: r(totalShipping),
+      totalForwarding: r(totalForwarding),
       totalTax: r(totalTax),
-      totalOtherFees: r(totalFees - totalShippingFees - totalTax),
+      totalOtherFees: r(totalFees - totalShippingFees - totalForwardingFees - totalTax),
       totalDiscounts: r(totalDiscounts),
       totalRefunds: r(totalRefunds),
       byYear: Object.entries(byYearMap)

@@ -46,6 +46,7 @@ export class RenewalCronService {
         basePrice: true,
         shippingCost: true,
         nextRenewalDate: true,
+        prepaidMonths: true,
         scheduledPrepayOptionId: true,
         scheduledPrepayOption: { select: { id: true, months: true, price: true, currency: true } },
         subscription: { select: { renewalMonthOffset: true, isBundleSubscription: true, intervalMonths: true } },
@@ -71,6 +72,7 @@ export class RenewalCronService {
     basePrice: { toString(): string } | null;
     shippingCost: { toString(): string } | null;
     nextRenewalDate: Date | null;
+    prepaidMonths?: number;
     scheduledPrepayOptionId: string | null;
     scheduledPrepayOption: { id: string; months: number; price: { toString(): string }; currency: string } | null;
     subscription: { renewalMonthOffset: number; isBundleSubscription: boolean; intervalMonths: number } | null;
@@ -92,6 +94,14 @@ export class RenewalCronService {
     const existing = await this.prisma.userSubscriptionRenewal.findUnique({
       where: { entryId_renewalDate: { entryId: entry.id, renewalDate } },
     });
+
+    // PREPAID_WINDOW_SKIP: if the entire upcoming prepaid window is skipped, do NOT create
+    // PREORDER entries for those months; advance nextRenewalDate by the whole window instead.
+    if (!existing && await this.isPrepaidWindowFullySkipped(entry, year, month)) {
+      await this.advanceRenewalByMonths(entry.id, entry.prepaidMonths ?? 1);
+      this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
+      return;
+    }
 
     if (!existing) {
       await this.prisma.userSubscriptionRenewal.create({
@@ -119,6 +129,88 @@ export class RenewalCronService {
     await refreshNextRenewalDate(this.prisma, entry.id);
     // Schedule next renewal reminder
     this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
+  }
+
+  /**
+   * Returns true when this entry is a prepaid subscription governed by a PREPAID_WINDOW_SKIP
+   * policy AND every subscription month in the upcoming prepaid window (starting at the given
+   * box month, spanning prepaidMonths months) has an active skip record.
+   */
+  private async isPrepaidWindowFullySkipped(
+    entry: { id: string; subscriptionId: string; prepaidMonths?: number },
+    year: number,
+    month: number,
+  ): Promise<boolean> {
+    const prepaidMonths = entry.prepaidMonths ?? 1;
+    if (prepaidMonths <= 1) return false;
+
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { id: entry.subscriptionId },
+      select: {
+        parentSubscriptionId: true,
+        isCombo: true,
+        comboComponents: { select: { componentId: true } },
+        skipPolicies: { select: { billingType: true, type: true } },
+      },
+    });
+    if (!subscription) return false;
+
+    // Select the applicable policy for a prepaid entry (PREPAID → ALL fallback).
+    const policies = subscription.skipPolicies ?? [];
+    const policy =
+      policies.find((p) => p.billingType === 'PREPAID') ??
+      policies.find((p) => p.billingType === 'ALL') ??
+      null;
+    if (!policy || policy.type !== 'PREPAID_WINDOW_SKIP') return false;
+
+    const isCombo = subscription.isCombo;
+    const componentIds = subscription.comboComponents.map((c) => c.componentId);
+    const monthsSubscriptionId = subscription.parentSubscriptionId ?? entry.subscriptionId;
+
+    // Every calendar month in the window must have an active skip record (for months that exist).
+    let y = year;
+    let m = month;
+    let existingMonthsChecked = 0;
+    for (let i = 0; i < prepaidMonths; i++) {
+      const subMonth = isCombo
+        ? await this.prisma.subscriptionMonth.findFirst({
+            where: { subscriptionId: { in: componentIds }, year: y, month: m },
+            orderBy: { subscriptionId: 'asc' },
+          })
+        : await this.prisma.subscriptionMonth.findUnique({
+            where: { subscriptionId_year_month: { subscriptionId: monthsSubscriptionId, year: y, month: m } },
+          });
+      if (subMonth) {
+        existingMonthsChecked++;
+        const skip = await this.prisma.userSkipRecord.findUnique({
+          where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: subMonth.id } },
+        });
+        if (!skip || skip.undoneAt) return false;
+      }
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+
+    return existingMonthsChecked > 0;
+  }
+
+  /** Advances the entry's nextRenewalDate by the given number of months. */
+  private async advanceRenewalByMonths(entryId: string, months: number): Promise<void> {
+    const entry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { id: entryId },
+      select: { nextRenewalDate: true },
+    });
+    if (!entry?.nextRenewalDate) {
+      // Fall back to the standard advance logic when no date is set.
+      await refreshNextRenewalDate(this.prisma, entryId);
+      return;
+    }
+    const next = new Date(entry.nextRenewalDate);
+    next.setUTCMonth(next.getUTCMonth() + months);
+    await this.prisma.userSubscriptionEntry.update({
+      where: { id: entryId },
+      data: { nextRenewalDate: next },
+    });
   }
 
   /**

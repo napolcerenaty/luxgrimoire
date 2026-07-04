@@ -358,7 +358,7 @@ export default function AdminSubscriptionSeriesPage({ params }: { params: Promis
 
   const { data: monthsData } = useQuery({
     queryKey: ['admin', 'subscriptions', slug, 'months'],
-    queryFn: () => authFetch<{ data: SubMonth[]; total: number }>(`/subscriptions/${slug}/months?all=true&pageSize=9999`),
+    queryFn: () => authFetch<{ data: SubMonth[]; total: number }>(`/subscriptions/${slug}/months?all=true&pageSize=500`),
     select: (d) => d.data ?? [],
   })
   const allMonths: SubMonth[] = monthsData ?? []

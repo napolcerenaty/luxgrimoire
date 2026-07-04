@@ -1,4 +1,5 @@
 import type { ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
+import { cloudinaryUrl } from '@/lib/cloudinary'
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -22,7 +23,14 @@ export function SeriesHistoryCard({ series }: { series: ApiSubscriptionSeries })
 
   return (
     <div className={`rounded-xl border p-5 ${isCurrentlyActive ? 'border-purple-700/60 bg-purple-950/20' : 'border-stone-800 bg-stone-900/50'}`}>
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-start gap-4 flex-wrap">
+        {series.coverImage && (
+          <img
+            src={cloudinaryUrl(series.coverImage, 'w_100,h_150,c_fill,q_auto,f_auto') ?? undefined}
+            alt={series.name}
+            className="w-[70px] h-[105px] rounded-lg object-cover shrink-0 border border-stone-700"
+          />
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <h3 className="text-stone-100 font-serif font-semibold text-lg leading-tight">{series.name}</h3>
