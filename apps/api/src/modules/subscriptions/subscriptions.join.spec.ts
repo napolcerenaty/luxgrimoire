@@ -246,4 +246,74 @@ describe('SubscriptionsService — joinSubscription', () => {
       expect(prisma.userSubscriptionEntry.upsert).not.toHaveBeenCalled();
     });
   });
+
+  // ── renewalMonthOffset does NOT shift first eligible box month ──────────────
+  //
+  // Bug: getEligibleMonths added renewalMonthOffset to the first eligible date,
+  // causing signupIncludesCurrentMonth+offset=1 to show March instead of February.
+  // The offset shifts payment dates only — not which months are delivered.
+
+  describe('renewalMonthOffset — eligible months start at correct box month', () => {
+    function setupDryRun(subOverrides: Record<string, unknown> = {}) {
+      const sub = makeSub({ paymentOnStartup: true, signupIncludesCurrentMonth: true, renewalMonthOffset: 1, renewalDay: 20, ...subOverrides });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+    }
+
+    it('signupIncludesCurrentMonth=true + offset=1: eligible months start in Feb, not March', async () => {
+      setupDryRun();
+      const dto = makeJoinDto({ dryRun: true, startDate: '2025-02-05' });
+      await service.joinSubscription(USER_ID, SUB_SLUG, dto);
+
+      // subscriptionMonth.findMany is called to get eligible months;
+      // verify the lower bound is Feb 2025 (month>=2 in year=2025), not March
+      const findManyCalls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
+      const eligiblesCall = findManyCalls[0][0];
+      const lowerBound = eligiblesCall?.where?.AND?.[0]?.OR;
+      expect(lowerBound).toBeDefined();
+      // Lower bound: year>2025 OR (year=2025 AND month>=2)
+      const sameyearClause = lowerBound.find((c: any) => c.year === 2025);
+      expect(sameyearClause?.month?.gte).toBe(2);  // February, not 3 (March)
+    });
+
+    it('signupIncludesCurrentMonth=false + offset=1: eligible months start in March (next month after join)', async () => {
+      setupDryRun({ signupIncludesCurrentMonth: false });
+      const dto = makeJoinDto({ dryRun: true, startDate: '2025-02-05' });
+      await service.joinSubscription(USER_ID, SUB_SLUG, dto);
+
+      const findManyCalls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
+      const eligiblesCall = findManyCalls[0][0];
+      const lowerBound = eligiblesCall?.where?.AND?.[0]?.OR;
+      expect(lowerBound).toBeDefined();
+      // Lower bound: year>2025 OR (year=2025 AND month>=3)
+      const sameyearClause = lowerBound.find((c: any) => c.year === 2025);
+      expect(sameyearClause?.month?.gte).toBe(3);  // March (next month), not April
+    });
+
+    it('offset=0 + signupIncludesCurrentMonth=true: eligible months start in Feb (baseline, no regression)', async () => {
+      setupDryRun({ renewalMonthOffset: 0 });
+      const dto = makeJoinDto({ dryRun: true, startDate: '2025-02-05' });
+      await service.joinSubscription(USER_ID, SUB_SLUG, dto);
+
+      const findManyCalls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
+      const eligiblesCall = findManyCalls[0][0];
+      const lowerBound = eligiblesCall?.where?.AND?.[0]?.OR;
+      const sameyearClause = lowerBound?.find((c: any) => c.year === 2025);
+      expect(sameyearClause?.month?.gte).toBe(2);  // February
+    });
+
+    it('offset=1 + Jan join + signupIncludesCurrentMonth=true: eligible months start in Jan, not Feb', async () => {
+      setupDryRun({ renewalMonthOffset: 1 });
+      const dto = makeJoinDto({ dryRun: true, startDate: '2025-01-15' });
+      await service.joinSubscription(USER_ID, SUB_SLUG, dto);
+
+      const findManyCalls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
+      const eligiblesCall = findManyCalls[0][0];
+      const lowerBound = eligiblesCall?.where?.AND?.[0]?.OR;
+      const sameyearClause = lowerBound?.find((c: any) => c.year === 2025);
+      expect(sameyearClause?.month?.gte).toBe(1);  // January
+    });
+  });
 });

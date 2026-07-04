@@ -2152,10 +2152,11 @@ export class SubscriptionsService {
     const limitYear = limitDate.getFullYear();
     const limitMonth = limitDate.getMonth() + 1;
 
-    // First eligible month: if signupIncludesCurrentMonth=true → same month as startDate (+ offset), otherwise next month (+ offset)
+    // First eligible month: signupIncludesCurrentMonth=true → same month as startDate, otherwise next month.
+    // renewalMonthOffset only shifts the payment date — it does NOT shift which months are delivered.
     const firstEligibleDate = signupIncludesCurrentMonth
-      ? new Date(startDateObj.getFullYear(), startDateObj.getMonth() + renewalMonthOffset, 1)
-      : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + renewalMonthOffset + 1, 1);
+      ? new Date(startDateObj.getFullYear(), startDateObj.getMonth(), 1)
+      : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
     const startYear = firstEligibleDate.getFullYear();
     const startMonth = firstEligibleDate.getMonth() + 1;
 
@@ -2230,10 +2231,10 @@ export class SubscriptionsService {
     const limitMonth = limitDate.getMonth() + 1;
 
     // Respect signupIncludesCurrentMonth (same logic as getEligibleMonths):
-    // if false → first eligible month is startDate+1 month (+offset), if true → startDate month is included (+offset)
+    // renewalMonthOffset only shifts the payment date — it does NOT shift which months are delivered.
     const firstEligibleDate = signupIncludesCurrentMonth
-      ? new Date(startDateObj.getFullYear(), startDateObj.getMonth() + renewalMonthOffset, 1)
-      : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + renewalMonthOffset + 1, 1);
+      ? new Date(startDateObj.getFullYear(), startDateObj.getMonth(), 1)
+      : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
     const startYear = firstEligibleDate.getFullYear();
     const startMonth = firstEligibleDate.getMonth() + 1;
 
