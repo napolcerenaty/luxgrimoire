@@ -252,10 +252,13 @@ describe('SubscriptionsService — joinSubscription', () => {
   // getEligibleMonths determines which subscription box months a user is eligible
   // for based on their join date and subscription settings.
   //
-  // Rules:
-  //  signupIncludesCurrentMonth=true  → first box = join month
-  //  signupIncludesCurrentMonth=false → first box = month AFTER join month
-  //  renewalMonthOffset               → shifts payment date only, never box month
+  // New algorithm (renewal-cycle-aware):
+  //  renewalAlreadyHappened = joinDay >= (renewalDay ?? 1)
+  //  lastBillingMonth = joinMonth (if happened) or joinMonth - 1 (if not)
+  //  currentBoxMonth  = lastBillingMonth + renewalMonthOffset
+  //  signupIncludesCurrentMonth=true  → first = currentBoxMonth
+  //  signupIncludesCurrentMonth=false → first = currentBoxMonth + 1
+  //  paymentOnStartup does NOT change which months are eligible
 
   describe('eligible months — first box month determination', () => {
     /** Returns the `where.AND[0].OR` lower-bound clause from the first subscriptionMonth.findMany call */
@@ -283,84 +286,118 @@ describe('SubscriptionsService — joinSubscription', () => {
       return clause?.year?.gt as number | undefined;
     }
 
-    // ── signupIncludesCurrentMonth=false (default) ──────────────────────────
+    // ── renewalDay=1: joinDay >= 1 always → renewal already happened → lastBillingMonth = joinMonth ──
 
-    it('offset=0, includes=false, Feb join → first box is March', async () => {
+    it('renewalDay=1, offset=0, includes=false, Feb join → first box is March', async () => {
       const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2025-02-10');
       expect(getMonthGte(lb, 2025)).toBe(3);
       expect(getYearGt(lb)).toBe(2025);
     });
 
-    it('offset=1, includes=false, Feb join → first box is still March (offset ignored)', async () => {
+    it('renewalDay=1, offset=1, includes=false, Feb join → first box is April (currentBox=March, +1 for !includes)', async () => {
       const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2025-02-10');
-      expect(getMonthGte(lb, 2025)).toBe(3);
+      expect(getMonthGte(lb, 2025)).toBe(4);
+      expect(getYearGt(lb)).toBe(2025);
     });
 
-    it('offset=2, includes=false, Feb join → first box is still March (offset ignored)', async () => {
+    it('renewalDay=1, offset=2, includes=false, Feb join → first box is May (currentBox=April, +1 for !includes)', async () => {
       const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 2 }, '2025-02-10');
-      expect(getMonthGte(lb, 2025)).toBe(3);
+      expect(getMonthGte(lb, 2025)).toBe(5);
     });
 
-    it('offset=0, includes=false, Dec join → first box is January next year', async () => {
+    it('renewalDay=1, offset=0, includes=false, Dec join → first box is January next year', async () => {
       const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2024-12-15');
-      // Prisma query: year>2025 OR (year=2025 AND month>=1)
       expect(getYearGt(lb)).toBe(2025);
       expect(getMonthGte(lb, 2025)).toBe(1);
     });
 
-    it('offset=1, includes=false, Dec join → first box is still January next year (offset ignored)', async () => {
+    it('renewalDay=1, offset=1, includes=false, Dec join → first box is February next year (currentBox=Jan, +1 for !includes)', async () => {
       const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2024-12-15');
       expect(getYearGt(lb)).toBe(2025);
-      expect(getMonthGte(lb, 2025)).toBe(1);
+      expect(getMonthGte(lb, 2025)).toBe(2);
     });
 
-    it('offset=0, includes=false, Nov join → first box is December', async () => {
+    it('renewalDay=1, offset=0, includes=false, Nov join → first box is December', async () => {
       const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2025-11-01');
       expect(getMonthGte(lb, 2025)).toBe(12);
     });
 
-    // ── signupIncludesCurrentMonth=true ─────────────────────────────────────
-
-    it('offset=0, includes=true, Feb join → first box is February', async () => {
+    it('renewalDay=1, offset=0, includes=true, Feb join → first box is February', async () => {
       const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 0 }, '2025-02-05');
       expect(getMonthGte(lb, 2025)).toBe(2);
     });
 
-    it('offset=1, includes=true, Feb join → first box is February (not March)', async () => {
+    it('renewalDay=1, offset=1, includes=true, Feb join → first box is March (currentBox = lastBillingMonth + offset = Feb+1)', async () => {
       const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-02-05');
-      expect(getMonthGte(lb, 2025)).toBe(2);
+      expect(getMonthGte(lb, 2025)).toBe(3);
     });
 
-    it('offset=2, includes=true, Feb join → first box is February (not April)', async () => {
+    it('renewalDay=1, offset=2, includes=true, Feb join → first box is April (currentBox = Feb+2)', async () => {
       const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 2 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(4);
+    });
+
+    it('renewalDay=1, offset=1, includes=true, Jan join → first box is February (currentBox = Jan+1)', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-01-20');
       expect(getMonthGte(lb, 2025)).toBe(2);
     });
 
-    it('offset=1, includes=true, Jan join → first box is January (not February)', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-01-20');
+    it('renewalDay=1, offset=1, includes=true, Dec join → first box is January next year (currentBox = Dec+1)', async () => {
+      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2024-12-10');
+      expect(getYearGt(lb)).toBe(2025);
       expect(getMonthGte(lb, 2025)).toBe(1);
     });
 
-    it('offset=1, includes=true, Dec join → first box is December (not January next year)', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2024-12-10');
-      expect(getMonthGte(lb, 2024)).toBe(12);
-    });
-
-    it('offset=0, includes=true, Dec join → first box is December', async () => {
+    it('renewalDay=1, offset=0, includes=true, Dec join → first box is December', async () => {
       const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 0 }, '2024-12-10');
       expect(getMonthGte(lb, 2024)).toBe(12);
     });
 
     // ── paymentOnStartup does not change eligible months ────────────────────
 
-    it('paymentOnStartup=true + includes=true + offset=1 + Feb join → first box is February', async () => {
+    it('paymentOnStartup=true + renewalDay=1, offset=1, includes=true, Feb join → first box is March', async () => {
       const lb = await getLowerBound({ paymentOnStartup: true, signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(3);
+    });
+
+    it('paymentOnStartup=true + renewalDay=1, offset=1, includes=false, Feb join → first box is April', async () => {
+      const lb = await getLowerBound({ paymentOnStartup: true, signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(4);
+    });
+
+    // ── renewalDay=20: joinDay < renewalDay → renewal hasn't happened → lastBillingMonth = joinMonth - 1 ──
+
+    it('renewalDay=20, offset=0, includes=false, Feb5 join → lastBillingMonth=Jan → first box is February', async () => {
+      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2025-02-05');
       expect(getMonthGte(lb, 2025)).toBe(2);
     });
 
-    it('paymentOnStartup=true + includes=false + offset=1 + Feb join → first box is March', async () => {
-      const lb = await getLowerBound({ paymentOnStartup: true, signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2025-02-05');
+    it('renewalDay=20, offset=1, includes=true, Feb5 join → lastBillingMonth=Jan, currentBox=Feb → first box is February', async () => {
+      // User scenario: join Feb 5, renewalDay=20, offset=1, includes=true → first = Feb
+      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(2);
+    });
+
+    it('renewalDay=20, offset=0, includes=true, Feb5 join → lastBillingMonth=Jan, currentBox=Jan → first box is January', async () => {
+      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: true, renewalMonthOffset: 0 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(1);
+    });
+
+    it('renewalDay=20, offset=1, includes=false, Feb5 join → lastBillingMonth=Jan, currentBox=Feb → first box is March', async () => {
+      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2025-02-05');
       expect(getMonthGte(lb, 2025)).toBe(3);
+    });
+
+    it('renewalDay=20, offset=0, includes=false, Jan5 join → lastBillingMonth=Dec2024, currentBox=Dec2024 → first box is January 2025', async () => {
+      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2025-01-05');
+      expect(getYearGt(lb)).toBe(2025);
+      expect(getMonthGte(lb, 2025)).toBe(1);
+    });
+
+    it('renewalDay=20, offset=1, includes=true, Jan5 join → lastBillingMonth=Dec2024, currentBox=Jan2025 → first box is January 2025', async () => {
+      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-01-05');
+      expect(getYearGt(lb)).toBe(2025);
+      expect(getMonthGte(lb, 2025)).toBe(1);
     });
   });
 });

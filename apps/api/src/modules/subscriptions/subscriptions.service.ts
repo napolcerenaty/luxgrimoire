@@ -2005,33 +2005,33 @@ export class SubscriptionsService {
       signupIncludesCurrentMonth: (sub as any).signupIncludesCurrentMonth as boolean,
       renewalMonthOffset: ((sub as any).renewalMonthOffset as number | null) ?? 0,
     };
-    let resolvedSignupSettings = { signupIncludesCurrentMonth: fallbackSettings.signupIncludesCurrentMonth, renewalMonthOffset: fallbackSettings.renewalMonthOffset };
+    let resolvedSignupSettings = { signupIncludesCurrentMonth: fallbackSettings.signupIncludesCurrentMonth, renewalMonthOffset: fallbackSettings.renewalMonthOffset, renewalDay: fallbackSettings.renewalDay };
     if (startDateObj) {
       const joinSettingsHistory = await this.prisma.subscriptionSettingsHistory.findMany({
         where: { subscriptionId: sub.id },
         orderBy: { effectiveFrom: 'desc' },
       });
       const resolved = resolveEffectiveSettings(joinSettingsHistory, startDateObj.getFullYear(), startDateObj.getMonth() + 1, fallbackSettings);
-      resolvedSignupSettings = { signupIncludesCurrentMonth: resolved.signupIncludesCurrentMonth, renewalMonthOffset: resolved.renewalMonthOffset };
+      resolvedSignupSettings = { signupIncludesCurrentMonth: resolved.signupIncludesCurrentMonth, renewalMonthOffset: resolved.renewalMonthOffset, renewalDay: resolved.renewalDay };
     }
 
     // ── DryRun: compute eligible months without persisting anything ──────────
     if (dto.dryRun) {
       const isCombo = (sub as any).isCombo as boolean;
       const componentIds = (sub as any).componentIds as string[];
-      const { signupIncludesCurrentMonth, renewalMonthOffset } = resolvedSignupSettings;
+      const { signupIncludesCurrentMonth, renewalMonthOffset, renewalDay: resolvedRenewalDay } = resolvedSignupSettings;
       const parentSubscriptionId = (sub as any).parentSubscriptionId as string | null;
       const variantDbStartDate = (sub as any).startDate as Date | null;
       let effectiveStartDateObj = startDateObj;
       let effectiveSignupIncludes = signupIncludesCurrentMonth;
       if (parentSubscriptionId && variantDbStartDate && (!effectiveStartDateObj || variantDbStartDate > effectiveStartDateObj)) {
         effectiveStartDateObj = variantDbStartDate;
-        effectiveSignupIncludes = true; // subscription's first month is always eligible for pre-launch joiners
+        effectiveSignupIncludes = true;
       }
       const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
       const eligibleMonths = isCombo
-        ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset)
-        : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset);
+        ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay)
+        : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay);
       const mockEntry = {
         id: '__preview__',
         startDate: startDateStr,
@@ -2100,7 +2100,7 @@ export class SubscriptionsService {
     // Compute eligible past months: from startDate+1 (or startDate if signupIncludesCurrentMonth) to cancellationDate month (or current month)
     const isCombo = (sub as any).isCombo as boolean;
     const componentIds = (sub as any).componentIds as string[];
-    const { signupIncludesCurrentMonth, renewalMonthOffset } = resolvedSignupSettings;
+    const { signupIncludesCurrentMonth, renewalMonthOffset, renewalDay: resolvedRenewalDay } = resolvedSignupSettings;
 
     // If this sub is a variant of a content stream, months live on the parent.
     // Also clamp startDate to the subscription's own startDate (earliest it could have existed).
@@ -2119,8 +2119,8 @@ export class SubscriptionsService {
     const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
 
     const eligibleMonths = isCombo
-      ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset)
-      : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset);
+      ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay)
+      : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay);
 
     // If paymentOnStartup and NOT already cancelled: register the first upcoming month's books as preorders
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
@@ -2143,7 +2143,7 @@ export class SubscriptionsService {
     return { entry, eligibleMonths };
   }
 
-  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0) {
+  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null) {
     if (!startDateObj) return [];
 
     const now = new Date();
@@ -2152,13 +2152,40 @@ export class SubscriptionsService {
     const limitYear = limitDate.getFullYear();
     const limitMonth = limitDate.getMonth() + 1;
 
-    // First eligible month: signupIncludesCurrentMonth=true → same month as startDate, otherwise next month.
-    // renewalMonthOffset only shifts the payment date — it does NOT shift which months are delivered.
-    const firstEligibleDate = signupIncludesCurrentMonth
-      ? new Date(startDateObj.getFullYear(), startDateObj.getMonth(), 1)
-      : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
-    const startYear = firstEligibleDate.getFullYear();
-    const startMonth = firstEligibleDate.getMonth() + 1;
+    // Determine the first eligible box month based on renewal cycle position.
+    //
+    // "Current month" = the month the LAST renewal was for.
+    // "Next month"    = the month the NEXT renewal is for.
+    //
+    // Logic:
+    //   If joinDay >= renewalDay → renewal already happened this month (lastBillingMonth = joinMonth)
+    //   If joinDay <  renewalDay → renewal hasn't happened yet    (lastBillingMonth = joinMonth - 1)
+    //   currentBoxMonth = lastBillingMonth + renewalMonthOffset
+    //
+    // signupIncludesCurrentMonth=true  → first box = currentBoxMonth
+    // signupIncludesCurrentMonth=false → first box = currentBoxMonth + 1
+    const joinDay = startDateObj.getDate();
+    const effectiveRenewalDay = renewalDay ?? 1;
+    const renewalAlreadyHappened = joinDay >= effectiveRenewalDay;
+
+    let lastBillingMonth = startDateObj.getMonth() + 1; // 1-indexed
+    let lastBillingYear = startDateObj.getFullYear();
+    if (!renewalAlreadyHappened) {
+      lastBillingMonth -= 1;
+      if (lastBillingMonth === 0) { lastBillingMonth = 12; lastBillingYear -= 1; }
+    }
+
+    let currentBoxMonth = lastBillingMonth + renewalMonthOffset;
+    let currentBoxYear = lastBillingYear;
+    while (currentBoxMonth > 12) { currentBoxMonth -= 12; currentBoxYear += 1; }
+    while (currentBoxMonth < 1)  { currentBoxMonth += 12; currentBoxYear -= 1; }
+
+    let startMonth = currentBoxMonth;
+    let startYear = currentBoxYear;
+    if (!signupIncludesCurrentMonth) {
+      startMonth += 1;
+      if (startMonth > 12) { startMonth = 1; startYear += 1; }
+    }
 
     // If startDate is at or after limit month → nothing to backfill
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
@@ -2222,7 +2249,7 @@ export class SubscriptionsService {
     return subs.map((s) => s.parentSubscriptionId ?? s.id);
   }
 
-  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0) {
+  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null) {
     if (!startDateObj || componentIds.length === 0) return [];
 
     const now = new Date();
@@ -2230,13 +2257,29 @@ export class SubscriptionsService {
     const limitYear = limitDate.getFullYear();
     const limitMonth = limitDate.getMonth() + 1;
 
-    // Respect signupIncludesCurrentMonth (same logic as getEligibleMonths):
-    // renewalMonthOffset only shifts the payment date — it does NOT shift which months are delivered.
-    const firstEligibleDate = signupIncludesCurrentMonth
-      ? new Date(startDateObj.getFullYear(), startDateObj.getMonth(), 1)
-      : new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 1);
-    const startYear = firstEligibleDate.getFullYear();
-    const startMonth = firstEligibleDate.getMonth() + 1;
+    // Same renewal-cycle-aware logic as getEligibleMonths.
+    const joinDay = startDateObj.getDate();
+    const effectiveRenewalDay = renewalDay ?? 1;
+    const renewalAlreadyHappened = joinDay >= effectiveRenewalDay;
+
+    let lastBillingMonth = startDateObj.getMonth() + 1;
+    let lastBillingYear = startDateObj.getFullYear();
+    if (!renewalAlreadyHappened) {
+      lastBillingMonth -= 1;
+      if (lastBillingMonth === 0) { lastBillingMonth = 12; lastBillingYear -= 1; }
+    }
+
+    let currentBoxMonth = lastBillingMonth + renewalMonthOffset;
+    let currentBoxYear = lastBillingYear;
+    while (currentBoxMonth > 12) { currentBoxMonth -= 12; currentBoxYear += 1; }
+    while (currentBoxMonth < 1)  { currentBoxMonth += 12; currentBoxYear -= 1; }
+
+    let startMonth = currentBoxMonth;
+    let startYear = currentBoxYear;
+    if (!signupIncludesCurrentMonth) {
+      startMonth += 1;
+      if (startMonth > 12) { startMonth = 1; startYear += 1; }
+    }
 
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
       return [];

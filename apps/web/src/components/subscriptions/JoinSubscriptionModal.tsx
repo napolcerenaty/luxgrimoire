@@ -65,6 +65,7 @@ interface Props {
   subscriptionSlug: string
   subscriptionCurrency: string
   subscriptionRenewalDay?: number | null
+  subscriptionRenewalMonthOffset?: number
   subscriptionPrice?: string | null
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
@@ -135,6 +136,7 @@ interface Step1Props {
   currency: string
   subscriptionSlug: string
   subscriptionRenewalDay?: number | null
+  subscriptionRenewalMonthOffset?: number
   subscriptionPrice?: string | null
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
@@ -146,7 +148,7 @@ interface Step1Props {
   onNext: (data: Step1FormData) => void
 }
 
-function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, isDiscontinued, subscriptionEndDate, signupIncludesCurrentMonth, onNext }: Step1Props) {
+function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionRenewalMonthOffset, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, isDiscontinued, subscriptionEndDate, signupIncludesCurrentMonth, onNext }: Step1Props) {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
 
@@ -589,8 +591,9 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           // Parse join month from firstOrderDate and derive first billing month
           const startY = firstOrderDate ? parseInt(firstOrderDate.slice(0, 4)) : null
           const startM = firstOrderDate ? parseInt(firstOrderDate.slice(5, 7)) : null
+          const startD = firstOrderDate && firstOrderDate.length >= 10 ? parseInt(firstOrderDate.slice(8, 10)) : 1
           const firstBilling = startY && startM
-            ? computeFirstBillingMonth(startY, startM, signupIncludesCurrentMonth ?? true)
+            ? computeFirstBillingMonth(startY, startM, signupIncludesCurrentMonth ?? true, startD, subscriptionRenewalDay ?? null, subscriptionRenewalMonthOffset ?? 0)
             : null
           const firstBillingY = firstBilling?.year ?? null
           const firstBillingM = firstBilling?.month ?? null
@@ -1786,6 +1789,7 @@ export default function JoinSubscriptionModal({
   subscriptionSlug,
   subscriptionCurrency,
   subscriptionRenewalDay,
+  subscriptionRenewalMonthOffset,
   subscriptionPrice,
   subscriptionOriginalBasePrice,
   userDefaultTaxRate,
@@ -1903,6 +1907,7 @@ export default function JoinSubscriptionModal({
               currency={subscriptionCurrency}
               subscriptionSlug={subscriptionSlug}
               subscriptionRenewalDay={subscriptionRenewalDay}
+              subscriptionRenewalMonthOffset={subscriptionRenewalMonthOffset}
               subscriptionPrice={subscriptionPrice}
               subscriptionOriginalBasePrice={subscriptionOriginalBasePrice}
               userDefaultTaxRate={userDefaultTaxRate}
