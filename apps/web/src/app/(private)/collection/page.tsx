@@ -37,6 +37,7 @@ interface CollectionEntry {
   isWishlist: boolean
   condition: string | null
   acquiredAt: string | null
+  createdAt: string
   ownershipStatus: string
   readingStatus: string
   signatureType: string | null
@@ -588,10 +589,16 @@ export default function CollectionPage() {
     savePrefs({ filter, sortOrder, viewMode })
   }, [filter, sortOrder, viewMode])
 
+  // Reset allEntries when sort order changes so stale data doesn't flash
+  useEffect(() => {
+    setAllEntries([])
+    setCollectionPage(1)
+  }, [sortOrder])
+
   const { isLoading: entriesLoading } = useQuery({
-    queryKey: ['collection', false],
+    queryKey: ['collection', false, sortOrder],
     queryFn: async () => {
-      const r = await authFetch<{ data: CollectionEntry[]; total: number }>('/collection?isWishlist=false&pageSize=100')
+      const r = await authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?isWishlist=false&pageSize=100&sortBy=${sortOrder}`)
       setAllEntries(r.data)
       setCollectionTotal(r.total)
       setCollectionPage(1)
@@ -612,11 +619,12 @@ export default function CollectionPage() {
     if (readingFilter !== 'ALL') params.set('readingStatus', readingFilter)
     if (subFilter !== 'ALL') params.set('subscriptionId', subFilter)
     if (bookFilterDebounced) params.set('search', bookFilterDebounced)
+    params.set('sortBy', sortOrder)
     return params
-  }, [sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced])
+  }, [sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced, sortOrder])
 
   const { isFetching: filterLoading } = useQuery({
-    queryKey: ['collection-filtered', sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced],
+    queryKey: ['collection-filtered', sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced, sortOrder],
     queryFn: async () => {
       const r = await authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?${buildFilterParams(1)}`)
       setFilteredEntries(r.data)
@@ -654,7 +662,7 @@ export default function CollectionPage() {
     try {
       const nextPage = collectionPage + 1
       const r = await authFetch<{ data: CollectionEntry[]; total: number }>(
-        `/collection?isWishlist=false&pageSize=100&page=${nextPage}`
+        `/collection?isWishlist=false&pageSize=100&page=${nextPage}&sortBy=${sortOrder}`
       )
       setAllEntries((prev) => [...prev, ...r.data])
       setCollectionTotal(r.total)
@@ -839,12 +847,8 @@ export default function CollectionPage() {
   })
 
   const grouped: CollectionEntry[][] = (() => {
-    // Apply sort first
-    const sortDate = (e: CollectionEntry) => e.purchaseGroup?.purchasedAt ?? e.acquiredAt ?? ''
-    const sorted = [...filtered].sort((a, b) => {
-      const da = sortDate(a), db = sortDate(b)
-      return sortOrder === 'DATE_DESC' ? db.localeCompare(da) : da.localeCompare(db)
-    })
+    // Data arrives pre-sorted from server; use as-is for flat view
+    const sorted = filtered
 
     if (filter === 'BOOK') {
       const map = new Map<string, CollectionEntry[]>()
