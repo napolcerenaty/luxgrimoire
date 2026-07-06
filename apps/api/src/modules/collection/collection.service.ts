@@ -179,7 +179,9 @@ export class CollectionService {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: ownershipStatus === 'SOLD' || ownershipStatus === 'GIFTED_AWAY'
+          ? { saleDate: 'desc' }
+          : { createdAt: 'desc' },
         skip,
         take: pageSize,
       }),
