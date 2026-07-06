@@ -269,6 +269,30 @@ export class SkipPolicyEngine {
       : null;
     const unskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
 
+    // Compute live consecutive streak from all skip records so renewals that break the streak
+    // are reflected immediately (DB state is only updated on skip/unskip operations).
+    const sortedAllSkips = [...allSkipRecordsForWindow]
+      .filter((r) => r.month)
+      .sort((a, b) => a.month.year !== b.month.year ? a.month.year - b.month.year : a.month.month - b.month.month);
+    let liveConsecutive = 0;
+    if (sortedAllSkips.length > 0) {
+      liveConsecutive = 1;
+      for (let i = sortedAllSkips.length - 2; i >= 0; i--) {
+        const curr = sortedAllSkips[i + 1].month;
+        const prev = sortedAllSkips[i].month;
+        const expectedPrevYear = curr.month === 1 ? curr.year - 1 : curr.year;
+        const expectedPrevMonth = curr.month === 1 ? 12 : curr.month - 1;
+        if (prev.year === expectedPrevYear && prev.month === expectedPrevMonth) {
+          liveConsecutive++;
+        } else {
+          break;
+        }
+      }
+    }
+    if (effectiveState) {
+      effectiveState = { ...effectiveState, consecutiveSkips: liveConsecutive };
+    }
+
     // If subscription hasn't started yet, force canSkip=false regardless of policy state
     const status = this.buildStatus(policy, effectiveState, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline, entry.prepaidMonths);
 
