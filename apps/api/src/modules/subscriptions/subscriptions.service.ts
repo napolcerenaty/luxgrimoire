@@ -2036,6 +2036,7 @@ export class SubscriptionsService {
         id: '__preview__',
         startDate: startDateStr,
         renewalDay,
+        basePrice: dto.basePrice ?? null,
         costCurrency: dto.costCurrency ?? (sub as any).currency ?? 'EUR',
         shippingCost: dto.shippingCost ?? null,
         cancellationDate: dto.alreadyCancelled ? (dto.cancellationDate ?? null) : null,
