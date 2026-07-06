@@ -625,8 +625,16 @@ export default function CollectionPage() {
       return r
     },
     enabled: hasActiveFilters,
-    staleTime: 30_000,
   })
+
+  // Clear filtered results when all filters are removed
+  useEffect(() => {
+    if (!hasActiveFilters) {
+      setFilteredEntries([])
+      setFilteredTotal(0)
+      setFilteredPage(1)
+    }
+  }, [hasActiveFilters])
 
   const loadMoreFiltered = async () => {
     setLoadingMoreFiltered(true)
