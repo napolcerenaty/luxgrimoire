@@ -220,6 +220,7 @@ export class SubscriptionsService {
         shippingCountries: dto.shippingCountries ?? [],
         paymentOnStartup: dto.paymentOnStartup ?? false,
         signupIncludesCurrentMonth: dto.signupIncludesCurrentMonth ?? false,
+        renewalMonthOffset: dto.renewalMonthOffset ?? 0,
         contentType: dto.contentType,
         isHidden: dto.isHidden ?? false,
         isContentStream: dto.isContentStream ?? false,
