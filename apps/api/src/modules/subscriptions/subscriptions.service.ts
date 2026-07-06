@@ -3037,9 +3037,9 @@ export class SubscriptionsService {
         }
       }
 
-      // Fee templates once per purchase group — only when no batch fees were specified
-      // (batch.fees already handle the fees for that period explicitly)
-      if (!batch || !batch.fees?.length) {
+      // Fee templates once per purchase group — only when no billing batch was specified.
+      // When the user provided an explicit billing batch (even with no fees), respect their input.
+      if (!batch) {
         for (const link of (entry as any).feeTemplates ?? []) {
           const template = link.feeTemplate;
           const amount = link.customAmount ?? template.defaultAmount;
