@@ -1213,12 +1213,13 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, selected
       date: '',
       amount: '',
       shipping: '',
-      fees: entryFees.map(f => ({ name: f.name, amount: '', currency: f.currency, isCustom: false as const })),
+      fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })),
       discounts: [],
     }))
   })
 
   // Once feeTemplates load, prefill fee amounts from template defaultAmount where available
+  // (only fills empty amounts — user-entered values from entryFees are preserved)
   useEffect(() => {
     if (feeTemplates.length === 0) return
     setYesRows(prev => prev.map(row => ({
@@ -1232,7 +1233,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, selected
     })))
   }, [feeTemplates])
 
-  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', fees: entryFees.map(f => ({ name: f.name, amount: '', currency: f.currency, isCustom: false as const })), discounts: [] }]) }
+  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })), discounts: [] }]) }
   function removeRow(i: number) { setYesRows(prev => prev.filter((_, j) => j !== i)) }
   function updateRow(i: number, field: 'date' | 'amount' | 'shipping', val: string) {
     setYesRows(prev => prev.map((r, j) => j === i ? { ...r, [field]: val } : r))
