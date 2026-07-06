@@ -400,4 +400,80 @@ describe('SubscriptionsService — joinSubscription', () => {
       expect(getMonthGte(lb, 2025)).toBe(1);
     });
   });
+
+  // ── Eligible months — upper bound (cancellation date + offset) ─────────────
+  //
+  // When a sub is cancelled, the upper-bound box month must also account for
+  // the renewal cycle: if the last renewal already fired before cancellation,
+  // the last eligible box = cancelMonth + renewalMonthOffset.
+  // If it hadn't fired yet, the last eligible box = (cancelMonth - 1) + offset.
+
+  describe('eligible months — upper bound with cancellation date', () => {
+    async function getUpperBound(subOverrides: Record<string, unknown>, startDate: string, cancellationDate: string) {
+      jest.clearAllMocks();
+      const sub = makeSub({ renewalDay: 1, renewalMonthOffset: 0, signupIncludesCurrentMonth: false, ...subOverrides });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({
+        dryRun: true,
+        startDate,
+        alreadyCancelled: true,
+        cancellationDate,
+      }));
+
+      const call = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls[0]?.[0];
+      return call?.where?.AND?.[1]?.OR as Array<Record<string, unknown>> | undefined;
+    }
+
+    function getMonthLte(upperBound: Array<Record<string, unknown>> | undefined, year: number) {
+      const clause = upperBound?.find(c => c.year === year) as any;
+      return clause?.month?.lte as number | undefined;
+    }
+
+    function getYearLt(upperBound: Array<Record<string, unknown>> | undefined) {
+      const clause = upperBound?.find(c => (c.year as any)?.lt !== undefined) as any;
+      return clause?.year?.lt as number | undefined;
+    }
+
+    it('renewalDay=20, offset=1, cancelDay=21 Nov → renewal happened (21>=20) → last box = Nov+1 = December', async () => {
+      // Exact user scenario: renewalDay=20, offset=1, cancel 21.11.2024 → December should be included
+      const ub = await getUpperBound(
+        { renewalDay: 20, renewalMonthOffset: 1, signupIncludesCurrentMonth: true },
+        '2024-02-05',
+        '2024-11-21',
+      );
+      expect(getMonthLte(ub, 2024)).toBe(12);
+    });
+
+    it('renewalDay=20, offset=1, cancelDay=15 Nov → renewal NOT happened (15<20) → last box = Oct+1 = November', async () => {
+      const ub = await getUpperBound(
+        { renewalDay: 20, renewalMonthOffset: 1, signupIncludesCurrentMonth: true },
+        '2024-02-05',
+        '2024-11-15',
+      );
+      expect(getMonthLte(ub, 2024)).toBe(11);
+    });
+
+    it('renewalDay=20, offset=0, cancelDay=21 Nov → renewal happened → last box = November', async () => {
+      const ub = await getUpperBound(
+        { renewalDay: 20, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2024-02-05',
+        '2024-11-21',
+      );
+      expect(getMonthLte(ub, 2024)).toBe(11);
+    });
+
+    it('renewalDay=1, offset=1, cancelDay=15 Dec → renewal happened (15>=1) → last box = Dec+1 = January next year', async () => {
+      const ub = await getUpperBound(
+        { renewalDay: 1, renewalMonthOffset: 1, signupIncludesCurrentMonth: true },
+        '2024-02-05',
+        '2024-12-15',
+      );
+      expect(getYearLt(ub)).toBe(2025);
+      expect(getMonthLte(ub, 2025)).toBe(1);
+    });
+  });
 });
