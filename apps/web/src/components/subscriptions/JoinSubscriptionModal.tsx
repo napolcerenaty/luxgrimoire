@@ -182,8 +182,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
     } else {
       const opt = prepayOptions?.find(o => o.id === optionId)
       if (opt) {
-        setBasePrice(parseFloat(String(opt.price)).toFixed(2))
-        setCostCurrency(opt.currency)
+        // Only auto-fill price when the option's currency matches the user's chosen currency.
+        // Never force the currency to change — billing period and currency are independent choices.
+        if (opt.currency === costCurrency) {
+          setBasePrice(parseFloat(String(opt.price)).toFixed(2))
+        }
       }
     }
   }
@@ -197,23 +200,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       .catch(() => {})
   }, [subscriptionSlug])
 
-  // Auto-fill base price when costCurrency changes to one with official price records
-  // Also clear prepay selection if the user manually changes currency away from the option's currency
+  // Auto-fill base price when costCurrency changes to one with official price records.
+  // Billing period (prepay option) is independent of currency — never clear it here.
   useEffect(() => {
-    // When a prepaid option is selected, skip monthly price auto-fill entirely.
-    // If the currency changed to something that doesn't match the option (user manually changed it),
-    // clear the prepaid selection — handleSelectPrepay(null) will restore the monthly price.
-    if (selectedPrepayOptionId !== null) {
-      const opt = prepayOptions?.find(o => o.id === selectedPrepayOptionId)
-      if (opt && opt.currency !== costCurrency) {
-        handleSelectPrepay(null)
-      }
-      return
-    }
     const matching = priceChanges.filter(pc => pc.currency === costCurrency)
     if (matching.length === 0) {
-      // No non-sentinel records for this currency.
-      // If it's the sub's default currency, subscriptionPrice is the sentinel-based official price.
       if (costCurrency === currency && subscriptionPrice) {
         setBasePrice(parseFloat(subscriptionPrice).toFixed(2))
       }
