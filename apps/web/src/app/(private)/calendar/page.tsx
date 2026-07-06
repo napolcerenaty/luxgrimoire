@@ -18,6 +18,7 @@ interface CalEntry {
   renewalDay: number | null
   nextRenewalAmount: string | null
   nextRenewalCurrency: string | null
+  skipRecords: { month: { year: number; month: number } }[]
   subscription: {
     slug: string
     name: string
@@ -26,6 +27,7 @@ interface CalEntry {
     intervalMonths: number
     startingMonth: number
     renewalDay: number | null
+    renewalMonthOffset: number
     company: { name: string; slug: string; brandColors?: string[] | null }
   }
 }
@@ -148,11 +150,26 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
   const renewalDay = entry.renewalDay ?? sub.renewalDay
   if (!renewalDay) return null
   const interval = sub.intervalMonths ?? 1
-  if (interval === 1) return renewalDay
-  const step = interval
-  const startMonthIdx = ((sub.startingMonth ?? 1) - 1) % step
-  if (((month0 - startMonthIdx) % step + step) % step === 0) return renewalDay
-  return null
+  if (interval > 1) {
+    const step = interval
+    const startMonthIdx = ((sub.startingMonth ?? 1) - 1) % step
+    if (((month0 - startMonthIdx) % step + step) % step !== 0) return null
+  }
+
+  // A renewal in calendar month (year, month0) pays for box month = renewal month + offset.
+  // If that box month is skipped, no renewal fires for this calendar month.
+  const offset = sub.renewalMonthOffset ?? 0
+  if (offset !== 0 || (entry.skipRecords?.length ?? 0) > 0) {
+    const rawBox = month0 + 1 + offset  // 1-indexed, may exceed 12
+    const boxYear = year + Math.floor((rawBox - 1) / 12)
+    const boxMonth = ((rawBox - 1) % 12) + 1
+    const isSkipped = (entry.skipRecords ?? []).some(
+      r => r.month.year === boxYear && r.month.month === boxMonth,
+    )
+    if (isSkipped) return null
+  }
+
+  return renewalDay
 }
 
 /** Resolve tier date for a sale interest, using stored regionId if available */
