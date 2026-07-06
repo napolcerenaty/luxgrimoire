@@ -263,11 +263,11 @@ export class SkipPolicyEngine {
     const deadline = this.computeDeadline(policy, entry, targetMonth, offset);
     const firstDeliverable = firstMonthInfo ? { year: firstMonthInfo.year, month: firstMonthInfo.month } : null;
 
-    // Compute unskip deadline for the earliest currently-skipped month
-    const earliestSkipped = skippedMonths.length > 0
-      ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)
+    // Compute unskip deadline for the most recent (latest) skipped month only
+    const latestSkipped = skippedMonths.length > 0
+      ? skippedMonths.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b)
       : null;
-    const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
+    const unskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
 
     // If subscription hasn't started yet, force canSkip=false regardless of policy state
     const status = this.buildStatus(policy, effectiveState, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline, entry.prepaidMonths);
@@ -586,11 +586,11 @@ export class SkipPolicyEngine {
     // Update persisted nextRenewalDate so cron jobs see the correct date
     await refreshNextRenewalDate(this.prisma, entry.id);
     this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
-    // Unskip deadline: earliest remaining skipped month
-    const earliestSkipped = skippedMonths.length > 0
-      ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)
+    // Unskip deadline: most recent (latest) skipped month
+    const latestSkipped = skippedMonths.length > 0
+      ? skippedMonths.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b)
       : null;
-    const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
+    const unskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
     return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month }, undefined, null, unskipDeadline);
   }
 
@@ -645,10 +645,10 @@ export class SkipPolicyEngine {
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     await refreshNextRenewalDate(this.prisma, entry.id);
     this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
-    const earliestSkipped = skippedMonths.length > 0
-      ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)
+    const latestSkipped = skippedMonths.length > 0
+      ? skippedMonths.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b)
       : null;
-    const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
+    const unskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
     return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month }, undefined, null, unskipDeadline);
   }
 
@@ -1114,7 +1114,7 @@ export class SkipPolicyEngine {
   }
 
   /**
-   * Computes the unskip deadline for a given skipped month.
+   * Computes the unskip deadline for a given skipped month (the most recent skip).
    * Uses unskipDeadlineDaysBefore from policy (same logic as computeDeadline).
    */
   private computeUnskipDeadline(
