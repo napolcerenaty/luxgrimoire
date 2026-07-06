@@ -754,6 +754,7 @@ function SubscriptionForm({
               { field: 'bookishMerch', label: 'Bookish Merch included' },
               { field: 'paymentOnStartup', label: 'Payment on signup (charged immediately)' },
               { field: 'signupIncludesCurrentMonth', label: 'Signup includes current month (default: next month)' },
+              { field: 'isBundleSubscription', label: 'Bundle — ships multiple months as one package' },
               { field: 'isUpcoming', label: 'Upcoming (not yet launched)' },
               { field: 'isDiscontinued', label: 'Discontinued' },
               { field: 'isHidden', label: 'Hidden (draft / historical data)' },
@@ -766,14 +767,6 @@ function SubscriptionForm({
                 {label}
               </label>
             ))}
-            {(parseInt(form.intervalMonths, 10) > 2 || form.intervalMonths === 'custom') && (
-              <label className="flex items-center gap-2 text-amber-300 text-sm cursor-pointer">
-                <input type="checkbox" checked={form.isBundleSubscription}
-                  onChange={(e) => setField('isBundleSubscription', e.target.checked)}
-                  className="accent-amber-400 w-4 h-4" />
-                Bundle — ships multiple months as one package
-              </label>
-            )}
           </div>
 
           {form.isUpcoming && (
