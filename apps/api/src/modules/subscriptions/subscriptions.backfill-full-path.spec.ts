@@ -1099,6 +1099,68 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
     });
   });
 
+  // ── Cross-currency prepaid ────────────────────────────────────────────────
+
+  describe('cross-currency prepaid', () => {
+    it('uses batch.currency for purchase groups when batch currency differs from entry.costCurrency', async () => {
+      const sub = makeSub(); // USD subscription
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const months = [
+        makeMonth('m-1', 2026, 1),
+        makeMonth('m-2', 2026, 2),
+        makeMonth('m-3', 2026, 3),
+      ];
+      setupBackfill(prisma, skipMock, {
+        entry: makeEntry({ costCurrency: 'USD', basePrice: { toString: () => '399.00' } }),
+        months,
+        purchaseGroupIds: ['pg-1', 'pg-2', 'pg-3'],
+        billingPeriodId: 'bp-1',
+      });
+
+      // User entered PLN prepaid batch (subscription default is USD)
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1', 'm-2', 'm-3'],
+        billingBatches: [{
+          billedAt: '2026-01-01',
+          baseAmount: 399.00,
+          monthsCovered: 3,
+          currency: 'PLN',
+          monthIds: ['m-1', 'm-2', 'm-3'],
+        }],
+      } as any);
+
+      const pgCalls = (prisma.userPurchaseGroup.create as jest.Mock).mock.calls;
+      expect(pgCalls).toHaveLength(3);
+      for (const call of pgCalls) {
+        expect(call[0].data.currency).toBe('PLN');
+      }
+
+      const periodCalls = (prisma.userSubBillingPeriod.create as jest.Mock).mock.calls;
+      expect(periodCalls).toHaveLength(1);
+      expect(periodCalls[0][0].data.paidCurrency).toBe('PLN');
+    });
+
+    it('falls back to entry.costCurrency when no batch is present', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      setupBackfill(prisma, skipMock, {
+        entry: makeEntry({ costCurrency: 'GBP' }),
+        months: [makeMonth('m-1', 2026, 1)],
+        purchaseGroupIds: ['pg-1'],
+      });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+      } as any);
+
+      const pgCalls = (prisma.userPurchaseGroup.create as jest.Mock).mock.calls;
+      expect(pgCalls).toHaveLength(1);
+      expect(pgCalls[0][0].data.currency).toBe('GBP');
+    });
+  });
+
   // ── Combo subscription — component is a content stream variant ───────────
 
   describe('combo subscription — component is a content stream variant', () => {

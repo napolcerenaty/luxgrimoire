@@ -2076,15 +2076,15 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             {fmtOwnership(h.status)}
                           </span>
                           <span style={{ color: 'var(--text-muted)' }}>{fmtDate(h.changedAt)}</span>
-                          <span className="ml-auto flex items-center gap-1">
+                          <span className="ml-auto flex items-center gap-2">
                             <button
                               onClick={() => { setHistoryEditId(h.id); setHistoryEditStatus(h.status); setHistoryEditDate(h.changedAt.slice(0, 10)) }}
-                              className="text-stone-500 hover:text-amber-400 transition-colors"
-                            ><Pencil size={10} /></button>
+                              className="text-stone-500 hover:text-amber-400 transition-colors p-1.5 -m-1.5"
+                            ><Pencil size={12} /></button>
                             <button
                               onClick={() => deleteHistoryEntry(h.id)}
-                              className="text-stone-500 hover:text-red-400 transition-colors"
-                            ><Trash2 size={10} /></button>
+                              className="text-stone-500 hover:text-red-400 transition-colors p-1.5 -m-1.5"
+                            ><Trash2 size={12} /></button>
                           </span>
                         </div>
                       )
@@ -2192,7 +2192,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             {!rh.startedAt && !rh.finishedAt && (
                               <span style={{ color: 'var(--text-muted)' }}>No dates recorded</span>
                             )}
-                            <span className="ml-auto flex items-center gap-1">
+                            <span className="ml-auto flex items-center gap-2">
                               <button
                                 onClick={() => {
                                   setReadingHistoryEditId(rh.id)
@@ -2201,9 +2201,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                                   setReadingHistoryEditIsDnf(rh.isDnf)
                                   setReadingHistoryEditNotes(rh.notes ?? '')
                                 }}
-                                className="text-stone-500 hover:text-amber-400 transition-colors"
-                              ><Pencil size={10} /></button>
-                              <button onClick={() => deleteReadingHistoryEntry(rh.id)} className="text-stone-500 hover:text-red-400 transition-colors"><Trash2 size={10} /></button>
+                                className="text-stone-500 hover:text-amber-400 transition-colors p-1.5 -m-1.5"
+                              ><Pencil size={12} /></button>
+                              <button onClick={() => deleteReadingHistoryEntry(rh.id)} className="text-stone-500 hover:text-red-400 transition-colors p-1.5 -m-1.5"><Trash2 size={12} /></button>
                             </span>
                           </div>
                           {rh.notes && (

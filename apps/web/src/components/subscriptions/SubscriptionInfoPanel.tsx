@@ -25,6 +25,7 @@ interface Props {
   shipsInternationally: boolean
   country: string | null
   renewalDay?: number | null
+  renewalMonthOffset?: number | null
   months: ApiSubscriptionMonth[]
   prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
   isDiscontinued?: boolean
@@ -103,6 +104,7 @@ export default function SubscriptionInfoPanel({
   shipsInternationally,
   country,
   renewalDay,
+  renewalMonthOffset,
   months,
   prepayOptions,
   isDiscontinued,
@@ -567,6 +569,7 @@ export default function SubscriptionInfoPanel({
           subscriptionSlug={subscriptionSlug}
           subscriptionCurrency={currency}
           subscriptionRenewalDay={renewalDay ?? null}
+          subscriptionRenewalMonthOffset={renewalMonthOffset ?? 0}
           subscriptionPrice={price}
           subscriptionOriginalBasePrice={originalBasePrice ?? null}
           userDefaultTaxRate={user?.defaultTaxRate ?? null}

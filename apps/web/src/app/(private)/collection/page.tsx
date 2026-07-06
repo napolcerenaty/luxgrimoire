@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -671,6 +671,12 @@ export default function CollectionPage() {
     queryFn: getSaleGroups,
   })
 
+  // Invalidates both the full collection and any active filtered/search query
+  const invalidateCollectionQueries = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['collection'] })
+    void queryClient.invalidateQueries({ queryKey: ['collection-filtered'] })
+  }, [queryClient])
+
   // Called by TagEditor when tags are saved — update local override + re-fetch allUserTags
   const handleTagsSaved = useCallback((entryId: string, tags: string[]) => {
     setTagOverrides(prev => ({ ...prev, [entryId]: tags }))
@@ -743,7 +749,7 @@ export default function CollectionPage() {
       }
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['collection'] })
+      invalidateCollectionQueries()
       void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
       void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
     },
@@ -1214,7 +1220,7 @@ export default function CollectionPage() {
                                           method: 'PATCH',
                                           headers: { 'Content-Type': 'application/json' },
                                           body: JSON.stringify({ ownershipStatus: val }),
-                                        }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] }))
+                                        }).then(() => void invalidateCollectionQueries())
                                         setOpenDropdown(null)
                                       }}
                                       className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
@@ -1255,7 +1261,7 @@ export default function CollectionPage() {
                                           method: 'PATCH',
                                           headers: { 'Content-Type': 'application/json' },
                                           body: JSON.stringify({ readingStatus: val }),
-                                        }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] }))
+                                        }).then(() => void invalidateCollectionQueries())
                                         setOpenDropdown(null)
                                       }}
                                       className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
@@ -1293,7 +1299,7 @@ export default function CollectionPage() {
                                 {openDropdown === `${entry.id}-sig-grid` && (
                                   <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                     {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
-                                      <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                      <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
                                         className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                       >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                     ))}
@@ -1311,7 +1317,7 @@ export default function CollectionPage() {
                                 {openDropdown === `${entry.id}-sig-grid` && (
                                   <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                     {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
-                                      <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                      <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
                                         className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                       >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                     ))}
@@ -1516,7 +1522,7 @@ export default function CollectionPage() {
                             {openDropdown === `${entry.id}-ownership` && (
                               <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl w-28 overflow-hidden">
                                 {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => (
-                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                   >{fmtStatus(val)}</button>
                                 ))}
@@ -1540,7 +1546,7 @@ export default function CollectionPage() {
                             {openDropdown === `${entry.id}-reading` && (
                               <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                 {(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => (
-                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ readingStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ readingStatus: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                   >{val}</button>
                                 ))}
@@ -1559,7 +1565,7 @@ export default function CollectionPage() {
                             {openDropdown === `${entry.id}-sig` && (
                               <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                 {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
-                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                   >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                 ))}
@@ -1649,7 +1655,7 @@ export default function CollectionPage() {
         <AddToCollectionSearch
           existingEditionIds={new Set(entries.map(e => e.edition.id))}
           onAdded={() => {
-            void queryClient.invalidateQueries({ queryKey: ['collection'] })
+            invalidateCollectionQueries()
             void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
             void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
             setAddModalOpen(false)
@@ -1786,7 +1792,7 @@ export default function CollectionPage() {
                     onClick={async () => {
                       if (!trackEntry) return
                       await authFetch(`/collection/${trackEntry.id}/tracking/${tn.id}`, { method: 'DELETE' })
-                      await queryClient.invalidateQueries({ queryKey: ['collection'] })
+                      invalidateCollectionQueries()
                       setTrackEntry(prev => prev ? { ...prev, trackingNumbers: prev.trackingNumbers.filter(t => t.id !== tn.id) } : null)
                     }}
                     className="p-1.5 text-stone-600 hover:text-red-400 transition-colors shrink-0"
@@ -1836,7 +1842,7 @@ export default function CollectionPage() {
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ trackingNumber: trackingInput.trim(), label: trackingLabelInput.trim() || undefined }),
                     })
-                    await queryClient.invalidateQueries({ queryKey: ['collection'] })
+                    invalidateCollectionQueries()
                     setTrackEntry(prev => prev ? { ...prev, trackingNumbers: [...prev.trackingNumbers, result] } : null)
                     setTrackingInput('')
                     setTrackingLabelInput('')
@@ -1873,7 +1879,7 @@ export default function CollectionPage() {
           onClose={() => setAddSaleOpen(false)}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
-            queryClient.invalidateQueries({ queryKey: ['collection'] })
+            void invalidateCollectionQueries()
             queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
             setAddSaleOpen(false)
           }}

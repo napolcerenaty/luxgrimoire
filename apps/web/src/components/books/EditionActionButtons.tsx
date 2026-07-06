@@ -136,15 +136,13 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
         } else {
           const res = await authFetch<{ id: string }>('/collection', {
             method: 'POST',
-            body: JSON.stringify({ bookEditionId: editionId, ownershipStatus: data.ownershipStatus }),
+            body: JSON.stringify({
+              bookEditionId: editionId,
+              ownershipStatus: data.ownershipStatus,
+              ...(data.purchasedAt && { acquiredAt: new Date(data.purchasedAt).toISOString() }),
+            }),
           })
           targetEntryId = res.id
-          if (data.purchasedAt) {
-            await authFetch<void>(`/collection/${targetEntryId}`, {
-              method: 'PATCH',
-              body: JSON.stringify({ acquiredAt: new Date(data.purchasedAt).toISOString() }),
-            })
-          }
           setEntryId(res.id)
           if (status !== 'collection') setStatus('collection')
         }

@@ -41,11 +41,11 @@ export function useRecordSaleGroup() {
 
     for (const disc of discountEntries) {
       const amount = parseDecimalInput(disc.amount)
-      if (amount <= 0 || !disc.name.trim()) continue
+      if (amount <= 0) continue
       await authFetch('/fees/discounts', {
         method: 'POST',
         body: JSON.stringify({
-          name: disc.name.trim(),
+          name: disc.name.trim() || undefined,
           amount,
           currency: disc.currency,
           date: feeDate,

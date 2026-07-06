@@ -65,6 +65,7 @@ interface Props {
   subscriptionSlug: string
   subscriptionCurrency: string
   subscriptionRenewalDay?: number | null
+  subscriptionRenewalMonthOffset?: number
   subscriptionPrice?: string | null
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
@@ -135,6 +136,7 @@ interface Step1Props {
   currency: string
   subscriptionSlug: string
   subscriptionRenewalDay?: number | null
+  subscriptionRenewalMonthOffset?: number
   subscriptionPrice?: string | null
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
@@ -146,7 +148,7 @@ interface Step1Props {
   onNext: (data: Step1FormData) => void
 }
 
-function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, isDiscontinued, subscriptionEndDate, signupIncludesCurrentMonth, onNext }: Step1Props) {
+function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionRenewalMonthOffset, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, isDiscontinued, subscriptionEndDate, signupIncludesCurrentMonth, onNext }: Step1Props) {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
 
@@ -179,7 +181,13 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       setBasePrice(subscriptionPrice ? parseFloat(subscriptionPrice).toFixed(2) : '')
     } else {
       const opt = prepayOptions?.find(o => o.id === optionId)
-      if (opt) setBasePrice(parseFloat(String(opt.price)).toFixed(2))
+      if (opt) {
+        // Only auto-fill price when the option's currency matches the user's chosen currency.
+        // Never force the currency to change — billing period and currency are independent choices.
+        if (opt.currency === costCurrency) {
+          setBasePrice(parseFloat(String(opt.price)).toFixed(2))
+        }
+      }
     }
   }
 
@@ -192,20 +200,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       .catch(() => {})
   }, [subscriptionSlug])
 
-  // Auto-fill base price when costCurrency changes to one with official price records
-  // Also clear prepay selection if it no longer matches the new currency
+  // Auto-fill base price when costCurrency changes to one with official price records.
+  // Billing period (prepay option) is independent of currency — never clear it here.
   useEffect(() => {
-    // Clear prepay selection if it doesn't match the new currency
-    if (selectedPrepayOptionId !== null) {
-      const opt = prepayOptions?.find(o => o.id === selectedPrepayOptionId)
-      if (opt && opt.currency !== costCurrency) {
-        handleSelectPrepay(null)
-      }
-    }
     const matching = priceChanges.filter(pc => pc.currency === costCurrency)
     if (matching.length === 0) {
-      // No non-sentinel records for this currency.
-      // If it's the sub's default currency, subscriptionPrice is the sentinel-based official price.
       if (costCurrency === currency && subscriptionPrice) {
         setBasePrice(parseFloat(subscriptionPrice).toFixed(2))
       }
@@ -336,8 +335,12 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
     <form onSubmit={submit} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
       <h3 className="text-lg font-serif text-stone-100 font-semibold">Join Subscription</h3>
 
-      {/* Billing period (only shown if active prepay options exist for the selected currency) */}
-      {activePrepayOptions && activePrepayOptions.filter(o => o.currency === costCurrency).length > 0 && (
+      {/* Billing period (shown whenever any prepay options exist) */}
+      {activePrepayOptions && activePrepayOptions.length > 0 && (() => {
+        // Show options for the selected currency; if none, fall back to the subscription's default currency
+        const forCurrency = activePrepayOptions.filter(o => o.currency === costCurrency)
+        const displayedOptions = forCurrency.length > 0 ? forCurrency : activePrepayOptions.filter(o => o.currency === currency)
+        return (
         <div>
           <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">Billing period</label>
           <div className="space-y-2">
@@ -356,7 +359,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 )}
               </div>
             </label>
-            {activePrepayOptions.filter(o => o.currency === costCurrency).map(opt => (
+            {displayedOptions.map(opt => (
               <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
                 <input
                   type="radio"
@@ -374,7 +377,8 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           </div>
           <p className="text-xs text-stone-500 mt-1.5">Sets your scheduled renewal billing mode.</p>
         </div>
-      )}
+        )
+      })()}
       <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
           {subscriptionRenewalDay != null ? 'First order date' : 'First order date (sets renewal day)'}
@@ -578,8 +582,9 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           // Parse join month from firstOrderDate and derive first billing month
           const startY = firstOrderDate ? parseInt(firstOrderDate.slice(0, 4)) : null
           const startM = firstOrderDate ? parseInt(firstOrderDate.slice(5, 7)) : null
+          const startD = firstOrderDate && firstOrderDate.length >= 10 ? parseInt(firstOrderDate.slice(8, 10)) : 1
           const firstBilling = startY && startM
-            ? computeFirstBillingMonth(startY, startM, signupIncludesCurrentMonth ?? true)
+            ? computeFirstBillingMonth(startY, startM, signupIncludesCurrentMonth ?? true, startD, subscriptionRenewalDay ?? null, subscriptionRenewalMonthOffset ?? 0)
             : null
           const firstBillingY = firstBilling?.year ?? null
           const firstBillingM = firstBilling?.month ?? null
@@ -1775,6 +1780,7 @@ export default function JoinSubscriptionModal({
   subscriptionSlug,
   subscriptionCurrency,
   subscriptionRenewalDay,
+  subscriptionRenewalMonthOffset,
   subscriptionPrice,
   subscriptionOriginalBasePrice,
   userDefaultTaxRate,
@@ -1892,6 +1898,7 @@ export default function JoinSubscriptionModal({
               currency={subscriptionCurrency}
               subscriptionSlug={subscriptionSlug}
               subscriptionRenewalDay={subscriptionRenewalDay}
+              subscriptionRenewalMonthOffset={subscriptionRenewalMonthOffset}
               subscriptionPrice={subscriptionPrice}
               subscriptionOriginalBasePrice={subscriptionOriginalBasePrice}
               userDefaultTaxRate={userDefaultTaxRate}
