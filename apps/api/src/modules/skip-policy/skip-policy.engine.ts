@@ -263,11 +263,15 @@ export class SkipPolicyEngine {
     const deadline = this.computeDeadline(policy, entry, targetMonth, offset);
     const firstDeliverable = firstMonthInfo ? { year: firstMonthInfo.year, month: firstMonthInfo.month } : null;
 
-    // Compute unskip deadline for the most recent (latest) skipped month only
+    // Compute unskip deadline for the most recent (latest) skipped month.
+    // If that deadline has already passed, treat as null — no actionable unskip available.
+    // This works correctly for all frequencies (monthly, bi-monthly, etc.) because the
+    // deadline is derived from the skip's own renewal date, not the calendar month.
     const latestSkipped = skippedMonths.length > 0
       ? skippedMonths.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b)
       : null;
-    const unskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
+    const rawUnskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
+    const unskipDeadline = rawUnskipDeadline && rawUnskipDeadline > now ? rawUnskipDeadline : null;
 
     // Compute live consecutive streak from all skip records so renewals that break the streak
     // are reflected immediately (DB state is only updated on skip/unskip operations).

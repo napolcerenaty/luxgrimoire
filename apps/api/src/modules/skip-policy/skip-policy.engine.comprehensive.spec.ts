@@ -972,6 +972,10 @@ describe('SkipPolicyEngine — comprehensive', () => {
     it('below consecutive limit → canSkip=true, 1-remaining warning', async () => {
       const prisma = makePrismaForGetStatus({
         policyType: 'UNLIMITED_MAX_CONSEC', maxConsecutive: 3,
+        skipRecords: [
+          makeRecord({ year: 2025, month: 1, windowKey: 'none', skippedAt: new Date('2025-01-10') }),
+          makeRecord({ year: 2025, month: 2, windowKey: 'none', skippedAt: new Date('2025-02-10') }),
+        ],
         state: { windowKey: null, skipsInWindow: 0, consecutiveSkips: 2, totalSkips: 2 },
       });
       const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
@@ -982,6 +986,11 @@ describe('SkipPolicyEngine — comprehensive', () => {
     it('at consecutive limit → canSkip=false', async () => {
       const prisma = makePrismaForGetStatus({
         policyType: 'UNLIMITED_MAX_CONSEC', maxConsecutive: 3,
+        skipRecords: [
+          makeRecord({ year: 2025, month: 1, windowKey: 'none', skippedAt: new Date('2025-01-10') }),
+          makeRecord({ year: 2025, month: 2, windowKey: 'none', skippedAt: new Date('2025-02-10') }),
+          makeRecord({ year: 2025, month: 3, windowKey: 'none', skippedAt: new Date('2025-03-10') }),
+        ],
         state: { windowKey: null, skipsInWindow: 0, consecutiveSkips: 3, totalSkips: 3 },
       });
       const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
@@ -989,8 +998,14 @@ describe('SkipPolicyEngine — comprehensive', () => {
     });
 
     it('high total skips but consecutive=1 (gap reset) → canSkip=true', async () => {
+      // Many old skips, but most recent two are non-adjacent (gap) → live streak = 1
       const prisma = makePrismaForGetStatus({
         policyType: 'UNLIMITED_MAX_CONSEC', maxConsecutive: 3,
+        skipRecords: [
+          makeRecord({ year: 2024, month: 3, windowKey: 'none', skippedAt: new Date('2024-03-10') }),
+          makeRecord({ year: 2024, month: 6, windowKey: 'none', skippedAt: new Date('2024-06-10') }), // gap before
+          makeRecord({ year: 2025, month: 2, windowKey: 'none', skippedAt: new Date('2025-02-10') }), // gap resets streak
+        ],
         state: { windowKey: null, skipsInWindow: 0, consecutiveSkips: 1, totalSkips: 20 },
       });
       const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
@@ -1388,6 +1403,193 @@ describe('SkipPolicyEngine — comprehensive', () => {
         makeRecord({ year: 2025, month: 2, windowKey: '2025-01-01', skippedAt: new Date('2025-02-01') }),
       ]);
       expect(create.windowKey).toBe('2025-01-01');
+    });
+  });
+
+  // =========================================================================
+  // getStatus — unskip deadline: only show when still actionable
+  // =========================================================================
+
+  describe('getStatus — unskip deadline (most recent skip, deadline not yet passed)', () => {
+    const uid = 'user-1';
+    const slug = 'test-sub';
+
+    /** Build a subscription with renewalDay=5 so computeUnskipDeadline has a concrete date. */
+    function makePrismaWithRenewalDay(
+      skipRecords: ReturnType<typeof makeRecord>[],
+      state: { windowKey: string | null; skipsInWindow: number; consecutiveSkips: number; totalSkips: number } | null,
+    ): PrismaService {
+      const policy = {
+        type: 'UNLIMITED',
+        billingType: 'ALL',
+        maxSkips: null,
+        maxConsecutive: null,
+        windowMonths: null,
+        allowUnskip: true,
+        notes: null,
+        skipHow: null,
+        unskipHow: 'Email support',
+        unskipNotes: null,
+        skipDeadlineDaysBefore: 3,
+        unskipDeadlineDaysBefore: 0,
+      };
+      const subscription = {
+        id: 'sub-1',
+        slug,
+        renewalDay: 5,
+        renewalMonthOffset: 0,
+        isCombo: false,
+        paymentOnStartup: false,
+        signupIncludesCurrentMonth: false,
+        startDate: null,
+        skipPolicies: [policy],
+        comboComponents: [],
+        userEntries: [
+          {
+            id: 'entry-1',
+            userId: uid,
+            subscriptionId: 'sub-1',
+            firstSkipDate: null,
+            startDate: '2024-01-01',
+            renewalDay: 5,
+            prepaidMonths: 1,
+            skipRecords,
+          },
+        ],
+      };
+      return {
+        subscription: { findUnique: jest.fn().mockResolvedValue(subscription) },
+        userSubscriptionSkipState: { findUnique: jest.fn().mockResolvedValue(state) },
+        userSubscriptionEntry: {
+          findUnique: jest.fn().mockResolvedValue({ id: 'entry-1' }),
+          findFirst: jest.fn().mockResolvedValue({ id: 'entry-1' }),
+          findMany: jest.fn().mockResolvedValue([]),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        userSkipRecord: {
+          findMany: jest.fn().mockResolvedValue([]),
+          upsert: jest.fn().mockResolvedValue({}),
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+        subscriptionMonth: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          findMany: jest.fn().mockResolvedValue([{ id: 'sm-future', year: 9999, month: 6, seriesId: null, series: null }]),
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+      } as unknown as PrismaService;
+    }
+
+    it('most recent skip has future unskip deadline → nextUnskipDeadline is non-null', async () => {
+      // Today: 2026-07-06. Skip for Aug 2026, renewalDay=5, offset=0.
+      // Unskip deadline = Aug 5 2026 at 23:59:59 → future → should be non-null.
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-06T10:00:00Z'));
+      const records = [
+        makeRecord({ year: 2026, month: 8, windowKey: '2026', skippedAt: new Date('2026-07-01') }),
+      ];
+      const prisma = makePrismaWithRenewalDay(records, { windowKey: '2026', skipsInWindow: 1, consecutiveSkips: 1, totalSkips: 1 });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      expect(status.nextUnskipDeadline).not.toBeNull();
+      expect(status.isUnskipPastDeadline).toBe(false);
+    });
+
+    it('most recent skip has already-passed unskip deadline → nextUnskipDeadline is null', async () => {
+      // Today: 2026-07-06. Skip for May 2026, renewalDay=5, offset=0.
+      // Unskip deadline = May 5 2026 (past) → should be null, isUnskipPastDeadline stays false.
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-06T10:00:00Z'));
+      const records = [
+        makeRecord({ year: 2025, month: 11, windowKey: '2025', skippedAt: new Date('2025-11-01') }),
+        makeRecord({ year: 2026, month: 5, windowKey: '2026', skippedAt: new Date('2026-05-01') }),
+      ];
+      const prisma = makePrismaWithRenewalDay(records, { windowKey: '2026', skipsInWindow: 1, consecutiveSkips: 1, totalSkips: 2 });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      expect(status.nextUnskipDeadline).toBeNull();
+      expect(status.isUnskipPastDeadline).toBe(false);
+    });
+
+    it('earliest skip deadline passed but latest skip deadline is future → shows latest', async () => {
+      // Nov 2025 skip: deadline Nov 5 2025 (past). Aug 2026 skip: deadline Aug 5 2026 (future).
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-06T10:00:00Z'));
+      const records = [
+        makeRecord({ year: 2025, month: 11, windowKey: '2025', skippedAt: new Date('2025-11-01') }),
+        makeRecord({ year: 2026, month: 8, windowKey: '2026', skippedAt: new Date('2026-07-01') }),
+      ];
+      const prisma = makePrismaWithRenewalDay(records, { windowKey: '2026', skipsInWindow: 1, consecutiveSkips: 1, totalSkips: 2 });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      expect(status.nextUnskipDeadline).not.toBeNull();
+      // Deadline for Aug 2026 = Aug 5 2026 → month index 7 (0-based)
+      expect(new Date(status.nextUnskipDeadline!).getMonth()).toBe(7);
+    });
+  });
+
+  // =========================================================================
+  // getStatus — consecutive skips: live computation overrides stale DB value
+  // =========================================================================
+
+  describe('getStatus — consecutive skips live computation', () => {
+    const uid = 'user-1';
+    const slug = 'test-sub';
+
+    it('DB has stale high consecutiveSkips but records show streak broken → uses live count', async () => {
+      // Skips: Mar 2025, Apr 2025, (gap: May renewed), Jun 2025, Jul 2025
+      // Consecutive streak at end = 2 (Jun+Jul). DB stale value = 4.
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T10:00:00Z'));
+      const skipRecords = [
+        makeRecord({ year: 2025, month: 3, windowKey: '2025', skippedAt: new Date('2025-03-01') }),
+        makeRecord({ year: 2025, month: 4, windowKey: '2025', skippedAt: new Date('2025-04-01') }),
+        makeRecord({ year: 2025, month: 6, windowKey: '2025', skippedAt: new Date('2025-06-01') }),
+        makeRecord({ year: 2025, month: 7, windowKey: '2025', skippedAt: new Date('2025-07-01') }),
+      ];
+      const prisma = makePrismaForGetStatus({
+        policyType: 'UNLIMITED_MAX_CONSEC',
+        maxConsecutive: 5,
+        skipRecords,
+        firstSkipDate: new Date('2025-03-01'),
+        state: { windowKey: '2025', skipsInWindow: 4, consecutiveSkips: 4, totalSkips: 4 }, // stale: says 4
+      });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      // Live walk-back: Jul←Jun consecutive, Jun←May gap (May not skipped) → streak = 2
+      expect(status.consecutiveSkips).toBe(2);
+      // maxConsecutive=5, live streak=2 → should still be able to skip, no cancel warning
+      expect(status.canSkip).toBe(true);
+      expect(status.warnings.some((w) => w.includes('cancel'))).toBe(false);
+    });
+
+    it('DB has consecutiveSkips=0 but records show active streak → uses live count', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T10:00:00Z'));
+      const skipRecords = [
+        makeRecord({ year: 2025, month: 10, windowKey: '2025', skippedAt: new Date('2025-10-01') }),
+        makeRecord({ year: 2025, month: 11, windowKey: '2025', skippedAt: new Date('2025-11-01') }),
+        makeRecord({ year: 2025, month: 12, windowKey: '2025', skippedAt: new Date('2025-12-01') }),
+      ];
+      const prisma = makePrismaForGetStatus({
+        policyType: 'UNLIMITED_MAX_CONSEC',
+        maxConsecutive: 5,
+        skipRecords,
+        firstSkipDate: new Date('2025-10-01'),
+        state: { windowKey: '2025', skipsInWindow: 3, consecutiveSkips: 0, totalSkips: 3 }, // stale: says 0
+      });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      expect(status.consecutiveSkips).toBe(3);
+    });
+
+    it('no gap → full streak length used for canSkip evaluation', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T10:00:00Z'));
+      const skipRecords = [
+        makeRecord({ year: 2025, month: 10, windowKey: '2025', skippedAt: new Date('2025-10-01') }),
+        makeRecord({ year: 2025, month: 11, windowKey: '2025', skippedAt: new Date('2025-11-01') }),
+        makeRecord({ year: 2025, month: 12, windowKey: '2025', skippedAt: new Date('2025-12-01') }),
+      ];
+      const prisma = makePrismaForGetStatus({
+        policyType: 'UNLIMITED_MAX_CONSEC',
+        maxConsecutive: 3,
+        skipRecords,
+        firstSkipDate: new Date('2025-10-01'),
+        state: { windowKey: '2025', skipsInWindow: 3, consecutiveSkips: 1, totalSkips: 3 }, // stale: says 1
+      });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      // Live streak = 3, maxConsecutive = 3 → cannot skip
+      expect(status.consecutiveSkips).toBe(3);
+      expect(status.canSkip).toBe(false);
     });
   });
 });
