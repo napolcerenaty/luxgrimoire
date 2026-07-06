@@ -2980,13 +2980,14 @@ export class SubscriptionsService {
           data: { billingPeriodId: periodId },
         });
 
-        // Add batch-level fees to this purchase group (divided by N if same currency)
+        // Add batch-level fees to this purchase group (always divided by N months)
+        // The fee amount entered by the user represents the total for the whole period.
         if (batch.fees?.length) {
           for (const f of batch.fees) {
             feesToCreate.push({
               userId,
               name: f.name,
-              amount: f.currency === batch.currency ? f.amount / batch.monthsCovered : f.amount,
+              amount: f.amount / batch.monthsCovered,
               currency: f.currency,
               date: purchasedAtDate,
               category: 'OTHER' as any,
@@ -2995,13 +2996,13 @@ export class SubscriptionsService {
           }
         }
 
-        // Add batch-level discounts to this purchase group (divided by N if same currency)
+        // Add batch-level discounts to this purchase group (always divided by N months)
         if (batch.discounts?.length) {
           for (const d of batch.discounts) {
             discountsToCreate.push({
               userId,
               name: d.name,
-              amount: d.currency === batch.currency ? d.amount / batch.monthsCovered : d.amount,
+              amount: d.amount / batch.monthsCovered,
               currency: d.currency,
               date: purchasedAtDate,
               purchaseGroupId: group.id,
