@@ -315,11 +315,6 @@ export class SkipPolicyEngine {
     return status;
   }
 
-  async canSkipCheck(userId: string, subscriptionSlug: string): Promise<boolean> {
-    const { policy, state, entry } = await this.loadContext(userId, subscriptionSlug);
-    return this.evaluateCanSkip(policy, state, entry.prepaidMonths);
-  }
-
   /** Public entry point for recomputing skip state after bulk operations (e.g. backfill) */
   async recomputeSkipState(userId: string, subscriptionId: string) {
     const subscription = await this.prisma.subscription.findUnique({
