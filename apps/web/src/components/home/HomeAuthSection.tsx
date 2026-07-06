@@ -10,12 +10,26 @@ import { SaleRowCountdown } from './SaleRowCountdown'
 
 interface UpcomingSale {
   announcementId: string
+  tier: string
   announcement: {
     id: string
     title: string
+    saleType: string
+    firstAccessDate: string | null
+    earlyAccessDate: string | null
     generalSaleDate: string | null
+    endsAt: string | null
     company: { name: string; slug: string } | null
   }
+}
+
+function resolveTierDate(sale: UpcomingSale): string | null {
+  const ann = sale.announcement
+  if (ann.saleType === 'OPEN_PREORDER') return ann.endsAt ?? null
+  const tier = sale.tier ?? 'GS'
+  if (tier === 'FA') return ann.firstAccessDate ?? ann.earlyAccessDate ?? ann.generalSaleDate
+  if (tier === 'EA') return ann.earlyAccessDate ?? ann.generalSaleDate
+  return ann.generalSaleDate
 }
 
 export function HomeAuthSection() {
@@ -98,8 +112,8 @@ function HeroShell({
                   className="flex items-center justify-between rounded-lg border border-stone-700/60 bg-stone-900/60 px-3 py-2 text-left transition-colors hover:border-stone-600 hover:bg-stone-800/60"
                 >
                   <span className="truncate text-sm font-medium text-stone-100">{s.announcement.title}</span>
-                  {s.announcement.generalSaleDate && (
-                    <SaleRowCountdown dateStr={s.announcement.generalSaleDate} isFirst={i === 0} />
+                  {resolveTierDate(s) && (
+                    <SaleRowCountdown dateStr={resolveTierDate(s)!} isFirst={i === 0} />
                   )}
                 </Link>
               ))}
