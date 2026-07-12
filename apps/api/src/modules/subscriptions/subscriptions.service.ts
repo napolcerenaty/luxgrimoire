@@ -3254,7 +3254,14 @@ export class SubscriptionsService {
       : null;
 
     if (startDateObj) {
-      const eligibleMonths = await this.getEligibleMonths(monthsSubscriptionId, startDateObj, cancellationDateObj);
+      const eligibleMonths = await this.getEligibleMonths(
+        monthsSubscriptionId,
+        startDateObj,
+        cancellationDateObj,
+        fallbackSettings.signupIncludesCurrentMonth,
+        fallbackSettings.renewalMonthOffset,
+        fallbackSettings.renewalDay,
+      );
       const skippableMonths = eligibleMonths
         .filter(m => m.books.length > 0 && !selectedSet.has(m.id))
         .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
