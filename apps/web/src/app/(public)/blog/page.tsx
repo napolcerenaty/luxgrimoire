@@ -68,7 +68,7 @@ function GuideCard({ post }: { post: GhostPost }) {
   return (
     <article
       className={`rounded-[24px] border p-5 h-full flex flex-col transition-all duration-[220ms] cursor-pointer blog-guide-card ${post.featured && !sponsored ? 'blog-featured-glow' : ''}`}
-      style={{ borderColor: post.featured && !sponsored ? 'rgba(212,175,55,0.45)' : 'var(--border)' }}
+      style={{ borderColor: post.featured && !sponsored ? 'rgba(212,175,55,0.45)' : 'var(--border)', opacity: sponsored ? 0.82 : 1 }}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
         {post.primary_tag ? (

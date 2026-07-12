@@ -76,7 +76,8 @@ function RelatedPosts({
             className="group block rounded-[16px] border overflow-hidden transition-all duration-200"
             style={{
               borderColor: r.featured && !sponsored ? 'rgba(212,175,55,0.45)' : 'var(--border)',
-              background: 'var(--bg-surface)',
+              background: sponsored ? 'var(--bg-raised)' : 'var(--bg-surface)',
+              opacity: sponsored ? 0.82 : 1,
             }}
           >
             {r.feature_image ? (
@@ -160,9 +161,9 @@ export default async function BlogPostPage({
           {/* ── Main article ── */}
           <article className="min-w-0">
             {/* Tags */}
-            {post.tags.length > 0 && (
+            {post.tags.filter(t => !t.slug.startsWith('hash-')).length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
-                {post.tags.map((tag) => (
+                {post.tags.filter(t => !t.slug.startsWith('hash-')).map((tag) => (
                   <Link
                     key={tag.id}
                     href={`/blog/tag/${tag.slug}`}

@@ -31,7 +31,7 @@ function PostCard({ post }: { post: GhostPost }) {
   return (
     <article
       className={`rounded-[20px] border p-5 flex flex-col transition-all duration-200 cursor-pointer blog-guide-card ${post.featured && !sponsored ? 'blog-featured-glow' : ''}`}
-      style={{ borderColor: post.featured && !sponsored ? 'rgba(212,175,55,0.45)' : 'var(--border)' }}
+      style={{ borderColor: post.featured && !sponsored ? 'rgba(212,175,55,0.45)' : 'var(--border)', background: sponsored ? 'var(--bg-raised)' : undefined, opacity: sponsored ? 0.82 : 1 }}
     >
       {post.feature_image && (
         // eslint-disable-next-line @next/next/no-img-element
