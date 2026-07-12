@@ -81,9 +81,9 @@ function RelatedPosts({
             }}
           >
             {sponsored && (
-              <div className="px-3 py-1.5 flex items-center gap-1.5" style={{ background: 'rgba(150,110,30,0.13)', borderBottom: '1px solid rgba(180,140,40,0.22)' }}>
-                <span style={{ color: 'rgba(210,170,60,0.75)', fontSize: '8px' }}>◈</span>
-                <span className="text-[8px] font-serif uppercase tracking-[0.12em]" style={{ color: 'rgba(210,170,60,0.75)' }}>Sponsored · {sponsored}</span>
+              <div className="px-3 py-1.5 flex items-center gap-1.5" style={{ background: 'rgba(120,120,130,0.10)', borderBottom: '1px solid rgba(120,120,130,0.18)' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '8px' }}>◈</span>
+                <span className="text-[8px] font-serif uppercase tracking-[0.12em]" style={{ color: 'var(--text-muted)' }}>Sponsored · {sponsored}</span>
               </div>
             )}
             {r.feature_image ? (
