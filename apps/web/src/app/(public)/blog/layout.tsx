@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getTags } from '@/lib/ghost'
 import BlogNavLogo from '@/components/blog/BlogNavLogo'
+import BlogFooter from '@/components/blog/BlogFooter'
 
 export default async function BlogLayout({ children }: { children: React.ReactNode }) {
   const tags = await getTags(12).catch(() => [])
@@ -55,6 +56,7 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
       </header>
 
       {children}
+      <BlogFooter />
     </>
   )
 }

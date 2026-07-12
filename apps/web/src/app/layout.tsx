@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
+import { ConditionalFooter } from '@/components/layout/ConditionalFooter'
 import { DevBanner } from '@/components/layout/DevBanner'
 import { BugReportButton } from '@/components/layout/BugReportButton'
 import { CookieBanner } from '@/components/layout/CookieBanner'
@@ -64,7 +64,7 @@ export default async function RootLayout({
           <DevBanner />
           <Navbar />
           <main className="flex-1">{children}</main>
-          <Footer />
+          <ConditionalFooter />
           <BugReportButton />
           <CookieBanner />
         </Providers>
