@@ -70,6 +70,12 @@ function GuideCard({ post }: { post: GhostPost }) {
       className={`rounded-[24px] border p-5 h-full flex flex-col transition-all duration-[220ms] cursor-pointer blog-guide-card ${post.featured && !sponsored ? 'blog-featured-glow' : ''}`}
       style={{ borderColor: post.featured && !sponsored ? 'rgba(212,175,55,0.45)' : 'var(--border)', opacity: sponsored ? 0.82 : 1 }}
     >
+      {sponsored && (
+        <div className="-mx-5 -mt-5 mb-4 px-5 py-2 rounded-t-[24px] flex items-center gap-2" style={{ background: 'rgba(150,110,30,0.13)', borderBottom: '1px solid rgba(180,140,40,0.22)' }}>
+          <span style={{ color: 'rgba(210,170,60,0.75)', fontSize: '9px' }}>◈</span>
+          <span className="text-[9px] font-serif uppercase tracking-[0.12em]" style={{ color: 'rgba(210,170,60,0.75)' }}>Sponsored content · {sponsored}</span>
+        </div>
+      )}
       <div className="flex items-start justify-between gap-2 mb-3">
         {post.primary_tag ? (
           <div className="text-xs font-serif uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>
@@ -78,9 +84,6 @@ function GuideCard({ post }: { post: GhostPost }) {
         ) : <div />}
         {post.featured && !sponsored && (
           <span className="text-sm leading-none shrink-0" style={{ color: '#d4af37', textShadow: '0 0 6px rgba(212,175,55,0.7)' }} aria-label="Featured">✦</span>
-        )}
-        {sponsored && (
-          <span className="text-[10px] font-serif uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0" style={{ background: 'var(--bg-raised)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{sponsored}</span>
         )}
       </div>
       <h3 className="font-serif text-[1.35rem] leading-[1.18] mb-2.5 mt-0" style={{ color: 'var(--text-bright)' }}>

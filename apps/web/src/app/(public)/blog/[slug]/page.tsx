@@ -80,6 +80,12 @@ function RelatedPosts({
               opacity: sponsored ? 0.82 : 1,
             }}
           >
+            {sponsored && (
+              <div className="px-3 py-1.5 flex items-center gap-1.5" style={{ background: 'rgba(150,110,30,0.13)', borderBottom: '1px solid rgba(180,140,40,0.22)' }}>
+                <span style={{ color: 'rgba(210,170,60,0.75)', fontSize: '8px' }}>◈</span>
+                <span className="text-[8px] font-serif uppercase tracking-[0.12em]" style={{ color: 'rgba(210,170,60,0.75)' }}>Sponsored · {sponsored}</span>
+              </div>
+            )}
             {r.feature_image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={r.feature_image} alt={r.feature_image_alt ?? r.title} className={`w-full object-cover ${sidebar ? 'h-24' : 'h-28'}`} />
@@ -91,9 +97,6 @@ function RelatedPosts({
                 </p>
                 {r.featured && !sponsored && (
                   <span className="text-xs shrink-0 mt-0.5" style={{ color: '#d4af37', textShadow: '0 0 5px rgba(212,175,55,0.7)' }} aria-label="Featured">✦</span>
-                )}
-                {sponsored && (
-                  <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0 mt-0.5" style={{ background: 'var(--bg-raised)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{sponsored}</span>
                 )}
               </div>
               {!sidebar && (r.custom_excerpt ?? r.excerpt) && (
