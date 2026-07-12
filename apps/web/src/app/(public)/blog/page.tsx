@@ -97,11 +97,11 @@ export default async function BlogPage() {
   const rest = posts.slice(3)
   const featureDesc = features?.[0]?.description ?? 'Add editions, track ownership status (preorder, shipping, own, sold) and reading status — all in one place.'
 
-  const byTag: Map<string, GhostPost[]> = new Map()
+  const byTag: Map<string, { name: string; slug: string; posts: GhostPost[] }> = new Map()
   for (const post of rest) {
-    const key = post.primary_tag?.name ?? 'More Posts'
-    if (!byTag.has(key)) byTag.set(key, [])
-    byTag.get(key)!.push(post)
+    const key = post.primary_tag?.slug ?? 'more'
+    if (!byTag.has(key)) byTag.set(key, { name: post.primary_tag?.name ?? 'More Posts', slug: key, posts: [] })
+    byTag.get(key)!.posts.push(post)
   }
 
   return (
@@ -146,23 +146,40 @@ export default async function BlogPage() {
 
         {/* ── Tag strip ── */}
         {tags.length > 0 && (
-          <div className="flex gap-2.5 overflow-x-auto pt-6 scrollbar-none" aria-label="Topics">
+          <div className="flex gap-2.5 overflow-x-auto pt-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Topics">
+            <Link
+              href="/blog"
+              className="inline-flex items-center h-11 px-4 rounded-full border text-sm font-serif uppercase tracking-wide whitespace-nowrap blog-tag active"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              All
+            </Link>
             {tags.map((tag) => (
-              <span
+              <Link
                 key={tag.id}
-                className="inline-flex items-center h-11 px-4 rounded-full border text-sm font-serif whitespace-nowrap blog-tag"
+                href={`/blog/tag/${tag.slug}`}
+                className="inline-flex items-center h-11 px-4 rounded-full border text-sm font-serif uppercase tracking-wide whitespace-nowrap blog-tag"
                 style={{ borderColor: 'var(--border)' }}
               >
                 {tag.name}
-              </span>
+              </Link>
             ))}
           </div>
         )}
 
         {/* ── Sections by tag ── */}
-        {Array.from(byTag.entries()).map(([tagName, tagPosts]) => (
-          <section key={tagName} className="pt-10">
-            <h2 className="font-serif m-0 mb-4 text-[clamp(1.35rem,3vw,2rem)]" style={{ color: 'var(--text-bright)' }}>{tagName}</h2>
+        {Array.from(byTag.entries()).map(([, { name: tagName, slug: tagSlug, posts: tagPosts }]) => (
+          <section key={tagSlug} className="pt-10">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <h2 className="font-serif m-0 text-[clamp(1.35rem,3vw,2rem)]" style={{ color: 'var(--text-bright)' }}>{tagName}</h2>
+              <Link
+                href={`/blog/tag/${tagSlug}`}
+                className="shrink-0 text-sm transition-colors hover:underline"
+                style={{ color: 'var(--accent-bright)' }}
+              >
+                See all →
+              </Link>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
               {tagPosts.map((post) => (
                 <Link key={post.id} href={`/blog/${post.slug}`} className="block h-full">

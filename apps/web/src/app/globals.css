@@ -280,13 +280,20 @@ input[type=number] {
 .blog-tag {
   background: var(--bg-raised);
   color: var(--text-dim);
-  cursor: default;
+  cursor: pointer;
   transition: all 220ms ease;
 }
 .blog-tag:hover {
-  color: var(--text-bright);
+  color: var(--accent-bright);
   border-color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-raised));
   transform: translateY(-1px);
+  box-shadow: 0 8px 20px var(--accent-glow);
+}
+.blog-tag.active {
+  background: color-mix(in srgb, var(--accent) 15%, var(--bg-raised));
+  border-color: rgba(42, 158, 196, 0.5) !important;
+  color: var(--accent-bright);
 }
 .blog-guide-card {
   background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 88%, white 12%), var(--bg-card));
