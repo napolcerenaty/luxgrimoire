@@ -35,7 +35,7 @@ function Box({ val }: { val: string }) {
   )
 }
 
-export function SaleRowCountdown({ dateStr, isFirst }: { dateStr: string; isFirst: boolean }) {
+export function SaleRowCountdown({ dateStr }: { dateStr: string }) {
   const target = new Date(dateStr)
   const [parts, setParts] = useState<Parts>(() => compute(target))
 
@@ -44,23 +44,12 @@ export function SaleRowCountdown({ dateStr, isFirst }: { dateStr: string; isFirs
     return () => clearInterval(id)
   }, [dateStr])
 
-  // First row (soonest): show days+hrs+min+sec if < 2 days, else days+hrs
-  if (isFirst && parts.days < 2) {
-    return (
-      <div className="ml-3 flex shrink-0 items-center gap-1">
-        {parts.days > 0 && <Box val={`${parts.days}d`} />}
-        <Box val={`${String(parts.hours).padStart(2, '0')}h`} />
-        <Box val={`${String(parts.minutes).padStart(2, '0')}m`} />
-        <Box val={`${String(parts.seconds).padStart(2, '0')}s`} />
-      </div>
-    )
-  }
-
-  // All other rows (or first with many days): days + hrs
   return (
     <div className="ml-3 flex shrink-0 items-center gap-1">
       {parts.days > 0 && <Box val={`${parts.days}d`} />}
       <Box val={`${String(parts.hours).padStart(2, '0')}h`} />
+      <Box val={`${String(parts.minutes).padStart(2, '0')}m`} />
+      <Box val={`${String(parts.seconds).padStart(2, '0')}s`} />
     </div>
   )
 }

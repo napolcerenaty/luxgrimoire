@@ -63,7 +63,7 @@ function HeroShell({
                 >
                   <span className="truncate text-sm font-medium text-stone-100">{s.announcement.title}</span>
                   {s.announcement.generalSaleDate && (
-                    <SaleRowCountdown dateStr={s.announcement.generalSaleDate} isFirst={i === 0} />
+                    <SaleRowCountdown dateStr={s.announcement.generalSaleDate} />
                   )}
                 </Link>
               ))}
@@ -118,4 +118,5 @@ export function PersonalizedHero({ user, upcomingSales }: Props) {
     />
   )
 }
+
 

@@ -406,13 +406,20 @@ export class AuthService {
 
   private async signToken(id: string, email: string, role: string, username: string, managedCompanyId?: string | null) {
     const expiresInMs = this.parseExpiresIn(process.env.JWT_EXPIRES_IN ?? '7d');
-    const session = await this.prisma.session.create({
-      data: {
-        userId: id,
-        token: randomBytes(32).toString('hex'), // opaque token for reference
-        expiresAt: new Date(Date.now() + expiresInMs),
-      },
-    });
+    const now = new Date();
+    const [session] = await this.prisma.$transaction([
+      this.prisma.session.create({
+        data: {
+          userId: id,
+          token: randomBytes(32).toString('hex'),
+          expiresAt: new Date(Date.now() + expiresInMs),
+        },
+      }),
+      this.prisma.user.update({
+        where: { id },
+        data: { lastLoginAt: now },
+      }),
+    ]);
 
     const payload = { sub: id, email, role, username, managedCompanyId: managedCompanyId ?? null, jti: session.id };
     const token = this.jwt.sign(payload);

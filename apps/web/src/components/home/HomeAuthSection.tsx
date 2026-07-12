@@ -118,7 +118,7 @@ function HeroShell({
                     <span className="truncate text-sm font-medium text-stone-100">{s.announcement.title}</span>
                   </div>
                   {resolveTierDate(s) && (
-                    <SaleRowCountdown dateStr={resolveTierDate(s)!} isFirst={i === 0} />
+                    <SaleRowCountdown dateStr={resolveTierDate(s)!} />
                   )}
                 </Link>
               ))}
@@ -197,3 +197,4 @@ export function HomeGuestFeatures() {
     </section>
   )
 }
+
