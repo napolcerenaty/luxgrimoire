@@ -57,7 +57,6 @@ export async function getPosts(limit = 10): Promise<GhostPost[]> {
     include: 'tags,authors',
     limit: String(limit),
     order: 'published_at DESC',
-    fields: 'id,title,slug,excerpt,custom_excerpt,feature_image,feature_image_alt,reading_time,published_at,updated_at',
   })
   return data?.posts ?? []
 }
@@ -88,7 +87,6 @@ export async function searchPosts(query: string, limit = 20): Promise<GhostPost[
     limit: String(limit),
     order: 'published_at DESC',
     filter: `title:~'${query.replace(/'/g, '')}'`,
-    fields: 'id,title,slug,excerpt,custom_excerpt,feature_image,feature_image_alt,reading_time,published_at,updated_at',
   })
   return data?.posts ?? []
 }
@@ -99,7 +97,6 @@ export async function getPostsByTag(tagSlug: string, limit = 4, excludeSlug?: st
     limit: String(limit + 1),
     order: 'published_at DESC',
     filter: `tag:${tagSlug}`,
-    fields: 'id,title,slug,excerpt,custom_excerpt,feature_image,feature_image_alt,reading_time,published_at,updated_at',
   })
   const posts = data?.posts ?? []
   return posts.filter(p => p.slug !== excludeSlug).slice(0, limit)
