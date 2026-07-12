@@ -28,9 +28,7 @@ function HeroPanel({ post, large }: { post: GhostPost; large?: boolean }) {
           alt={post.feature_image_alt ?? post.title}
           className="absolute inset-0 w-full h-full object-cover"
         />
-      ) : (
-        <div className="absolute top-5 left-5 select-none" style={{ fontSize: large ? '3rem' : '2rem', opacity: 0.9 }} aria-hidden="true">📚</div>
-      )}
+      ) : null}
       <div className="absolute inset-0 blog-panel-overlay" />
       <div className="absolute bottom-0 left-0 right-0 p-[22px]">
         {post.primary_tag && (

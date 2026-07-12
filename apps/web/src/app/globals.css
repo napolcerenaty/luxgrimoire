@@ -270,12 +270,17 @@ input[type=number] {
 }
 .blog-panel-category {
   display: inline-block;
-  color: var(--accent-bright);
-  font-size: 0.82rem;
-  letter-spacing: 0.08em;
+  color: #fff;
+  background: rgba(42, 158, 196, 0.55);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 999px;
+  padding: 0.15em 0.75em;
+  font-size: 0.75rem;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   margin-bottom: 10px;
   font-family: 'Cinzel', Georgia, serif;
+  backdrop-filter: blur(4px);
 }
 .blog-tag {
   background: var(--bg-raised);
