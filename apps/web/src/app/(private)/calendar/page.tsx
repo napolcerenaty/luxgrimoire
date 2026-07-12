@@ -15,6 +15,7 @@ import { useBrandColors } from '@/lib/useBrandColors'
 interface CalEntry {
   id: string
   active: boolean
+  startDate: string | null
   renewalDay: number | null
   nextRenewalAmount: string | null
   nextRenewalCurrency: string | null
@@ -149,6 +150,14 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
   const sub = entry.subscription
   const renewalDay = entry.renewalDay ?? sub.renewalDay
   if (!renewalDay) return null
+
+  // Don't show renewals before the entry's start date
+  if (entry.startDate) {
+    const startYear = parseInt(entry.startDate.slice(0, 4))
+    const startMonth0 = parseInt(entry.startDate.slice(5, 7)) - 1
+    if (year < startYear || (year === startYear && month0 < startMonth0)) return null
+  }
+
   const interval = sub.intervalMonths ?? 1
   if (interval > 1) {
     const step = interval
