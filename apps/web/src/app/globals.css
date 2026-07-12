@@ -510,13 +510,13 @@ input[type=number] {
 .blog-post-content .kg-header-card-header {
   font-family: var(--font-serif, serif);
   font-size: clamp(1.6rem, 4vw, 2.4rem);
-  color: var(--text-bright);
+  color: var(--text-bright) !important;
   margin: 0 0 0.5em;
   line-height: 1.2;
 }
 .blog-post-content .kg-header-card p,
 .blog-post-content .kg-header-card-subheader {
-  color: var(--text-dim);
+  color: var(--text-dim) !important;
   margin: 0;
   font-size: 1rem;
 }
