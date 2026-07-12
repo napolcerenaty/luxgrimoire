@@ -213,7 +213,7 @@ export default async function BlogPostPage({
 
           {/* ── Sidebar — desktop only ── */}
           {related.length > 0 && (
-            <aside className="hidden xl:block sticky top-24">
+            <aside className="hidden xl:block sticky top-[108px] self-start max-h-[calc(100vh-120px)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <RelatedPosts posts={related} tagName={post.primary_tag?.name} tagSlug={tagSlug} sidebar />
             </aside>
           )}
