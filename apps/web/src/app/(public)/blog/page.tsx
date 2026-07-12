@@ -86,9 +86,16 @@ function GuideCard({ post }: { post: GhostPost }) {
 }
 
 export default async function BlogPage() {
-  const [posts, tags] = await Promise.all([getPosts(20), getTags()])
+  const [posts, tags, features] = await Promise.all([
+    getPosts(20),
+    getTags(),
+    fetch(`${process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/homepage-features`, { next: { revalidate: 60 } })
+      .then(r => r.ok ? r.json() : [])
+      .catch(() => []) as Promise<{ title: string; description: string }[]>,
+  ])
   const hero = posts.slice(0, 3)
   const rest = posts.slice(3)
+  const featureDesc = features?.[0]?.description ?? 'Add editions, track ownership status (preorder, shipping, own, sold) and reading status — all in one place.'
 
   const byTag: Map<string, GhostPost[]> = new Map()
   for (const post of rest) {
@@ -129,7 +136,7 @@ export default async function BlogPage() {
             <div className="pt-16 pb-8 text-center">
               <div className="text-6xl mb-5">📚</div>
               <h2 className="font-serif text-2xl mb-2 mt-0" style={{ color: 'var(--text-bright)' }}>Stories Coming Soon</h2>
-              <p style={{ color: 'var(--text-dim)' }}>We're crafting the first posts. Check back soon.</p>
+              <p style={{ color: 'var(--text-dim)' }}>{featureDesc}</p>
               <Link href="/" className="inline-flex items-center gap-2 mt-6 text-sm transition-colors hover:underline" style={{ color: 'var(--accent-bright)' }}>
                 ← Back to App
               </Link>
@@ -186,7 +193,7 @@ export default async function BlogPage() {
                 Track Your Collection
               </h3>
               <p className="m-0" style={{ color: 'var(--text-dim)' }}>
-                Log variants, signatures, release details and shelf notes in LuxGrimoire — the premium archive for special edition book collectors.
+                {featureDesc}
               </p>
             </div>
             <Link href="/" className="blog-btn-primary shrink-0">Open the App →</Link>
