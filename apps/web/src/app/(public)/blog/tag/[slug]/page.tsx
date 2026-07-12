@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Clock } from 'lucide-react'
-import { getTagBySlug, getPostsByTag, getTags, type GhostPost } from '@/lib/ghost'
+import { getTagBySlug, getPostsByTag, getTags, getSponsoredLabel, type GhostPost } from '@/lib/ghost'
 
 export const revalidate = 60
 
@@ -27,13 +27,25 @@ function formatDate(iso: string) {
 
 function PostCard({ post }: { post: GhostPost }) {
   const excerpt = post.custom_excerpt ?? post.excerpt
+  const sponsored = getSponsoredLabel(post)
   return (
-    <article className="rounded-[20px] border p-5 flex flex-col transition-all duration-200 cursor-pointer blog-guide-card" style={{ borderColor: 'var(--border)' }}>
+    <article
+      className={`rounded-[20px] border p-5 flex flex-col transition-all duration-200 cursor-pointer blog-guide-card ${post.featured && !sponsored ? 'blog-featured-glow' : ''}`}
+      style={{ borderColor: post.featured && !sponsored ? 'rgba(212,175,55,0.45)' : 'var(--border)' }}
+    >
       {post.feature_image && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={post.feature_image} alt={post.feature_image_alt ?? post.title} className="w-full h-40 object-cover rounded-[14px] mb-4" />
       )}
-      <h3 className="font-serif text-[1.2rem] leading-snug mb-2 mt-0" style={{ color: 'var(--text-bright)' }}>{post.title}</h3>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <h3 className="font-serif text-[1.2rem] leading-snug mt-0 flex-1" style={{ color: 'var(--text-bright)' }}>{post.title}</h3>
+        {post.featured && !sponsored && (
+          <span className="text-sm leading-none shrink-0 mt-1" style={{ color: '#d4af37', textShadow: '0 0 6px rgba(212,175,55,0.7)' }} aria-label="Featured">✦</span>
+        )}
+        {sponsored && (
+          <span className="text-[10px] font-serif uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0" style={{ background: 'var(--bg-raised)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{sponsored}</span>
+        )}
+      </div>
       {excerpt && <p className="text-sm leading-relaxed mb-3 line-clamp-3 flex-1" style={{ color: 'var(--text-dim)' }}>{excerpt}</p>}
       <div className="flex items-center gap-3 text-xs mt-auto" style={{ color: 'var(--text-muted)' }}>
         {post.reading_time > 0 && <span className="flex items-center gap-1"><Clock size={11} /> {post.reading_time} min</span>}
@@ -45,8 +57,15 @@ function PostCard({ post }: { post: GhostPost }) {
 
 export default async function BlogTagPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const [tag, posts] = await Promise.all([getTagBySlug(slug), getPostsByTag(slug, 50)])
+  const [tag, allPosts] = await Promise.all([getTagBySlug(slug), getPostsByTag(slug, 50)])
   if (!tag) notFound()
+
+  // Pin featured posts first
+  const posts = [...allPosts].sort((a, b) => {
+    if (a.featured && !b.featured) return -1
+    if (!a.featured && b.featured) return 1
+    return 0
+  })
 
   return (
     <div className="min-h-screen" style={{ background: 'radial-gradient(circle at top center, var(--accent-glow), transparent 30%), linear-gradient(180deg, var(--bg-surface) 0%, var(--bg) 60%, var(--bg-surface) 100%)' }}>
