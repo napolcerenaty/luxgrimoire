@@ -39,7 +39,7 @@ export default async function FaqPage() {
           {ghostPage.title}
         </h1>
         <p className="text-stone-400 mb-12 text-sm">
-          Can&apos;t find your answer? <Link href="/contact" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">Contact us</Link>.
+          Can&apos;t find your answer? Visit our <Link href="/blog" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">Blog</Link> for guides and tips, or <Link href="/contact" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">contact us</Link> directly.
         </p>
         <div className="blog-post-content" dangerouslySetInnerHTML={{ __html: ghostPage.html }} />
       </div>
@@ -52,7 +52,7 @@ export default async function FaqPage() {
         Frequently Asked Questions
       </h1>
       <p className="text-stone-400 mb-12 text-sm">
-        Can&apos;t find your answer? <Link href="/contact" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">Contact us</Link>.
+        Can&apos;t find your answer? Visit our <Link href="/blog" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">Blog</Link> for guides and tips, or <Link href="/contact" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">contact us</Link> directly.
       </p>
       <div className="divide-y divide-stone-800">
         {FAQ_FALLBACK.map(({ q, a }) => (
