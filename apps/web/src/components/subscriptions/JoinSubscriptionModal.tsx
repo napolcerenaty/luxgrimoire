@@ -832,11 +832,12 @@ interface Step2Props {
   hasPrepayOptions?: boolean
   onDone: () => void
   onSkip: () => void
+  onBack: () => void
   onNextWithBilling?: (data: { selectedMonthIds: string[]; bookPrices: Record<string, string>; backfillOwnershipStatus: 'OWNED' | 'PREORDER' }) => void
   onBeforeBackfill?: () => Promise<void>
 }
 
-function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDone, onSkip, onNextWithBilling, onBeforeBackfill }: Step2Props) {
+function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDone, onSkip, onBack, onNextWithBilling, onBeforeBackfill }: Step2Props) {
   const [wantBackfill, setWantBackfill] = useState<boolean | null>(null)
   // monthId → 'selected' | 'skipped'
   const [choices, setChoices] = useState<Record<string, 'selected' | 'skipped'>>(() => {
@@ -939,18 +940,26 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
           There are <strong className="text-stone-100">{eligibleMonths.length}</strong> past box
           {eligibleMonths.length !== 1 ? 'es' : ''} to add to your collection.
         </p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setWantBackfill(true)}
-            className="flex-1 py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
-          >
-            Yes, add past boxes
-          </button>
-          <button
-            onClick={onSkip}
-            className="flex-1 py-2.5 px-4 rounded-lg border border-stone-600 text-stone-300 hover:text-stone-100 text-sm font-medium transition-colors"
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-3">
+            <button
+              onClick={() => setWantBackfill(true)}
+              className="flex-1 py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+            >
+              Yes, add past boxes
+            </button>
+            <button
+              onClick={onSkip}
+              className="flex-1 py-2.5 px-4 rounded-lg border border-stone-600 text-stone-300 hover:text-stone-100 text-sm font-medium transition-colors"
           >
             Skip
+          </button>
+          </div>
+          <button
+            onClick={onBack}
+            className="text-xs text-stone-500 hover:text-stone-300 transition-colors text-left"
+          >
+            ← Back
           </button>
         </div>
       </div>
@@ -1213,12 +1222,13 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, selected
       date: '',
       amount: '',
       shipping: '',
-      fees: entryFees.map(f => ({ name: f.name, amount: '', currency: f.currency, isCustom: false as const })),
+      fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })),
       discounts: [],
     }))
   })
 
   // Once feeTemplates load, prefill fee amounts from template defaultAmount where available
+  // (only fills empty amounts — user-entered values from entryFees are preserved)
   useEffect(() => {
     if (feeTemplates.length === 0) return
     setYesRows(prev => prev.map(row => ({
@@ -1232,7 +1242,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, selected
     })))
   }, [feeTemplates])
 
-  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', fees: entryFees.map(f => ({ name: f.name, amount: '', currency: f.currency, isCustom: false as const })), discounts: [] }]) }
+  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })), discounts: [] }]) }
   function removeRow(i: number) { setYesRows(prev => prev.filter((_, j) => j !== i)) }
   function updateRow(i: number, field: 'date' | 'amount' | 'shipping', val: string) {
     setYesRows(prev => prev.map((r, j) => j === i ? { ...r, [field]: val } : r))
@@ -1920,6 +1930,7 @@ export default function JoinSubscriptionModal({
             entry={joinResult.entry}
             hasPrepayOptions={(prepayOptions?.length ?? 0) > 0}
             onDone={() => { setStep('done'); onJoined() }}
+            onBack={() => setStep(1)}
             onSkip={async () => {
               if (step1JoinPayload) {
                 try { await performRealJoin(step1JoinPayload) } catch { /* ignore */ }

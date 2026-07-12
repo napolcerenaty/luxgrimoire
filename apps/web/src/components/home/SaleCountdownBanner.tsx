@@ -8,17 +8,19 @@ interface CountdownParts {
   days: number
   hours: number
   minutes: number
+  seconds: number
   expired: boolean
   within14Days: boolean
 }
 
 function getCountdown(target: Date): CountdownParts {
   const diffMs = target.getTime() - Date.now()
-  if (diffMs <= 0) return { days: 0, hours: 0, minutes: 0, expired: true, within14Days: true }
+  if (diffMs <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, expired: true, within14Days: true }
   const days = Math.floor(diffMs / 86400000)
   const hours = Math.floor((diffMs % 86400000) / 3600000)
   const minutes = Math.floor((diffMs % 3600000) / 60000)
-  return { days, hours, minutes, expired: false, within14Days: days <= 14 }
+  const seconds = Math.floor((diffMs % 60000) / 1000)
+  return { days, hours, minutes, seconds, expired: false, within14Days: days <= 14 }
 }
 
 function CountdownBox({ value, label }: { value: number; label: string }) {
@@ -43,7 +45,7 @@ export function SaleCountdownBanner({ announcements }: { announcements: ApiSaleA
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 60_000)
+    const id = setInterval(() => setTick((t) => t + 1), 1_000)
     return () => clearInterval(id)
   }, [])
 
@@ -82,6 +84,7 @@ export function SaleCountdownBanner({ announcements }: { announcements: ApiSaleA
             {countdown.days > 0 && <CountdownBox value={countdown.days} label="days" />}
             <CountdownBox value={countdown.hours} label="hrs" />
             <CountdownBox value={countdown.minutes} label="min" />
+            <CountdownBox value={countdown.seconds} label="sec" />
             <Link
               href={`/sale-announcements/${nextSale.id}`}
               className="mb-4 ml-1 rounded-full border border-stone-700 px-3 py-1 text-xs text-stone-400 transition-colors hover:border-stone-500 hover:text-stone-200"

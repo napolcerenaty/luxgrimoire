@@ -102,12 +102,14 @@ export class SaleInterestsService {
     const now = new Date();
     const today = new Date(now);
     today.setHours(0, 0, 0, 0);
+    // Broad first-pass: fetch any interest where at least one date is still upcoming.
+    // We then filter in code to respect the user's chosen tier (FA/EA/GS) for each sale.
     const rows = await this.prisma.userSaleInterest.findMany({
       where: {
         userId,
         announcement: {
           OR: [
-            // LIMITED_PREORDER / OVERSTOCK: any date >= today (still current day) OR explicit endsAt still active
+            // LIMITED_PREORDER / OVERSTOCK: any date >= today OR explicit endsAt still active
             {
               saleType: { in: ['LIMITED_PREORDER', 'OVERSTOCK'] },
               OR: [
@@ -128,6 +130,8 @@ export class SaleInterestsService {
             id: true,
             title: true,
             saleType: true,
+            firstAccessDate: true,
+            earlyAccessDate: true,
             generalSaleDate: true,
             endsAt: true,
             imageUrl: true,
@@ -135,22 +139,57 @@ export class SaleInterestsService {
           },
         },
       },
-      orderBy: { announcement: { generalSaleDate: 'asc' } },
-      take: limit,
     });
-    return rows;
+
+    // Resolve the tier-relevant date for each row, filter out sales whose tier date is past,
+    // then sort by that date and take limit.
+    const resolved = rows
+      .map(row => {
+        const ann = row.announcement;
+        let tierDate: Date | null = null;
+
+        if (ann.saleType === 'OPEN_PREORDER') {
+          // Open preorders have no tier gating — treat as always open until endsAt
+          tierDate = ann.endsAt ? new Date(ann.endsAt) : new Date(8640000000000000);
+        } else {
+          const fa = ann.firstAccessDate ? new Date(ann.firstAccessDate) : null;
+          const ea = ann.earlyAccessDate ? new Date(ann.earlyAccessDate) : null;
+          const gs = ann.generalSaleDate ? new Date(ann.generalSaleDate) : null;
+          const tier = row.tier ?? 'GS';
+          if (tier === 'FA') {
+            tierDate = fa ?? ea ?? gs;
+          } else if (tier === 'EA') {
+            tierDate = ea ?? gs;
+          } else {
+            tierDate = gs;
+          }
+        }
+        return { row, tierDate };
+      })
+      .filter(({ row, tierDate }) => {
+        if (!tierDate) return false;
+        if (row.announcement.saleType === 'OPEN_PREORDER') {
+          return row.announcement.endsAt == null || new Date(row.announcement.endsAt) > now;
+        }
+        return tierDate >= today;
+      })
+      .sort((a, b) => (a.tierDate!.getTime()) - (b.tierDate!.getTime()))
+      .slice(0, limit)
+      .map(({ row }) => row);
+
+    return resolved;
   }
 
   async getUpcomingCount(userId: string) {
     const now = new Date();
     const today = new Date(now);
     today.setHours(0, 0, 0, 0);
-    const count = await this.prisma.userSaleInterest.count({
+    // Broad first-pass fetch — then filter by tier-specific date in code (same logic as getUpcoming)
+    const rows = await this.prisma.userSaleInterest.findMany({
       where: {
         userId,
         announcement: {
           OR: [
-            // LIMITED_PREORDER / OVERSTOCK: any date >= today OR explicit endsAt still active
             {
               saleType: { in: ['LIMITED_PREORDER', 'OVERSTOCK'] },
               OR: [
@@ -160,12 +199,39 @@ export class SaleInterestsService {
                 { endsAt: { gt: now } },
               ],
             },
-            // OPEN_PREORDER: active if not expired
             { saleType: 'OPEN_PREORDER', OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
           ],
         },
       },
+      select: {
+        tier: true,
+        announcement: {
+          select: {
+            saleType: true,
+            firstAccessDate: true,
+            earlyAccessDate: true,
+            generalSaleDate: true,
+            endsAt: true,
+          },
+        },
+      },
     });
+
+    const count = rows.filter(row => {
+      const ann = row.announcement;
+      if (ann.saleType === 'OPEN_PREORDER') {
+        return ann.endsAt == null || new Date(ann.endsAt) > now;
+      }
+      const fa = ann.firstAccessDate ? new Date(ann.firstAccessDate) : null;
+      const ea = ann.earlyAccessDate ? new Date(ann.earlyAccessDate) : null;
+      const gs = ann.generalSaleDate ? new Date(ann.generalSaleDate) : null;
+      const tier = row.tier ?? 'GS';
+      let tierDate: Date | null;
+      if (tier === 'FA') tierDate = fa ?? ea ?? gs;
+      else if (tier === 'EA') tierDate = ea ?? gs;
+      else tierDate = gs;
+      return tierDate != null && tierDate >= today;
+    }).length;
 
     return { count };
   }

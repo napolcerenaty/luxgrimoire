@@ -1431,6 +1431,7 @@ export default function AdminSubscriptionsPage() {
   const { user } = useAuth()
   const createModal = useModalState()
   const [editSub, setEditSub] = useState<ApiSubscription | null>(null)
+  const [editSubLoading, setEditSubLoading] = useState(false)
   const [deleteSub, setDeleteSub] = useState<ApiSubscription | null>(null)
   const PAGE_SIZE = 15
 
@@ -1681,6 +1682,11 @@ export default function AdminSubscriptionsPage() {
       )}
 
       {/* Inline Edit panel */}
+      {editSubLoading && (
+        <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 text-center text-stone-400 text-sm">
+          Loading subscription…
+        </div>
+      )}
       {editSub && (
         <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
@@ -1737,7 +1743,17 @@ export default function AdminSubscriptionsPage() {
           <DataTable
             columns={columns}
             data={subs}
-            onEdit={(row) => { setEditSub(row); createModal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+            onEdit={async (row) => {
+              createModal.close()
+              setEditSubLoading(true)
+              try {
+                const full = await authFetch<ApiSubscription>(`/subscriptions/${row.slug}`)
+                setEditSub(full)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              } finally {
+                setEditSubLoading(false)
+              }
+            }}
             onDelete={isManager ? undefined : (row) => setDeleteSub(row)}
           />
           <Pagination page={page} totalPages={subsData?.totalPages ?? 1} onPageChange={setPage} total={subsData?.total} />

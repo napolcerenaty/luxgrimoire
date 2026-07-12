@@ -477,12 +477,12 @@ export class AiService {
     }
   }
 
-  async parse(input: { text?: string; imageUrl?: string }): Promise<AiParseResult> {
+  async parse(input: { text?: string; imageUrl?: string; imageBase64?: string }): Promise<AiParseResult> {
     if (!this.client) {
       throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
     }
-    if (!input.text && !input.imageUrl) {
-      throw new BadRequestException('Provide either text or imageUrl');
+    if (!input.text && !input.imageUrl && !input.imageBase64) {
+      throw new BadRequestException('Provide either text, imageUrl, or imageBase64');
     }
 
     // SSRF guard: never let users force the OpenAI vision endpoint to fetch
@@ -514,16 +514,20 @@ export class AiService {
       }
     }
 
+    const imageDataUrl = input.imageBase64
+      ? this.buildDataUrl(input.imageBase64)
+      : input.imageUrl ?? null;
+
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: SYSTEM_PROMPT },
     ];
 
-    if (input.imageUrl) {
+    if (imageDataUrl) {
       messages.push({
         role: 'user',
         content: [
           { type: 'text', text: 'Extract book edition information from this image:' },
-          { type: 'image_url', image_url: { url: input.imageUrl, detail: 'high' } },
+          { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
         ],
       });
     } else {
@@ -750,5 +754,72 @@ export class AiService {
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }
+  }
+
+  async parseSaleAnnouncementFromImage(imageBase64: string): Promise<AiSaleAnnouncementResult> {
+    if (!this.client) {
+      throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
+    }
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: SALE_ANNOUNCEMENT_PROMPT },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Extract sale announcement information from this screenshot:' },
+          { type: 'image_url', image_url: { url: this.buildDataUrl(imageBase64), detail: 'high' } },
+        ],
+      },
+    ];
+
+    const content = await this.callOpenAi({
+      model: 'gpt-4o',
+      messages,
+      response_format: { type: 'json_object' },
+      max_tokens: 2000,
+    });
+
+    try {
+      return normalizeSaleAnnouncementDates(JSON.parse(content) as AiSaleAnnouncementResult);
+    } catch {
+      throw new BadRequestException('AI returned invalid JSON');
+    }
+  }
+
+  async parseBookFromImage(imageBase64: string): Promise<AiBookResult> {
+    if (!this.client) {
+      throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
+    }
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: GOODREADS_BOOK_PROMPT },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Extract book information from this screenshot of a Goodreads book page:' },
+          { type: 'image_url', image_url: { url: this.buildDataUrl(imageBase64), detail: 'high' } },
+        ],
+      },
+    ];
+
+    const content = await this.callOpenAi({
+      model: 'gpt-4o',
+      messages,
+      response_format: { type: 'json_object' },
+      max_tokens: 800,
+    });
+
+    try {
+      return JSON.parse(content) as AiBookResult;
+    } catch {
+      throw new BadRequestException('AI returned invalid JSON');
+    }
+  }
+
+  /** Build a data: URL from a raw base64 string (with or without the data: prefix). */
+  private buildDataUrl(imageBase64: string): string {
+    if (imageBase64.startsWith('data:')) return imageBase64;
+    // Default to jpeg; OpenAI accepts jpeg, png, gif, webp
+    return `data:image/jpeg;base64,${imageBase64}`;
   }
 }

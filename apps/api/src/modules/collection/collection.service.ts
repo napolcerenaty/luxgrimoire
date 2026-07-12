@@ -28,7 +28,7 @@ export class CollectionService {
     return (this.prisma as PrismaService & { readingHistory: ReadingHistoryDelegate }).readingHistory;
   }
 
-  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string, search?: string, companyName?: string, tag?: string, signatureType?: string, readingStatus?: string, subscriptionId?: string) {
+  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string, search?: string, companyName?: string, tag?: string, signatureType?: string, readingStatus?: string, subscriptionId?: string, sortBy?: string) {
     const { skip, take, page: p } = parsePagination({ page, pageSize });
     pageSize = take;
     page = p;
@@ -111,6 +111,7 @@ export class CollectionService {
           ownershipStatus: true,
           readingStatus: true,
           acquiredAt: true,
+          createdAt: true,
           signatureType: true,
           trackingNumbers: { select: { id: true, trackingNumber: true, label: true, addedAt: true }, orderBy: { addedAt: 'asc' } },
           orderNumber: true,
@@ -179,7 +180,11 @@ export class CollectionService {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: ownershipStatus === 'SOLD' || ownershipStatus === 'GIFTED_AWAY'
+          ? { saleDate: 'desc' as const }
+          : sortBy === 'DATE_ASC'
+            ? [{ purchaseGroup: { purchasedAt: 'asc' as const } }, { acquiredAt: 'asc' as const }, { createdAt: 'asc' as const }]
+            : [{ purchaseGroup: { purchasedAt: 'desc' as const } }, { acquiredAt: 'desc' as const }, { createdAt: 'desc' as const }],
         skip,
         take: pageSize,
       }),

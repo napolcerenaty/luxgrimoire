@@ -476,4 +476,102 @@ describe('SubscriptionsService — joinSubscription', () => {
       expect(getMonthLte(ub, 2025)).toBe(1);
     });
   });
+
+  // ── Eligible months — upper bound for active sub (no cancellation date) ───
+  //
+  // When there is no cancellation date, the upper bound must still respect
+  // the renewal day: if today is before the renewal day, this month's renewal
+  // hasn't happened yet, so the current calendar month must be excluded.
+  //
+  // Regression: previously limitMonth was always now.getMonth()+1, which
+  // included the current month even before its renewal fired.
+
+  describe('eligible months — upper bound for active subscription respects today vs renewalDay', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    async function getUpperBoundActive(subOverrides: Record<string, unknown>, startDate: string, fakeNow: Date) {
+      jest.useFakeTimers();
+      jest.setSystemTime(fakeNow);
+      jest.clearAllMocks();
+      const sub = makeSub({ renewalDay: 1, renewalMonthOffset: 0, signupIncludesCurrentMonth: true, ...subOverrides });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ dryRun: true, startDate }));
+
+      const call = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls[0]?.[0];
+      const ub = call?.where?.AND?.[1]?.OR as Array<Record<string, unknown>> | undefined;
+      return ub;
+    }
+
+    function getMonthLte(ub: Array<Record<string, unknown>> | undefined, year: number) {
+      const clause = ub?.find((c) => c.year === year) as any;
+      return clause?.month?.lte as number | undefined;
+    }
+
+    function getYearLt(ub: Array<Record<string, unknown>> | undefined) {
+      const clause = ub?.find((c) => (c.year as any)?.lt !== undefined) as any;
+      return clause?.year?.lt as number | undefined;
+    }
+
+    // ── Bi-monthly sub, renewalDay=15: joined June 1 ──────────────────────
+
+    it('today July 12 (before renewalDay=15) → limit = June, July box excluded', async () => {
+      // Regression: user joined June 1 with signupIncludesCurrentMonth=true, bimonthly sub.
+      // July 15 renewal hasn't happened yet (today = July 12) → July must NOT appear.
+      const ub = await getUpperBoundActive(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2026-06-01',
+        new Date('2026-07-12T10:00:00Z'),
+      );
+      expect(getMonthLte(ub, 2026)).toBe(6); // limit = June
+      expect(getYearLt(ub)).toBe(2026);
+    });
+
+    it('today July 15 exactly (renewalDay=15 — boundary) → limit = July, July box included', async () => {
+      // On the renewal day itself, the renewal has happened → July is eligible.
+      const ub = await getUpperBoundActive(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2026-06-01',
+        new Date('2026-07-15T08:00:00Z'),
+      );
+      expect(getMonthLte(ub, 2026)).toBe(7); // limit = July
+      expect(getYearLt(ub)).toBe(2026);
+    });
+
+    it('today July 16 (after renewalDay=15) → limit = July, July box included', async () => {
+      const ub = await getUpperBoundActive(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2026-06-01',
+        new Date('2026-07-16T10:00:00Z'),
+      );
+      expect(getMonthLte(ub, 2026)).toBe(7); // limit = July
+      expect(getYearLt(ub)).toBe(2026);
+    });
+
+    it('today Jan 12 (before renewalDay=15) → limit = December previous year', async () => {
+      // Jan 15 hasn't happened yet; last billed = December → limit wraps to Dec of prev year.
+      const ub = await getUpperBoundActive(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2025-06-01',
+        new Date('2026-01-12T10:00:00Z'),
+      );
+      expect(getYearLt(ub)).toBe(2025);
+      expect(getMonthLte(ub, 2025)).toBe(12); // limit = December 2025
+    });
+
+    it('renewalDay=1 (always happened by any day) → limit = current month regardless of today', async () => {
+      // renewalDay=1 means nowDay >= 1 always true → current month always included.
+      const ub = await getUpperBoundActive(
+        { renewalDay: 1, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2026-01-01',
+        new Date('2026-07-03T10:00:00Z'),
+      );
+      expect(getMonthLte(ub, 2026)).toBe(7); // limit = July
+    });
+  });
 });

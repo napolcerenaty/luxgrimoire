@@ -17,6 +17,8 @@ interface DashboardCounts {
   saleRequestsPending: number
   bugReportsOpen: number
   featureRequestsPending: number
+  totalUsers: number
+  activeUsersLastWeek: number
 }
 
 // ─── Dashboard count card ──────────────────────────────────────────────────
@@ -200,6 +202,31 @@ export default function AdminDashboard() {
           )}
         </div>
       </section>
+
+      {/* Users overview */}
+      {isAdmin && (
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-stone-500 mb-3">Users</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <CountCard
+              href="/admin/users"
+              icon="👥"
+              label="Total Users"
+              count={counts?.totalUsers ?? 0}
+              countLabel={counts ? `${counts.totalUsers} registered` : '…'}
+              accent="blue"
+            />
+            <CountCard
+              href="/admin/users"
+              icon="🟢"
+              label="Active Users"
+              count={counts?.activeUsersLastWeek ?? 0}
+              countLabel={counts ? `${counts.activeUsersLastWeek} logged in last 7 days` : '…'}
+              accent="green"
+            />
+          </div>
+        </section>
+      )}
     </div>
   )
 }

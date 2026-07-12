@@ -641,7 +641,7 @@ function EditEntryCostsModal({
     entry.feeTemplates.map(f => ({
       templateId: f.feeTemplate.id,
       name: f.feeTemplate.name,
-      customAmount: f.customAmount ?? f.feeTemplate.defaultAmount ?? '',
+      customAmount: f.customAmount ?? '',
       customCurrency: f.customCurrency ?? f.feeTemplate.defaultCurrency,
     }))
   )

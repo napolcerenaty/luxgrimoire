@@ -262,6 +262,8 @@ export interface ApiSkipStatus {
   isUnskipPastDeadline: boolean;
   /** The next month the user can skip, or null if none available */
   targetMonth: { year: number; month: number } | null;
+  /** ISO date string (YYYY-MM-DD) of when the current skip window resets, or null */
+  windowResetDate: string | null;
 }
 
 export interface ApiSubscription {

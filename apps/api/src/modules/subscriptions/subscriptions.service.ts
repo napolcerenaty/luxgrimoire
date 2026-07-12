@@ -220,6 +220,7 @@ export class SubscriptionsService {
         shippingCountries: dto.shippingCountries ?? [],
         paymentOnStartup: dto.paymentOnStartup ?? false,
         signupIncludesCurrentMonth: dto.signupIncludesCurrentMonth ?? false,
+        renewalMonthOffset: dto.renewalMonthOffset ?? 0,
         contentType: dto.contentType,
         isHidden: dto.isHidden ?? false,
         isContentStream: dto.isContentStream ?? false,
@@ -1473,6 +1474,131 @@ export class SubscriptionsService {
     }));
   }
 
+  /** Lean endpoint for the calendar view — returns only the fields it actually renders. */
+  async getMySubscriptionsForCalendar(userId: string) {
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { userId, active: true },
+      select: {
+        id: true,
+        startDate: true,
+        renewalDay: true,
+        nextRenewalDate: true,
+        costCurrency: true,
+        basePrice: true,
+        shippingCost: true,
+        scheduledPrepayOption: {
+          select: { price: true, currency: true, months: true },
+        },
+        feeTemplates: {
+          select: {
+            customAmount: true,
+            customCurrency: true,
+            feeTemplate: { select: { defaultAmount: true, defaultCurrency: true } },
+          },
+        },
+        skipRecords: {
+          where: { undoneAt: null },
+          include: { month: { select: { year: true, month: true } } },
+        },
+        subscription: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            logoUrl: true,
+            logoAsset: { select: { id: true, publicId: true } },
+            coverImage: true,
+            coverImageAsset: { select: { id: true, publicId: true } },
+            currency: true,
+            renewalDay: true,
+            intervalMonths: true,
+            startingMonth: true,
+            renewalMonthOffset: true,
+            startDate: true,
+            priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
+            company: {
+              select: {
+                name: true,
+                slug: true,
+                brandColors: true,
+              },
+            },
+          },
+        },
+        purchaseGroups: {
+          where: { fromSubscription: true },
+          orderBy: { title: 'asc' },
+          take: 1,
+          select: { title: true },
+        },
+      },
+    });
+
+    return Promise.all(entries.map(async (entry) => {
+      const { priceChanges: subPriceChanges, ...subRest } = entry.subscription as any;
+      const sub = {
+        ...this.mapSubscriptionAssets(subRest),
+        price: this.computeCurrentPrice(subPriceChanges ?? [], subRest.currency),
+      };
+
+      let storedRenewalDate = (entry as any).nextRenewalDate as Date | null;
+      if (!storedRenewalDate) {
+        await refreshNextRenewalDate(this.prisma, entry.id);
+        const fresh = await this.prisma.userSubscriptionEntry.findUnique({
+          where: { id: entry.id },
+          select: { nextRenewalDate: true },
+        });
+        storedRenewalDate = fresh?.nextRenewalDate ?? null;
+      }
+
+      const cur = entry.costCurrency ?? sub.currency ?? null;
+      const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : null;
+      const shipping = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
+      const subCurrencyUp = cur?.toUpperCase() ?? '';
+      const scheduledPrepayOption = (entry as any).scheduledPrepayOption as { price: { toString(): string }; currency: string; months: number } | null;
+
+      let nextBase = fallbackBase;
+      if (scheduledPrepayOption) {
+        nextBase = parseFloat(scheduledPrepayOption.price.toString());
+      } else if (storedRenewalDate) {
+        const renewalYear = storedRenewalDate.getUTCFullYear();
+        const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
+        const firstPurchaseGroup = ((entry as any).purchaseGroups as Array<{ title: string }> | undefined)?.[0];
+        const userFirstBilledYearMonth = parseFirstBilledYearMonth(firstPurchaseGroup?.title, renewalYear, renewalMonth);
+        const resolved = resolveEffectiveBasePrice(subPriceChanges ?? [], renewalYear, renewalMonth, fallbackBase, entry.costCurrency, userFirstBilledYearMonth);
+        nextBase = resolved.price ?? fallbackBase;
+      }
+
+      const sameCurrencyFees = ((entry as any).feeTemplates as Array<{
+        customAmount: { toString(): string } | null;
+        customCurrency: string | null;
+        feeTemplate: { defaultAmount: { toString(): string } | null; defaultCurrency: string };
+      }>).reduce((sum, link) => {
+        const feeCur = (link.customCurrency ?? link.feeTemplate.defaultCurrency).toUpperCase();
+        if (feeCur !== subCurrencyUp) return sum;
+        const amt = parseFloat((link.customAmount ?? link.feeTemplate.defaultAmount ?? 0).toString());
+        return sum + (isNaN(amt) ? 0 : amt);
+      }, 0);
+
+      const nextRenewalAmount = nextBase !== null ? (nextBase + (shipping ?? 0) + sameCurrencyFees) : null;
+
+      const { skipRecords, feeTemplates: _ft, scheduledPrepayOption: _spo, purchaseGroups: _pg, ...rest } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown; purchaseGroups: unknown[] };
+      return {
+        id: rest.id,
+        active: true,
+        startDate: rest.startDate,
+        renewalDay: rest.renewalDay,
+        nextRenewalAmount: nextRenewalAmount !== null ? nextRenewalAmount.toFixed(2) : null,
+        nextRenewalCurrency: cur,
+        skipRecords,
+        subscription: {
+          ...sub,
+          startDate: entry.subscription.startDate,
+        },
+      };
+    }));
+  }
+
   async getOrphanedMembershipHistory(userId: string) {
     // Find all inactive entries for this user
     const inactiveEntries = await this.prisma.userSubscriptionEntry.findMany({
@@ -2173,8 +2299,23 @@ export class SubscriptionsService {
       limitYear = lastBoxLimitYear;
       limitMonth = lastBoxLimitMonth;
     } else {
-      limitYear = now.getFullYear();
-      limitMonth = now.getMonth() + 1;
+      // Apply the same renewal-day check for "now" — if today is before the renewal day,
+      // the current month's renewal hasn't happened yet so it shouldn't be included.
+      const nowDay = now.getDate();
+      const effectiveRenewalDayForLimit = renewalDay ?? 1;
+      const currentRenewalHappened = nowDay >= effectiveRenewalDayForLimit;
+      let lastBilledNowMonth = now.getMonth() + 1;
+      let lastBilledNowYear = now.getFullYear();
+      if (!currentRenewalHappened) {
+        lastBilledNowMonth -= 1;
+        if (lastBilledNowMonth === 0) { lastBilledNowMonth = 12; lastBilledNowYear -= 1; }
+      }
+      let lastBoxNowMonth = lastBilledNowMonth + renewalMonthOffset;
+      let lastBoxNowYear = lastBilledNowYear;
+      while (lastBoxNowMonth > 12) { lastBoxNowMonth -= 12; lastBoxNowYear += 1; }
+      while (lastBoxNowMonth < 1)  { lastBoxNowMonth += 12; lastBoxNowYear -= 1; }
+      limitYear = lastBoxNowYear;
+      limitMonth = lastBoxNowMonth;
     }
 
     // Determine the first eligible box month based on renewal cycle position.
@@ -2298,8 +2439,21 @@ export class SubscriptionsService {
       limitYear = lastBoxLimitYear;
       limitMonth = lastBoxLimitMonth;
     } else {
-      limitYear = now.getFullYear();
-      limitMonth = now.getMonth() + 1;
+      const nowDay = now.getDate();
+      const effectiveRenewalDayForLimit = renewalDay ?? 1;
+      const currentRenewalHappened = nowDay >= effectiveRenewalDayForLimit;
+      let lastBilledNowMonth = now.getMonth() + 1;
+      let lastBilledNowYear = now.getFullYear();
+      if (!currentRenewalHappened) {
+        lastBilledNowMonth -= 1;
+        if (lastBilledNowMonth === 0) { lastBilledNowMonth = 12; lastBilledNowYear -= 1; }
+      }
+      let lastBoxNowMonth = lastBilledNowMonth + renewalMonthOffset;
+      let lastBoxNowYear = lastBilledNowYear;
+      while (lastBoxNowMonth > 12) { lastBoxNowMonth -= 12; lastBoxNowYear += 1; }
+      while (lastBoxNowMonth < 1)  { lastBoxNowMonth += 12; lastBoxNowYear -= 1; }
+      limitYear = lastBoxNowYear;
+      limitMonth = lastBoxNowMonth;
     }
 
     // Same renewal-cycle-aware logic as getEligibleMonths.
@@ -2980,13 +3134,14 @@ export class SubscriptionsService {
           data: { billingPeriodId: periodId },
         });
 
-        // Add batch-level fees to this purchase group (divided by N if same currency)
+        // Add batch-level fees to this purchase group (always divided by N months)
+        // The fee amount entered by the user represents the total for the whole period.
         if (batch.fees?.length) {
           for (const f of batch.fees) {
             feesToCreate.push({
               userId,
               name: f.name,
-              amount: f.currency === batch.currency ? f.amount / batch.monthsCovered : f.amount,
+              amount: f.amount / batch.monthsCovered,
               currency: f.currency,
               date: purchasedAtDate,
               category: 'OTHER' as any,
@@ -2995,13 +3150,13 @@ export class SubscriptionsService {
           }
         }
 
-        // Add batch-level discounts to this purchase group (divided by N if same currency)
+        // Add batch-level discounts to this purchase group (always divided by N months)
         if (batch.discounts?.length) {
           for (const d of batch.discounts) {
             discountsToCreate.push({
               userId,
               name: d.name,
-              amount: d.currency === batch.currency ? d.amount / batch.monthsCovered : d.amount,
+              amount: d.amount / batch.monthsCovered,
               currency: d.currency,
               date: purchasedAtDate,
               purchaseGroupId: group.id,
@@ -3037,9 +3192,9 @@ export class SubscriptionsService {
         }
       }
 
-      // Fee templates once per purchase group — only when no batch fees were specified
-      // (batch.fees already handle the fees for that period explicitly)
-      if (!batch || !batch.fees?.length) {
+      // Fee templates once per purchase group — only when no billing batch was specified.
+      // When the user provided an explicit billing batch (even with no fees), respect their input.
+      if (!batch) {
         for (const link of (entry as any).feeTemplates ?? []) {
           const template = link.feeTemplate;
           const amount = link.customAmount ?? template.defaultAmount;
