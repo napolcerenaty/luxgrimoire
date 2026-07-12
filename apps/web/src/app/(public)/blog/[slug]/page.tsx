@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Clock, Calendar } from 'lucide-react'
-import { getPostBySlug, getPosts } from '@/lib/ghost'
+import { getPostBySlug, getPosts, getPostsByTag } from '@/lib/ghost'
 import BlogPostViewTracker from '@/components/blog/BlogPostViewTracker'
 
 export const revalidate = 60
@@ -41,6 +41,9 @@ export default async function BlogPostPage({
   const { slug } = await params
   const post = await getPostBySlug(slug)
   if (!post) notFound()
+
+  const tagSlug = post.primary_tag?.slug
+  const related = tagSlug ? await getPostsByTag(tagSlug, 3, slug) : []
 
   return (
     <div
@@ -142,17 +145,27 @@ export default async function BlogPostPage({
       </article>
 
       {/* CTA */}
-      <div className="max-w-[860px] mx-auto px-4 sm:px-6 pb-16">
-        <div className="blog-cta-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div>
-            <h3 className="font-serif text-xl mb-1.5 mt-0" style={{ color: 'var(--text-bright)' }}>Track Your Collection</h3>
-            <p className="m-0 text-sm" style={{ color: 'var(--text-dim)' }}>
-              Log variants, signatures and shelf notes in LuxGrimoire — the premium archive for special edition book collectors.
-            </p>
+      {related.length > 0 && (
+        <div className="max-w-[860px] mx-auto px-4 sm:px-6 pb-16">
+          <h2 className="font-serif text-xl mb-5 mt-0" style={{ color: 'var(--text-bright)' }}>
+            More from <span style={{ color: 'var(--accent-bright)' }}>{post.primary_tag?.name}</span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {related.map(r => (
+              <Link key={r.id} href={`/blog/${r.slug}`} className="group block rounded-[18px] border overflow-hidden transition-all duration-200 hover:border-[var(--accent-border)]" style={{ borderColor: 'var(--border)', background: 'var(--bg-surface)' }}>
+                {r.feature_image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={r.feature_image} alt={r.feature_image_alt ?? r.title} className="w-full h-28 object-cover" />
+                )}
+                <div className="p-4">
+                  <p className="font-serif text-sm leading-snug line-clamp-2 group-hover:text-[var(--accent-bright)] transition-colors" style={{ color: 'var(--text-bright)' }}>{r.title}</p>
+                  {r.reading_time > 0 && <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>{r.reading_time} min read</p>}
+                </div>
+              </Link>
+            ))}
           </div>
-          <Link href="/" className="blog-btn-primary shrink-0">Open the App →</Link>
         </div>
-      </div>
+      )}
     </div>
   )
 }

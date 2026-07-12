@@ -76,6 +76,18 @@ export async function getPage(slug: string): Promise<GhostPost | null> {
   return data?.pages?.[0] ?? null
 }
 
+export async function getPostsByTag(tagSlug: string, limit = 4, excludeSlug?: string): Promise<GhostPost[]> {
+  const data = await ghostFetch<{ posts: GhostPost[] }>('posts', {
+    include: 'tags,authors',
+    limit: String(limit + 1),
+    order: 'published_at DESC',
+    filter: `tag:${tagSlug}`,
+    fields: 'id,title,slug,excerpt,custom_excerpt,feature_image,feature_image_alt,reading_time,published_at,updated_at',
+  })
+  const posts = data?.posts ?? []
+  return posts.filter(p => p.slug !== excludeSlug).slice(0, limit)
+}
+
 export async function getTags(limit = 20): Promise<GhostTag[]> {
   const data = await ghostFetch<{ tags: GhostTag[] }>('tags', {
     limit: String(limit),
