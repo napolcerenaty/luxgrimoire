@@ -544,7 +544,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
               type="button"
               onClick={parseBdArtists}
               disabled={bdParsing || !bdArtistsText.trim()}
-              className="mt-1 flex items-center gap-1.5 text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 px-2.5 py-1 rounded-lg hover:bg-violet-500/30 disabled:opacity-50 transition-colors"
+              className="mt-1 flex items-center gap-1.5 text-xs bg-amber-500/20 text-stone-100 border border-amber-500/30 px-2.5 py-1 rounded-lg hover:bg-amber-500/30 disabled:opacity-50 transition-colors"
             >
               <Sparkles size={12} />
               {bdParsing ? 'Parsing…' : 'Parse with AI'}
@@ -554,8 +554,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                 {bdArtists.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <div className="text-xs text-stone-500">Artists (applied to each edition):</div>
-                      <button type="button" onClick={() => setBdArtists([])} className="text-xs text-stone-500 hover:text-red-400">Clear all</button>
+                      <div className="text-xs text-stone-400">Artists (applied to each edition):</div>
+                      <button type="button" onClick={() => setBdArtists([])} className="text-xs text-stone-400 hover:text-red-400">Clear all</button>
                     </div>
                     <div className="space-y-1">
                       {bdArtists.map((a, i) => (
@@ -563,28 +563,28 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                           <div className="flex flex-col shrink-0 justify-center mr-0.5">
                             <button type="button" disabled={i === 0}
                               onClick={() => setBdArtists(prev => { const arr = [...prev]; [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; return arr })}
-                              className="text-stone-400 dark:text-stone-500 hover:text-amber-500 dark:hover:text-amber-300 disabled:opacity-20 leading-none text-[10px]">▲</button>
+                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▲</button>
                             <button type="button" disabled={i === bdArtists.length - 1}
                               onClick={() => setBdArtists(prev => { const arr = [...prev]; [arr[i], arr[i+1]] = [arr[i+1], arr[i]]; return arr })}
-                              className="text-stone-400 dark:text-stone-500 hover:text-amber-500 dark:hover:text-amber-300 disabled:opacity-20 leading-none text-[10px]">▼</button>
+                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▼</button>
                           </div>
-                          <span className="text-stone-400 dark:text-stone-500 text-[10px] w-4 shrink-0 text-right pt-1">{i + 1}.</span>
+                          <span className="text-stone-400 text-[10px] w-4 shrink-0 text-right pt-1">{i + 1}.</span>
                           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                             <input
-                              className="w-full bg-transparent border-b border-amber-500/30 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-xs text-stone-900 dark:text-amber-200 px-1 py-0.5 placeholder:text-stone-400"
+                              className="w-full bg-transparent border-b border-amber-500/30 focus:border-amber-500 outline-none text-xs text-stone-100 px-1 py-0.5 placeholder:text-stone-500"
                               value={a.name}
                               onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                               placeholder="Name"
                             />
                             <input
-                              className="w-full bg-transparent border-b border-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-xs text-stone-700 dark:text-amber-400 px-1 py-0.5 placeholder:text-stone-400"
+                              className="w-full bg-transparent border-b border-amber-500/20 focus:border-amber-500 outline-none text-xs text-stone-300 px-1 py-0.5 placeholder:text-stone-500"
                               value={a.role}
                               onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
                               placeholder="Role"
                             />
                           </div>
                           <button type="button" onClick={() => setBdArtists(prev => prev.filter((_, j) => j !== i))}
-                            className="text-stone-400 dark:text-stone-500 hover:text-red-500 dark:hover:text-red-400 shrink-0 px-0.5 self-start pt-1">×</button>
+                            className="text-stone-400 hover:text-red-400 shrink-0 px-0.5 self-start pt-1">×</button>
                         </div>
                       ))}
                     </div>
@@ -593,8 +593,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                 {bdFeatureTags.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <div className="text-xs text-stone-500">Features (applied to each edition):</div>
-                      <button type="button" onClick={() => setBdFeatureTags([])} className="text-xs text-stone-500 hover:text-red-400">Clear all</button>
+                      <div className="text-xs text-stone-400">Features (applied to each edition):</div>
+                      <button type="button" onClick={() => setBdFeatureTags([])} className="text-xs text-stone-400 hover:text-red-400">Clear all</button>
                     </div>
                     <div className="space-y-1">
                       {bdFeatureTags.map((t, i) => (
@@ -602,25 +602,25 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                           <div className="flex flex-col mr-0.5">
                             <button type="button" disabled={i === 0}
                               onClick={() => setBdFeatureTags(prev => { const arr = [...prev]; [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; return arr })}
-                              className="text-stone-400 dark:text-stone-500 hover:text-violet-600 dark:hover:text-violet-300 disabled:opacity-20 leading-none text-[10px]">▲</button>
+                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▲</button>
                             <button type="button" disabled={i === bdFeatureTags.length - 1}
                               onClick={() => setBdFeatureTags(prev => { const arr = [...prev]; [arr[i], arr[i+1]] = [arr[i+1], arr[i]]; return arr })}
-                              className="text-stone-400 dark:text-stone-500 hover:text-violet-600 dark:hover:text-violet-300 disabled:opacity-20 leading-none text-[10px]">▼</button>
+                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▼</button>
                           </div>
-                          <span className="text-stone-400 dark:text-stone-500 text-[10px] w-4 shrink-0 text-right">{i + 1}.</span>
+                          <span className="text-stone-400 text-[10px] w-4 shrink-0 text-right">{i + 1}.</span>
                           <input
-                            className="flex-1 min-w-0 bg-transparent border-b border-violet-500/30 focus:border-violet-600 dark:focus:border-violet-400 outline-none text-xs text-stone-900 dark:text-violet-200 px-1 py-0.5 placeholder:text-stone-400"
+                            className="flex-1 min-w-0 bg-transparent border-b border-violet-500/30 focus:border-violet-400 outline-none text-xs text-stone-100 px-1 py-0.5 placeholder:text-stone-500"
                             value={t.rawValue}
                             onChange={e => setBdFeatureTags(prev => prev.map((x, j) => j === i ? { ...x, rawValue: e.target.value } : x))}
                             placeholder="Feature"
                           />
                           {t.categories.length > 0 && (
-                            <span className="text-[10px] text-violet-700 dark:text-violet-500 shrink-0 max-w-[80px] truncate" title={t.categories.join(', ')}>
+                            <span className="text-[10px] text-stone-400 shrink-0 max-w-[80px] truncate" title={t.categories.join(', ')}>
                               {t.categories.join(', ')}
                             </span>
                           )}
                           <button type="button" onClick={() => setBdFeatureTags(prev => prev.filter((_, j) => j !== i))}
-                            className="text-stone-400 dark:text-stone-500 hover:text-red-500 dark:hover:text-red-400 shrink-0 px-0.5">×</button>
+                            className="text-stone-400 hover:text-red-400 shrink-0 px-0.5">×</button>
                         </div>
                       ))}
                     </div>
