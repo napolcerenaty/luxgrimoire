@@ -173,17 +173,6 @@ export default async function BlogPage() {
           </section>
         ))}
 
-        {/* ── Quote ── */}
-        {posts.length > 0 && (
-          <section className="pt-10">
-            <blockquote className="blog-quote-card m-0">
-              <p className="font-serif italic text-[clamp(1.2rem,3vw,1.7rem)] leading-[1.45] m-0" style={{ color: 'var(--text-bright)' }}>
-                Collectors remember not only the book they bought, but the exact form of longing that led them to it.
-              </p>
-              <cite className="block mt-3 not-italic text-base" style={{ color: 'var(--text-dim)' }}>— LuxGrimoire</cite>
-            </blockquote>
-          </section>
-        )}
 
         {/* ── CTA ── */}
         <section className="pt-6">
