@@ -924,8 +924,8 @@ export function EditionFieldsSection({
         {artists.length > 0 && (
           <div className="space-y-2">
             {artists.map((art, i) => (
-              <div key={i} className="flex flex-col sm:flex-row gap-2 items-start">
-                <div className="flex-1">
+              <div key={i} className="flex flex-col gap-2">
+                <div className="flex-1 w-full">
                   {art.id ? (
                     <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
                       {!art.existing && art.id && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
@@ -954,12 +954,14 @@ export function EditionFieldsSection({
                       onAdd={(a: PersonEntry) => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: a.id, name: a.name } : x))} />
                   )}
                 </div>
+                <div className="flex gap-2 items-center">
                 <input value={art.role}
                   onChange={e => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
                   placeholder="Role (e.g. cover art, map…)"
-                  className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-xs" />
+                  className="flex-1 w-full bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm" />
                 <button type="button" onClick={() => handleRemoveArtist(i)}
-                  className="mt-2 text-red-400 hover:text-red-300 text-xs">✕</button>
+                  className="text-red-400 hover:text-red-300 text-xs shrink-0">✕</button>
+                </div>
               </div>
             ))}
           </div>
