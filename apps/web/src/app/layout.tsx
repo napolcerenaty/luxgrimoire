@@ -59,7 +59,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" data-theme={theme} suppressHydrationWarning>
-      <body className="bg-stone-950 text-stone-200 min-h-screen font-sans antialiased overflow-x-hidden">
+      <body className="bg-stone-950 text-stone-200 min-h-screen font-sans antialiased [overflow-x:clip]">
         <Providers initialTheme={theme}>
           <DevBanner />
           <Navbar />
