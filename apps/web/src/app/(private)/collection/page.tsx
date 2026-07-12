@@ -563,8 +563,8 @@ export default function CollectionPage() {
   // Paginated collection accumulation
   // Initialize from React Query cache so back-navigation doesn't flash an empty list
   const [allEntries, setAllEntries] = useState<CollectionEntry[]>(() => {
-    const cached = queryClient.getQueryData<CollectionEntry[]>(['collection', false])
-    return cached ?? []
+    const cached = queryClient.getQueryData<{ data: CollectionEntry[]; total: number }>(['collection', false, loadPrefs().sortOrder])
+    return cached?.data ?? []
   })
   const [collectionTotal, setCollectionTotal] = useState(0)
   const [collectionPage, setCollectionPage] = useState(1)
@@ -595,16 +595,22 @@ export default function CollectionPage() {
     setCollectionPage(1)
   }, [sortOrder])
 
-  const { isLoading: entriesLoading } = useQuery({
+  const { isLoading: entriesLoading, data: collectionQueryData } = useQuery({
     queryKey: ['collection', false, sortOrder],
     queryFn: async () => {
       const r = await authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?isWishlist=false&pageSize=100&sortBy=${sortOrder}`)
-      setAllEntries(r.data)
-      setCollectionTotal(r.total)
-      setCollectionPage(1)
-      return r.data
+      return r
     },
   })
+
+  // Sync query result (including cached hits) into local state
+  useEffect(() => {
+    if (collectionQueryData) {
+      setAllEntries(collectionQueryData.data)
+      setCollectionTotal(collectionQueryData.total)
+      setCollectionPage(1)
+    }
+  }, [collectionQueryData])
   const entries = allEntries
 
   // Unified server-side filtered query — activates when any filter is set
@@ -623,17 +629,23 @@ export default function CollectionPage() {
     return params
   }, [sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced, sortOrder])
 
-  const { isFetching: filterLoading } = useQuery({
+  const { isFetching: filterLoading, data: filteredQueryData } = useQuery({
     queryKey: ['collection-filtered', sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced, sortOrder],
     queryFn: async () => {
       const r = await authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?${buildFilterParams(1)}`)
-      setFilteredEntries(r.data)
-      setFilteredTotal(r.total)
-      setFilteredPage(1)
       return r
     },
     enabled: hasActiveFilters,
   })
+
+  // Sync filtered query result (including cached hits) into local state
+  useEffect(() => {
+    if (filteredQueryData && hasActiveFilters) {
+      setFilteredEntries(filteredQueryData.data)
+      setFilteredTotal(filteredQueryData.total)
+      setFilteredPage(1)
+    }
+  }, [filteredQueryData, hasActiveFilters])
 
   // Clear filtered results when all filters are removed
   useEffect(() => {
