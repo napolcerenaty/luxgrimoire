@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Clock } from 'lucide-react'
 import { getPosts, getTags, type GhostPost } from '@/lib/ghost'
+import BlogViewTracker from '@/components/blog/BlogViewTracker'
 
 export const revalidate = 60
 
@@ -101,6 +102,7 @@ export default async function BlogPage() {
       className="min-h-screen"
       style={{ background: 'radial-gradient(circle at top center, var(--accent-glow), transparent 30%), linear-gradient(180deg, var(--bg-surface) 0%, var(--bg) 60%, var(--bg-surface) 100%)' }}
     >
+      <BlogViewTracker />
       <div className="max-w-[1300px] mx-auto px-4 sm:px-6 pb-16">
 
         {/* ── Hero mosaic ── */}

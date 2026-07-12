@@ -33,6 +33,7 @@ const METRICS = [
   { id: 'search',                label: 'Searches',                       defaultGroupBy: 'value'  },
   { id: 'search_no_results',     label: 'Searches — No Results',          defaultGroupBy: 'value'  },
   { id: 'account_delete',        label: 'Account Deletions',              defaultGroupBy: 'user'   },
+  { id: 'blog_view',             label: 'Blog Page Views',                defaultGroupBy: 'day'    },
 ]
 
 const GROUP_BY_OPTIONS = [
