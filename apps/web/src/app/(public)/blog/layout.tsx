@@ -3,6 +3,7 @@ import { getTags } from '@/lib/ghost'
 import BlogNavLogo from '@/components/blog/BlogNavLogo'
 import BlogFooter from '@/components/blog/BlogFooter'
 import BlogThemeToggle from '@/components/blog/BlogThemeToggle'
+import BlogSearchButton from '@/components/blog/BlogSearchButton'
 
 export default async function BlogLayout({ children }: { children: React.ReactNode }) {
   const tags = await getTags(12).catch(() => [])
@@ -26,6 +27,7 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
             </Link>
 
             <div className="ml-auto flex items-center gap-2">
+              <BlogSearchButton />
               <BlogThemeToggle />
               <Link
                 href="/"
