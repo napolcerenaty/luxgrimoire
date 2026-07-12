@@ -43,12 +43,13 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
                 All
               </Link>
               {tags.map(tag => (
-                <span
+                <Link
                   key={tag.id}
-                  className="shrink-0 inline-flex items-center h-7 px-3 rounded-full border border-stone-700 text-xs font-serif uppercase tracking-wide text-stone-400 hover:text-amber-400 hover:border-amber-700 transition-colors whitespace-nowrap cursor-default"
+                  href={`/blog/tag/${tag.slug}`}
+                  className="shrink-0 inline-flex items-center h-7 px-3 rounded-full border border-stone-700 text-xs font-serif uppercase tracking-wide text-stone-400 hover:text-amber-400 hover:border-amber-700 transition-colors whitespace-nowrap"
                 >
                   {tag.name}
-                </span>
+                </Link>
               ))}
             </nav>
           )}

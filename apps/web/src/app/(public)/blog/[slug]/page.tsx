@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Clock, Calendar } from 'lucide-react'
 import { getPostBySlug, getPosts, getPostsByTag } from '@/lib/ghost'
 import BlogPostViewTracker from '@/components/blog/BlogPostViewTracker'
+import BlogPostContent from '@/components/blog/BlogPostContent'
 
 export const revalidate = 60
 
@@ -124,12 +125,7 @@ export default async function BlogPostPage({
         )}
 
         {/* Ghost HTML content */}
-        {post.html && (
-          <div
-            className="blog-post-content"
-            dangerouslySetInnerHTML={{ __html: post.html }}
-          />
-        )}
+        {post.html && <BlogPostContent html={post.html} />}
 
         {/* Back link */}
         <div className="mt-12 pt-8" style={{ borderTop: '1px solid var(--border)' }}>
