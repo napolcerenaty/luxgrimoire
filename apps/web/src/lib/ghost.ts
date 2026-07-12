@@ -10,9 +10,32 @@ export interface GhostPost {
   reading_time: number
   published_at: string
   updated_at: string
+  featured: boolean
   tags: GhostTag[]
   authors: GhostAuthor[]
   primary_tag: GhostTag | null
+}
+
+// ── Tag slug helpers ───────────────────────────────────────────────────────────
+// Ghost internal tags (#name) are stored with slug "hash-name"
+export function hasInternalTag(post: GhostPost, name: string): boolean {
+  const slug = 'hash-' + name.replace(/^#/, '').toLowerCase()
+  return post.tags.some(t => t.slug === slug)
+}
+
+const SPONSORED_LABELS: Record<string, string> = {
+  'hash-sponsored':   'Sponsored',
+  'hash-paid-collab': 'Paid collaboration',
+  'hash-gifted':      'Gifted',
+  'hash-press-copy':  'Press copy',
+  'hash-barter':      'Barter',
+}
+
+export function getSponsoredLabel(post: GhostPost): string | null {
+  for (const tag of post.tags) {
+    if (SPONSORED_LABELS[tag.slug]) return SPONSORED_LABELS[tag.slug]
+  }
+  return null
 }
 
 export interface GhostTag {

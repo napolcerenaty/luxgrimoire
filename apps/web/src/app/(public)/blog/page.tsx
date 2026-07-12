@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Clock } from 'lucide-react'
-import { getPosts, getTags, type GhostPost } from '@/lib/ghost'
+import { getPosts, getTags, hasInternalTag, getSponsoredLabel, type GhostPost } from '@/lib/ghost'
 import BlogViewTracker from '@/components/blog/BlogViewTracker'
 
 export const revalidate = 60
@@ -16,20 +16,25 @@ function formatDate(iso: string) {
 }
 
 function HeroPanel({ post, large }: { post: GhostPost; large?: boolean }) {
+  const sponsored = getSponsoredLabel(post)
   return (
     <article
-      className={`relative overflow-hidden rounded-[28px] border transition-all duration-[220ms] cursor-pointer blog-panel-card group ${large ? 'min-h-[458px]' : 'min-h-[220px]'}`}
-      style={{ borderColor: 'var(--border)' }}
+      className={`relative overflow-hidden rounded-[28px] border transition-all duration-[220ms] cursor-pointer blog-panel-card group ${large ? 'min-h-[458px]' : 'min-h-[220px]'} ${post.featured ? 'blog-featured-glow' : ''}`}
+      style={{ borderColor: post.featured ? 'rgba(212,175,55,0.6)' : 'var(--border)' }}
     >
       {post.feature_image ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={post.feature_image}
-          alt={post.feature_image_alt ?? post.title}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        <img src={post.feature_image} alt={post.feature_image_alt ?? post.title} className="absolute inset-0 w-full h-full object-cover" />
       ) : null}
       <div className="absolute inset-0 blog-panel-overlay" />
+      {/* Featured star */}
+      {post.featured && !sponsored && (
+        <span className="absolute top-4 right-4 text-base leading-none" style={{ color: '#d4af37', textShadow: '0 0 8px rgba(212,175,55,0.8)' }} aria-label="Featured">✦</span>
+      )}
+      {/* Sponsored badge */}
+      {sponsored && (
+        <span className="absolute top-4 right-4 text-[10px] font-serif uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ background: 'rgba(100,100,100,0.55)', color: 'rgba(220,220,220,0.85)', backdropFilter: 'blur(4px)' }}>{sponsored}</span>
+      )}
       <div className="absolute bottom-0 left-0 right-0 p-[22px]">
         {post.primary_tag && (
           <span className="blog-panel-category">{post.primary_tag.name}</span>
@@ -46,16 +51,10 @@ function HeroPanel({ post, large }: { post: GhostPost; large?: boolean }) {
         <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: 'rgba(200,230,255,0.75)' }}>
           {post.authors[0] && <span>{post.authors[0].name}</span>}
           {post.reading_time > 0 && (
-            <>
-              <span className="opacity-50">·</span>
-              <span className="flex items-center gap-1"><Clock size={12} /> {post.reading_time} min</span>
-            </>
+            <><span className="opacity-50">·</span><span className="flex items-center gap-1"><Clock size={12} /> {post.reading_time} min</span></>
           )}
           {post.published_at && (
-            <>
-              <span className="opacity-50">·</span>
-              <span>{formatDate(post.published_at)}</span>
-            </>
+            <><span className="opacity-50">·</span><span>{formatDate(post.published_at)}</span></>
           )}
         </div>
       </div>
@@ -65,13 +64,25 @@ function HeroPanel({ post, large }: { post: GhostPost; large?: boolean }) {
 
 function GuideCard({ post }: { post: GhostPost }) {
   const excerpt = post.custom_excerpt ?? post.excerpt
+  const sponsored = getSponsoredLabel(post)
   return (
-    <article className="rounded-[24px] border p-5 h-full flex flex-col transition-all duration-[220ms] cursor-pointer blog-guide-card" style={{ borderColor: 'var(--border)' }}>
-      {post.primary_tag && (
-        <div className="text-xs font-serif uppercase tracking-[0.08em] mb-3" style={{ color: 'var(--text-muted)' }}>
-          {post.primary_tag.name}
-        </div>
-      )}
+    <article
+      className={`rounded-[24px] border p-5 h-full flex flex-col transition-all duration-[220ms] cursor-pointer blog-guide-card ${post.featured && !sponsored ? 'blog-featured-glow' : ''}`}
+      style={{ borderColor: post.featured && !sponsored ? 'rgba(212,175,55,0.45)' : 'var(--border)' }}
+    >
+      <div className="flex items-start justify-between gap-2 mb-3">
+        {post.primary_tag ? (
+          <div className="text-xs font-serif uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>
+            {post.primary_tag.name}
+          </div>
+        ) : <div />}
+        {post.featured && !sponsored && (
+          <span className="text-sm leading-none shrink-0" style={{ color: '#d4af37', textShadow: '0 0 6px rgba(212,175,55,0.7)' }} aria-label="Featured">✦</span>
+        )}
+        {sponsored && (
+          <span className="text-[10px] font-serif uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0" style={{ background: 'var(--bg-raised)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{sponsored}</span>
+        )}
+      </div>
       <h3 className="font-serif text-[1.35rem] leading-[1.18] mb-2.5 mt-0" style={{ color: 'var(--text-bright)' }}>
         {post.title}
       </h3>
@@ -85,21 +96,46 @@ function GuideCard({ post }: { post: GhostPost }) {
 
 export default async function BlogPage() {
   const [posts, tags, features] = await Promise.all([
-    getPosts(20),
+    getPosts(30),
     getTags(),
     fetch(`${process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/homepage-features`, { next: { revalidate: 60 } })
       .then(r => r.ok ? r.json() : [])
       .catch(() => []) as Promise<{ title: string; description: string }[]>,
   ])
-  const hero = posts.slice(0, 3)
-  const rest = posts.slice(3)
+
   const featureDesc = features?.[0]?.description ?? 'Add editions, track ownership status (preorder, shipping, own, sold) and reading status — all in one place.'
+
+  // ── Hero selection ────────────────────────────────────────────────
+  // Large = newest post regardless of featured status
+  const heroLarge = posts[0] ?? null
+
+  // Small slots: prefer #hero-1 / #hero-2 tags, fallback to newest featured
+  const featuredPosts = posts.filter(p => p.featured && p.slug !== heroLarge?.slug)
+  const heroSlot1 =
+    posts.find(p => hasInternalTag(p, 'hero-1') && p.slug !== heroLarge?.slug) ??
+    featuredPosts[0] ?? null
+  const heroSlot2 =
+    posts.find(p => hasInternalTag(p, 'hero-2') && p.slug !== heroLarge?.slug && p.slug !== heroSlot1?.slug) ??
+    featuredPosts.find(p => p.slug !== heroSlot1?.slug) ?? null
+
+  const heroSlugs = new Set([heroLarge?.slug, heroSlot1?.slug, heroSlot2?.slug].filter(Boolean) as string[])
+
+  // ── Category sections (excluding hero posts) ──────────────────────
+  const rest = posts.filter(p => !heroSlugs.has(p.slug))
 
   const byTag: Map<string, { name: string; slug: string; posts: GhostPost[] }> = new Map()
   for (const post of rest) {
     const key = post.primary_tag?.slug ?? 'more'
     if (!byTag.has(key)) byTag.set(key, { name: post.primary_tag?.name ?? 'More Posts', slug: key, posts: [] })
     byTag.get(key)!.posts.push(post)
+  }
+  // Pin featured posts first in each category
+  for (const group of byTag.values()) {
+    group.posts.sort((a, b) => {
+      if (a.featured && !b.featured) return -1
+      if (!a.featured && b.featured) return 1
+      return 0
+    })
   }
 
   return (
@@ -112,20 +148,20 @@ export default async function BlogPage() {
 
         {/* ── Hero mosaic ── */}
         <section aria-label="Featured posts">
-          {hero.length > 0 ? (
+          {heroLarge ? (
             <div className="grid grid-cols-1 lg:grid-cols-[1.45fr_1fr] gap-[18px] pt-6">
-              <Link href={`/blog/${hero[0].slug}`} className="block">
-                <HeroPanel post={hero[0]} large />
+              <Link href={`/blog/${heroLarge.slug}`} className="block">
+                <HeroPanel post={heroLarge} large />
               </Link>
               <div className="grid gap-[18px]" style={{ gridTemplateRows: 'repeat(2, minmax(220px, 1fr))' }}>
-                {hero[1] && (
-                  <Link href={`/blog/${hero[1].slug}`} className="block">
-                    <HeroPanel post={hero[1]} />
+                {heroSlot1 && (
+                  <Link href={`/blog/${heroSlot1.slug}`} className="block">
+                    <HeroPanel post={heroSlot1} />
                   </Link>
                 )}
-                {hero[2] && (
-                  <Link href={`/blog/${hero[2].slug}`} className="block">
-                    <HeroPanel post={hero[2]} />
+                {heroSlot2 && (
+                  <Link href={`/blog/${heroSlot2.slug}`} className="block">
+                    <HeroPanel post={heroSlot2} />
                   </Link>
                 )}
               </div>

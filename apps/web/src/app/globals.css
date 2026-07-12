@@ -262,6 +262,13 @@ input[type=number] {
   transform: translateY(-3px);
   border-color: var(--accent) !important;
 }
+.blog-featured-glow {
+  box-shadow: 0 0 0 1px rgba(212,175,55,0.3), 0 8px 32px rgba(212,175,55,0.12);
+}
+.blog-featured-glow:hover {
+  box-shadow: 0 0 0 1px rgba(212,175,55,0.55), 0 16px 44px rgba(212,175,55,0.22) !important;
+  border-color: rgba(212,175,55,0.7) !important;
+}
 .blog-panel-overlay {
   background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 55%, transparent 100%);
 }
