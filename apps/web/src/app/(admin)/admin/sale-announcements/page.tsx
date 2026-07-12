@@ -559,8 +559,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                     </div>
                     <div className="space-y-1">
                       {bdArtists.map((a, i) => (
-                        <div key={i} className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-1">
-                          <div className="flex flex-col mr-0.5">
+                        <div key={i} className="flex gap-1 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-1">
+                          <div className="flex flex-col shrink-0 justify-center mr-0.5">
                             <button type="button" disabled={i === 0}
                               onClick={() => setBdArtists(prev => { const arr = [...prev]; [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; return arr })}
                               className="text-stone-500 hover:text-amber-300 disabled:opacity-20 leading-none text-[10px]">▲</button>
@@ -568,21 +568,23 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                               onClick={() => setBdArtists(prev => { const arr = [...prev]; [arr[i], arr[i+1]] = [arr[i+1], arr[i]]; return arr })}
                               className="text-stone-500 hover:text-amber-300 disabled:opacity-20 leading-none text-[10px]">▼</button>
                           </div>
-                          <span className="text-stone-500 text-[10px] w-4 shrink-0 text-right">{i + 1}.</span>
-                          <input
-                            className="flex-1 min-w-0 bg-transparent border-b border-amber-500/30 focus:border-amber-400 outline-none text-xs text-amber-200 px-1 py-0.5"
-                            value={a.name}
-                            onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
-                            placeholder="Name"
-                          />
-                          <input
-                            className="w-28 shrink-0 bg-transparent border-b border-amber-500/30 focus:border-amber-400 outline-none text-xs text-amber-400 px-1 py-0.5"
-                            value={a.role}
-                            onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
-                            placeholder="Role"
-                          />
+                          <span className="text-stone-500 text-[10px] w-4 shrink-0 text-right pt-1">{i + 1}.</span>
+                          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                            <input
+                              className="w-full bg-transparent border-b border-amber-500/30 focus:border-amber-400 outline-none text-xs text-amber-200 px-1 py-0.5"
+                              value={a.name}
+                              onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                              placeholder="Name"
+                            />
+                            <input
+                              className="w-full bg-transparent border-b border-amber-500/20 focus:border-amber-400 outline-none text-xs text-amber-400 px-1 py-0.5"
+                              value={a.role}
+                              onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
+                              placeholder="Role"
+                            />
+                          </div>
                           <button type="button" onClick={() => setBdArtists(prev => prev.filter((_, j) => j !== i))}
-                            className="text-stone-500 hover:text-red-400 shrink-0 px-0.5">×</button>
+                            className="text-stone-500 hover:text-red-400 shrink-0 px-0.5 self-start pt-1">×</button>
                         </div>
                       ))}
                     </div>
