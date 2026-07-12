@@ -113,10 +113,12 @@ export default async function BlogPage() {
   const featuredPosts = posts.filter(p => p.featured && p.slug !== heroLarge?.slug)
   const heroSlot1 =
     posts.find(p => hasInternalTag(p, 'hero-1') && p.slug !== heroLarge?.slug) ??
-    featuredPosts[0] ?? null
+    featuredPosts[0] ??
+    posts.find(p => p.slug !== heroLarge?.slug) ?? null
   const heroSlot2 =
     posts.find(p => hasInternalTag(p, 'hero-2') && p.slug !== heroLarge?.slug && p.slug !== heroSlot1?.slug) ??
-    featuredPosts.find(p => p.slug !== heroSlot1?.slug) ?? null
+    featuredPosts.find(p => p.slug !== heroSlot1?.slug) ??
+    posts.find(p => p.slug !== heroLarge?.slug && p.slug !== heroSlot1?.slug) ?? null
 
   const heroSlugs = new Set([heroLarge?.slug, heroSlot1?.slug, heroSlot2?.slug].filter(Boolean) as string[])
 
