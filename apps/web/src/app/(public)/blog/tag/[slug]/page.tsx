@@ -34,9 +34,9 @@ function PostCard({ post }: { post: GhostPost }) {
       style={{ borderColor: post.featured && !sponsored ? 'rgba(212,175,55,0.45)' : 'var(--border)', background: sponsored ? 'var(--bg-raised)' : undefined, opacity: sponsored ? 0.82 : 1 }}
     >
       {sponsored && (
-        <div className="-mx-5 -mt-5 mb-4 px-5 py-2 rounded-t-[20px] flex items-center gap-2" style={{ background: 'rgba(120,120,130,0.10)', borderBottom: '1px solid rgba(120,120,130,0.18)' }}>
-          <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>◈</span>
-          <span className="text-[9px] font-serif uppercase tracking-[0.12em]" style={{ color: 'var(--text-muted)' }}>Sponsored content · {sponsored}</span>
+        <div className="-mx-5 -mt-5 mb-4 px-5 py-2 rounded-t-[20px] flex items-center gap-2 blog-sponsored-strip">
+          <span style={{ fontSize: '9px' }}>◈</span>
+          <span className="text-[9px] font-serif uppercase tracking-[0.12em]">Sponsored content · {sponsored}</span>
         </div>
       )}
       {post.feature_image && (
