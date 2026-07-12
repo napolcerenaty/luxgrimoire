@@ -543,26 +543,23 @@ input[type=number] {
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--bg-raised);
-}
-.blog-post-content .kg-embed-card iframe,
-.blog-post-content .kg-embed-card video {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border: none;
-}
-/* responsive YouTube iframe via wrapper */
-.blog-post-content .kg-embed-card .fluid-width-video-wrapper {
   position: relative;
-  padding-bottom: 56.25%;
+  padding-bottom: 56.25%; /* 16:9 */
   height: 0;
 }
-.blog-post-content .kg-embed-card .fluid-width-video-wrapper iframe {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  aspect-ratio: unset;
+.blog-post-content .kg-embed-card iframe {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+}
+/* Non-video embeds (Twitter etc.) — reset to normal flow */
+.blog-post-content .kg-embed-card:not(:has(iframe)) {
+  padding-bottom: 0;
+  height: auto;
+  position: static;
 }
 
 /* ── Ghost bookmark card ──────────────────────────────────── */
