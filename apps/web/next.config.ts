@@ -19,12 +19,12 @@ const CSP = [
   // unsafe-eval is only needed by Next.js HMR in development, not production builds
   isProd ? "script-src 'self' 'unsafe-inline'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: blob: https://res.cloudinary.com https://flagcdn.com",
+  "img-src 'self' data: blob: https://res.cloudinary.com https://flagcdn.com https://i.ytimg.com https://img.youtube.com" + (isProd ? '' : ' http://localhost:2368'),
   "font-src 'self' https://fonts.gstatic.com",
   `connect-src 'self' ${apiOrigin} https://api.cloudinary.com`,
-  "media-src 'self'",
+  "media-src 'self' https://www.youtube.com",
   "object-src 'none'",
-  "frame-src 'none'",
+  "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
   "base-uri 'self'",
   "form-action 'self'",
 ].join('; ');
@@ -45,6 +45,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'flagcdn.com',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '2368',
+        pathname: '/content/images/**',
       },
     ],
   },
