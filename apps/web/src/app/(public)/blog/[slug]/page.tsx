@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Clock, Calendar } from 'lucide-react'
-import { getPostBySlug, getPosts, getPostsByTag, type GhostPost } from '@/lib/ghost'
+import { getPostBySlug, getPosts, getPostsByTag, getSponsoredLabel, type GhostPost } from '@/lib/ghost'
 import BlogPostViewTracker from '@/components/blog/BlogPostViewTracker'
 import BlogPostContent from '@/components/blog/BlogPostContent'
 
@@ -67,42 +67,43 @@ function RelatedPosts({
       </div>
 
       <div className={sidebar ? 'flex flex-col gap-3' : 'grid sm:grid-cols-3 gap-4'}>
-        {posts.map(r => (
+        {posts.map(r => {
+          const sponsored = getSponsoredLabel(r)
+          return (
           <Link
             key={r.id}
             href={`/blog/${r.slug}`}
             className="group block rounded-[16px] border overflow-hidden transition-all duration-200"
-            style={{ borderColor: 'var(--border)', background: 'var(--bg-surface)' }}
+            style={{
+              borderColor: r.featured && !sponsored ? 'rgba(212,175,55,0.45)' : 'var(--border)',
+              background: 'var(--bg-surface)',
+            }}
           >
             {r.feature_image ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={r.feature_image}
-                alt={r.feature_image_alt ?? r.title}
-                className={`w-full object-cover ${sidebar ? 'h-24' : 'h-28'}`}
-              />
-            ) : (
-              <div
-                className={`w-full flex items-center justify-center text-2xl ${sidebar ? 'h-16' : 'h-20'}`}
-                style={{ background: 'var(--bg-raised)' }}
-                aria-hidden="true"
-              >📚</div>
-            )}
+              <img src={r.feature_image} alt={r.feature_image_alt ?? r.title} className={`w-full object-cover ${sidebar ? 'h-24' : 'h-28'}`} />
+            ) : null}
             <div className="p-3">
-              <p
-                className="font-serif text-sm leading-snug line-clamp-2 transition-colors group-hover:text-[var(--accent-bright)]"
-                style={{ color: 'var(--text-bright)' }}
-              >
-                {r.title}
-              </p>
+              <div className="flex items-start justify-between gap-1.5 mb-1">
+                <p className="font-serif text-sm leading-snug line-clamp-2 transition-colors group-hover:text-[var(--accent-bright)]" style={{ color: 'var(--text-bright)' }}>
+                  {r.title}
+                </p>
+                {r.featured && !sponsored && (
+                  <span className="text-xs shrink-0 mt-0.5" style={{ color: '#d4af37', textShadow: '0 0 5px rgba(212,175,55,0.7)' }} aria-label="Featured">✦</span>
+                )}
+                {sponsored && (
+                  <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0 mt-0.5" style={{ background: 'var(--bg-raised)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{sponsored}</span>
+                )}
+              </div>
               {r.reading_time > 0 && (
-                <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                   <Clock size={10} /> {r.reading_time} min
                 </p>
               )}
             </div>
           </Link>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -213,7 +214,7 @@ export default async function BlogPostPage({
 
           {/* ── Sidebar — desktop only ── */}
           {related.length > 0 && (
-            <aside className="hidden xl:block sticky top-[108px] self-start max-h-[calc(100vh-120px)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <aside className="hidden xl:block" style={{ position: 'sticky', top: '108px', alignSelf: 'start' }}>
               <RelatedPosts posts={related} tagName={post.primary_tag?.name} tagSlug={tagSlug} sidebar />
             </aside>
           )}
