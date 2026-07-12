@@ -34,6 +34,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] })
+      void queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] })
       setSkipTarget(null)
       onSkipSuccess?.()
     },
@@ -46,6 +47,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] })
+      void queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] })
       setUnskipTarget(null)
       onSkipSuccess?.()
     },
