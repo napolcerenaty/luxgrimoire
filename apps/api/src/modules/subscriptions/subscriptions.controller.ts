@@ -203,6 +203,12 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
+  @Get('my/calendar')
+  getMyCalendarSubscriptions(@CurrentUser() user: CurrentUserType) {
+    return this.subscriptionsService.getMySubscriptionsForCalendar(user.id);
+  }
+
+  @ApiBearerAuth()
   @Get('my/orphaned-history')
   getOrphanedHistory(@CurrentUser() user: CurrentUserType) {
     return this.subscriptionsService.getOrphanedMembershipHistory(user.id);

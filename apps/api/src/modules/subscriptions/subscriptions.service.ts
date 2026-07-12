@@ -1474,6 +1474,131 @@ export class SubscriptionsService {
     }));
   }
 
+  /** Lean endpoint for the calendar view — returns only the fields it actually renders. */
+  async getMySubscriptionsForCalendar(userId: string) {
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { userId, active: true },
+      select: {
+        id: true,
+        startDate: true,
+        renewalDay: true,
+        nextRenewalDate: true,
+        costCurrency: true,
+        basePrice: true,
+        shippingCost: true,
+        scheduledPrepayOption: {
+          select: { price: true, currency: true, months: true },
+        },
+        feeTemplates: {
+          select: {
+            customAmount: true,
+            customCurrency: true,
+            feeTemplate: { select: { defaultAmount: true, defaultCurrency: true } },
+          },
+        },
+        skipRecords: {
+          where: { undoneAt: null },
+          include: { month: { select: { year: true, month: true } } },
+        },
+        subscription: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            logoUrl: true,
+            logoAsset: { select: { id: true, publicId: true } },
+            coverImage: true,
+            coverImageAsset: { select: { id: true, publicId: true } },
+            currency: true,
+            renewalDay: true,
+            intervalMonths: true,
+            startingMonth: true,
+            renewalMonthOffset: true,
+            startDate: true,
+            priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
+            company: {
+              select: {
+                name: true,
+                slug: true,
+                brandColors: true,
+              },
+            },
+          },
+        },
+        purchaseGroups: {
+          where: { fromSubscription: true },
+          orderBy: { title: 'asc' },
+          take: 1,
+          select: { title: true },
+        },
+      },
+    });
+
+    return Promise.all(entries.map(async (entry) => {
+      const { priceChanges: subPriceChanges, ...subRest } = entry.subscription as any;
+      const sub = {
+        ...this.mapSubscriptionAssets(subRest),
+        price: this.computeCurrentPrice(subPriceChanges ?? [], subRest.currency),
+      };
+
+      let storedRenewalDate = (entry as any).nextRenewalDate as Date | null;
+      if (!storedRenewalDate) {
+        await refreshNextRenewalDate(this.prisma, entry.id);
+        const fresh = await this.prisma.userSubscriptionEntry.findUnique({
+          where: { id: entry.id },
+          select: { nextRenewalDate: true },
+        });
+        storedRenewalDate = fresh?.nextRenewalDate ?? null;
+      }
+
+      const cur = entry.costCurrency ?? sub.currency ?? null;
+      const fallbackBase = entry.basePrice ? parseFloat(entry.basePrice.toString()) : null;
+      const shipping = entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null;
+      const subCurrencyUp = cur?.toUpperCase() ?? '';
+      const scheduledPrepayOption = (entry as any).scheduledPrepayOption as { price: { toString(): string }; currency: string; months: number } | null;
+
+      let nextBase = fallbackBase;
+      if (scheduledPrepayOption) {
+        nextBase = parseFloat(scheduledPrepayOption.price.toString());
+      } else if (storedRenewalDate) {
+        const renewalYear = storedRenewalDate.getUTCFullYear();
+        const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
+        const firstPurchaseGroup = ((entry as any).purchaseGroups as Array<{ title: string }> | undefined)?.[0];
+        const userFirstBilledYearMonth = parseFirstBilledYearMonth(firstPurchaseGroup?.title, renewalYear, renewalMonth);
+        const resolved = resolveEffectiveBasePrice(subPriceChanges ?? [], renewalYear, renewalMonth, fallbackBase, entry.costCurrency, userFirstBilledYearMonth);
+        nextBase = resolved.price ?? fallbackBase;
+      }
+
+      const sameCurrencyFees = ((entry as any).feeTemplates as Array<{
+        customAmount: { toString(): string } | null;
+        customCurrency: string | null;
+        feeTemplate: { defaultAmount: { toString(): string } | null; defaultCurrency: string };
+      }>).reduce((sum, link) => {
+        const feeCur = (link.customCurrency ?? link.feeTemplate.defaultCurrency).toUpperCase();
+        if (feeCur !== subCurrencyUp) return sum;
+        const amt = parseFloat((link.customAmount ?? link.feeTemplate.defaultAmount ?? 0).toString());
+        return sum + (isNaN(amt) ? 0 : amt);
+      }, 0);
+
+      const nextRenewalAmount = nextBase !== null ? (nextBase + (shipping ?? 0) + sameCurrencyFees) : null;
+
+      const { skipRecords, feeTemplates: _ft, scheduledPrepayOption: _spo, purchaseGroups: _pg, ...rest } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown; purchaseGroups: unknown[] };
+      return {
+        id: rest.id,
+        active: true,
+        startDate: rest.startDate,
+        renewalDay: rest.renewalDay,
+        nextRenewalAmount: nextRenewalAmount !== null ? nextRenewalAmount.toFixed(2) : null,
+        nextRenewalCurrency: cur,
+        skipRecords,
+        subscription: {
+          ...sub,
+          startDate: entry.subscription.startDate,
+        },
+      };
+    }));
+  }
+
   async getOrphanedMembershipHistory(userId: string) {
     // Find all inactive entries for this user
     const inactiveEntries = await this.prisma.userSubscriptionEntry.findMany({

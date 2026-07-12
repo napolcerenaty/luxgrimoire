@@ -29,6 +29,7 @@ interface CalEntry {
     startingMonth: number
     renewalDay: number | null
     renewalMonthOffset: number
+    startDate: Date | string | null
     company: { name: string; slug: string; brandColors?: string[] | null }
   }
 }
@@ -151,11 +152,19 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
   const renewalDay = entry.renewalDay ?? sub.renewalDay
   if (!renewalDay) return null
 
-  // Don't show renewals before the entry's start date
+  // Don't show renewals before the user's join date
   if (entry.startDate) {
     const startYear = parseInt(entry.startDate.slice(0, 4))
     const startMonth0 = parseInt(entry.startDate.slice(5, 7)) - 1
     if (year < startYear || (year === startYear && month0 < startMonth0)) return null
+  }
+
+  // Don't show renewals before the subscription's own start date (e.g. future subscriptions)
+  if (sub.startDate) {
+    const sd = typeof sub.startDate === 'string' ? sub.startDate : (sub.startDate as Date).toISOString()
+    const subStartYear = parseInt(sd.slice(0, 4))
+    const subStartMonth0 = parseInt(sd.slice(5, 7)) - 1
+    if (year < subStartYear || (year === subStartYear && month0 < subStartMonth0)) return null
   }
 
   const interval = sub.intervalMonths ?? 1
@@ -219,8 +228,8 @@ export default function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
 
   const { data: entries = [] } = useQuery<CalEntry[]>({
-    queryKey: ['my-subscriptions'],
-    queryFn: () => authFetch('/subscriptions/my/subscriptions'),
+    queryKey: ['my-calendar-subscriptions'],
+    queryFn: () => authFetch('/subscriptions/my/calendar'),
   })
 
   const { data: interests = [] } = useQuery<SaleInterest[]>({
