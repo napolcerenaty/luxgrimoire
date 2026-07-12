@@ -126,6 +126,7 @@ export default function WishlistPage() {
   const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [showSaleFilters, setShowSaleFilters] = useState(false)
 
   const openAddModal = async (announcementId: string) => {
     setAddModalLoading(announcementId)
@@ -377,89 +378,116 @@ export default function WishlistPage() {
         ) : (
           <>
             {/* Filters */}
-            <div className="flex flex-wrap gap-3 mb-4">
-              {/* Time filter */}
-              <div className="flex rounded-xl border border-stone-700 overflow-hidden text-sm">
-                {(['upcoming', 'all', 'past'] as const).map((val) => (
+            <div className="mb-4">
+              {/* Filter toggle button */}
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSaleFilters(p => !p)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    showSaleFilters
+                      ? 'border-amber-600/60 bg-amber-500/10 text-amber-400'
+                      : 'border-stone-700 bg-stone-800/60 text-stone-400 hover:border-stone-600 hover:text-stone-200'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+                  Filters
+                  {[companyFilter, saleTypeFilter, dateFrom, dateTo, timeFilter !== 'upcoming' ? '1' : ''].filter(Boolean).length > 0 && (
+                    <span className="ml-0.5 rounded-full bg-amber-500/30 px-1.5 py-0.5 text-[10px] text-amber-300">
+                      {[companyFilter, saleTypeFilter, dateFrom, dateTo, timeFilter !== 'upcoming' ? '1' : ''].filter(Boolean).length}
+                    </span>
+                  )}
+                </button>
+                <span className="text-xs text-stone-500">{filteredInterests.length} / {saleInterests.length}</span>
+                {hasFilters && (
                   <button
-                    key={val}
-                    onClick={() => setTimeFilter(val)}
-                    className={`px-3 py-2 capitalize transition-colors border-r border-stone-700 last:border-0 ${
-                      timeFilter === val ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-400 hover:text-stone-200'
-                    }`}
+                    onClick={() => { setCompanyFilter(''); setSaleTypeFilter(''); setTimeFilter('upcoming'); setDateFrom(''); setDateTo('') }}
+                    className="ml-auto flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 transition-colors"
                   >
-                    {val === 'upcoming' ? 'Upcoming' : val === 'past' ? 'Past' : 'All'}
+                    <X size={11} /> Reset
                   </button>
-                ))}
+                )}
               </div>
 
-              {/* Company filter */}
-              <select
-                value={companyFilter}
-                onChange={(e) => setCompanyFilter(e.target.value)}
-                className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[160px]"
-              >
-                <option value="">All companies</option>
-                {filterCompanies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              {/* Collapsible filter panel */}
+              {showSaleFilters && (
+                <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-3 space-y-3">
+                  {/* Time filter */}
+                  <div className="flex rounded-xl border border-stone-700 overflow-hidden text-sm w-fit">
+                    {(['upcoming', 'all', 'past'] as const).map((val) => (
+                      <button
+                        key={val}
+                        onClick={() => setTimeFilter(val)}
+                        className={`px-3 py-1.5 capitalize transition-colors border-r border-stone-700 last:border-0 text-xs ${
+                          timeFilter === val ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+                        }`}
+                      >
+                        {val === 'upcoming' ? 'Upcoming' : val === 'past' ? 'Past' : 'All'}
+                      </button>
+                    ))}
+                  </div>
 
-              {/* Sale type filter */}
-              <select
-                value={saleTypeFilter}
-                onChange={(e) => setSaleTypeFilter(e.target.value)}
-                className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-300 focus:outline-none focus:border-amber-500"
-              >
-                <option value="">All types</option>
-                <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
-                <option value="OPEN_PREORDER">🔓 Open Preorder</option>
-                <option value="OVERSTOCK">📦 Overstock</option>
-              </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {/* Company filter */}
+                    <select
+                      value={companyFilter}
+                      onChange={(e) => setCompanyFilter(e.target.value)}
+                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-xs text-stone-300 focus:outline-none focus:border-amber-500 w-full"
+                    >
+                      <option value="">All companies</option>
+                      {filterCompanies.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
 
-              {/* Date from */}
-              <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-400 focus-within:border-amber-500">
-                <span className="shrink-0 text-stone-500 text-xs">From</span>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  title="Sale date from"
-                  className="bg-transparent text-stone-300 focus:outline-none"
-                />
-              </label>
+                    {/* Sale type filter */}
+                    <select
+                      value={saleTypeFilter}
+                      onChange={(e) => setSaleTypeFilter(e.target.value)}
+                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-xs text-stone-300 focus:outline-none focus:border-amber-500 w-full"
+                    >
+                      <option value="">All types</option>
+                      <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
+                      <option value="OPEN_PREORDER">🔓 Open Preorder</option>
+                      <option value="OVERSTOCK">📦 Overstock</option>
+                    </select>
 
-              {/* Date to */}
-              <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-400 focus-within:border-amber-500">
-                <span className="shrink-0 text-stone-500 text-xs">To</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  title="Sale date to"
-                  className="bg-transparent text-stone-300 focus:outline-none"
-                />
-              </label>
+                    {/* Date from */}
+                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-xs text-stone-400 focus-within:border-amber-500">
+                      <span className="shrink-0 text-stone-500">From</span>
+                      <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="bg-transparent text-stone-300 focus:outline-none w-full text-xs"
+                      />
+                    </label>
 
-              {(companyFilter || saleTypeFilter || timeFilter !== 'all' || dateFrom || dateTo) && (
-                <button
-                  onClick={() => { setCompanyFilter(''); setSaleTypeFilter(''); setTimeFilter('upcoming'); setDateFrom(''); setDateTo('') }}
-                  className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 border border-stone-700 hover:border-stone-600 px-3 py-2 rounded-xl transition-colors"
-                >
-                  <X size={12} /> Reset
-                </button>
+                    {/* Date to */}
+                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-xs text-stone-400 focus-within:border-amber-500">
+                      <span className="shrink-0 text-stone-500">To</span>
+                      <input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="bg-transparent text-stone-300 focus:outline-none w-full text-xs"
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Active filter chips */}
+              {hasFilters && !showSaleFilters && (
+                <div className="flex items-center gap-2 flex-wrap mt-1">
+                  {timeFilter !== 'upcoming' && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300 capitalize">{timeFilter}</span>}
+                  {companyFilter && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{filterCompanies.find(c => c.id === companyFilter)?.name}</span>}
+                  {saleTypeFilter && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{saleTypeFilter.replace('_', ' ').toLowerCase()}</span>}
+                  {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
+                  {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
+                </div>
               )}
             </div>
-
-            {/* Active filter chips */}
-            {hasFilters && (
-              <div className="flex items-center gap-2 mb-4 flex-wrap">
-                {companyFilter && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{filterCompanies.find(c => c.id === companyFilter)?.name}</span>}
-                {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
-                {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
-                <span className="text-xs text-stone-500">{filteredInterests.length} / {saleInterests.length}</span>
-              </div>
-            )}
 
             {filteredInterests.length === 0 ? (
               <div className="text-center py-12 text-stone-500">

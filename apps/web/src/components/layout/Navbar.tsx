@@ -10,7 +10,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import {
   Search, ChevronDown, User, BookOpen, BarChart2,
   Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays, Menu, X,
-  Heart, BookMarked, ShoppingBag, Library, Bell,
+  Heart, BookMarked, Banknote, Library, Bell,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SearchDropdown } from '@/components/search/SearchDropdown'
@@ -24,7 +24,7 @@ const NAV_LINKS = [
 const USER_NAV_LINKS = [
   { href: '/calendar',         label: 'Calendar',      icon: CalendarDays },
   { href: '/collection',       label: 'My Collection', icon: BookOpen },
-  { href: '/sold',             label: 'Sold Books',    icon: ShoppingBag },
+  { href: '/sold',             label: 'Sold Books',    icon: Banknote },
   { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
   { href: '/wishlist',         label: 'Wishlist',      icon: Heart },
   { href: '/statistics',       label: 'Statistics',    icon: BarChart2 },
@@ -150,7 +150,7 @@ export function Navbar() {
                     {[
                       { href: '/calendar',         icon: CalendarDays, label: 'Calendar' },
                       { href: '/collection',        icon: BookOpen,     label: 'Collection' },
-                      { href: '/sold',              icon: ShoppingBag,  label: 'Sold Books' },
+                      { href: '/sold',              icon: Banknote,     label: 'Sold Books' },
                       { href: '/my-subscriptions',  icon: BookMarked,   label: 'Subscriptions' },
                       { href: '/wishlist',          icon: Heart,        label: 'Wishlist' },
                     ].map(({ href, icon: Icon, label }) => (

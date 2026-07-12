@@ -28,7 +28,7 @@ export class CollectionService {
     return (this.prisma as PrismaService & { readingHistory: ReadingHistoryDelegate }).readingHistory;
   }
 
-  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string, search?: string, companyName?: string, tag?: string) {
+  async getCollection(userId: string, page = 1, pageSize = 20, isWishlist?: boolean, slim = false, ownershipStatus?: string, search?: string, companyName?: string, tag?: string, signatureType?: string, readingStatus?: string, subscriptionId?: string) {
     const { skip, take, page: p } = parsePagination({ page, pageSize });
     pageSize = take;
     page = p;
@@ -38,6 +38,13 @@ export class CollectionService {
     if (search) where.edition = { ...where.edition, book: { title: { contains: search, mode: 'insensitive' } } };
     if (companyName) where.edition = { ...where.edition, bookBoxCompany: { name: companyName } };
     if (tag) where.entryTags = { some: { tag, userId } };
+    if (signatureType === 'UNSIGNED') {
+      where.signatureType = null;
+    } else if (signatureType) {
+      where.signatureType = signatureType.toLowerCase();
+    }
+    if (readingStatus) where.readingStatus = readingStatus;
+    if (subscriptionId) where.subscriptionEntry = { subscription: { id: subscriptionId } };
 
     if (slim) {
       const [data, total] = await Promise.all([
@@ -198,6 +205,25 @@ export class CollectionService {
       };
     });
     return { data: dataWithTags, total, page, pageSize };
+  }
+
+  async getCollectionCompanies(userId: string): Promise<{ id: string; name: string; slug: string }[]> {
+    const rows = await this.prisma.userBookEntry.findMany({
+      where: { userId, isWishlist: false, edition: { bookBoxCompany: { isNot: null } } },
+      select: {
+        edition: {
+          select: {
+            bookBoxCompany: { select: { id: true, name: true, slug: true } },
+          },
+        },
+      },
+    });
+    const seen = new Map<string, { id: string; name: string; slug: string }>();
+    for (const r of rows) {
+      const c = r.edition?.bookBoxCompany;
+      if (c && !seen.has(c.id)) seen.set(c.id, c);
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async getCollectionSubscriptions(userId: string): Promise<{ id: string; name: string; parentSubscriptionId: string | null }[]> {

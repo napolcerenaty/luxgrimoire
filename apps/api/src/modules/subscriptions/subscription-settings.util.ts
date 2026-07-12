@@ -14,7 +14,11 @@ export interface SubscriptionSettings {
   renewalMonthOffset: number;
 }
 
-type SettingsHistoryRecord = SubscriptionSettings & { effectiveFrom: Date };
+// renewalMonthOffset may be null in older DB records created before the field was added.
+type SettingsHistoryRecord = Omit<SubscriptionSettings, 'renewalMonthOffset'> & {
+  effectiveFrom: Date;
+  renewalMonthOffset: number | null;
+};
 
 /**
  * Returns the subscription settings that were in effect for the given year/month.
@@ -42,5 +46,10 @@ export function resolveEffectiveSettings(
   if (applicable.length === 0) return fallback;
 
   const { effectiveFrom: _ignored, ...settings } = applicable[0];
-  return settings;
+  // Null-coalesce renewalMonthOffset: older records may have null (field added after initial deployment).
+  // Fall back to the current subscription value so the user's configured offset is always respected.
+  return {
+    ...settings,
+    renewalMonthOffset: settings.renewalMonthOffset ?? fallback.renewalMonthOffset,
+  };
 }

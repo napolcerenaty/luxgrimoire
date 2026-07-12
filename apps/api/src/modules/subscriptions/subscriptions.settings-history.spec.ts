@@ -436,24 +436,169 @@ describe('SubscriptionsService — settings history', () => {
         }),
       );
     });
+  });
 
-    it('creates epoch sentinel if no history exists before first change', async () => {
-      const existing = makeExistingSub({ renewalDay: 1 });
-      const updated = makeUpdatedSub({ renewalDay: 15 });
-      jest.spyOn(service, 'findBySlug').mockResolvedValue(existing as any);
-      (prisma.subscription.update as jest.Mock).mockResolvedValue(updated);
-      (prisma.subscriptionSettingsHistory.count as jest.Mock).mockResolvedValue(0); // no history yet
-      (prisma.subscriptionSettingsHistory.create as jest.Mock).mockResolvedValue({});
-      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValue([]);
-      (prisma.subscription.findUnique as jest.Mock).mockResolvedValue(null);
+  // ── updateSettingsHistoryEffectiveFrom (full edit) ────────────────────────
 
-      await service.update(SUB_SLUG, { renewalDay: 15, settingsEffectiveFrom: EFFECTIVE_FROM } as any, USER_ID);
+  describe('updateSettingsHistoryEffectiveFrom', () => {
+    const RECORD_ID = 'sh-record-1';
 
-      // First call = epoch sentinel (effectiveFrom = epoch)
-      const firstCreate = (prisma.subscriptionSettingsHistory.create as jest.Mock).mock.calls[0][0];
-      expect(firstCreate.data.effectiveFrom).toEqual(new Date(0));
-      // Second call = actual history record
-      expect(prisma.subscriptionSettingsHistory.create).toHaveBeenCalledTimes(2);
+    function setupRecord(overrides: Record<string, unknown> = {}) {
+      const record = makeHistoryRecord({ id: RECORD_ID, ...overrides });
+      (prisma.subscriptionSettingsHistory.findFirst as jest.Mock).mockResolvedValueOnce(record);
+      (prisma.subscriptionSettingsHistory.update as jest.Mock).mockResolvedValueOnce({ ...record });
+      return record;
+    }
+
+    it('updates renewalDay on a non-sentinel record', async () => {
+      setupRecord({ effectiveFrom: new Date('2024-06-01') });
+
+      await service.updateSettingsHistoryEffectiveFrom(SUB_SLUG, RECORD_ID, { renewalDay: 20 });
+
+      expect(prisma.subscriptionSettingsHistory.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ renewalDay: 20 }),
+        }),
+      );
+    });
+
+    it('updates multiple settings fields at once on a non-sentinel record', async () => {
+      setupRecord({ effectiveFrom: new Date('2024-06-01') });
+
+      await service.updateSettingsHistoryEffectiveFrom(SUB_SLUG, RECORD_ID, {
+        renewalDay: 15,
+        renewalDayUserSet: true,
+        paymentOnStartup: true,
+        signupIncludesCurrentMonth: false,
+        renewalMonthOffset: 2,
+      });
+
+      expect(prisma.subscriptionSettingsHistory.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            renewalDay: 15,
+            renewalDayUserSet: true,
+            paymentOnStartup: true,
+            signupIncludesCurrentMonth: false,
+            renewalMonthOffset: 2,
+          }),
+        }),
+      );
+    });
+
+    it('updates effectiveFrom on a non-sentinel record', async () => {
+      setupRecord({ effectiveFrom: new Date('2024-06-01') });
+
+      await service.updateSettingsHistoryEffectiveFrom(SUB_SLUG, RECORD_ID, { effectiveFrom: '2024-09-01' });
+
+      expect(prisma.subscriptionSettingsHistory.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ effectiveFrom: new Date('2024-09-01') }),
+        }),
+      );
+    });
+
+    it('updates notes on a sentinel record (allowed)', async () => {
+      setupRecord({ effectiveFrom: new Date(0) }); // epoch sentinel
+
+      await service.updateSettingsHistoryEffectiveFrom(SUB_SLUG, RECORD_ID, { notes: 'Initial setup' });
+
+      expect(prisma.subscriptionSettingsHistory.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ notes: 'Initial setup' }),
+        }),
+      );
+    });
+
+    it('updates all settings fields on the sentinel record (allowed — only effectiveFrom is locked)', async () => {
+      setupRecord({ effectiveFrom: new Date(0) }); // epoch sentinel
+
+      await service.updateSettingsHistoryEffectiveFrom(SUB_SLUG, RECORD_ID, {
+        renewalDay: 10,
+        paymentOnStartup: true,
+        renewalMonthOffset: 1,
+      });
+
+      expect(prisma.subscriptionSettingsHistory.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            renewalDay: 10,
+            paymentOnStartup: true,
+            renewalMonthOffset: 1,
+          }),
+        }),
+      );
+    });
+
+    it('throws BadRequestException when trying to change effectiveFrom on sentinel', async () => {
+      setupRecord({ effectiveFrom: new Date(0) }); // epoch sentinel
+
+      await expect(
+        service.updateSettingsHistoryEffectiveFrom(SUB_SLUG, RECORD_ID, { effectiveFrom: '2020-01-01' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when effectiveFrom is not a valid date', async () => {
+      setupRecord({ effectiveFrom: new Date('2024-06-01') });
+
+      await expect(
+        service.updateSettingsHistoryEffectiveFrom(SUB_SLUG, RECORD_ID, { effectiveFrom: 'not-a-date' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when no fields are provided', async () => {
+      setupRecord({ effectiveFrom: new Date('2024-06-01') });
+
+      await expect(
+        service.updateSettingsHistoryEffectiveFrom(SUB_SLUG, RECORD_ID, {}),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws NotFoundException when record does not exist', async () => {
+      (prisma.subscriptionSettingsHistory.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        service.updateSettingsHistoryEffectiveFrom(SUB_SLUG, 'nonexistent', { renewalDay: 5 }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── deleteSettingsHistory ─────────────────────────────────────────────────
+
+  describe('deleteSettingsHistory', () => {
+    const RECORD_ID = 'sh-delete-1';
+
+    it('deletes a non-sentinel record', async () => {
+      const record = makeHistoryRecord({ id: RECORD_ID, effectiveFrom: new Date('2024-06-01') });
+      (prisma.subscriptionSettingsHistory.findFirst as jest.Mock).mockResolvedValueOnce(record);
+      (prisma.subscriptionSettingsHistory.delete as jest.Mock).mockResolvedValueOnce(record);
+
+      await service.deleteSettingsHistory(SUB_SLUG, RECORD_ID);
+
+      expect(prisma.subscriptionSettingsHistory.delete).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: RECORD_ID } }),
+      );
+    });
+
+    it('throws BadRequestException when trying to delete the epoch sentinel', async () => {
+      const sentinel = makeHistoryRecord({ id: RECORD_ID, effectiveFrom: new Date(0) });
+      (prisma.subscriptionSettingsHistory.findFirst as jest.Mock).mockResolvedValueOnce(sentinel);
+
+      await expect(
+        service.deleteSettingsHistory(SUB_SLUG, RECORD_ID),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(prisma.subscriptionSettingsHistory.delete).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when record does not exist', async () => {
+      (prisma.subscriptionSettingsHistory.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        service.deleteSettingsHistory(SUB_SLUG, 'nonexistent'),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prisma.subscriptionSettingsHistory.delete).not.toHaveBeenCalled();
     });
   });
 });

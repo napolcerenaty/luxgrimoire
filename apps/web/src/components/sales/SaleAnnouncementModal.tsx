@@ -105,11 +105,23 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   )}
                 </div>
                 {sale.photoCredit && (() => {
-                  const handle = sale.photoCredit.replace(/^@/, '')
+                  const credits: { handle: string; role: string | null }[] = []
+                  const regex = /@([\w.]+)(?:\s*\(([^)]+)\))?/g
+                  let m: RegExpExecArray | null
+                  while ((m = regex.exec(sale.photoCredit!)) !== null) {
+                    credits.push({ handle: m[1], role: m[2] ?? null })
+                  }
+                  if (credits.length === 0) return null
                   return (
-                    <p className="text-[10px] text-stone-500 mt-1 text-center leading-tight">
-                      📷 <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="hover:text-amber-400 transition-colors">@{handle}</a>
-                    </p>
+                    <div className="text-[10px] text-stone-500 mt-1 text-center leading-4">
+                      <span>📷</span>
+                      {credits.map(({ handle, role }) => (
+                        <div key={handle}>
+                          <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="hover:text-amber-400 transition-colors">@{handle}</a>
+                          {role && <span> ({role})</span>}
+                        </div>
+                      ))}
+                    </div>
                   )
                 })()}
               </div>

@@ -4,6 +4,7 @@
 - Always work on branch `development`
 - After every commit, push immediately (`git push`)
 - **Never merge to `master` without explicit user command** — master triggers production deployment
+- Before merging to `master`, always run `git pull origin master` first to sync local master with remote, then merge development into it — avoids creating inflated merge commits from a stale local master
 
 ## Database migrations
 - All DB changes (schema, seed data, rule updates) must be done via migration files in `packages/database/prisma/migrations/`

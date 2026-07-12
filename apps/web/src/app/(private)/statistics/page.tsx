@@ -71,6 +71,7 @@ interface SpendingData {
   booksThisMonth: number
   totalBasePrice: number
   totalShipping: number
+  totalForwarding: number
   totalTax: number
   totalOtherFees: number
   totalDiscounts: number
@@ -147,7 +148,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, color }: {
         <Icon size={14} className={color ?? (accent ? 'text-amber-400' : 'text-stone-500')} />
         <span className="text-xs uppercase tracking-wider text-stone-500">{label}</span>
       </div>
-      <p className={`text-2xl font-serif font-bold ${color ?? (accent ? 'text-amber-400' : 'text-stone-100')}`}>{value}</p>
+      <p className={`text-base sm:text-xl font-serif font-bold leading-tight ${color ?? (accent ? 'text-amber-400' : 'text-stone-100')}`}>{value}</p>
       {sub && <p className="text-xs text-stone-500">{sub}</p>}
     </div>
   )
@@ -842,7 +843,7 @@ export default function SpendingPage() {
 
   const totalGross = useMemo(() => {
     if (!spending) return 0
-    return spending.totalBasePrice + spending.totalShipping + spending.totalTax + spending.totalOtherFees
+    return spending.totalBasePrice + spending.totalShipping + spending.totalForwarding + spending.totalTax + spending.totalOtherFees
   }, [spending])
 
   const savings = useMemo(() => {
@@ -1260,6 +1261,9 @@ export default function SpendingPage() {
                   </div>
                   <CategoryBar label="Books (base price)" amount={spending.totalBasePrice} total={totalGross} currency={currency} color="#d97706" />
                   <CategoryBar label="Shipping" amount={spending.totalShipping} total={totalGross} currency={currency} color="#0891b2" />
+                  {spending.totalForwarding > 0 && (
+                    <CategoryBar label="Forwarding" amount={spending.totalForwarding} total={totalGross} currency={currency} color="#0d9488" />
+                  )}
                   <CategoryBar label="Taxes & Customs" amount={spending.totalTax} total={totalGross} currency={currency} color="#7c3aed" />
                   <CategoryBar label="Other Fees" amount={spending.totalOtherFees} total={totalGross} currency={currency} color="#6b7280" />
                   {savings > 0 && (
@@ -1396,7 +1400,7 @@ export default function SpendingPage() {
                         : <TrendingDown size={14} className="text-red-400" />}
                       <span className="text-xs uppercase tracking-wider text-stone-500">Net P&amp;L</span>
                     </div>
-                    <p className={`text-2xl font-serif font-bold ${sales.totalSalesProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <p className={`text-base sm:text-xl font-serif font-bold leading-tight ${sales.totalSalesProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {sales.totalSalesProfit >= 0 ? '+' : ''}{fmt(sales.totalSalesProfit, currency)}
                     </p>
                     <p className="text-xs text-stone-500">revenue − purchase cost</p>
@@ -1547,7 +1551,7 @@ export default function SpendingPage() {
                         <Scale size={14} className={totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'} />
                         <span className="text-xs uppercase tracking-wider text-stone-500">Overall P&amp;L</span>
                       </div>
-                      <p className={`text-2xl font-serif font-bold ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <p className={`text-base sm:text-xl font-serif font-bold leading-tight ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {totalPL >= 0 ? '+' : ''}{fmt(totalPL, currency)}
                       </p>
                       <p className="text-xs text-stone-500">revenue − purchase cost</p>

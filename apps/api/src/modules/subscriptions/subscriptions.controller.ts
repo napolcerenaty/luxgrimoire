@@ -254,6 +254,17 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
+  @Get(':slug/next-box-preview/:year/:month')
+  getNextBoxPreview(
+    @CurrentUser() user: CurrentUserType,
+    @Param('slug') slug: string,
+    @Param('year') year: string,
+    @Param('month') month: string,
+  ) {
+    return this.subscriptionsService.getNextBoxPreview(user.id, slug, parseInt(year, 10), parseInt(month, 10));
+  }
+
+  @ApiBearerAuth()
   @Patch(':slug/my-entry/cancel')
   async cancelMyEntry(
     @CurrentUser() user: CurrentUserType,
@@ -438,6 +449,19 @@ export class SubscriptionsController {
   ) {
     const result = await this.subscriptionsService.updateSettingsHistoryEffectiveFrom(slug, id, dto);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_SETTINGS_HISTORY_EFFECTIVE_FROM', entityType: 'subscription', entityId: slug });
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete(':slug/settings-history/:id')
+  async deleteSettingsHistory(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.deleteSettingsHistory(slug, id);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_SETTINGS_HISTORY', entityType: 'subscription', entityId: slug });
     return result;
   }
 

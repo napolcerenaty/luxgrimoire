@@ -474,7 +474,7 @@ export class MonthQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(50)
+  @Max(500)
   pageSize?: number;
 
   @IsOptional()
@@ -565,6 +565,16 @@ export class SubscriptionQueryDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  /** Filter by skip policy type: NONE | UNLIMITED | UNLIMITED_MAX_CONSEC | CALENDAR_YEAR | FROM_FIRST_SKIP | FROM_SUB_START | PREPAID_WINDOW_SKIP */
+  @IsOptional()
+  @IsString()
+  skipPolicyType?: string;
+
+  /** Filter by billing type the skip policy applies to: ALL | MONTHLY | PREPAID */
+  @IsOptional()
+  @IsString()
+  skipPolicyBillingType?: string;
 }
 export class LinkedFeeTemplateDto {
   @IsString()
@@ -865,14 +875,34 @@ export class UpdateBillingModeDto {
 }
 
 export class UpdateSettingsHistoryEffectiveFromDto {
-  /** ISO date string (YYYY-MM-DD or full ISO) for the new effectiveFrom value */
+  /** ISO date string (YYYY-MM-DD or full ISO) for the new effectiveFrom value. Omit to leave unchanged. */
+  @IsOptional()
   @IsString()
-  effectiveFrom!: string;
+  effectiveFrom?: string;
 
-  /** Optional notes for the settings history record */
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsInt()
+  renewalDay?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  renewalDayUserSet?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  paymentOnStartup?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  signupIncludesCurrentMonth?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  renewalMonthOffset?: number;
 }
 
 export class MigrateMonthsDto {

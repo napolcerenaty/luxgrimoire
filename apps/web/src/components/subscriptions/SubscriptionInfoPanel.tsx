@@ -6,7 +6,7 @@ import { getMySubscriptionEntry, getFeeTemplates, updateMyEntryCosts, cancelMySu
 import type { CountryFeeHint } from '@/lib/api'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
+import type { ApiSubscriptionSeries, ApiFeeTemplate, ApiSubscriptionMonth, ApiSubscriptionSkipPolicy } from '@luxgrimoire/shared-types'
 import JoinSubscriptionModal from './JoinSubscriptionModal'
 import { CancelSubscriptionModal } from './CancelSubscriptionModal'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
@@ -25,11 +25,13 @@ interface Props {
   shipsInternationally: boolean
   country: string | null
   renewalDay?: number | null
+  renewalMonthOffset?: number | null
   months: ApiSubscriptionMonth[]
   prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
   signupIncludesCurrentMonth?: boolean
+  skipPolicies?: ApiSubscriptionSkipPolicy[]
 }
 
 type FeeTemplateLink = {
@@ -102,11 +104,13 @@ export default function SubscriptionInfoPanel({
   shipsInternationally,
   country,
   renewalDay,
+  renewalMonthOffset,
   months,
   prepayOptions,
   isDiscontinued,
   subscriptionEndDate,
   signupIncludesCurrentMonth,
+  skipPolicies,
 }: Props) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -533,23 +537,11 @@ export default function SubscriptionInfoPanel({
         </div>
       )}
 
-      {/* Active subscriber: 2-column layout — costs on left, skip policy on right */}
-      {isSubscriber ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          <div>{costPanel}</div>
-          <div>
-            <SkipStatusPanel
-              subscriptionSlug={subscriptionSlug}
-              months={months}
-              onSkipSuccess={refreshEntry}
-            />
-          </div>
-        </div>
-      ) : (
-        /* Non-subscriber: compact single column, max-w-sm */
-        <div className="max-w-sm space-y-4">
+      {/* 2-column layout on desktop, stacked on mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+        <div className="space-y-4">
           {costPanel}
-          {user && !isSubscriber && myEntry !== undefined && (
+          {!isSubscriber && user && myEntry !== undefined && (
             <button
               type="button"
               onClick={() => openJoinModal()}
@@ -559,13 +551,25 @@ export default function SubscriptionInfoPanel({
             </button>
           )}
         </div>
-      )}
+        {isSubscriber ? (
+          <SkipStatusPanel
+            subscriptionSlug={subscriptionSlug}
+            months={months}
+            onSkipSuccess={refreshEntry}
+          />
+        ) : (
+          skipPolicies && skipPolicies.length > 0 && (
+            <SkipPoliciesInfoPanel policies={skipPolicies} />
+          )
+        )}
+      </div>
 
       {showJoinModal && (
         <JoinSubscriptionModal
           subscriptionSlug={subscriptionSlug}
           subscriptionCurrency={currency}
           subscriptionRenewalDay={renewalDay ?? null}
+          subscriptionRenewalMonthOffset={renewalMonthOffset ?? 0}
           subscriptionPrice={price}
           subscriptionOriginalBasePrice={originalBasePrice ?? null}
           userDefaultTaxRate={user?.defaultTaxRate ?? null}
@@ -889,3 +893,98 @@ function EditEntryCostsModal({
 }
 
 // ─── Cancel Subscription Modal → shared component (CancelSubscriptionModal.tsx)
+
+// ─── Read-only Skip Policy Info Panel ─────────────────────────────────────────
+
+function policyTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    NONE: 'Skipping not available',
+    UNLIMITED: 'Unlimited skips allowed',
+    UNLIMITED_MAX_CONSEC: 'Unlimited skips (max consecutive limit)',
+    CALENDAR_YEAR: 'Limited skips per calendar year',
+    FROM_FIRST_SKIP: 'Limited skips per rolling window',
+    FROM_SUB_START: 'Limited skips from subscription start',
+    PREPAID_WINDOW_SKIP: 'Prepaid: skips entire renewal window',
+  }
+  return labels[type] ?? type
+}
+
+function billingTypeLabel(billingType: string): string {
+  const labels: Record<string, string> = {
+    ALL: 'All subscribers',
+    MONTHLY: 'Monthly billing',
+    PREPAID: 'Prepaid billing',
+  }
+  return labels[billingType] ?? billingType
+}
+
+function SkipPolicyInfoPanel({ policy }: { policy: ApiSubscriptionSkipPolicy }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs text-stone-400">{policyTypeLabel(policy.type)}</p>
+
+      {policy.maxSkips !== null && (
+        <p className="text-xs text-stone-400">
+          Max skips: <span className="text-stone-300 font-medium">{policy.maxSkips}</span>
+          {policy.windowMonths ? ` per ${policy.windowMonths}-month window` : ''}
+        </p>
+      )}
+
+      {policy.maxConsecutive !== null && (
+        <p className="text-xs text-stone-400">
+          Max consecutive skips: <span className="text-stone-300 font-medium">{policy.maxConsecutive}</span>
+        </p>
+      )}
+
+      {policy.skipHow && (
+        <p className="text-xs text-stone-400">
+          How to skip: <span className="text-stone-300">{policy.skipHow}</span>
+        </p>
+      )}
+
+      {policy.notes && (
+        <p className="text-xs text-stone-500 italic whitespace-pre-line">{policy.notes}</p>
+      )}
+
+      {policy.allowUnskip && (
+        <div className="border-t border-stone-700 pt-2 flex flex-col gap-1 mt-1">
+          <p className="text-xs text-stone-400 font-medium">Unskip allowed</p>
+          {policy.unskipHow && (
+            <p className="text-xs text-stone-400">
+              How to unskip: <span className="text-stone-300">{policy.unskipHow}</span>
+            </p>
+          )}
+          {policy.unskipNotes && (
+            <p className="text-xs text-stone-500 italic">{policy.unskipNotes}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SkipPoliciesInfoPanel({ policies }: { policies: ApiSubscriptionSkipPolicy[] }) {
+  if (policies.length === 0) return null
+
+  const isMulti = policies.length > 1
+
+  return (
+    <div className="rounded-lg border border-stone-700 p-4 flex flex-col gap-3">
+      <p className="text-sm font-semibold text-stone-200">Skip Policy</p>
+      {isMulti ? (
+        <div className="flex flex-col gap-4">
+          {policies.map(policy => (
+            <div key={policy.billingType} className="flex flex-col gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500/80">
+                {billingTypeLabel(policy.billingType ?? 'ALL')}
+              </p>
+              <SkipPolicyInfoPanel policy={policy} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <SkipPolicyInfoPanel policy={policies[0]!} />
+      )}
+    </div>
+  )
+}

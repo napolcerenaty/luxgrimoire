@@ -825,6 +825,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
             <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
             <option value="OPEN_PREORDER">🔓 Open Preorder</option>
             <option value="OVERSTOCK">📦 Overstock / In Stock</option>
+            <option value="SALE">🏷️ Sale</option>
           </select>
         </div>
       </div>
@@ -1661,11 +1662,13 @@ function AnnouncementCard({
                   LIMITED_PREORDER: '⏳ Limited Preorder',
                   OPEN_PREORDER: '🔓 Open Preorder',
                   OVERSTOCK: '📦 Overstock',
+                  SALE: '🏷️ Sale',
                 }
                 const typeColors: Record<string, string> = {
                   LIMITED_PREORDER: 'bg-violet-500/15 text-violet-300',
                   OPEN_PREORDER: 'bg-sky-500/15 text-sky-300',
                   OVERSTOCK: 'bg-emerald-500/15 text-emerald-300',
+                  SALE: 'bg-amber-500/15 text-amber-300',
                 }
                 const type = (announcement as any).saleType
                 return (
@@ -1829,7 +1832,7 @@ function AiSaleParseModal({ onApply, onClose }: {
               {result.saleType && (
                 <div>
                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Sale Type</p>
-                  <p className="text-stone-300">{{ LIMITED_PREORDER: 'Limited Preorder', OPEN_PREORDER: 'Open Preorder', OVERSTOCK: 'Overstock' }[result.saleType] ?? result.saleType}</p>
+                  <p className="text-stone-300">{{ LIMITED_PREORDER: 'Limited Preorder', OPEN_PREORDER: 'Open Preorder', OVERSTOCK: 'Overstock', SALE: 'Sale' }[result.saleType] ?? result.saleType}</p>
                 </div>
               )}
               {result.expectedShipping && (
@@ -2095,6 +2098,7 @@ export default function AdminSaleAnnouncementsPage() {
           <option value="LIMITED_PREORDER">Limited Preorder</option>
           <option value="OPEN_PREORDER">Open Preorder</option>
           <option value="OVERSTOCK">Overstock</option>
+          <option value="SALE">Sale</option>
         </select>
         {(search || companyFilter || saleTypeFilter) && (
           <button onClick={() => { setSearch(''); setCompanyFilter(''); setSaleTypeFilter(''); setPage(1) }}

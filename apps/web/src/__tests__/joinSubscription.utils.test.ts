@@ -270,20 +270,41 @@ describe('computeAutoBatches', () => {
 // ── computeFirstBillingMonth ──────────────────────────────────────────────────
 
 describe('computeFirstBillingMonth', () => {
-  it('27. signupIncludesCurrentMonth=true → same month as join', () => {
+  // Default behaviour (joinDay=1, renewalDay=null, offset=0):
+  // joinDay(1) >= effectiveRenewalDay(1) → renewal happened → lastBillingMonth = joinMonth → currentBox = joinMonth
+
+  it('27. includes=true, defaults → same month as join', () => {
     expect(computeFirstBillingMonth(2025, 11, true)).toEqual({ year: 2025, month: 11 })
   })
 
-  it('28. signupIncludesCurrentMonth=false → next month', () => {
+  it('28. includes=false, defaults → next month', () => {
     expect(computeFirstBillingMonth(2025, 11, false)).toEqual({ year: 2025, month: 12 })
   })
 
-  it('29. signupIncludesCurrentMonth=false, December → wraps to January next year', () => {
+  it('29. includes=false, December, defaults → wraps to January next year', () => {
     expect(computeFirstBillingMonth(2025, 12, false)).toEqual({ year: 2026, month: 1 })
   })
 
-  it('30. signupIncludesCurrentMonth=true, December → stays December', () => {
+  it('30. includes=true, December, defaults → stays December', () => {
     expect(computeFirstBillingMonth(2025, 12, true)).toEqual({ year: 2025, month: 12 })
+  })
+
+  // Renewal-cycle-aware: joinDay before renewalDay → lastBillingMonth = joinMonth - 1
+
+  it('37. renewalDay=20, joinDay=5, Feb, offset=1, includes=true → lastBillingMonth=Jan, currentBox=Feb → first=Feb', () => {
+    expect(computeFirstBillingMonth(2025, 2, true, 5, 20, 1)).toEqual({ year: 2025, month: 2 })
+  })
+
+  it('38. renewalDay=20, joinDay=25, Feb, offset=1, includes=true → lastBillingMonth=Feb, currentBox=March → first=March', () => {
+    expect(computeFirstBillingMonth(2025, 2, true, 25, 20, 1)).toEqual({ year: 2025, month: 3 })
+  })
+
+  it('39. renewalDay=20, joinDay=5, Jan, offset=1, includes=true → lastBillingMonth=Dec2024, currentBox=Jan2025 → first=Jan', () => {
+    expect(computeFirstBillingMonth(2025, 1, true, 5, 20, 1)).toEqual({ year: 2025, month: 1 })
+  })
+
+  it('40. renewalDay=1, joinDay=10, Feb, offset=1, includes=false → lastBillingMonth=Feb, currentBox=March, first=April', () => {
+    expect(computeFirstBillingMonth(2025, 2, false, 10, 1, 1)).toEqual({ year: 2025, month: 4 })
   })
 })
 
