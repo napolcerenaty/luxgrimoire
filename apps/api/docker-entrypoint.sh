@@ -18,6 +18,10 @@ packages/database/node_modules/.bin/prisma migrate resolve \
   --rolled-back 20260512210000_add_search_trgm_indexes \
   --schema packages/database/prisma/schema.prisma 2>/dev/null || true
 
+packages/database/node_modules/.bin/prisma migrate resolve \
+  --rolled-back 20260712000000_add_last_login_at \
+  --schema packages/database/prisma/schema.prisma 2>/dev/null || true
+
 echo "▶ Running Prisma migrations..."
 packages/database/node_modules/.bin/prisma migrate deploy --schema packages/database/prisma/schema.prisma
 
