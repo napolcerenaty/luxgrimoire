@@ -99,7 +99,7 @@ function RelatedPosts({
                   <span className="text-xs shrink-0 mt-0.5" style={{ color: '#d4af37', textShadow: '0 0 5px rgba(212,175,55,0.7)' }} aria-label="Featured">✦</span>
                 )}
               </div>
-              {!sidebar && (r.custom_excerpt ?? r.excerpt) && (
+              {(r.custom_excerpt ?? r.excerpt) && (
                 <p className="text-xs leading-relaxed mt-1.5 line-clamp-2" style={{ color: 'var(--text-dim)' }}>
                   {r.custom_excerpt ?? r.excerpt}
                 </p>
@@ -179,6 +179,14 @@ export default async function BlogPostPage({
               </div>
             )}
 
+            {/* Sponsored disclosure */}
+            {(() => { const sp = getSponsoredLabel(post); return sp ? (
+              <div className="flex items-center gap-2 mb-4 px-4 py-2 rounded-[10px] blog-sponsored-strip">
+                <span style={{ fontSize: '10px' }}>◈</span>
+                <span className="text-[10px] font-serif uppercase tracking-[0.12em]">Sponsored content · {sp}</span>
+              </div>
+            ) : null })()}
+
             <h1 className="font-serif leading-[1.1] mb-5 mt-0" style={{ fontSize: 'clamp(2rem,5vw,3.2rem)', color: 'var(--text-bright)' }}>
               {post.title}
             </h1>
@@ -224,8 +232,8 @@ export default async function BlogPostPage({
           {/* ── Sidebar — desktop only ── */}
           {related.length > 0 && (
             <aside className="hidden xl:block">
-              <div style={{ position: 'sticky', top: '108px' }}>
-              <RelatedPosts posts={related} tagName={post.primary_tag?.name} tagSlug={tagSlug} sidebar />
+              <div className="sticky top-[108px]">
+                <RelatedPosts posts={related} tagName={post.primary_tag?.name} tagSlug={tagSlug} sidebar />
               </div>
             </aside>
           )}
