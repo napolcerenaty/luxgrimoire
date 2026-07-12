@@ -1740,33 +1740,54 @@ function AiSaleParseModal({ onApply, onClose }: {
   onApply: (result: AiSaleResult, sourceUrl?: string) => void
   onClose: () => void
 }) {
-  const [inputMode, setInputMode] = useState<'text' | 'url'>('text')
+  const [inputMode, setInputMode] = useState<'text' | 'url' | 'screenshot'>('text')
   const [text, setText] = useState('')
   const [url, setUrl] = useState('')
+  const [imageBase64, setImageBase64] = useState<string | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AiSaleResult | null>(null)
   const [parsedUrl, setParsedUrl] = useState<string | undefined>(undefined)
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      setImageBase64(dataUrl)
+      setImagePreview(dataUrl)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleParse = async () => {
-    const isUrl = inputMode === 'url'
-    if (isUrl ? !url.trim() : !text.trim()) return
+    if (inputMode === 'url' && !url.trim()) return
+    if (inputMode === 'text' && !text.trim()) return
+    if (inputMode === 'screenshot' && !imageBase64) return
     setLoading(true)
     setError(null)
     try {
-      const body = isUrl ? { url: url.trim() } : { text: text.trim() }
+      const body = inputMode === 'url'
+        ? { url: url.trim() }
+        : inputMode === 'screenshot'
+          ? { imageBase64 }
+          : { text: text.trim() }
       const r = await authFetch<AiSaleResult>('/ai/parse-sale', {
         method: 'POST',
         body: JSON.stringify(body),
       })
       setResult(r)
-      setParsedUrl(isUrl ? url.trim() : undefined)
+      setParsedUrl(inputMode === 'url' ? url.trim() : undefined)
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setLoading(false)
     }
   }
+
+  const canParse = inputMode === 'url' ? !!url.trim() : inputMode === 'screenshot' ? !!imageBase64 : !!text.trim()
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -1788,6 +1809,10 @@ function AiSaleParseModal({ onApply, onClose }: {
                 className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'url' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
                 Enter URL
               </button>
+              <button type="button" onClick={() => setInputMode('screenshot')}
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+                Screenshot
+              </button>
             </div>
 
             {inputMode === 'text' ? (
@@ -1798,7 +1823,7 @@ function AiSaleParseModal({ onApply, onClose }: {
                 rows={10}
                 className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 resize-y"
               />
-            ) : (
+            ) : inputMode === 'url' ? (
               <div className="space-y-1">
                 <input
                   type="url"
@@ -1810,11 +1835,20 @@ function AiSaleParseModal({ onApply, onClose }: {
                 />
                 <p className="text-xs text-stone-500">The page will be fetched server-side and its text sent to AI. Works with FairyLoot, OwlCrate, Illumicrate, etc.</p>
               </div>
+            ) : (
+              <div className="space-y-2">
+                <input type="file" accept="image/*" onChange={handleFileChange}
+                  className="block w-full text-sm text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-stone-700 file:text-stone-200 hover:file:bg-stone-600 cursor-pointer" />
+                {imagePreview && (
+                  <img src={imagePreview} alt="Preview" className="max-h-60 rounded-lg border border-stone-700 object-contain" />
+                )}
+                <p className="text-xs text-stone-500">Image is processed in-memory and never saved to storage.</p>
+              </div>
             )}
             {error && <p className="text-red-400 text-sm">{error}</p>}
             <div className="flex justify-end gap-3">
               <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
-              <button type="button" onClick={handleParse} disabled={loading || (inputMode === 'text' ? !text.trim() : !url.trim())}
+              <button type="button" onClick={handleParse} disabled={loading || !canParse}
                 className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-500 disabled:opacity-50 transition-colors">
                 {loading ? 'Parsing…' : 'Parse with AI'}
               </button>

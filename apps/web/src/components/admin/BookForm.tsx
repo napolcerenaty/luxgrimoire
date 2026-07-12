@@ -40,28 +40,49 @@ export interface AiBookResult {
 
 export function GoodreadsParser({ onResult }: { onResult: (data: AiBookResult) => void }) {
   const [open, setOpen] = useState(false)
+  const [inputMode, setInputMode] = useState<'text' | 'screenshot'>('text')
   const [text, setText] = useState('')
+  const [imageBase64, setImageBase64] = useState<string | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      setImageBase64(dataUrl)
+      setImagePreview(dataUrl)
+    }
+    reader.readAsDataURL(file)
+  }
+
   async function handleParse() {
-    if (!text.trim()) return
+    if (inputMode === 'text' && !text.trim()) return
+    if (inputMode === 'screenshot' && !imageBase64) return
     setLoading(true)
     setError(null)
     try {
+      const body = inputMode === 'screenshot' ? { imageBase64 } : { text }
       const data = await authFetch<AiBookResult>('/ai/parse-book', {
         method: 'POST',
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(body),
       })
       onResult(data)
       setOpen(false)
       setText('')
+      setImageBase64(null)
+      setImagePreview(null)
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setLoading(false)
     }
   }
+
+  const canParse = inputMode === 'screenshot' ? !!imageBase64 : !!text.trim()
 
   if (!open) {
     return (
@@ -74,22 +95,45 @@ export function GoodreadsParser({ onResult }: { onResult: (data: AiBookResult) =
 
   return (
     <div className="border border-stone-700 rounded-xl p-3 flex flex-col gap-2 bg-stone-900/50">
-      <p className="text-xs text-stone-400">Paste text copied from a Goodreads book page:</p>
-      <textarea
-        autoFocus
-        rows={6}
-        className={`${INP} font-mono text-xs`}
-        placeholder={'Deception Duet #2\nDeath Wish\n\nK. Webster\n3.66\n...\n\nGenres\nDark Romance\n...'}
-        value={text}
-        onChange={e => setText(e.target.value)}
-      />
+      {/* Mode toggle */}
+      <div className="flex rounded-lg overflow-hidden border border-stone-700 self-start">
+        <button type="button" onClick={() => setInputMode('text')}
+          className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'text' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+          Paste text
+        </button>
+        <button type="button" onClick={() => setInputMode('screenshot')}
+          className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+          Screenshot
+        </button>
+      </div>
+
+      {inputMode === 'text' ? (
+        <textarea
+          autoFocus
+          rows={6}
+          className={`${INP} font-mono text-xs`}
+          placeholder={'Deception Duet #2\nDeath Wish\n\nK. Webster\n3.66\n...\n\nGenres\nDark Romance\n...'}
+          value={text}
+          onChange={e => setText(e.target.value)}
+        />
+      ) : (
+        <div className="space-y-2">
+          <input type="file" accept="image/*" onChange={handleFileChange}
+            className="block w-full text-sm text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-stone-700 file:text-stone-200 hover:file:bg-stone-600 cursor-pointer" />
+          {imagePreview && (
+            <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg border border-stone-700 object-contain" />
+          )}
+          <p className="text-xs text-stone-500">Image is processed in-memory and never saved to storage.</p>
+        </div>
+      )}
+
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={handleParse} disabled={loading || !text.trim()}
+        <button type="button" onClick={handleParse} disabled={loading || !canParse}
           className="flex-1 bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-amber-300 disabled:opacity-50 transition-colors">
           {loading ? 'Parsing…' : 'Fill form'}
         </button>
-        <button type="button" onClick={() => { setOpen(false); setText(''); setError(null) }}
+        <button type="button" onClick={() => { setOpen(false); setText(''); setImageBase64(null); setImagePreview(null); setError(null) }}
           className="px-3 py-1.5 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600 text-sm transition-colors">
           Cancel
         </button>

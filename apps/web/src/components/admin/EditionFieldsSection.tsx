@@ -103,13 +103,30 @@ export function AiParseSection({ onResult, disabled }: {
   disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const [inputMode, setInputMode] = useState<'text' | 'screenshot'>('text')
   const [text, setText] = useState('')
+  const [imageBase64, setImageBase64] = useState<string | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [parsing, setParsing] = useState(false)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      setImageBase64(dataUrl)
+      setImagePreview(dataUrl)
+    }
+    reader.readAsDataURL(file)
+  }
 
   const parse = async () => {
     setParsing(true)
     try {
-      const payload = { text }
+      const payload = inputMode === 'screenshot' && imageBase64
+        ? { imageBase64 }
+        : { text }
       const result = await authFetch<AiParseResult>('/ai/parse', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -117,6 +134,8 @@ export function AiParseSection({ onResult, disabled }: {
       onResult(result)
       setOpen(false)
       setText('')
+      setImageBase64(null)
+      setImagePreview(null)
     } catch (e: unknown) {
       alert(`AI parse failed: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
@@ -124,7 +143,7 @@ export function AiParseSection({ onResult, disabled }: {
     }
   }
 
-  const canParse = text.trim().length > 10
+  const canParse = inputMode === 'screenshot' ? !!imageBase64 : text.trim().length > 10
 
   return (
     <div className="border border-amber-500/30 rounded-xl overflow-hidden bg-stone-900/60">
@@ -137,9 +156,32 @@ export function AiParseSection({ onResult, disabled }: {
       </button>
       {open && (
         <div className="border-t border-stone-700/60 p-4 space-y-3">
-          <textarea value={text} onChange={e => setText(e.target.value)} rows={5}
-            placeholder="Paste social media post, newsletter, or announcement text…"
-            className={`${INP} resize-none`} />
+          {/* Mode toggle */}
+          <div className="flex rounded-lg overflow-hidden border border-stone-700 self-start w-fit">
+            <button type="button" onClick={() => setInputMode('text')}
+              className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'text' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+              Paste text
+            </button>
+            <button type="button" onClick={() => setInputMode('screenshot')}
+              className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+              Screenshot
+            </button>
+          </div>
+
+          {inputMode === 'text' ? (
+            <textarea value={text} onChange={e => setText(e.target.value)} rows={5}
+              placeholder="Paste social media post, newsletter, or announcement text…"
+              className={`${INP} resize-none`} />
+          ) : (
+            <div className="space-y-2">
+              <input type="file" accept="image/*" onChange={handleFileChange}
+                className="block w-full text-sm text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-stone-700 file:text-stone-200 hover:file:bg-stone-600 cursor-pointer" />
+              {imagePreview && (
+                <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg border border-stone-700 object-contain" />
+              )}
+            </div>
+          )}
+
           <button type="button" disabled={!canParse || parsing} onClick={parse}
             className={`${BTN_SM} bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-40 px-4 py-2 text-sm`}>
             {parsing ? '✨ Parsing…' : '✨ Auto-fill fields'}
