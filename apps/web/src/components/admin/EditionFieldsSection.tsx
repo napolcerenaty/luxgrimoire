@@ -966,8 +966,8 @@ export function EditionFieldsSection({
         {artists.length > 0 && (
           <div className="space-y-2">
             {artists.map((art, i) => (
-              <div key={i} className="flex flex-col gap-2">
-                <div className="flex-1 w-full">
+              <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="flex-1 min-w-0">
                   {art.id ? (
                     <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
                       {!art.existing && art.id && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
@@ -996,7 +996,7 @@ export function EditionFieldsSection({
                       onAdd={(a: PersonEntry) => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: a.id, name: a.name } : x))} />
                   )}
                 </div>
-                <div className="flex gap-2 items-center">
+                <div className="flex flex-1 gap-2 items-center">
                 <input value={art.role}
                   onChange={e => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
                   placeholder="Role (e.g. cover art, map…)"
