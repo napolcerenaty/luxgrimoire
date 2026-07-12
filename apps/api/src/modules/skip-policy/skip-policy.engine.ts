@@ -34,6 +34,8 @@ export interface SkipStatus {
   isUnskipPastDeadline: boolean;
   /** The next month the user can skip, or null if none available */
   targetMonth: { year: number; month: number } | null;
+  /** ISO date string (YYYY-MM-DD) of when the current skip window resets to 0, or null if not applicable */
+  windowResetDate: string | null;
 }
 
 @Injectable()
@@ -312,6 +314,13 @@ export class SkipPolicyEngine {
       const boxYear = rawBox > 12 ? now.getFullYear() + 1 : now.getFullYear();
       status.warnings.unshift(`The skip window for ${MONTHS[boxMonth - 1]} ${boxYear} has passed (renewal day: ${renewalDay}).`);
     }
+
+    // Compute window reset date for limited-skip policies
+    if (policy && policy.maxSkips !== null) {
+      const activeWindowKey = this.computeWindowKey(policy, effectiveState, entry);
+      status.windowResetDate = this.computeWindowResetDate(policy, activeWindowKey);
+    }
+
     return status;
   }
 
@@ -1003,6 +1012,36 @@ export class SkipPolicyEngine {
     }
   }
 
+  /**
+   * Returns the date (YYYY-MM-DD) when the current skip window resets to 0,
+   * or null when not applicable (e.g. unlimited, NONE, or no windowMonths configured).
+   */
+  private computeWindowResetDate(
+    policy: { type: string; windowMonths: number | null } | null,
+    windowKey: string | null,
+  ): string | null {
+    if (!policy || !windowKey) return null;
+    switch (policy.type) {
+      case 'CALENDAR_YEAR': {
+        const year = parseInt(windowKey, 10);
+        if (isNaN(year)) return null;
+        // Window resets on Jan 1 of the following year
+        return `${year + 1}-01-01`;
+      }
+      case 'FROM_FIRST_SKIP':
+      case 'FROM_SUB_START': {
+        if (!policy.windowMonths) return null;
+        const windowStart = new Date(windowKey);
+        if (isNaN(windowStart.getTime())) return null;
+        const resetDate = new Date(windowStart);
+        resetDate.setMonth(resetDate.getMonth() + policy.windowMonths);
+        return resetDate.toISOString().slice(0, 10);
+      }
+      default:
+        return null;
+    }
+  }
+
   private buildStatus(
     policy: {
       type: string;
@@ -1070,6 +1109,7 @@ export class SkipPolicyEngine {
       nextUnskipDeadline: unskipDeadline ? unskipDeadline.toISOString() : null,
       isUnskipPastDeadline: unskipDeadline ? new Date() > unskipDeadline : false,
       targetMonth: deadlineMonth,
+      windowResetDate: null,
     };
   }
 

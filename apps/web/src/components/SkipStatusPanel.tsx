@@ -110,6 +110,17 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
         )}
       </p>
 
+      {status.maxSkips !== null && status.windowResetDate && (
+        <p className="text-xs text-stone-500">
+          Window resets:{' '}
+          <span className="text-stone-300 font-medium">
+            {new Date(status.windowResetDate).toLocaleDateString('en-GB', {
+              day: 'numeric', month: 'short', year: 'numeric',
+            })}
+          </span>
+        </p>
+      )}
+
       {status.notes && <p className="text-xs text-stone-500 italic whitespace-pre-line">{status.notes}</p>}
 
       {/* Deadline banner */}

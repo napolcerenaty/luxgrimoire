@@ -561,6 +561,17 @@ function SubscriptionOverviewPanel({
                 {skipLimit}
               </span>
 
+              {skipStatus.maxSkips !== null && skipStatus.windowResetDate && (
+                <p className="text-xs text-stone-500 dark:text-stone-500">
+                  Window resets:{' '}
+                  <span className="text-stone-600 dark:text-stone-400 font-medium">
+                    {new Date(skipStatus.windowResetDate).toLocaleDateString('en-GB', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                    })}
+                  </span>
+                </p>
+              )}
+
               {!skipStatus.canSkip && skipStatus.isPastDeadline && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">Skip deadline has already passed for the next eligible box.</p>
               )}
