@@ -95,6 +95,11 @@ function RelatedPosts({
                   <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0 mt-0.5" style={{ background: 'var(--bg-raised)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{sponsored}</span>
                 )}
               </div>
+              {!sidebar && (r.custom_excerpt ?? r.excerpt) && (
+                <p className="text-xs leading-relaxed mt-1.5 line-clamp-2" style={{ color: 'var(--text-dim)' }}>
+                  {r.custom_excerpt ?? r.excerpt}
+                </p>
+              )}
               {r.reading_time > 0 && (
                 <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                   <Clock size={10} /> {r.reading_time} min
@@ -150,7 +155,7 @@ export default async function BlogPostPage({
         )}
 
         {/* Two-column grid: article + sidebar */}
-        <div className="grid xl:grid-cols-[1fr_300px] gap-12 items-start pb-16">
+        <div className="grid xl:grid-cols-[1fr_300px] gap-12 pb-16">
 
           {/* ── Main article ── */}
           <article className="min-w-0">
@@ -214,8 +219,10 @@ export default async function BlogPostPage({
 
           {/* ── Sidebar — desktop only ── */}
           {related.length > 0 && (
-            <aside className="hidden xl:block" style={{ position: 'sticky', top: '108px', alignSelf: 'start' }}>
+            <aside className="hidden xl:block">
+              <div style={{ position: 'sticky', top: '108px' }}>
               <RelatedPosts posts={related} tagName={post.primary_tag?.name} tagSlug={tagSlug} sidebar />
+              </div>
             </aside>
           )}
         </div>
