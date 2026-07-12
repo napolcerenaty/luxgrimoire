@@ -571,13 +571,13 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                           <span className="text-stone-400 dark:text-stone-500 text-[10px] w-4 shrink-0 text-right pt-1">{i + 1}.</span>
                           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                             <input
-                              className="w-full bg-transparent border-b border-amber-500/30 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-xs text-amber-800 dark:text-amber-200 px-1 py-0.5 placeholder:text-stone-400"
+                              className="w-full bg-transparent border-b border-amber-500/30 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-xs text-stone-900 dark:text-amber-200 px-1 py-0.5 placeholder:text-stone-400"
                               value={a.name}
                               onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                               placeholder="Name"
                             />
                             <input
-                              className="w-full bg-transparent border-b border-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-xs text-amber-700 dark:text-amber-400 px-1 py-0.5 placeholder:text-stone-400"
+                              className="w-full bg-transparent border-b border-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-xs text-stone-700 dark:text-amber-400 px-1 py-0.5 placeholder:text-stone-400"
                               value={a.role}
                               onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
                               placeholder="Role"
@@ -609,13 +609,13 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                           </div>
                           <span className="text-stone-400 dark:text-stone-500 text-[10px] w-4 shrink-0 text-right">{i + 1}.</span>
                           <input
-                            className="flex-1 min-w-0 bg-transparent border-b border-violet-500/30 focus:border-violet-600 dark:focus:border-violet-400 outline-none text-xs text-violet-900 dark:text-violet-200 px-1 py-0.5 placeholder:text-stone-400"
+                            className="flex-1 min-w-0 bg-transparent border-b border-violet-500/30 focus:border-violet-600 dark:focus:border-violet-400 outline-none text-xs text-stone-900 dark:text-violet-200 px-1 py-0.5 placeholder:text-stone-400"
                             value={t.rawValue}
                             onChange={e => setBdFeatureTags(prev => prev.map((x, j) => j === i ? { ...x, rawValue: e.target.value } : x))}
                             placeholder="Feature"
                           />
                           {t.categories.length > 0 && (
-                            <span className="text-[10px] text-violet-600 dark:text-violet-500 shrink-0 max-w-[80px] truncate" title={t.categories.join(', ')}>
+                            <span className="text-[10px] text-violet-700 dark:text-violet-500 shrink-0 max-w-[80px] truncate" title={t.categories.join(', ')}>
                               {t.categories.join(', ')}
                             </span>
                           )}
