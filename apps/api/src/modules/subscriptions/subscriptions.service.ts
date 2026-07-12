@@ -2174,8 +2174,23 @@ export class SubscriptionsService {
       limitYear = lastBoxLimitYear;
       limitMonth = lastBoxLimitMonth;
     } else {
-      limitYear = now.getFullYear();
-      limitMonth = now.getMonth() + 1;
+      // Apply the same renewal-day check for "now" — if today is before the renewal day,
+      // the current month's renewal hasn't happened yet so it shouldn't be included.
+      const nowDay = now.getDate();
+      const effectiveRenewalDayForLimit = renewalDay ?? 1;
+      const currentRenewalHappened = nowDay >= effectiveRenewalDayForLimit;
+      let lastBilledNowMonth = now.getMonth() + 1;
+      let lastBilledNowYear = now.getFullYear();
+      if (!currentRenewalHappened) {
+        lastBilledNowMonth -= 1;
+        if (lastBilledNowMonth === 0) { lastBilledNowMonth = 12; lastBilledNowYear -= 1; }
+      }
+      let lastBoxNowMonth = lastBilledNowMonth + renewalMonthOffset;
+      let lastBoxNowYear = lastBilledNowYear;
+      while (lastBoxNowMonth > 12) { lastBoxNowMonth -= 12; lastBoxNowYear += 1; }
+      while (lastBoxNowMonth < 1)  { lastBoxNowMonth += 12; lastBoxNowYear -= 1; }
+      limitYear = lastBoxNowYear;
+      limitMonth = lastBoxNowMonth;
     }
 
     // Determine the first eligible box month based on renewal cycle position.
@@ -2299,8 +2314,21 @@ export class SubscriptionsService {
       limitYear = lastBoxLimitYear;
       limitMonth = lastBoxLimitMonth;
     } else {
-      limitYear = now.getFullYear();
-      limitMonth = now.getMonth() + 1;
+      const nowDay = now.getDate();
+      const effectiveRenewalDayForLimit = renewalDay ?? 1;
+      const currentRenewalHappened = nowDay >= effectiveRenewalDayForLimit;
+      let lastBilledNowMonth = now.getMonth() + 1;
+      let lastBilledNowYear = now.getFullYear();
+      if (!currentRenewalHappened) {
+        lastBilledNowMonth -= 1;
+        if (lastBilledNowMonth === 0) { lastBilledNowMonth = 12; lastBilledNowYear -= 1; }
+      }
+      let lastBoxNowMonth = lastBilledNowMonth + renewalMonthOffset;
+      let lastBoxNowYear = lastBilledNowYear;
+      while (lastBoxNowMonth > 12) { lastBoxNowMonth -= 12; lastBoxNowYear += 1; }
+      while (lastBoxNowMonth < 1)  { lastBoxNowMonth += 12; lastBoxNowYear -= 1; }
+      limitYear = lastBoxNowYear;
+      limitMonth = lastBoxNowMonth;
     }
 
     // Same renewal-cycle-aware logic as getEligibleMonths.
