@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryDto, SUPPORTED_EVENT_TYPES } from './analytics.dto';
@@ -12,8 +12,21 @@ export class AnalyticsController {
 
   @Public()
   @Get('public/blog-view')
-  blogView(@Req() req: any) {
+  blogView() {
     this.analyticsService.track({ eventType: 'blog_view' });
+    return { ok: true };
+  }
+
+  @Public()
+  @Get('public/blog-post-view')
+  blogPostView(@Query('slug') slug: string, @Query('title') title: string) {
+    if (!slug) return { ok: false };
+    this.analyticsService.track({
+      eventType: 'blog_post_view',
+      entityType: 'blog_post',
+      entityId: slug,
+      entityName: title ?? slug,
+    });
     return { ok: true };
   }
 

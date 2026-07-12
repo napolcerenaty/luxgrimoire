@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Clock, Calendar } from 'lucide-react'
 import { getPostBySlug, getPosts } from '@/lib/ghost'
+import BlogPostViewTracker from '@/components/blog/BlogPostViewTracker'
 
 export const revalidate = 60
 
@@ -46,6 +47,7 @@ export default async function BlogPostPage({
       className="min-h-screen"
       style={{ background: 'radial-gradient(circle at top center, var(--accent-glow), transparent 30%), linear-gradient(180deg, var(--bg-surface) 0%, var(--bg) 60%, var(--bg-surface) 100%)' }}
     >
+      <BlogPostViewTracker slug={post.slug} title={post.title} />
       {/* Breadcrumb */}
       <div className="max-w-[860px] mx-auto px-4 sm:px-6 pt-6 pb-2">
         <nav className="flex items-center gap-2 text-sm flex-wrap" aria-label="Breadcrumb" style={{ color: 'var(--text-muted)' }}>
