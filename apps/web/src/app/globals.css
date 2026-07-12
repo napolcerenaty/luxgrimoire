@@ -428,19 +428,14 @@ input[type=number] {
   cursor: pointer;
   padding: 0;
 }
-.blog-post-content .kg-toggle-card[data-kg-toggle-state="open"] .kg-toggle-card-icon {
-  transform: rotate(180deg);
-}
+/* transform rotation handled by JS inline styles */
 .blog-post-content .kg-toggle-content {
   padding: 0 1.2em;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease, padding 0.3s ease;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  transition: max-height 0.3s ease, padding 0.2s ease;
 }
-.blog-post-content .kg-toggle-card[data-kg-toggle-state="open"] .kg-toggle-content {
-  max-height: 2000px;
-  padding: 0.85em 1.2em;
-}
+/* open state controlled purely by JS inline styles — no data-attribute CSS */
 .blog-post-content figcaption {
   margin-top: -1em;
   margin-bottom: 1.5em;

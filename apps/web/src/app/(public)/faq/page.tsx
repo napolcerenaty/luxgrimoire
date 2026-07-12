@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { ChevronDown } from 'lucide-react'
 import { getPage } from '@/lib/ghost'
+import BlogPostContent from '@/components/blog/BlogPostContent'
 
 export const revalidate = 300
 
@@ -41,7 +42,7 @@ export default async function FaqPage() {
         <p className="text-stone-400 mb-12 text-sm">
           Can&apos;t find your answer? Visit our <Link href="/blog" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">Blog</Link> for guides and tips, or <Link href="/contact" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">contact us</Link> directly.
         </p>
-        <div className="blog-post-content" dangerouslySetInnerHTML={{ __html: ghostPage.html }} />
+        <BlogPostContent html={ghostPage.html} />
       </div>
     )
   }
