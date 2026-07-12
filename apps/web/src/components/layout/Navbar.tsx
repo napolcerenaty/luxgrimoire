@@ -61,6 +61,10 @@ export function Navbar() {
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
+  const isBlog = pathname.startsWith('/blog')
+
+  if (isBlog) return null
+
   return (
     <header className="sticky top-0 z-50 w-full">
       {/* Top bar — logo + controls */}
