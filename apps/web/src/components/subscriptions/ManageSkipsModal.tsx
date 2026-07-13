@@ -8,9 +8,8 @@ import { X, BookOpen } from 'lucide-react'
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const OWNERSHIP_OPTIONS = [
-  { value: 'OWNED', label: 'Owned', desc: 'Book received / in hand' },
-  { value: 'PREORDER', label: 'Pre-order', desc: 'Paid but not shipped yet' },
-  { value: 'WISHLISTED', label: 'Wishlisted', desc: 'Not yet purchased' },
+  { value: 'OWNED', label: 'Owned' },
+  { value: 'PREORDER', label: 'Pre-order' },
 ] as const
 
 type OwnershipStatus = typeof OWNERSHIP_OPTIONS[number]['value']
@@ -227,20 +226,19 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                   </p>
                   <p className="text-stone-400 text-xs mt-0.5">What status should the added books get?</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-2">
                   {OWNERSHIP_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setOwnershipStatus(opt.value)}
-                      className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-all ${
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
                         ownershipStatus === opt.value
                           ? 'border-emerald-500 bg-emerald-950/60 text-emerald-200'
                           : 'border-stone-700 bg-stone-800/60 text-stone-400 hover:border-stone-500'
                       }`}
                     >
-                      <span className="font-semibold">{opt.label}</span>
-                      <span className="text-[10px] text-stone-500 mt-0.5">{opt.desc}</span>
+                      {opt.label}
                     </button>
                   ))}
                 </div>

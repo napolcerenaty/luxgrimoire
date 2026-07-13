@@ -268,12 +268,17 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Post(':slug/manage-skips')
-  manageSkips(
+  async manageSkips(
     @CurrentUser() user: CurrentUserType,
     @Param('slug') slug: string,
     @Body() dto: ManageSkipsDto,
   ) {
-    return this.subscriptionsService.manageSkips(user.id, slug, dto);
+    const result = await this.subscriptionsService.manageSkips(user.id, slug, dto);
+    const eventType = (dto.addBooksForUnskipped || dto.removeBooksForSkipped)
+      ? 'manage_skips_saved_collection'
+      : 'manage_skips_saved';
+    this.analyticsService.track({ eventType, entityType: 'subscription', entityId: slug });
+    return result;
   }
 
   @ApiBearerAuth()

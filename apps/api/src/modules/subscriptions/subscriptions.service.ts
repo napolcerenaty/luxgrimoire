@@ -2640,7 +2640,7 @@ export class SubscriptionsService {
     purchaseGroupId: string;
     signatureType: $Enums.SignatureType | null;
     changedAt: Date;
-    ownershipStatus?: 'OWNED' | 'PREORDER' | 'WISHLISTED';
+    ownershipStatus?: 'OWNED' | 'PREORDER';
   }): Promise<void> {
     const existing = await this.prisma.userBookEntry.findFirst({
       where: { userId: opts.userId, editionId: opts.editionId, subscriptionEntryId: opts.subscriptionEntryId },
@@ -3844,7 +3844,7 @@ export class SubscriptionsService {
       toUnskip: { year: number; month: number }[];
       addBooksForUnskipped: boolean;
       removeBooksForSkipped: boolean;
-      ownershipStatusForUnskipped?: 'OWNED' | 'PREORDER' | 'WISHLISTED';
+      ownershipStatusForUnskipped?: 'OWNED' | 'PREORDER';
     },
   ) {
     const sub = await this.findBySlug(slug);
@@ -3913,7 +3913,7 @@ export class SubscriptionsService {
         });
         if (!subMonth || subMonth.books.length === 0) continue;
 
-        const ownershipStatus: 'OWNED' | 'PREORDER' | 'WISHLISTED' =
+        const ownershipStatus: 'OWNED' | 'PREORDER' =
           dto.ownershipStatusForUnskipped ?? 'OWNED';
 
         const feeTemplates = entry.feeTemplates as any[];
@@ -4033,6 +4033,7 @@ export class SubscriptionsService {
     await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
     await refreshNextRenewalDate(this.prisma, entry.id);
     backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
+    this.statsService.markStatsStale(userId);
 
     return { ok: true };
   }

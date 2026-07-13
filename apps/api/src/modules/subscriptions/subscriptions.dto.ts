@@ -938,6 +938,6 @@ export class ManageSkipsDto {
   removeBooksForSkipped!: boolean;
 
   @IsOptional()
-  @IsIn(['OWNED', 'PREORDER', 'WISHLISTED'])
-  ownershipStatusForUnskipped?: 'OWNED' | 'PREORDER' | 'WISHLISTED';
+  @IsIn(['OWNED', 'PREORDER'])
+  ownershipStatusForUnskipped?: 'OWNED' | 'PREORDER';
 }
