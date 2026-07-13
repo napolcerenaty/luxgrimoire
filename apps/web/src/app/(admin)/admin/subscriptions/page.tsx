@@ -710,8 +710,8 @@ function SubscriptionForm({
               </div>
             )}
             <div>
-              <label className={LABEL_CLASS}>Renewal month offset (0 = same month, 1 = charged 1 month before box)</label>
-              <input type="number" min={0} max={11} className={INPUT_CLASS}
+              <label className={LABEL_CLASS}>Renewal month offset (0 = same month, 1 = charged 1 month before box, -2 = renewal is 2 months after box start)</label>
+              <input type="number" min={-11} max={11} className={INPUT_CLASS}
                 value={form.renewalMonthOffset} onChange={setStr('renewalMonthOffset')} placeholder="0" />
             </div>
             {(parseInt(form.intervalMonths, 10) > 1 || form.intervalMonths === 'custom') && (
@@ -1124,8 +1124,8 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                           <span className="text-stone-500">Offset (months)</span>
                           <input
                             type="number"
-                            min={0}
-                            max={3}
+                            min={-11}
+                            max={11}
                             value={editState.renewalMonthOffset}
                             onChange={e => setField('renewalMonthOffset', e.target.value)}
                             className="bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-xs w-20"
