@@ -22,7 +22,7 @@ import type {
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Luxury Book Editions & Subscription Boxes',
+  title: 'LuxGrimoire - special edition books and subscriptions tracker',
   description:
     'Discover luxury special editions, track your book collection, and follow subscription boxes from Illumicrate, FairyLoot, and more.',
 }

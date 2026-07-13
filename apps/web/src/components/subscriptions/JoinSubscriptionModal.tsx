@@ -65,6 +65,7 @@ interface Props {
   subscriptionSlug: string
   subscriptionCurrency: string
   subscriptionRenewalDay?: number | null
+  subscriptionRenewalMonthOffset?: number
   subscriptionPrice?: string | null
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
@@ -135,6 +136,7 @@ interface Step1Props {
   currency: string
   subscriptionSlug: string
   subscriptionRenewalDay?: number | null
+  subscriptionRenewalMonthOffset?: number
   subscriptionPrice?: string | null
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
@@ -146,7 +148,7 @@ interface Step1Props {
   onNext: (data: Step1FormData) => void
 }
 
-function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, isDiscontinued, subscriptionEndDate, signupIncludesCurrentMonth, onNext }: Step1Props) {
+function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptionRenewalMonthOffset, subscriptionPrice, subscriptionOriginalBasePrice, userDefaultTaxRate, userDefaultCurrency, prepayOptions, isDiscontinued, subscriptionEndDate, signupIncludesCurrentMonth, onNext }: Step1Props) {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
 
@@ -179,7 +181,13 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       setBasePrice(subscriptionPrice ? parseFloat(subscriptionPrice).toFixed(2) : '')
     } else {
       const opt = prepayOptions?.find(o => o.id === optionId)
-      if (opt) setBasePrice(parseFloat(String(opt.price)).toFixed(2))
+      if (opt) {
+        // Only auto-fill price when the option's currency matches the user's chosen currency.
+        // Never force the currency to change — billing period and currency are independent choices.
+        if (opt.currency === costCurrency) {
+          setBasePrice(parseFloat(String(opt.price)).toFixed(2))
+        }
+      }
     }
   }
 
@@ -192,20 +200,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       .catch(() => {})
   }, [subscriptionSlug])
 
-  // Auto-fill base price when costCurrency changes to one with official price records
-  // Also clear prepay selection if it no longer matches the new currency
+  // Auto-fill base price when costCurrency changes to one with official price records.
+  // Billing period (prepay option) is independent of currency — never clear it here.
   useEffect(() => {
-    // Clear prepay selection if it doesn't match the new currency
-    if (selectedPrepayOptionId !== null) {
-      const opt = prepayOptions?.find(o => o.id === selectedPrepayOptionId)
-      if (opt && opt.currency !== costCurrency) {
-        handleSelectPrepay(null)
-      }
-    }
     const matching = priceChanges.filter(pc => pc.currency === costCurrency)
     if (matching.length === 0) {
-      // No non-sentinel records for this currency.
-      // If it's the sub's default currency, subscriptionPrice is the sentinel-based official price.
       if (costCurrency === currency && subscriptionPrice) {
         setBasePrice(parseFloat(subscriptionPrice).toFixed(2))
       }
@@ -336,8 +335,12 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
     <form onSubmit={submit} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
       <h3 className="text-lg font-serif text-stone-100 font-semibold">Join Subscription</h3>
 
-      {/* Billing period (only shown if active prepay options exist for the selected currency) */}
-      {activePrepayOptions && activePrepayOptions.filter(o => o.currency === costCurrency).length > 0 && (
+      {/* Billing period (shown whenever any prepay options exist) */}
+      {activePrepayOptions && activePrepayOptions.length > 0 && (() => {
+        // Show options for the selected currency; if none, fall back to the subscription's default currency
+        const forCurrency = activePrepayOptions.filter(o => o.currency === costCurrency)
+        const displayedOptions = forCurrency.length > 0 ? forCurrency : activePrepayOptions.filter(o => o.currency === currency)
+        return (
         <div>
           <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">Billing period</label>
           <div className="space-y-2">
@@ -356,7 +359,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 )}
               </div>
             </label>
-            {activePrepayOptions.filter(o => o.currency === costCurrency).map(opt => (
+            {displayedOptions.map(opt => (
               <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
                 <input
                   type="radio"
@@ -374,7 +377,8 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           </div>
           <p className="text-xs text-stone-500 mt-1.5">Sets your scheduled renewal billing mode.</p>
         </div>
-      )}
+        )
+      })()}
       <div>
         <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
           {subscriptionRenewalDay != null ? 'First order date' : 'First order date (sets renewal day)'}
@@ -578,8 +582,9 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           // Parse join month from firstOrderDate and derive first billing month
           const startY = firstOrderDate ? parseInt(firstOrderDate.slice(0, 4)) : null
           const startM = firstOrderDate ? parseInt(firstOrderDate.slice(5, 7)) : null
+          const startD = firstOrderDate && firstOrderDate.length >= 10 ? parseInt(firstOrderDate.slice(8, 10)) : 1
           const firstBilling = startY && startM
-            ? computeFirstBillingMonth(startY, startM, signupIncludesCurrentMonth ?? true)
+            ? computeFirstBillingMonth(startY, startM, signupIncludesCurrentMonth ?? true, startD, subscriptionRenewalDay ?? null, subscriptionRenewalMonthOffset ?? 0)
             : null
           const firstBillingY = firstBilling?.year ?? null
           const firstBillingM = firstBilling?.month ?? null
@@ -827,11 +832,12 @@ interface Step2Props {
   hasPrepayOptions?: boolean
   onDone: () => void
   onSkip: () => void
+  onBack: () => void
   onNextWithBilling?: (data: { selectedMonthIds: string[]; bookPrices: Record<string, string>; backfillOwnershipStatus: 'OWNED' | 'PREORDER' }) => void
   onBeforeBackfill?: () => Promise<void>
 }
 
-function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDone, onSkip, onNextWithBilling, onBeforeBackfill }: Step2Props) {
+function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDone, onSkip, onBack, onNextWithBilling, onBeforeBackfill }: Step2Props) {
   const [wantBackfill, setWantBackfill] = useState<boolean | null>(null)
   // monthId → 'selected' | 'skipped'
   const [choices, setChoices] = useState<Record<string, 'selected' | 'skipped'>>(() => {
@@ -934,18 +940,26 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
           There are <strong className="text-stone-100">{eligibleMonths.length}</strong> past box
           {eligibleMonths.length !== 1 ? 'es' : ''} to add to your collection.
         </p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setWantBackfill(true)}
-            className="flex-1 py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
-          >
-            Yes, add past boxes
-          </button>
-          <button
-            onClick={onSkip}
-            className="flex-1 py-2.5 px-4 rounded-lg border border-stone-600 text-stone-300 hover:text-stone-100 text-sm font-medium transition-colors"
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-3">
+            <button
+              onClick={() => setWantBackfill(true)}
+              className="flex-1 py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+            >
+              Yes, add past boxes
+            </button>
+            <button
+              onClick={onSkip}
+              className="flex-1 py-2.5 px-4 rounded-lg border border-stone-600 text-stone-300 hover:text-stone-100 text-sm font-medium transition-colors"
           >
             Skip
+          </button>
+          </div>
+          <button
+            onClick={onBack}
+            className="text-xs text-stone-500 hover:text-stone-300 transition-colors text-left"
+          >
+            ← Back
           </button>
         </div>
       </div>
@@ -1208,12 +1222,13 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, selected
       date: '',
       amount: '',
       shipping: '',
-      fees: entryFees.map(f => ({ name: f.name, amount: '', currency: f.currency, isCustom: false as const })),
+      fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })),
       discounts: [],
     }))
   })
 
   // Once feeTemplates load, prefill fee amounts from template defaultAmount where available
+  // (only fills empty amounts — user-entered values from entryFees are preserved)
   useEffect(() => {
     if (feeTemplates.length === 0) return
     setYesRows(prev => prev.map(row => ({
@@ -1227,7 +1242,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, selected
     })))
   }, [feeTemplates])
 
-  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', fees: entryFees.map(f => ({ name: f.name, amount: '', currency: f.currency, isCustom: false as const })), discounts: [] }]) }
+  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })), discounts: [] }]) }
   function removeRow(i: number) { setYesRows(prev => prev.filter((_, j) => j !== i)) }
   function updateRow(i: number, field: 'date' | 'amount' | 'shipping', val: string) {
     setYesRows(prev => prev.map((r, j) => j === i ? { ...r, [field]: val } : r))
@@ -1775,6 +1790,7 @@ export default function JoinSubscriptionModal({
   subscriptionSlug,
   subscriptionCurrency,
   subscriptionRenewalDay,
+  subscriptionRenewalMonthOffset,
   subscriptionPrice,
   subscriptionOriginalBasePrice,
   userDefaultTaxRate,
@@ -1892,6 +1908,7 @@ export default function JoinSubscriptionModal({
               currency={subscriptionCurrency}
               subscriptionSlug={subscriptionSlug}
               subscriptionRenewalDay={subscriptionRenewalDay}
+              subscriptionRenewalMonthOffset={subscriptionRenewalMonthOffset}
               subscriptionPrice={subscriptionPrice}
               subscriptionOriginalBasePrice={subscriptionOriginalBasePrice}
               userDefaultTaxRate={userDefaultTaxRate}
@@ -1913,6 +1930,7 @@ export default function JoinSubscriptionModal({
             entry={joinResult.entry}
             hasPrepayOptions={(prepayOptions?.length ?? 0) > 0}
             onDone={() => { setStep('done'); onJoined() }}
+            onBack={() => setStep(1)}
             onSkip={async () => {
               if (step1JoinPayload) {
                 try { await performRealJoin(step1JoinPayload) } catch { /* ignore */ }

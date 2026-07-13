@@ -34,6 +34,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] })
+      void queryClient.invalidateQueries({ queryKey: ['my-calendar-subscriptions'] })
       setSkipTarget(null)
       onSkipSuccess?.()
     },
@@ -46,6 +47,7 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] })
+      void queryClient.invalidateQueries({ queryKey: ['my-calendar-subscriptions'] })
       setUnskipTarget(null)
       onSkipSuccess?.()
     },
@@ -109,6 +111,17 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
           </span>
         )}
       </p>
+
+      {status.maxSkips !== null && status.windowResetDate && (
+        <p className="text-xs text-stone-500">
+          Window resets:{' '}
+          <span className="text-stone-300 font-medium">
+            {new Date(status.windowResetDate).toLocaleDateString('en-GB', {
+              day: 'numeric', month: 'short', year: 'numeric',
+            })}
+          </span>
+        </p>
+      )}
 
       {status.notes && <p className="text-xs text-stone-500 italic whitespace-pre-line">{status.notes}</p>}
 

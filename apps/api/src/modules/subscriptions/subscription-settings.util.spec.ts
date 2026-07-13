@@ -171,6 +171,17 @@ describe('resolveEffectiveSettings', () => {
       expect(result.renewalDayUserSet).toBe(true);
     });
 
+    it('coalesces null renewalMonthOffset from history record to fallback value', () => {
+      // Older DB records may have renewalMonthOffset=null (field added after initial deployment).
+      // The fallback (current sub settings) value must be used instead to prevent silent bugs.
+      const fallback: SubscriptionSettings = { ...BASE, renewalMonthOffset: 1 };
+      const result = resolveEffectiveSettings(
+        [{ effectiveFrom: new Date('2024-01-01'), ...BASE, renewalMonthOffset: null as any }],
+        2024, 6, fallback,
+      );
+      expect(result.renewalMonthOffset).toBe(1); // falls back to fallback, not null/0
+    });
+
     it('does NOT include effectiveFrom in returned object', () => {
       const result = resolveEffectiveSettings(
         [rec('2024-01-01', { renewalDay: 5 })],

@@ -203,6 +203,12 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
+  @Get('my/calendar')
+  getMyCalendarSubscriptions(@CurrentUser() user: CurrentUserType) {
+    return this.subscriptionsService.getMySubscriptionsForCalendar(user.id);
+  }
+
+  @ApiBearerAuth()
   @Get('my/orphaned-history')
   getOrphanedHistory(@CurrentUser() user: CurrentUserType) {
     return this.subscriptionsService.getOrphanedMembershipHistory(user.id);
@@ -449,6 +455,19 @@ export class SubscriptionsController {
   ) {
     const result = await this.subscriptionsService.updateSettingsHistoryEffectiveFrom(slug, id, dto);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'UPDATE_SETTINGS_HISTORY_EFFECTIVE_FROM', entityType: 'subscription', entityId: slug });
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete(':slug/settings-history/:id')
+  async deleteSettingsHistory(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const result = await this.subscriptionsService.deleteSettingsHistory(slug, id);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_SETTINGS_HISTORY', entityType: 'subscription', entityId: slug });
     return result;
   }
 

@@ -34,6 +34,8 @@ export interface SkipStatus {
   isUnskipPastDeadline: boolean;
   /** The next month the user can skip, or null if none available */
   targetMonth: { year: number; month: number } | null;
+  /** ISO date string (YYYY-MM-DD) of when the current skip window resets to 0, or null if not applicable */
+  windowResetDate: string | null;
 }
 
 @Injectable()
@@ -263,11 +265,39 @@ export class SkipPolicyEngine {
     const deadline = this.computeDeadline(policy, entry, targetMonth, offset);
     const firstDeliverable = firstMonthInfo ? { year: firstMonthInfo.year, month: firstMonthInfo.month } : null;
 
-    // Compute unskip deadline for the earliest currently-skipped month
-    const earliestSkipped = skippedMonths.length > 0
-      ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)
+    // Compute unskip deadline for the most recent (latest) skipped month.
+    // If that deadline has already passed, treat as null — no actionable unskip available.
+    // This works correctly for all frequencies (monthly, bi-monthly, etc.) because the
+    // deadline is derived from the skip's own renewal date, not the calendar month.
+    const latestSkipped = skippedMonths.length > 0
+      ? skippedMonths.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b)
       : null;
-    const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
+    const rawUnskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
+    const unskipDeadline = rawUnskipDeadline && rawUnskipDeadline > now ? rawUnskipDeadline : null;
+
+    // Compute live consecutive streak from all skip records so renewals that break the streak
+    // are reflected immediately (DB state is only updated on skip/unskip operations).
+    const sortedAllSkips = [...allSkipRecordsForWindow]
+      .filter((r) => r.month)
+      .sort((a, b) => a.month.year !== b.month.year ? a.month.year - b.month.year : a.month.month - b.month.month);
+    let liveConsecutive = 0;
+    if (sortedAllSkips.length > 0) {
+      liveConsecutive = 1;
+      for (let i = sortedAllSkips.length - 2; i >= 0; i--) {
+        const curr = sortedAllSkips[i + 1].month;
+        const prev = sortedAllSkips[i].month;
+        const expectedPrevYear = curr.month === 1 ? curr.year - 1 : curr.year;
+        const expectedPrevMonth = curr.month === 1 ? 12 : curr.month - 1;
+        if (prev.year === expectedPrevYear && prev.month === expectedPrevMonth) {
+          liveConsecutive++;
+        } else {
+          break;
+        }
+      }
+    }
+    if (effectiveState) {
+      effectiveState = { ...effectiveState, consecutiveSkips: liveConsecutive };
+    }
 
     // If subscription hasn't started yet, force canSkip=false regardless of policy state
     const status = this.buildStatus(policy, effectiveState, deadline, skippedMonths, targetMonth, subscriptionStarted ? undefined : false, firstDeliverable, unskipDeadline, entry.prepaidMonths);
@@ -284,12 +314,14 @@ export class SkipPolicyEngine {
       const boxYear = rawBox > 12 ? now.getFullYear() + 1 : now.getFullYear();
       status.warnings.unshift(`The skip window for ${MONTHS[boxMonth - 1]} ${boxYear} has passed (renewal day: ${renewalDay}).`);
     }
-    return status;
-  }
 
-  async canSkipCheck(userId: string, subscriptionSlug: string): Promise<boolean> {
-    const { policy, state, entry } = await this.loadContext(userId, subscriptionSlug);
-    return this.evaluateCanSkip(policy, state, entry.prepaidMonths);
+    // Compute window reset date for limited-skip policies
+    if (policy && policy.maxSkips !== null) {
+      const activeWindowKey = this.computeWindowKey(policy, effectiveState, entry);
+      status.windowResetDate = this.computeWindowResetDate(policy, activeWindowKey);
+    }
+
+    return status;
   }
 
   /** Public entry point for recomputing skip state after bulk operations (e.g. backfill) */
@@ -586,11 +618,11 @@ export class SkipPolicyEngine {
     // Update persisted nextRenewalDate so cron jobs see the correct date
     await refreshNextRenewalDate(this.prisma, entry.id);
     this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
-    // Unskip deadline: earliest remaining skipped month
-    const earliestSkipped = skippedMonths.length > 0
-      ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)
+    // Unskip deadline: most recent (latest) skipped month
+    const latestSkipped = skippedMonths.length > 0
+      ? skippedMonths.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b)
       : null;
-    const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
+    const unskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
     return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month }, undefined, null, unskipDeadline);
   }
 
@@ -645,10 +677,10 @@ export class SkipPolicyEngine {
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     await refreshNextRenewalDate(this.prisma, entry.id);
     this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
-    const earliestSkipped = skippedMonths.length > 0
-      ? skippedMonths.reduce((a, b) => (a.year < b.year || (a.year === b.year && a.month < b.month)) ? a : b)
+    const latestSkipped = skippedMonths.length > 0
+      ? skippedMonths.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b)
       : null;
-    const unskipDeadline = this.computeUnskipDeadline(policy, entry, earliestSkipped, offset);
+    const unskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
     return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month }, undefined, null, unskipDeadline);
   }
 
@@ -980,6 +1012,36 @@ export class SkipPolicyEngine {
     }
   }
 
+  /**
+   * Returns the date (YYYY-MM-DD) when the current skip window resets to 0,
+   * or null when not applicable (e.g. unlimited, NONE, or no windowMonths configured).
+   */
+  private computeWindowResetDate(
+    policy: { type: string; windowMonths: number | null } | null,
+    windowKey: string | null,
+  ): string | null {
+    if (!policy || !windowKey) return null;
+    switch (policy.type) {
+      case 'CALENDAR_YEAR': {
+        const year = parseInt(windowKey, 10);
+        if (isNaN(year)) return null;
+        // Window resets on Jan 1 of the following year
+        return `${year + 1}-01-01`;
+      }
+      case 'FROM_FIRST_SKIP':
+      case 'FROM_SUB_START': {
+        if (!policy.windowMonths) return null;
+        const windowStart = new Date(windowKey);
+        if (isNaN(windowStart.getTime())) return null;
+        const resetDate = new Date(windowStart);
+        resetDate.setMonth(resetDate.getMonth() + policy.windowMonths);
+        return resetDate.toISOString().slice(0, 10);
+      }
+      default:
+        return null;
+    }
+  }
+
   private buildStatus(
     policy: {
       type: string;
@@ -1047,6 +1109,7 @@ export class SkipPolicyEngine {
       nextUnskipDeadline: unskipDeadline ? unskipDeadline.toISOString() : null,
       isUnskipPastDeadline: unskipDeadline ? new Date() > unskipDeadline : false,
       targetMonth: deadlineMonth,
+      windowResetDate: null,
     };
   }
 
@@ -1114,7 +1177,7 @@ export class SkipPolicyEngine {
   }
 
   /**
-   * Computes the unskip deadline for a given skipped month.
+   * Computes the unskip deadline for a given skipped month (the most recent skip).
    * Uses unskipDeadlineDaysBefore from policy (same logic as computeDeadline).
    */
   private computeUnskipDeadline(

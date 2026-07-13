@@ -544,39 +544,85 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
               type="button"
               onClick={parseBdArtists}
               disabled={bdParsing || !bdArtistsText.trim()}
-              className="mt-1 flex items-center gap-1.5 text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 px-2.5 py-1 rounded-lg hover:bg-violet-500/30 disabled:opacity-50 transition-colors"
+              className="mt-1 flex items-center gap-1.5 text-xs bg-amber-500/20 text-stone-100 border border-amber-500/30 px-2.5 py-1 rounded-lg hover:bg-amber-500/30 disabled:opacity-50 transition-colors"
             >
               <Sparkles size={12} />
               {bdParsing ? 'Parsing…' : 'Parse with AI'}
             </button>
             {(bdArtists.length > 0 || bdFeatureTags.length > 0) && (
-              <div className="mt-2 space-y-1.5">
+              <div className="mt-2 space-y-2">
                 {bdArtists.length > 0 && (
                   <div>
-                    <div className="text-xs text-stone-500 mb-1">Artists (applied to each edition):</div>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs text-stone-400">Artists (applied to each edition):</div>
+                      <button type="button" onClick={() => setBdArtists([])} className="text-xs text-stone-400 hover:text-red-400">Clear all</button>
+                    </div>
+                    <div className="space-y-1">
                       {bdArtists.map((a, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 text-xs bg-amber-500/15 text-amber-300 border border-amber-500/25 rounded px-2 py-0.5">
-                          {a.name} <span className="text-amber-500">({a.role})</span>
-                          <button type="button" onClick={() => setBdArtists(prev => prev.filter((_, j) => j !== i))} className="text-amber-500 hover:text-red-400 ml-0.5">×</button>
-                        </span>
+                        <div key={i} className="flex gap-1 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-1">
+                          <div className="flex flex-col shrink-0 justify-center mr-0.5">
+                            <button type="button" disabled={i === 0}
+                              onClick={() => setBdArtists(prev => { const arr = [...prev]; [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; return arr })}
+                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▲</button>
+                            <button type="button" disabled={i === bdArtists.length - 1}
+                              onClick={() => setBdArtists(prev => { const arr = [...prev]; [arr[i], arr[i+1]] = [arr[i+1], arr[i]]; return arr })}
+                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▼</button>
+                          </div>
+                          <span className="text-stone-400 text-[10px] w-4 shrink-0 text-right pt-1">{i + 1}.</span>
+                          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                            <input
+                              className="w-full bg-transparent border-b border-amber-500/30 focus:border-amber-500 outline-none text-xs text-stone-100 px-1 py-0.5 placeholder:text-stone-500"
+                              value={a.name}
+                              onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                              placeholder="Name"
+                            />
+                            <input
+                              className="w-full bg-transparent border-b border-amber-500/20 focus:border-amber-500 outline-none text-xs text-stone-300 px-1 py-0.5 placeholder:text-stone-500"
+                              value={a.role}
+                              onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
+                              placeholder="Role"
+                            />
+                          </div>
+                          <button type="button" onClick={() => setBdArtists(prev => prev.filter((_, j) => j !== i))}
+                            className="text-stone-400 hover:text-red-400 shrink-0 px-0.5 self-start pt-1">×</button>
+                        </div>
                       ))}
-                      <button type="button" onClick={() => setBdArtists([])} className="text-xs text-stone-500 hover:text-red-400 px-1">Clear</button>
                     </div>
                   </div>
                 )}
                 {bdFeatureTags.length > 0 && (
                   <div>
-                    <div className="text-xs text-stone-500 mb-1">Features (applied to each edition):</div>
-                    <div className="flex flex-wrap gap-1">
-                      {bdFeatureTags.map(t => (
-                        <span key={t.rawValue} className="inline-flex items-center gap-1 text-xs bg-violet-500/15 text-violet-300 border border-violet-500/25 rounded px-2 py-0.5">
-                          {t.rawValue}
-                          {t.categories.length > 0 && <span className="text-violet-500">({t.categories.join(', ')})</span>}
-                          <button type="button" onClick={() => setBdFeatureTags(prev => prev.filter(x => x.rawValue !== t.rawValue))} className="text-violet-500 hover:text-red-400 ml-0.5">×</button>
-                        </span>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs text-stone-400">Features (applied to each edition):</div>
+                      <button type="button" onClick={() => setBdFeatureTags([])} className="text-xs text-stone-400 hover:text-red-400">Clear all</button>
+                    </div>
+                    <div className="space-y-1">
+                      {bdFeatureTags.map((t, i) => (
+                        <div key={i} className="flex items-center gap-1 bg-violet-500/10 border border-violet-500/20 rounded px-1.5 py-1">
+                          <div className="flex flex-col mr-0.5">
+                            <button type="button" disabled={i === 0}
+                              onClick={() => setBdFeatureTags(prev => { const arr = [...prev]; [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; return arr })}
+                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▲</button>
+                            <button type="button" disabled={i === bdFeatureTags.length - 1}
+                              onClick={() => setBdFeatureTags(prev => { const arr = [...prev]; [arr[i], arr[i+1]] = [arr[i+1], arr[i]]; return arr })}
+                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▼</button>
+                          </div>
+                          <span className="text-stone-400 text-[10px] w-4 shrink-0 text-right">{i + 1}.</span>
+                          <input
+                            className="flex-1 min-w-0 bg-transparent border-b border-violet-500/30 focus:border-violet-400 outline-none text-xs text-stone-100 px-1 py-0.5 placeholder:text-stone-500"
+                            value={t.rawValue}
+                            onChange={e => setBdFeatureTags(prev => prev.map((x, j) => j === i ? { ...x, rawValue: e.target.value } : x))}
+                            placeholder="Feature"
+                          />
+                          {t.categories.length > 0 && (
+                            <span className="text-[10px] text-stone-400 shrink-0 max-w-[80px] truncate" title={t.categories.join(', ')}>
+                              {t.categories.join(', ')}
+                            </span>
+                          )}
+                          <button type="button" onClick={() => setBdFeatureTags(prev => prev.filter((_, j) => j !== i))}
+                            className="text-stone-400 hover:text-red-400 shrink-0 px-0.5">×</button>
+                        </div>
                       ))}
-                      <button type="button" onClick={() => setBdFeatureTags([])} className="text-xs text-stone-500 hover:text-red-400 px-1">Clear</button>
                     </div>
                   </div>
                 )}
@@ -1740,33 +1786,54 @@ function AiSaleParseModal({ onApply, onClose }: {
   onApply: (result: AiSaleResult, sourceUrl?: string) => void
   onClose: () => void
 }) {
-  const [inputMode, setInputMode] = useState<'text' | 'url'>('text')
+  const [inputMode, setInputMode] = useState<'text' | 'url' | 'screenshot'>('text')
   const [text, setText] = useState('')
   const [url, setUrl] = useState('')
+  const [imageBase64, setImageBase64] = useState<string | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AiSaleResult | null>(null)
   const [parsedUrl, setParsedUrl] = useState<string | undefined>(undefined)
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      setImageBase64(dataUrl)
+      setImagePreview(dataUrl)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleParse = async () => {
-    const isUrl = inputMode === 'url'
-    if (isUrl ? !url.trim() : !text.trim()) return
+    if (inputMode === 'url' && !url.trim()) return
+    if (inputMode === 'text' && !text.trim()) return
+    if (inputMode === 'screenshot' && !imageBase64) return
     setLoading(true)
     setError(null)
     try {
-      const body = isUrl ? { url: url.trim() } : { text: text.trim() }
+      const body = inputMode === 'url'
+        ? { url: url.trim() }
+        : inputMode === 'screenshot'
+          ? { imageBase64 }
+          : { text: text.trim() }
       const r = await authFetch<AiSaleResult>('/ai/parse-sale', {
         method: 'POST',
         body: JSON.stringify(body),
       })
       setResult(r)
-      setParsedUrl(isUrl ? url.trim() : undefined)
+      setParsedUrl(inputMode === 'url' ? url.trim() : undefined)
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setLoading(false)
     }
   }
+
+  const canParse = inputMode === 'url' ? !!url.trim() : inputMode === 'screenshot' ? !!imageBase64 : !!text.trim()
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -1788,6 +1855,10 @@ function AiSaleParseModal({ onApply, onClose }: {
                 className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'url' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
                 Enter URL
               </button>
+              <button type="button" onClick={() => setInputMode('screenshot')}
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+                Screenshot
+              </button>
             </div>
 
             {inputMode === 'text' ? (
@@ -1798,7 +1869,7 @@ function AiSaleParseModal({ onApply, onClose }: {
                 rows={10}
                 className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 resize-y"
               />
-            ) : (
+            ) : inputMode === 'url' ? (
               <div className="space-y-1">
                 <input
                   type="url"
@@ -1810,11 +1881,20 @@ function AiSaleParseModal({ onApply, onClose }: {
                 />
                 <p className="text-xs text-stone-500">The page will be fetched server-side and its text sent to AI. Works with FairyLoot, OwlCrate, Illumicrate, etc.</p>
               </div>
+            ) : (
+              <div className="space-y-2">
+                <input type="file" accept="image/*" onChange={handleFileChange}
+                  className="block w-full text-sm text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-stone-700 file:text-stone-200 hover:file:bg-stone-600 cursor-pointer" />
+                {imagePreview && (
+                  <img src={imagePreview} alt="Preview" className="max-h-60 rounded-lg border border-stone-700 object-contain" />
+                )}
+                <p className="text-xs text-stone-500">Image is processed in-memory and never saved to storage.</p>
+              </div>
             )}
             {error && <p className="text-red-400 text-sm">{error}</p>}
             <div className="flex justify-end gap-3">
               <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
-              <button type="button" onClick={handleParse} disabled={loading || (inputMode === 'text' ? !text.trim() : !url.trim())}
+              <button type="button" onClick={handleParse} disabled={loading || !canParse}
                 className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-500 disabled:opacity-50 transition-colors">
                 {loading ? 'Parsing…' : 'Parse with AI'}
               </button>

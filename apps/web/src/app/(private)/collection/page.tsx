@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -37,6 +37,7 @@ interface CollectionEntry {
   isWishlist: boolean
   condition: string | null
   acquiredAt: string | null
+  createdAt: string
   ownershipStatus: string
   readingStatus: string
   signatureType: string | null
@@ -562,8 +563,8 @@ export default function CollectionPage() {
   // Paginated collection accumulation
   // Initialize from React Query cache so back-navigation doesn't flash an empty list
   const [allEntries, setAllEntries] = useState<CollectionEntry[]>(() => {
-    const cached = queryClient.getQueryData<CollectionEntry[]>(['collection', false])
-    return cached ?? []
+    const cached = queryClient.getQueryData<{ data: CollectionEntry[]; total: number }>(['collection', false, loadPrefs().sortOrder])
+    return cached?.data ?? []
   })
   const [collectionTotal, setCollectionTotal] = useState(0)
   const [collectionPage, setCollectionPage] = useState(1)
@@ -588,16 +589,28 @@ export default function CollectionPage() {
     savePrefs({ filter, sortOrder, viewMode })
   }, [filter, sortOrder, viewMode])
 
-  const { isLoading: entriesLoading } = useQuery({
-    queryKey: ['collection', false],
+  // Reset allEntries when sort order changes so stale data doesn't flash
+  useEffect(() => {
+    setAllEntries([])
+    setCollectionPage(1)
+  }, [sortOrder])
+
+  const { isLoading: entriesLoading, data: collectionQueryData } = useQuery({
+    queryKey: ['collection', false, sortOrder],
     queryFn: async () => {
-      const r = await authFetch<{ data: CollectionEntry[]; total: number }>('/collection?isWishlist=false&pageSize=100')
-      setAllEntries(r.data)
-      setCollectionTotal(r.total)
-      setCollectionPage(1)
-      return r.data
+      const r = await authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?isWishlist=false&pageSize=100&sortBy=${sortOrder}`)
+      return r
     },
   })
+
+  // Sync query result (including cached hits) into local state
+  useEffect(() => {
+    if (collectionQueryData) {
+      setAllEntries(collectionQueryData.data)
+      setCollectionTotal(collectionQueryData.total)
+      setCollectionPage(1)
+    }
+  }, [collectionQueryData])
   const entries = allEntries
 
   // Unified server-side filtered query — activates when any filter is set
@@ -612,21 +625,36 @@ export default function CollectionPage() {
     if (readingFilter !== 'ALL') params.set('readingStatus', readingFilter)
     if (subFilter !== 'ALL') params.set('subscriptionId', subFilter)
     if (bookFilterDebounced) params.set('search', bookFilterDebounced)
+    params.set('sortBy', sortOrder)
     return params
-  }, [sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced])
+  }, [sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced, sortOrder])
 
-  const { isFetching: filterLoading } = useQuery({
-    queryKey: ['collection-filtered', sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced],
+  const { isFetching: filterLoading, data: filteredQueryData } = useQuery({
+    queryKey: ['collection-filtered', sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, bookFilterDebounced, sortOrder],
     queryFn: async () => {
       const r = await authFetch<{ data: CollectionEntry[]; total: number }>(`/collection?${buildFilterParams(1)}`)
-      setFilteredEntries(r.data)
-      setFilteredTotal(r.total)
-      setFilteredPage(1)
       return r
     },
     enabled: hasActiveFilters,
-    staleTime: 30_000,
   })
+
+  // Sync filtered query result (including cached hits) into local state
+  useEffect(() => {
+    if (filteredQueryData && hasActiveFilters) {
+      setFilteredEntries(filteredQueryData.data)
+      setFilteredTotal(filteredQueryData.total)
+      setFilteredPage(1)
+    }
+  }, [filteredQueryData, hasActiveFilters])
+
+  // Clear filtered results when all filters are removed
+  useEffect(() => {
+    if (!hasActiveFilters) {
+      setFilteredEntries([])
+      setFilteredTotal(0)
+      setFilteredPage(1)
+    }
+  }, [hasActiveFilters])
 
   const loadMoreFiltered = async () => {
     setLoadingMoreFiltered(true)
@@ -646,7 +674,7 @@ export default function CollectionPage() {
     try {
       const nextPage = collectionPage + 1
       const r = await authFetch<{ data: CollectionEntry[]; total: number }>(
-        `/collection?isWishlist=false&pageSize=100&page=${nextPage}`
+        `/collection?isWishlist=false&pageSize=100&page=${nextPage}&sortBy=${sortOrder}`
       )
       setAllEntries((prev) => [...prev, ...r.data])
       setCollectionTotal(r.total)
@@ -670,6 +698,12 @@ export default function CollectionPage() {
     queryKey: ['sale-groups'],
     queryFn: getSaleGroups,
   })
+
+  // Invalidates both the full collection and any active filtered/search query
+  const invalidateCollectionQueries = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['collection'] })
+    void queryClient.invalidateQueries({ queryKey: ['collection-filtered'] })
+  }, [queryClient])
 
   // Called by TagEditor when tags are saved — update local override + re-fetch allUserTags
   const handleTagsSaved = useCallback((entryId: string, tags: string[]) => {
@@ -743,7 +777,7 @@ export default function CollectionPage() {
       }
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['collection'] })
+      invalidateCollectionQueries()
       void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
       void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
     },
@@ -825,12 +859,8 @@ export default function CollectionPage() {
   })
 
   const grouped: CollectionEntry[][] = (() => {
-    // Apply sort first
-    const sortDate = (e: CollectionEntry) => e.purchaseGroup?.purchasedAt ?? e.acquiredAt ?? ''
-    const sorted = [...filtered].sort((a, b) => {
-      const da = sortDate(a), db = sortDate(b)
-      return sortOrder === 'DATE_DESC' ? db.localeCompare(da) : da.localeCompare(db)
-    })
+    // Data arrives pre-sorted from server; use as-is for flat view
+    const sorted = filtered
 
     if (filter === 'BOOK') {
       const map = new Map<string, CollectionEntry[]>()
@@ -1214,7 +1244,7 @@ export default function CollectionPage() {
                                           method: 'PATCH',
                                           headers: { 'Content-Type': 'application/json' },
                                           body: JSON.stringify({ ownershipStatus: val }),
-                                        }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] }))
+                                        }).then(() => void invalidateCollectionQueries())
                                         setOpenDropdown(null)
                                       }}
                                       className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
@@ -1255,7 +1285,7 @@ export default function CollectionPage() {
                                           method: 'PATCH',
                                           headers: { 'Content-Type': 'application/json' },
                                           body: JSON.stringify({ readingStatus: val }),
-                                        }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] }))
+                                        }).then(() => void invalidateCollectionQueries())
                                         setOpenDropdown(null)
                                       }}
                                       className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
@@ -1293,7 +1323,7 @@ export default function CollectionPage() {
                                 {openDropdown === `${entry.id}-sig-grid` && (
                                   <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                     {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
-                                      <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                      <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
                                         className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                       >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                     ))}
@@ -1311,7 +1341,7 @@ export default function CollectionPage() {
                                 {openDropdown === `${entry.id}-sig-grid` && (
                                   <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                     {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
-                                      <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                      <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
                                         className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                       >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                     ))}
@@ -1516,7 +1546,7 @@ export default function CollectionPage() {
                             {openDropdown === `${entry.id}-ownership` && (
                               <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl w-28 overflow-hidden">
                                 {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => (
-                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                   >{fmtStatus(val)}</button>
                                 ))}
@@ -1540,7 +1570,7 @@ export default function CollectionPage() {
                             {openDropdown === `${entry.id}-reading` && (
                               <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                 {(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => (
-                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ readingStatus: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ readingStatus: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                   >{val}</button>
                                 ))}
@@ -1559,7 +1589,7 @@ export default function CollectionPage() {
                             {openDropdown === `${entry.id}-sig` && (
                               <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                 {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
-                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => queryClient.invalidateQueries({ queryKey: ['collection'] })); setOpenDropdown(null) }}
+                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
                                     className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
                                   >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                 ))}
@@ -1649,7 +1679,7 @@ export default function CollectionPage() {
         <AddToCollectionSearch
           existingEditionIds={new Set(entries.map(e => e.edition.id))}
           onAdded={() => {
-            void queryClient.invalidateQueries({ queryKey: ['collection'] })
+            invalidateCollectionQueries()
             void queryClient.invalidateQueries({ queryKey: ['collection-stats'] })
             void queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
             setAddModalOpen(false)
@@ -1786,7 +1816,7 @@ export default function CollectionPage() {
                     onClick={async () => {
                       if (!trackEntry) return
                       await authFetch(`/collection/${trackEntry.id}/tracking/${tn.id}`, { method: 'DELETE' })
-                      await queryClient.invalidateQueries({ queryKey: ['collection'] })
+                      invalidateCollectionQueries()
                       setTrackEntry(prev => prev ? { ...prev, trackingNumbers: prev.trackingNumbers.filter(t => t.id !== tn.id) } : null)
                     }}
                     className="p-1.5 text-stone-600 hover:text-red-400 transition-colors shrink-0"
@@ -1836,7 +1866,7 @@ export default function CollectionPage() {
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ trackingNumber: trackingInput.trim(), label: trackingLabelInput.trim() || undefined }),
                     })
-                    await queryClient.invalidateQueries({ queryKey: ['collection'] })
+                    invalidateCollectionQueries()
                     setTrackEntry(prev => prev ? { ...prev, trackingNumbers: [...prev.trackingNumbers, result] } : null)
                     setTrackingInput('')
                     setTrackingLabelInput('')
@@ -1873,7 +1903,7 @@ export default function CollectionPage() {
           onClose={() => setAddSaleOpen(false)}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['sale-groups'] })
-            queryClient.invalidateQueries({ queryKey: ['collection'] })
+            void invalidateCollectionQueries()
             queryClient.invalidateQueries({ queryKey: ['spending-stats-v2'] })
             setAddSaleOpen(false)
           }}

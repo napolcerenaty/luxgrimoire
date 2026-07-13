@@ -122,18 +122,47 @@ export function resolveBackfillFallbackPrice(
 
 /**
  * Compute the first billing month (year + month) for a subscriber joining on a
- * given date. When `signupIncludesCurrentMonth` is false the subscription's
- * first box is the NEXT month after the join date.
+ * given date, taking into account the renewal cycle.
+ *
+ * "Current month" = the box month the LAST renewal was for.
+ * "Next month"    = the box month the NEXT renewal is for.
+ *
+ * Algorithm:
+ *   renewalAlreadyHappened = joinDay >= (renewalDay ?? 1)
+ *   lastBillingMonth = joinMonth if renewalAlreadyHappened, else joinMonth - 1
+ *   currentBoxMonth  = lastBillingMonth + renewalMonthOffset
+ *   signupIncludesCurrentMonth=true  → first = currentBoxMonth
+ *   signupIncludesCurrentMonth=false → first = currentBoxMonth + 1
  */
 export function computeFirstBillingMonth(
   joinYear: number,
   joinMonth: number,
   signupIncludesCurrentMonth: boolean,
+  joinDay = 1,
+  renewalDay: number | null = null,
+  renewalMonthOffset = 0,
 ): { year: number; month: number } {
-  if (signupIncludesCurrentMonth) return { year: joinYear, month: joinMonth }
-  const nextMonth = joinMonth === 12 ? 1 : joinMonth + 1
-  const nextYear = joinMonth === 12 ? joinYear + 1 : joinYear
-  return { year: nextYear, month: nextMonth }
+  const effectiveRenewalDay = renewalDay ?? 1;
+  const renewalAlreadyHappened = joinDay >= effectiveRenewalDay;
+
+  let lastBillingMonth = joinMonth;
+  let lastBillingYear = joinYear;
+  if (!renewalAlreadyHappened) {
+    lastBillingMonth -= 1;
+    if (lastBillingMonth === 0) { lastBillingMonth = 12; lastBillingYear -= 1; }
+  }
+
+  let currentBoxMonth = lastBillingMonth + renewalMonthOffset;
+  let currentBoxYear = lastBillingYear;
+  while (currentBoxMonth > 12) { currentBoxMonth -= 12; currentBoxYear += 1; }
+  while (currentBoxMonth < 1)  { currentBoxMonth += 12; currentBoxYear -= 1; }
+
+  if (signupIncludesCurrentMonth) return { year: currentBoxYear, month: currentBoxMonth };
+
+  let firstMonth = currentBoxMonth + 1;
+  let firstYear = currentBoxYear;
+  if (firstMonth > 12) { firstMonth = 1; firstYear += 1; }
+  return { year: firstYear, month: firstMonth };
 }
 
 /**

@@ -48,6 +48,7 @@ export class CollectionController {
     @Query('signatureType') signatureType?: string,
     @Query('readingStatus') readingStatus?: string,
     @Query('subscriptionId') subscriptionId?: string,
+    @Query('sortBy') sortBy?: string,
   ) {
     const wishlistFilter = isWishlist !== undefined ? isWishlist === 'true' : undefined;
     const slimMode = slim === 'true';
@@ -64,6 +65,7 @@ export class CollectionController {
       signatureType,
       readingStatus,
       subscriptionId,
+      sortBy,
     );
   }
 

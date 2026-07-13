@@ -55,12 +55,13 @@ export class AuthService {
   private readonly COOLDOWN_MS = 5 * 60 * 1000;
 
   async register(dto: RegisterDto) {
+    const normalizedEmail = dto.email.toLowerCase().trim();
     const existing = await this.prisma.user.findFirst({
-      where: { OR: [{ email: dto.email }, { username: dto.username }] },
+      where: { OR: [{ email: { equals: normalizedEmail, mode: 'insensitive' } }, { username: dto.username }] },
     });
     if (existing) {
       throw new ConflictException(
-        existing.email === dto.email
+        existing.email.toLowerCase() === normalizedEmail
           ? 'Email already in use'
           : 'Username already taken',
       );
@@ -71,7 +72,7 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: {
         username: dto.username,
-        email: dto.email,
+        email: normalizedEmail,
         passwordHash,
         termsAcceptedAt: now,
         termsVersion: CONSENT_VERSION,
@@ -98,8 +99,10 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const normalizedEmail = dto.email.toLowerCase().trim();
+    // Case-insensitive lookup: existing users may have registered before email normalization was enforced
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
       select: {
         id: true, email: true, role: true, username: true,
         passwordHash: true, managedCompanyId: true, emailVerified: true,
@@ -150,11 +153,14 @@ export class AuthService {
     const TARGET_RESPONSE_MS = 500;
     const startedAt = Date.now();
 
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = email.toLowerCase().trim();
     const cacheKey = `auth:rv:${normalizedEmail}`;
     const rateLimited = !!(await this.cache.get(cacheKey));
 
-    const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    // Case-insensitive: existing users may have uppercase emails from before normalization was enforced
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
+    });
 
     if (user && !user.emailVerified && !rateLimited) {
       await this.cache.set(cacheKey, 1, this.COOLDOWN_MS);
@@ -192,13 +198,16 @@ export class AuthService {
     const TARGET_RESPONSE_MS = 500;
     const startedAt = Date.now();
 
-    const normalizedEmail = dto.email.toLowerCase();
+    const normalizedEmail = dto.email.toLowerCase().trim();
 
     // Per-email rate limit: 1 request per 5 minutes (Redis-backed so survives restarts/scaling)
     const cacheKey = `auth:fp:${normalizedEmail}`;
     const rateLimited = !!(await this.cache.get(cacheKey));
 
-    const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    // Case-insensitive: existing users may have uppercase emails from before normalization was enforced
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
+    });
 
     if (user && !rateLimited) {
       await this.cache.set(cacheKey, 1, this.COOLDOWN_MS);
@@ -397,13 +406,20 @@ export class AuthService {
 
   private async signToken(id: string, email: string, role: string, username: string, managedCompanyId?: string | null) {
     const expiresInMs = this.parseExpiresIn(process.env.JWT_EXPIRES_IN ?? '7d');
-    const session = await this.prisma.session.create({
-      data: {
-        userId: id,
-        token: randomBytes(32).toString('hex'), // opaque token for reference
-        expiresAt: new Date(Date.now() + expiresInMs),
-      },
-    });
+    const now = new Date();
+    const [session] = await this.prisma.$transaction([
+      this.prisma.session.create({
+        data: {
+          userId: id,
+          token: randomBytes(32).toString('hex'),
+          expiresAt: new Date(Date.now() + expiresInMs),
+        },
+      }),
+      this.prisma.user.update({
+        where: { id },
+        data: { lastLoginAt: now },
+      }),
+    ]);
 
     const payload = { sub: id, email, role, username, managedCompanyId: managedCompanyId ?? null, jti: session.id };
     const token = this.jwt.sign(payload);

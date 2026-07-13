@@ -288,6 +288,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
           country={sub.company?.country ?? null}
           renewalDay={sub.renewalDay ?? null}
+          renewalMonthOffset={sub.renewalMonthOffset ?? 0}
           months={sub.isCombo ? comboSkipMonths : months}
           prepayOptions={(sub as unknown as { prepayOptions?: { id: string; months: number; price: number | string; label: string | null; currency: string; validFrom?: string | null; validUntil?: string | null }[] }).prepayOptions}
           isDiscontinued={sub.isDiscontinued ?? false}
