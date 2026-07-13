@@ -5,7 +5,7 @@ const YEAR = new Date().getFullYear()
 
 export default function BlogFooter() {
   return (
-    <footer className="border-t mt-16" style={{ borderColor: 'var(--border)', background: 'var(--bg-surface)', color: 'var(--text-muted)' }}>
+    <footer className="border-t mt-16" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
       <div className="max-w-[1300px] mx-auto px-4 sm:px-6 py-10">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
           {/* Brand */}

@@ -63,8 +63,10 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
         </div>
       </header>
 
-      {children}
-      <BlogFooter />
+      <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, var(--bg-surface) 0%, var(--bg) 40%, var(--bg) 100%)' }}>
+        {children}
+        <BlogFooter />
+      </div>
     </>
   )
 }
