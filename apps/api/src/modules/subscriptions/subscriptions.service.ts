@@ -2253,7 +2253,7 @@ export class SubscriptionsService {
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
     if (paymentOnStartup && startDateObj && !isCombo && !dto.alreadyCancelled) {
-      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth);
+      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth, renewalDay, renewalMonthOffset);
     }
 
     // Persist nextRenewalDate (will be null for cancelled entries)
@@ -2559,24 +2559,35 @@ export class SubscriptionsService {
     startDateObj: Date,
     entry: { id: string; renewalDay: number | null; basePrice: unknown; shippingCost: unknown; costCurrency: string | null; feeTemplates?: unknown[] },
     signupIncludesCurrentMonth = false,
+    subRenewalDay: number | null = null,
+    renewalMonthOffset = 0,
   ) {
     const startYear = startDateObj.getFullYear();
     const startMonth = startDateObj.getMonth() + 1;
     const joinDay = startDateObj.getDate();
-    const renewalDay = entry.renewalDay ?? 1;
+    // Use the subscription-level renewalDay (passed from caller), falling back to entry or 1.
+    const renewalDay = subRenewalDay ?? entry.renewalDay ?? 1;
 
-    // If signupIncludesCurrentMonth: signup month is always the first paid month.
-    // Otherwise: if renewalDay has already passed this month, start from next month.
-    const renewalPassedThisMonth = !signupIncludesCurrentMonth && renewalDay < joinDay;
-    let firstEligibleYear = startYear;
-    let firstEligibleMonth = startMonth;
-    if (renewalPassedThisMonth) {
-      if (startMonth === 12) {
-        firstEligibleYear = startYear + 1;
-        firstEligibleMonth = 1;
-      } else {
-        firstEligibleMonth = startMonth + 1;
-      }
+    // Mirror getEligibleMonths logic: if renewal hasn't happened yet this month,
+    // the last completed billing was the previous month.
+    const renewalAlreadyHappened = joinDay >= renewalDay;
+    let lastBillingMonth = startMonth;
+    let lastBillingYear = startYear;
+    if (!renewalAlreadyHappened) {
+      lastBillingMonth -= 1;
+      if (lastBillingMonth === 0) { lastBillingMonth = 12; lastBillingYear -= 1; }
+    }
+
+    // currentBoxMonth = lastBillingMonth + renewalMonthOffset
+    let firstEligibleMonth = lastBillingMonth + renewalMonthOffset;
+    let firstEligibleYear = lastBillingYear;
+    while (firstEligibleMonth > 12) { firstEligibleMonth -= 12; firstEligibleYear += 1; }
+    while (firstEligibleMonth < 1) { firstEligibleMonth += 12; firstEligibleYear -= 1; }
+
+    // signupIncludesCurrentMonth=false → user's first box is the next cycle
+    if (!signupIncludesCurrentMonth) {
+      firstEligibleMonth += 1;
+      if (firstEligibleMonth > 12) { firstEligibleMonth = 1; firstEligibleYear += 1; }
     }
 
     // Find the first subscription month at or after the first eligible month
