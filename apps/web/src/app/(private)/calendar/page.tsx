@@ -201,7 +201,10 @@ function resolveInterestDate(interest: SaleInterest): string | null {
   const EA = region?.earlyAccessDate ?? a.earlyAccessDate
   const GS = region?.generalSaleDate ?? a.generalSaleDate
 
-  return interest.tier === 'FA' ? FA : interest.tier === 'EA' ? EA : GS
+  // Mirror the homepage fallback chain: FA falls back to EA then GS, EA falls back to GS
+  if (interest.tier === 'FA') return FA ?? EA ?? GS
+  if (interest.tier === 'EA') return EA ?? GS
+  return GS
 }
 
 export default function CalendarPage() {
