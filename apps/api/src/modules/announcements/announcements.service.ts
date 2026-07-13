@@ -220,13 +220,6 @@ export class AnnouncementsService {
           isBundle: true,
           notes: true,
           company: { select: { name: true, slug: true, brandColors: true } },
-          editions: {
-            take: 1,
-            orderBy: { sortOrder: 'asc' as const },
-            select: {
-              edition: { select: { additionalImages: true } },
-            },
-          },
           regions: {
             select: { id: true, name: true, isDefault: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true, endsAt: true, isSoldOut: true, countryCodes: true, currency: true },
           },
