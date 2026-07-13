@@ -554,6 +554,7 @@ export default function SubscriptionInfoPanel({
         {isSubscriber ? (
           <SkipStatusPanel
             subscriptionSlug={subscriptionSlug}
+            subscriptionName={name}
             months={months}
             onSkipSuccess={refreshEntry}
           />

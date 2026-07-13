@@ -3766,4 +3766,308 @@ export class SubscriptionsService {
 
     return { migratedCount: count, sourceId: source.id, targetId: target.id };
   }
+
+  // ── Manage Skips ────────────────────────────────────────────────────────────
+
+  /**
+   * Returns all subscription months from the user's join date up to (and including)
+   * the last month whose renewal date has already passed.  Each month includes its
+   * skip status and the books assigned to that month.
+   */
+  async getManagedMonths(userId: string, slug: string) {
+    const sub = await this.findBySlug(slug);
+    const subId = (sub as any).parentSubscriptionId ?? sub.id;
+
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: sub.id, active: true },
+      select: {
+        id: true,
+        startDate: true,
+        renewalDay: true,
+        skipRecords: {
+          where: { undoneAt: null },
+          select: { month: { select: { year: true, month: true } } },
+        },
+      },
+    });
+    if (!entry) throw new NotFoundException('Subscription entry not found');
+
+    const renewalDay: number =
+      entry.renewalDay ?? (sub as any).renewalDay ?? 1;
+    const renewalMonthOffset: number = (sub as any).renewalMonthOffset ?? 0;
+    const now = new Date();
+
+    // Parse join date
+    let startYear: number, startMonth: number;
+    if (entry.startDate) {
+      const parts = entry.startDate.split('-').map(Number);
+      startYear = parts[0];
+      startMonth = parts[1] ?? 1;
+    } else {
+      startYear = now.getUTCFullYear();
+      startMonth = now.getUTCMonth() + 1;
+    }
+
+    // Build set of skipped months for O(1) lookup
+    const skippedSet = new Set<string>(
+      (entry.skipRecords as any[]).map(r => `${r.month.year}-${r.month.month}`),
+    );
+
+    // Fetch all subscription months from start month onwards (we'll filter by renewal date below)
+    const allMonths = await this.prisma.subscriptionMonth.findMany({
+      where: {
+        subscriptionId: subId,
+        OR: [
+          { year: { gt: startYear } },
+          { year: startYear, month: { gte: startMonth } },
+        ],
+      },
+      select: {
+        year: true,
+        month: true,
+        books: {
+          select: {
+            book: {
+              select: {
+                title: true,
+                authors: {
+                  select: { author: { select: { name: true } } },
+                  take: 2,
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+
+    // Filter to months whose renewal date has already passed.
+    // Renewal date = (box month - renewalMonthOffset).renewalDay
+    const result = allMonths
+      .filter(m => {
+        // Convert box month → renewal month
+        let ry = m.year, rm = m.month - renewalMonthOffset;
+        while (rm <= 0) { rm += 12; ry--; }
+        while (rm > 12) { rm -= 12; ry++; }
+        const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
+        return renewalDate <= now;
+      })
+      .map(m => {
+        let ry = m.year, rm = m.month - renewalMonthOffset;
+        while (rm <= 0) { rm += 12; ry--; }
+        while (rm > 12) { rm -= 12; ry++; }
+        const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
+        const books = (m.books as any[]).map(mb => ({
+          title: mb.book?.title ?? null,
+          author: (mb.book?.authors as any[])?.map((a: any) => a.author?.name).filter(Boolean).join(', ') ?? null,
+        }));
+        return {
+          year: m.year,
+          month: m.month,
+          isSkipped: skippedSet.has(`${m.year}-${m.month}`),
+          renewalDate: renewalDate.toISOString(),
+          books,
+        };
+      });
+
+    return { entryId: entry.id, months: result };
+  }
+
+  /**
+   * Bulk skip/unskip months for the user's active entry, optionally adding or removing
+   * books from the collection for the affected months.
+   */
+  async manageSkips(
+    userId: string,
+    slug: string,
+    dto: {
+      toSkip: { year: number; month: number }[];
+      toUnskip: { year: number; month: number }[];
+      addBooksForUnskipped: boolean;
+      removeBooksForSkipped: boolean;
+    },
+  ) {
+    const sub = await this.findBySlug(slug);
+    const subId = (sub as any).parentSubscriptionId ?? sub.id;
+    const now = new Date();
+
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: sub.id, active: true },
+      include: {
+        feeTemplates: { include: { feeTemplate: true } },
+      },
+    });
+    if (!entry) throw new NotFoundException('Subscription entry not found');
+
+    const renewalDay: number =
+      entry.renewalDay ?? (sub as any).renewalDay ?? 1;
+    const renewalMonthOffset: number = (sub as any).renewalMonthOffset ?? 0;
+
+    // ── Apply new skips ───────────────────────────────────────────────────────
+    for (const { year, month } of dto.toSkip) {
+      const subMonth = await this.prisma.subscriptionMonth.findFirst({
+        where: { subscriptionId: subId, year, month },
+      });
+      if (!subMonth) continue;
+      await this.prisma.userSkipRecord.upsert({
+        where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: subMonth.id } },
+        create: {
+          userId,
+          userEntryId: entry.id,
+          subscriptionMonthId: subMonth.id,
+          windowKey: null,
+          skippedAt: now,
+        },
+        update: { undoneAt: null, skippedAt: now },
+      });
+    }
+
+    // ── Apply unskips ─────────────────────────────────────────────────────────
+    for (const { year, month } of dto.toUnskip) {
+      const subMonth = await this.prisma.subscriptionMonth.findFirst({
+        where: { subscriptionId: subId, year, month },
+      });
+      if (!subMonth) continue;
+      await this.prisma.userSkipRecord.updateMany({
+        where: { userEntryId: entry.id, subscriptionMonthId: subMonth.id, undoneAt: null },
+        data: { undoneAt: now },
+      });
+    }
+
+    // ── Add books for unskipped months ────────────────────────────────────────
+    if (dto.addBooksForUnskipped && dto.toUnskip.length > 0) {
+      for (const { year, month } of dto.toUnskip) {
+        const subMonth = await this.prisma.subscriptionMonth.findFirst({
+          where: { subscriptionId: subId, year, month },
+          select: {
+            year: true,
+            month: true,
+            signatureType: true,
+            books: { select: { editionId: true, bookId: true, signatureType: true } },
+          },
+        });
+        if (!subMonth || subMonth.books.length === 0) continue;
+
+        // Determine ownership status based on whether the renewal has passed
+        let ry = year, rm = month - renewalMonthOffset;
+        while (rm <= 0) { rm += 12; ry--; }
+        while (rm > 12) { rm -= 12; ry++; }
+        const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
+        const ownershipStatus: 'OWNED' | 'PREORDER' = renewalDate <= now ? 'OWNED' : 'PREORDER';
+
+        const feeTemplates = entry.feeTemplates as any[];
+        const basePrice = entry.basePrice ? parseFloat((entry.basePrice as any).toString()) : 0;
+        const shippingCost = entry.shippingCost ? parseFloat((entry.shippingCost as any).toString()) : null;
+        const currency = entry.costCurrency ?? 'GBP';
+
+        const group = await this.prisma.userPurchaseGroup.create({
+          data: {
+            userId,
+            fromSubscription: true,
+            subscriptionEntryId: entry.id,
+            title: `${sub.name} – ${String(year)}/${String(month).padStart(2, '0')}`,
+            totalAmount: basePrice,
+            shippingAmount: shippingCost ?? null,
+            currency,
+            purchasedAt: renewalDate,
+          },
+        });
+
+        for (const mb of subMonth.books) {
+          if (!mb.editionId || !mb.bookId) continue;
+          await this.upsertSubscriptionBookEntry({
+            userId,
+            bookId: mb.bookId,
+            editionId: mb.editionId,
+            subscriptionEntryId: entry.id,
+            purchaseGroupId: group.id,
+            signatureType: mb.signatureType ?? null,
+            changedAt: renewalDate,
+            ownershipStatus,
+          });
+        }
+
+        // Add fee template charges
+        const feesToCreate: any[] = [];
+        for (const link of feeTemplates) {
+          const ft = link.feeTemplate;
+          const feeCurrency = (link.customCurrency ?? ft.defaultCurrency ?? currency) as string;
+          const feeAmount = link.customAmount
+            ? parseFloat(link.customAmount.toString())
+            : ft.defaultAmount
+              ? parseFloat(ft.defaultAmount.toString())
+              : null;
+          if (feeAmount == null || isNaN(feeAmount)) continue;
+          feesToCreate.push({
+            userId,
+            feeTemplateId: ft.id,
+            name: ft.name,
+            amount: feeAmount,
+            currency: feeCurrency,
+            date: renewalDate,
+            category: ft.category ?? 'OTHER',
+            purchaseGroupId: group.id,
+          });
+        }
+        if (feesToCreate.length > 0) {
+          await this.prisma.userPurchaseFee.createMany({ data: feesToCreate, skipDuplicates: true });
+        }
+      }
+    }
+
+    // ── Remove books for newly-skipped months ─────────────────────────────────
+    if (dto.removeBooksForSkipped && dto.toSkip.length > 0) {
+      for (const { year, month } of dto.toSkip) {
+        const subMonth = await this.prisma.subscriptionMonth.findFirst({
+          where: { subscriptionId: subId, year, month },
+          select: { books: { select: { editionId: true } } },
+        });
+        if (!subMonth) continue;
+
+        const editionIds = subMonth.books
+          .map(b => b.editionId)
+          .filter((id): id is string => id !== null);
+        if (editionIds.length === 0) continue;
+
+        // Delete book entries that came from this subscription entry (not manually added)
+        const toDelete = await this.prisma.userBookEntry.findMany({
+          where: {
+            userId,
+            editionId: { in: editionIds },
+            subscriptionEntryId: entry.id,
+          },
+          select: { id: true, purchaseGroupId: true },
+        });
+
+        if (toDelete.length === 0) continue;
+
+        await this.prisma.userBookEntry.deleteMany({
+          where: { id: { in: toDelete.map(b => b.id) } },
+        });
+
+        // Delete ownershipStatusHistory for deleted entries
+        await this.prisma.ownershipStatusHistory.deleteMany({
+          where: { userBookEntryId: { in: toDelete.map(b => b.id) } },
+        }).catch(() => {});
+
+        // Remove empty purchase groups
+        const groupIds = [...new Set(toDelete.map(b => b.purchaseGroupId).filter((id): id is string => id !== null))];
+        for (const groupId of groupIds) {
+          const remaining = await this.prisma.userBookEntry.count({ where: { purchaseGroupId: groupId } });
+          if (remaining === 0) {
+            await this.prisma.userPurchaseFee.deleteMany({ where: { purchaseGroupId: groupId } });
+            await this.prisma.userPurchaseGroup.delete({ where: { id: groupId } }).catch(() => {});
+          }
+        }
+      }
+    }
+
+    // Recompute skip state + renewal date
+    await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
+    await refreshNextRenewalDate(this.prisma, entry.id);
+    backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
+
+    return { ok: true };
+  }
 }

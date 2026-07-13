@@ -4,9 +4,12 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiSkipStatus, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
+import { ManageSkipsModal } from '@/components/subscriptions/ManageSkipsModal'
+import { Settings2 } from 'lucide-react'
 
 interface Props {
   subscriptionSlug: string
+  subscriptionName?: string
   months: ApiSubscriptionMonth[]
   onSkipSuccess?: () => void
 }
@@ -16,10 +19,11 @@ const MONTH_NAMES = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
 
-export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSuccess }: Props) {
+export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '', months, onSkipSuccess }: Props) {
   const queryClient = useQueryClient()
   const [skipTarget, setSkipTarget] = useState<{ year: number; month: number } | null>(null)
   const [unskipTarget, setUnskipTarget] = useState<{ year: number; month: number } | null>(null)
+  const [showManageSkips, setShowManageSkips] = useState(false)
 
   const { data: status, isLoading, error } = useQuery<ApiSkipStatus>({
     queryKey: ['skip-status', subscriptionSlug],
@@ -91,13 +95,23 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
     <div className="rounded-lg border border-stone-700 p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm font-semibold text-stone-200">Skip Policy</p>
-        <span
-          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            status.canSkip ? 'bg-emerald-900 text-emerald-300' : 'bg-red-900 text-red-300'
-          }`}
-        >
-          {status.canSkip ? 'Can skip' : 'Cannot skip'}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowManageSkips(true)}
+            className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-stone-600 text-stone-400 hover:text-stone-200 hover:border-stone-400 transition-colors"
+          >
+            <Settings2 size={12} />
+            Manage skips
+          </button>
+          <span
+            className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              status.canSkip ? 'bg-emerald-900 text-emerald-300' : 'bg-red-900 text-red-300'
+            }`}
+          >
+            {status.canSkip ? 'Can skip' : 'Cannot skip'}
+          </span>
+        </div>
       </div>
 
       <p className="text-xs text-stone-400">
@@ -301,6 +315,19 @@ export default function SkipStatusPanel({ subscriptionSlug, months, onSkipSucces
             </div>
           </div>
         </div>
+      )}
+
+      {/* Manage Skips modal */}
+      {showManageSkips && (
+        <ManageSkipsModal
+          subscriptionSlug={subscriptionSlug}
+          subscriptionName={subscriptionName}
+          onClose={() => setShowManageSkips(false)}
+          onSaved={() => {
+            setShowManageSkips(false)
+            onSkipSuccess?.()
+          }}
+        />
       )}
     </div>
   )

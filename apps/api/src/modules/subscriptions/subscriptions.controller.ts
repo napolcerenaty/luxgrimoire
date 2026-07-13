@@ -33,6 +33,7 @@ import {
   UpdatePrepayOptionDto,
   MigrateMonthsDto,
   UpdateSettingsHistoryEffectiveFromDto,
+  ManageSkipsDto,
 } from './subscriptions.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -257,6 +258,22 @@ export class SubscriptionsController {
   @Get(':slug/my-entry')
   getMyEntry(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
     return this.subscriptionsService.getMySubscriptionEntry(user.id, slug);
+  }
+
+  @ApiBearerAuth()
+  @Get(':slug/managed-months')
+  getManagedMonths(@CurrentUser() user: CurrentUserType, @Param('slug') slug: string) {
+    return this.subscriptionsService.getManagedMonths(user.id, slug);
+  }
+
+  @ApiBearerAuth()
+  @Post(':slug/manage-skips')
+  manageSkips(
+    @CurrentUser() user: CurrentUserType,
+    @Param('slug') slug: string,
+    @Body() dto: ManageSkipsDto,
+  ) {
+    return this.subscriptionsService.manageSkips(user.id, slug, dto);
   }
 
   @ApiBearerAuth()
