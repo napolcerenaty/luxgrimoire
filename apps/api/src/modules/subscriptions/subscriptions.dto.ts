@@ -144,7 +144,7 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsInt()
-  @Min(0)
+  @Min(-11)
   @Max(11)
   @Type(() => Number)
   renewalMonthOffset?: number;
@@ -278,7 +278,7 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsInt()
-  @Min(0)
+  @Min(-11)
   @Max(11)
   @Type(() => Number)
   renewalMonthOffset?: number;
