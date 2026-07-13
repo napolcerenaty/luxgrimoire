@@ -16,7 +16,7 @@ COPY packages/shared-types/package.json ./packages/shared-types/
 RUN pnpm install --frozen-lockfile
 
 # Limit memory and webpack parallelism to avoid saturating build servers
-ENV NODE_OPTIONS="--max-old-space-size=1024"
+ENV NODE_OPTIONS="--max-old-space-size=3500"
 ENV NEXT_WEBPACK_PARALLELISM="1"
 ENV NEXT_TELEMETRY_DISABLED="1"
 ENV GENERATE_SOURCEMAP="false"
