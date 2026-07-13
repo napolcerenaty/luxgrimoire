@@ -94,11 +94,11 @@ describe('SubscriptionsService — getManagedMonths', () => {
     (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(
       makeEntry({ startDate: '2026-05-01', skipRecords: [] }),
     );
-    // 3 months in DB: May, Jun, Jul — Jul 15 hasn't passed (now = Jul 13) so Jul excluded
+    // computeLastProcessedBoxMonth(Jul 13, 15, 0): refDay=13 < 15 → lastBilled=Jun → limit=Jun 2026
+    // DB query bounded to [May..Jun], so mock returns only those two
     (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([
       { year: 2026, month: 5, books: [] },
       { year: 2026, month: 6, books: [] },
-      { year: 2026, month: 7, books: [] },
     ]);
 
     const result = await service.getManagedMonths(USER_ID, SUB_SLUG);
@@ -159,15 +159,20 @@ describe('SubscriptionsService — getManagedMonths', () => {
 
   it('respects renewalMonthOffset when computing renewal date', async () => {
     // offset=1: renewal for box month M fires in month M-1
-    // Box Jul 2026 → renewal in Jun 2026 (Jun 15 < Jul 13 ✓) → included
-    // Box Aug 2026 → renewal in Jul 2026 (Jul 15 > Jul 13 ✗) → excluded
-    jest.spyOn(service, 'findBySlug').mockResolvedValue(makeSub({ renewalMonthOffset: 1 }) as any);
+    // User joins Jul 1, signupIncludesCurrentMonth=true:
+    //   computeFirstEligibleBoxMonth(Jul 1, 15, 1, true):
+    //     joinDay=1 < 15 → lastBilling=Jun → currentBox=Jun+1=Jul → first=Jul 2026
+    //   computeLastProcessedBoxMonth(Jul 13, 15, 1):
+    //     refDay=13 < 15 → lastBilled=Jun → box=Jun+1=Jul → limit=Jul 2026
+    // DB returns Jul only; Aug box (renewal Jul 15) is excluded because Jul 15 > Jul 13
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(
+      makeSub({ renewalMonthOffset: 1, signupIncludesCurrentMonth: true }) as any,
+    );
     (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(
       makeEntry({ startDate: '2026-07-01', skipRecords: [] }),
     );
     (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([
       { year: 2026, month: 7, books: [] },
-      { year: 2026, month: 8, books: [] },
     ]);
 
     const result = await service.getManagedMonths(USER_ID, SUB_SLUG);

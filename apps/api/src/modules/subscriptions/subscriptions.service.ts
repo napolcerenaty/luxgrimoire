@@ -63,6 +63,76 @@ export interface CountryFeeHint {
   shippingCount: number;
 }
 
+/**
+ * Compute the first eligible box month for a subscriber.
+ * Mirrors the renewal-cycle logic used throughout joinSubscription / backfill.
+ *
+ *   joinDay >= renewalDay → renewal already happened → lastBillingMonth = joinMonth
+ *   joinDay <  renewalDay → renewal hasn't happened  → lastBillingMonth = joinMonth - 1
+ *   currentBoxMonth = lastBillingMonth + renewalMonthOffset
+ *   signupIncludesCurrentMonth=true  → firstBox = currentBoxMonth
+ *   signupIncludesCurrentMonth=false → firstBox = currentBoxMonth + 1
+ */
+export function computeFirstEligibleBoxMonth(
+  joinDate: Date,
+  renewalDay: number,
+  renewalMonthOffset: number,
+  signupIncludesCurrentMonth: boolean,
+): { year: number; month: number } {
+  const joinDay = joinDate.getDate();
+  const renewalAlreadyHappened = joinDay >= renewalDay;
+
+  let lastBillingMonth = joinDate.getMonth() + 1;
+  let lastBillingYear = joinDate.getFullYear();
+  if (!renewalAlreadyHappened) {
+    lastBillingMonth -= 1;
+    if (lastBillingMonth === 0) { lastBillingMonth = 12; lastBillingYear -= 1; }
+  }
+
+  let boxMonth = lastBillingMonth + renewalMonthOffset;
+  let boxYear = lastBillingYear;
+  while (boxMonth > 12) { boxMonth -= 12; boxYear += 1; }
+  while (boxMonth < 1)  { boxMonth += 12; boxYear -= 1; }
+
+  if (!signupIncludesCurrentMonth) {
+    boxMonth += 1;
+    if (boxMonth > 12) { boxMonth = 1; boxYear += 1; }
+  }
+
+  return { year: boxYear, month: boxMonth };
+}
+
+/**
+ * Compute the last box month whose renewal has already processed as of the reference date.
+ * Used for both the "today" upper limit and the cancellation-date upper limit.
+ *
+ *   refDay >= renewalDay → renewal has happened → lastBilledMonth = refMonth
+ *   refDay <  renewalDay → renewal hasn't fired  → lastBilledMonth = refMonth - 1
+ *   lastBoxMonth = lastBilledMonth + renewalMonthOffset
+ */
+export function computeLastProcessedBoxMonth(
+  referenceDate: Date,
+  renewalDay: number,
+  renewalMonthOffset: number,
+): { year: number; month: number } {
+  const refDay = referenceDate.getDate();
+  const renewalHappened = refDay >= renewalDay;
+
+  let lastBilledMonth = referenceDate.getMonth() + 1;
+  let lastBilledYear = referenceDate.getFullYear();
+  if (!renewalHappened) {
+    lastBilledMonth -= 1;
+    if (lastBilledMonth === 0) { lastBilledMonth = 12; lastBilledYear -= 1; }
+  }
+
+  let boxMonth = lastBilledMonth + renewalMonthOffset;
+  let boxYear = lastBilledYear;
+  while (boxMonth > 12) { boxMonth -= 12; boxYear += 1; }
+  while (boxMonth < 1)  { boxMonth += 12; boxYear -= 1; }
+
+  return { year: boxYear, month: boxMonth };
+}
+
 @Injectable()
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
@@ -2274,84 +2344,15 @@ export class SubscriptionsService {
     if (!startDateObj) return [];
 
     const now = new Date();
-    // Use endDate if provided (cancelled subscription), otherwise current month.
-    // Apply the same renewal-cycle logic to the upper bound:
-    //   If cancelDay >= renewalDay → the last renewal already happened → lastBilledMonth = cancelMonth
-    //   If cancelDay <  renewalDay → renewal hasn't happened yet       → lastBilledMonth = cancelMonth - 1
-    //   lastBoxMonth = lastBilledMonth + renewalMonthOffset
-    // For "now" (no cancellation), use the current month directly as the upper bound.
-    let limitYear: number;
-    let limitMonth: number;
-    if (endDateObj) {
-      const cancelDay = endDateObj.getDate();
-      const effectiveRenewalDayForLimit = renewalDay ?? 1;
-      const lastRenewalHappened = cancelDay >= effectiveRenewalDayForLimit;
-      let lastBilledLimitMonth = endDateObj.getMonth() + 1;
-      let lastBilledLimitYear = endDateObj.getFullYear();
-      if (!lastRenewalHappened) {
-        lastBilledLimitMonth -= 1;
-        if (lastBilledLimitMonth === 0) { lastBilledLimitMonth = 12; lastBilledLimitYear -= 1; }
-      }
-      let lastBoxLimitMonth = lastBilledLimitMonth + renewalMonthOffset;
-      let lastBoxLimitYear = lastBilledLimitYear;
-      while (lastBoxLimitMonth > 12) { lastBoxLimitMonth -= 12; lastBoxLimitYear += 1; }
-      while (lastBoxLimitMonth < 1)  { lastBoxLimitMonth += 12; lastBoxLimitYear -= 1; }
-      limitYear = lastBoxLimitYear;
-      limitMonth = lastBoxLimitMonth;
-    } else {
-      // Apply the same renewal-day check for "now" — if today is before the renewal day,
-      // the current month's renewal hasn't happened yet so it shouldn't be included.
-      const nowDay = now.getDate();
-      const effectiveRenewalDayForLimit = renewalDay ?? 1;
-      const currentRenewalHappened = nowDay >= effectiveRenewalDayForLimit;
-      let lastBilledNowMonth = now.getMonth() + 1;
-      let lastBilledNowYear = now.getFullYear();
-      if (!currentRenewalHappened) {
-        lastBilledNowMonth -= 1;
-        if (lastBilledNowMonth === 0) { lastBilledNowMonth = 12; lastBilledNowYear -= 1; }
-      }
-      let lastBoxNowMonth = lastBilledNowMonth + renewalMonthOffset;
-      let lastBoxNowYear = lastBilledNowYear;
-      while (lastBoxNowMonth > 12) { lastBoxNowMonth -= 12; lastBoxNowYear += 1; }
-      while (lastBoxNowMonth < 1)  { lastBoxNowMonth += 12; lastBoxNowYear -= 1; }
-      limitYear = lastBoxNowYear;
-      limitMonth = lastBoxNowMonth;
-    }
-
-    // Determine the first eligible box month based on renewal cycle position.
-    //
-    // "Current month" = the month the LAST renewal was for.
-    // "Next month"    = the month the NEXT renewal is for.
-    //
-    // Logic:
-    //   If joinDay >= renewalDay → renewal already happened this month (lastBillingMonth = joinMonth)
-    //   If joinDay <  renewalDay → renewal hasn't happened yet    (lastBillingMonth = joinMonth - 1)
-    //   currentBoxMonth = lastBillingMonth + renewalMonthOffset
-    //
-    // signupIncludesCurrentMonth=true  → first box = currentBoxMonth
-    // signupIncludesCurrentMonth=false → first box = currentBoxMonth + 1
-    const joinDay = startDateObj.getDate();
     const effectiveRenewalDay = renewalDay ?? 1;
-    const renewalAlreadyHappened = joinDay >= effectiveRenewalDay;
 
-    let lastBillingMonth = startDateObj.getMonth() + 1; // 1-indexed
-    let lastBillingYear = startDateObj.getFullYear();
-    if (!renewalAlreadyHappened) {
-      lastBillingMonth -= 1;
-      if (lastBillingMonth === 0) { lastBillingMonth = 12; lastBillingYear -= 1; }
-    }
+    const { year: limitYear, month: limitMonth } = endDateObj
+      ? computeLastProcessedBoxMonth(endDateObj, effectiveRenewalDay, renewalMonthOffset)
+      : computeLastProcessedBoxMonth(now, effectiveRenewalDay, renewalMonthOffset);
 
-    let currentBoxMonth = lastBillingMonth + renewalMonthOffset;
-    let currentBoxYear = lastBillingYear;
-    while (currentBoxMonth > 12) { currentBoxMonth -= 12; currentBoxYear += 1; }
-    while (currentBoxMonth < 1)  { currentBoxMonth += 12; currentBoxYear -= 1; }
-
-    let startMonth = currentBoxMonth;
-    let startYear = currentBoxYear;
-    if (!signupIncludesCurrentMonth) {
-      startMonth += 1;
-      if (startMonth > 12) { startMonth = 1; startYear += 1; }
-    }
+    const { year: startYear, month: startMonth } = computeFirstEligibleBoxMonth(
+      startDateObj, effectiveRenewalDay, renewalMonthOffset, signupIncludesCurrentMonth,
+    );
 
     // If startDate is at or after limit month → nothing to backfill
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
@@ -2419,66 +2420,15 @@ export class SubscriptionsService {
     if (!startDateObj || componentIds.length === 0) return [];
 
     const now = new Date();
-    // Same upper-bound offset logic as getEligibleMonths.
-    let limitYear: number;
-    let limitMonth: number;
-    if (endDateObj) {
-      const cancelDay = endDateObj.getDate();
-      const effectiveRenewalDayForLimit = renewalDay ?? 1;
-      const lastRenewalHappened = cancelDay >= effectiveRenewalDayForLimit;
-      let lastBilledLimitMonth = endDateObj.getMonth() + 1;
-      let lastBilledLimitYear = endDateObj.getFullYear();
-      if (!lastRenewalHappened) {
-        lastBilledLimitMonth -= 1;
-        if (lastBilledLimitMonth === 0) { lastBilledLimitMonth = 12; lastBilledLimitYear -= 1; }
-      }
-      let lastBoxLimitMonth = lastBilledLimitMonth + renewalMonthOffset;
-      let lastBoxLimitYear = lastBilledLimitYear;
-      while (lastBoxLimitMonth > 12) { lastBoxLimitMonth -= 12; lastBoxLimitYear += 1; }
-      while (lastBoxLimitMonth < 1)  { lastBoxLimitMonth += 12; lastBoxLimitYear -= 1; }
-      limitYear = lastBoxLimitYear;
-      limitMonth = lastBoxLimitMonth;
-    } else {
-      const nowDay = now.getDate();
-      const effectiveRenewalDayForLimit = renewalDay ?? 1;
-      const currentRenewalHappened = nowDay >= effectiveRenewalDayForLimit;
-      let lastBilledNowMonth = now.getMonth() + 1;
-      let lastBilledNowYear = now.getFullYear();
-      if (!currentRenewalHappened) {
-        lastBilledNowMonth -= 1;
-        if (lastBilledNowMonth === 0) { lastBilledNowMonth = 12; lastBilledNowYear -= 1; }
-      }
-      let lastBoxNowMonth = lastBilledNowMonth + renewalMonthOffset;
-      let lastBoxNowYear = lastBilledNowYear;
-      while (lastBoxNowMonth > 12) { lastBoxNowMonth -= 12; lastBoxNowYear += 1; }
-      while (lastBoxNowMonth < 1)  { lastBoxNowMonth += 12; lastBoxNowYear -= 1; }
-      limitYear = lastBoxNowYear;
-      limitMonth = lastBoxNowMonth;
-    }
-
-    // Same renewal-cycle-aware logic as getEligibleMonths.
-    const joinDay = startDateObj.getDate();
     const effectiveRenewalDay = renewalDay ?? 1;
-    const renewalAlreadyHappened = joinDay >= effectiveRenewalDay;
 
-    let lastBillingMonth = startDateObj.getMonth() + 1;
-    let lastBillingYear = startDateObj.getFullYear();
-    if (!renewalAlreadyHappened) {
-      lastBillingMonth -= 1;
-      if (lastBillingMonth === 0) { lastBillingMonth = 12; lastBillingYear -= 1; }
-    }
+    const { year: limitYear, month: limitMonth } = endDateObj
+      ? computeLastProcessedBoxMonth(endDateObj, effectiveRenewalDay, renewalMonthOffset)
+      : computeLastProcessedBoxMonth(now, effectiveRenewalDay, renewalMonthOffset);
 
-    let currentBoxMonth = lastBillingMonth + renewalMonthOffset;
-    let currentBoxYear = lastBillingYear;
-    while (currentBoxMonth > 12) { currentBoxMonth -= 12; currentBoxYear += 1; }
-    while (currentBoxMonth < 1)  { currentBoxMonth += 12; currentBoxYear -= 1; }
-
-    let startMonth = currentBoxMonth;
-    let startYear = currentBoxYear;
-    if (!signupIncludesCurrentMonth) {
-      startMonth += 1;
-      if (startMonth > 12) { startMonth = 1; startYear += 1; }
-    }
+    const { year: startYear, month: startMonth } = computeFirstEligibleBoxMonth(
+      startDateObj, effectiveRenewalDay, renewalMonthOffset, signupIncludesCurrentMonth,
+    );
 
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
       return [];
@@ -3795,31 +3745,42 @@ export class SubscriptionsService {
     const renewalDay: number =
       entry.renewalDay ?? (sub as any).renewalDay ?? 1;
     const renewalMonthOffset: number = (sub as any).renewalMonthOffset ?? 0;
+    const signupIncludesCurrentMonth: boolean = (sub as any).signupIncludesCurrentMonth ?? false;
     const now = new Date();
 
-    // Parse join date
-    let startYear: number, startMonth: number;
-    if (entry.startDate) {
-      const parts = entry.startDate.split('-').map(Number);
-      startYear = parts[0];
-      startMonth = parts[1] ?? 1;
-    } else {
-      startYear = now.getUTCFullYear();
-      startMonth = now.getUTCMonth() + 1;
-    }
+    // First eligible box month — same renewal-cycle logic as joinSubscription/getEligibleMonths
+    const joinDate = entry.startDate ? new Date(entry.startDate) : now;
+    const { year: startYear, month: startMonth } = computeFirstEligibleBoxMonth(
+      joinDate, renewalDay, renewalMonthOffset, signupIncludesCurrentMonth,
+    );
+
+    // Last processed box month — upper limit
+    const { year: limitYear, month: limitMonth } = computeLastProcessedBoxMonth(
+      now, renewalDay, renewalMonthOffset,
+    );
 
     // Build set of skipped months for O(1) lookup
     const skippedSet = new Set<string>(
       (entry.skipRecords as any[]).map(r => `${r.month.year}-${r.month.month}`),
     );
 
-    // Fetch all subscription months from start month onwards (we'll filter by renewal date below)
+    // Fetch subscription months in the [start, limit] range
     const allMonths = await this.prisma.subscriptionMonth.findMany({
       where: {
         subscriptionId: subId,
-        OR: [
-          { year: { gt: startYear } },
-          { year: startYear, month: { gte: startMonth } },
+        AND: [
+          {
+            OR: [
+              { year: { gt: startYear } },
+              { year: startYear, month: { gte: startMonth } },
+            ],
+          },
+          {
+            OR: [
+              { year: { lt: limitYear } },
+              { year: limitYear, month: { lte: limitMonth } },
+            ],
+          },
         ],
       },
       select: {
@@ -3842,17 +3803,7 @@ export class SubscriptionsService {
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
     });
 
-    // Filter to months whose renewal date has already passed.
-    // Renewal date = (box month - renewalMonthOffset).renewalDay
     const result = allMonths
-      .filter(m => {
-        // Convert box month → renewal month
-        let ry = m.year, rm = m.month - renewalMonthOffset;
-        while (rm <= 0) { rm += 12; ry--; }
-        while (rm > 12) { rm -= 12; ry++; }
-        const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
-        return renewalDate <= now;
-      })
       .map(m => {
         let ry = m.year, rm = m.month - renewalMonthOffset;
         while (rm <= 0) { rm += 12; ry--; }
