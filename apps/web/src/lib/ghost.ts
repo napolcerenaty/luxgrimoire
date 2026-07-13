@@ -55,13 +55,12 @@ export interface GhostAuthor {
   bio: string | null
 }
 
-const GHOST_URL = (process.env.GHOST_API_URL ?? 'http://localhost:2368').replace(/\/$/, '')
-const GHOST_KEY = process.env.GHOST_CONTENT_API_KEY ?? ''
-
 async function ghostFetch<T>(
   resource: string,
   params: Record<string, string> = {},
 ): Promise<T | null> {
+  const GHOST_URL = (process.env.GHOST_API_URL ?? 'http://localhost:2368').replace(/\/$/, '')
+  const GHOST_KEY = process.env.GHOST_CONTENT_API_KEY ?? ''
   if (!GHOST_KEY) return null
   const url = new URL(`${GHOST_URL}/ghost/api/content/${resource}/`)
   url.searchParams.set('key', GHOST_KEY)

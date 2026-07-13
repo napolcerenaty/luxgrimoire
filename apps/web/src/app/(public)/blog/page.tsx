@@ -106,6 +106,7 @@ export default async function BlogPage() {
       .catch(() => []) as Promise<{ title: string; description: string }[]>,
   ])
 
+  const featureTitle = features?.[0]?.title ?? 'Track Your Collection'
   const featureDesc = features?.[0]?.description ?? 'Add editions, track ownership status (preorder, shipping, own, sold) and reading status — all in one place.'
 
   // ── Hero selection ────────────────────────────────────────────────
@@ -235,7 +236,7 @@ export default async function BlogPage() {
           <div className="blog-cta-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div>
               <h3 className="font-serif text-[clamp(1.3rem,2.5vw,1.8rem)] mb-2 mt-0" style={{ color: 'var(--text-bright)' }}>
-                Track Your Collection
+                {featureTitle}
               </h3>
               <p className="m-0" style={{ color: 'var(--text-dim)' }}>
                 {featureDesc}
