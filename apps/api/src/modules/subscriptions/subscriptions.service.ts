@@ -3795,6 +3795,7 @@ export class SubscriptionsService {
         month: true,
         books: {
           select: {
+            editionId: true,
             book: {
               select: {
                 title: true,
@@ -3810,24 +3811,40 @@ export class SubscriptionsService {
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
     });
 
-    const result = allMonths
-      .map(m => {
-        let ry = m.year, rm = m.month - renewalMonthOffset;
-        while (rm <= 0) { rm += 12; ry--; }
-        while (rm > 12) { rm -= 12; ry++; }
-        const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
-        const books = (m.books as any[]).map(mb => ({
-          title: mb.book?.title ?? null,
-          author: (mb.book?.authors as any[])?.map((a: any) => a.author?.name).filter(Boolean).join(', ') ?? null,
-        }));
-        return {
-          year: m.year,
-          month: m.month,
-          isSkipped: skippedSet.has(`${m.year}-${m.month}`),
-          renewalDate: renewalDate.toISOString(),
-          books,
-        };
-      });
+    // Group by year/month, merging books from all component subscriptions (combo support)
+    const grouped = new Map<string, {
+      year: number; month: number;
+      booksMap: Map<string, { title: string | null; author: string | null }>;
+    }>();
+    for (const m of allMonths) {
+      const key = `${m.year}-${m.month}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, { year: m.year, month: m.month, booksMap: new Map() });
+      }
+      for (const mb of (m.books as any[])) {
+        const mapKey = mb.editionId ?? `noedition-${mb.book?.title ?? Math.random()}`;
+        if (!grouped.get(key)!.booksMap.has(mapKey)) {
+          grouped.get(key)!.booksMap.set(mapKey, {
+            title: mb.book?.title ?? null,
+            author: (mb.book?.authors as any[])?.map((a: any) => a.author?.name).filter(Boolean).join(', ') ?? null,
+          });
+        }
+      }
+    }
+
+    const result = Array.from(grouped.values()).map(({ year, month, booksMap }) => {
+      let ry = year, rm = month - renewalMonthOffset;
+      while (rm <= 0) { rm += 12; ry--; }
+      while (rm > 12) { rm -= 12; ry++; }
+      const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
+      return {
+        year,
+        month,
+        isSkipped: skippedSet.has(`${year}-${month}`),
+        renewalDate: renewalDate.toISOString(),
+        books: Array.from(booksMap.values()),
+      };
+    });
 
     return { entryId: entry.id, months: result };
   }
