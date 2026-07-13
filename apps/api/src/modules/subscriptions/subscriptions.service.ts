@@ -2640,7 +2640,7 @@ export class SubscriptionsService {
     purchaseGroupId: string;
     signatureType: $Enums.SignatureType | null;
     changedAt: Date;
-    ownershipStatus?: 'OWNED' | 'PREORDER';
+    ownershipStatus?: 'OWNED' | 'PREORDER' | 'WISHLISTED';
   }): Promise<void> {
     const existing = await this.prisma.userBookEntry.findFirst({
       where: { userId: opts.userId, editionId: opts.editionId, subscriptionEntryId: opts.subscriptionEntryId },
@@ -3844,6 +3844,7 @@ export class SubscriptionsService {
       toUnskip: { year: number; month: number }[];
       addBooksForUnskipped: boolean;
       removeBooksForSkipped: boolean;
+      ownershipStatusForUnskipped?: 'OWNED' | 'PREORDER' | 'WISHLISTED';
     },
   ) {
     const sub = await this.findBySlug(slug);
@@ -3912,17 +3913,19 @@ export class SubscriptionsService {
         });
         if (!subMonth || subMonth.books.length === 0) continue;
 
-        // Determine ownership status based on whether the renewal has passed
-        let ry = year, rm = month - renewalMonthOffset;
-        while (rm <= 0) { rm += 12; ry--; }
-        while (rm > 12) { rm -= 12; ry++; }
-        const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
-        const ownershipStatus: 'OWNED' | 'PREORDER' = renewalDate <= now ? 'OWNED' : 'PREORDER';
+        const ownershipStatus: 'OWNED' | 'PREORDER' | 'WISHLISTED' =
+          dto.ownershipStatusForUnskipped ?? 'OWNED';
 
         const feeTemplates = entry.feeTemplates as any[];
         const basePrice = entry.basePrice ? parseFloat((entry.basePrice as any).toString()) : 0;
         const shippingCost = entry.shippingCost ? parseFloat((entry.shippingCost as any).toString()) : null;
         const currency = entry.costCurrency ?? 'GBP';
+
+        // Use renewal date for purchasedAt timestamp (box month → renewal month)
+        let ry = year, rm = month - renewalMonthOffset;
+        while (rm <= 0) { rm += 12; ry--; }
+        while (rm > 12) { rm -= 12; ry++; }
+        const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
 
         const group = await this.prisma.userPurchaseGroup.create({
           data: {

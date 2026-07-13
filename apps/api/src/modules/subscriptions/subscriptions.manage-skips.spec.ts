@@ -261,7 +261,7 @@ describe('SubscriptionsService — manageSkips', () => {
     );
   });
 
-  it('adds books as OWNED for past-renewal unskipped months (Jun 15 < Jul 13)', async () => {
+  it('adds books with OWNED status when ownershipStatusForUnskipped=OWNED', async () => {
     setupBase();
     (prisma.subscriptionMonth.findFirst as jest.Mock)
       .mockResolvedValueOnce({ id: MONTH_ID_JUN }) // for unskip
@@ -283,6 +283,7 @@ describe('SubscriptionsService — manageSkips', () => {
       toUnskip: [{ year: 2026, month: 6 }],
       addBooksForUnskipped: true,
       removeBooksForSkipped: false,
+      ownershipStatusForUnskipped: 'OWNED',
     });
 
     expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
@@ -298,7 +299,7 @@ describe('SubscriptionsService — manageSkips', () => {
     );
   });
 
-  it('adds books as PREORDER for future-renewal unskipped months (Aug 15 > Jul 13)', async () => {
+  it('adds books with PREORDER status when ownershipStatusForUnskipped=PREORDER', async () => {
     setupBase();
     (prisma.subscriptionMonth.findFirst as jest.Mock)
       .mockResolvedValueOnce({ id: 'month-aug' }) // for unskip
@@ -320,6 +321,7 @@ describe('SubscriptionsService — manageSkips', () => {
       toUnskip: [{ year: 2026, month: 8 }],
       addBooksForUnskipped: true,
       removeBooksForSkipped: false,
+      ownershipStatusForUnskipped: 'PREORDER',
     });
 
     expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
