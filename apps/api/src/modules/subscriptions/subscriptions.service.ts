@@ -3096,14 +3096,17 @@ export class SubscriptionsService {
           data: { billingPeriodId: periodId },
         });
 
-        // Add batch-level fees to this purchase group (always divided by N months)
-        // The fee amount entered by the user represents the total for the whole period.
+        // Add batch-level fees to this purchase group.
+        // Split by monthsCovered only when the fee currency matches the batch currency
+        // (i.e., it's a period-total that should be spread across months).
+        // A different-currency fee (e.g., local VAT) is a per-delivery amount — don't split.
         if (batch.fees?.length) {
           for (const f of batch.fees) {
+            const sameCurrency = f.currency === batch.currency;
             feesToCreate.push({
               userId,
               name: f.name,
-              amount: f.amount / batch.monthsCovered,
+              amount: sameCurrency ? f.amount / batch.monthsCovered : f.amount,
               currency: f.currency,
               date: purchasedAtDate,
               category: 'OTHER' as any,
@@ -3726,7 +3729,14 @@ export class SubscriptionsService {
    */
   async getManagedMonths(userId: string, slug: string) {
     const sub = await this.findBySlug(slug);
+    const isCombo = (sub as any).isCombo as boolean;
+    const componentIds: string[] = (sub as any).componentIds ?? [];
+    // For variant streams: months live on the parent subscription
     const subId = (sub as any).parentSubscriptionId ?? sub.id;
+    // For combo subscriptions: months live on the component subscriptions
+    const monthsSubscriptionIds: string[] = isCombo
+      ? await this.resolveEffectiveComponentIds(componentIds)
+      : [subId];
 
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
       where: { userId, subscriptionId: sub.id, active: true },
@@ -3767,7 +3777,7 @@ export class SubscriptionsService {
     // Fetch subscription months in the [start, limit] range
     const allMonths = await this.prisma.subscriptionMonth.findMany({
       where: {
-        subscriptionId: subId,
+        subscriptionId: { in: monthsSubscriptionIds },
         AND: [
           {
             OR: [
@@ -3840,7 +3850,12 @@ export class SubscriptionsService {
     },
   ) {
     const sub = await this.findBySlug(slug);
+    const isCombo = (sub as any).isCombo as boolean;
+    const componentIds: string[] = (sub as any).componentIds ?? [];
     const subId = (sub as any).parentSubscriptionId ?? sub.id;
+    const monthsSubscriptionIds: string[] = isCombo
+      ? await this.resolveEffectiveComponentIds(componentIds)
+      : [subId];
     const now = new Date();
 
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
@@ -3858,7 +3873,7 @@ export class SubscriptionsService {
     // ── Apply new skips ───────────────────────────────────────────────────────
     for (const { year, month } of dto.toSkip) {
       const subMonth = await this.prisma.subscriptionMonth.findFirst({
-        where: { subscriptionId: subId, year, month },
+        where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
       });
       if (!subMonth) continue;
       await this.prisma.userSkipRecord.upsert({
@@ -3877,7 +3892,7 @@ export class SubscriptionsService {
     // ── Apply unskips ─────────────────────────────────────────────────────────
     for (const { year, month } of dto.toUnskip) {
       const subMonth = await this.prisma.subscriptionMonth.findFirst({
-        where: { subscriptionId: subId, year, month },
+        where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
       });
       if (!subMonth) continue;
       await this.prisma.userSkipRecord.updateMany({
@@ -3890,7 +3905,7 @@ export class SubscriptionsService {
     if (dto.addBooksForUnskipped && dto.toUnskip.length > 0) {
       for (const { year, month } of dto.toUnskip) {
         const subMonth = await this.prisma.subscriptionMonth.findFirst({
-          where: { subscriptionId: subId, year, month },
+          where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
           select: {
             year: true,
             month: true,
@@ -3971,7 +3986,7 @@ export class SubscriptionsService {
     if (dto.removeBooksForSkipped && dto.toSkip.length > 0) {
       for (const { year, month } of dto.toSkip) {
         const subMonth = await this.prisma.subscriptionMonth.findFirst({
-          where: { subscriptionId: subId, year, month },
+          where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
           select: { books: { select: { editionId: true } } },
         });
         if (!subMonth) continue;

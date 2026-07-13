@@ -12,7 +12,8 @@ import { useBrandColors } from '@/lib/useBrandColors'
 import { CancelSubscriptionModal } from '@/components/subscriptions/CancelSubscriptionModal'
 import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
 import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
-import { Ban, ChevronDown, ChevronUp, LayoutGrid, List, Trash2, XCircle } from 'lucide-react'
+import { Ban, ChevronDown, ChevronUp, LayoutGrid, List, Settings2, Trash2, XCircle } from 'lucide-react'
+import { ManageSkipsModal } from '@/components/subscriptions/ManageSkipsModal'
 
 const PREFS_KEY = 'my_subscriptions_prefs'
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -419,6 +420,7 @@ function SubscriptionOverviewPanel({
 }) {
   const queryClient = useQueryClient()
   const [editingCosts, setEditingCosts] = useState(false)
+  const [showManageSkips, setShowManageSkips] = useState(false)
   const boxMonth = entry.nextBoxMonth
   const subscriptionSlug = entry.subscription.slug
 
@@ -545,7 +547,19 @@ function SubscriptionOverviewPanel({
         </section>
 
         <section className="space-y-3">
-          <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Skips</h4>
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Skips</h4>
+            {skipStatus && skipStatus.policyType !== 'NONE' && (
+              <button
+                type="button"
+                onClick={() => setShowManageSkips(true)}
+                className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors"
+              >
+                <Settings2 size={11} />
+                Manage
+              </button>
+            )}
+          </div>
 
           {skipQuery.isLoading && !skipStatus ? (
             <OverviewLoadingBlock lines={5} />
@@ -706,6 +720,19 @@ function SubscriptionOverviewPanel({
           )}
         </section>
       </div>
+
+      {showManageSkips && (
+        <ManageSkipsModal
+          subscriptionSlug={subscriptionSlug}
+          subscriptionName={entry.subscription.name}
+          onClose={() => setShowManageSkips(false)}
+          onSaved={() => {
+            setShowManageSkips(false)
+            void queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] })
+            void queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] })
+          }}
+        />
+      )}
     </div>
   )
 }
