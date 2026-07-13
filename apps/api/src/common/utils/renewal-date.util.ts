@@ -344,13 +344,19 @@ export async function refreshNextRenewalDate(
     const joinDay = joinDate.getUTCDate();
     const joinYear = joinDate.getUTCFullYear();
     const joinMonth = joinDate.getUTCMonth() + 1;
-    // If signupIncludesCurrentMonth: the signup month itself is always the first paid month,
-    // regardless of whether the renewalDay has already passed.
-    const renewalPassedThisMonth = !effectiveSettings.signupIncludesCurrentMonth && renewalDay < joinDay;
+    // Mirror getEligibleMonths logic: if the renewal hasn't happened yet this month,
+    // the last completed billing cycle was the previous month.
+    const renewalAlreadyHappened = joinDay >= renewalDay;
     let firstEligibleYear = joinYear;
     let firstEligibleMonth = joinMonth;
-    if (renewalPassedThisMonth) {
-      [firstEligibleYear, firstEligibleMonth] = incrementMonth(firstEligibleYear, firstEligibleMonth);
+    if (!renewalAlreadyHappened) {
+      firstEligibleMonth -= 1;
+      if (firstEligibleMonth === 0) { firstEligibleMonth = 12; firstEligibleYear -= 1; }
+    }
+    // signupIncludesCurrentMonth=false → user's first box is the next cycle
+    if (!effectiveSettings.signupIncludesCurrentMonth) {
+      firstEligibleMonth += 1;
+      if (firstEligibleMonth > 12) { firstEligibleMonth = 1; firstEligibleYear += 1; }
     }
     const firstSubMonth = await prisma.subscriptionMonth.findFirst({
       where: {
