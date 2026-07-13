@@ -3096,17 +3096,14 @@ export class SubscriptionsService {
           data: { billingPeriodId: periodId },
         });
 
-        // Add batch-level fees to this purchase group.
-        // Split by monthsCovered only when the fee currency matches the batch currency
-        // (i.e., it's a period-total that should be spread across months).
-        // A different-currency fee (e.g., local VAT) is a per-delivery amount — don't split.
+        // Add batch-level fees to this purchase group (always divided by N months).
+        // The fee amount entered represents the total for the whole billing period.
         if (batch.fees?.length) {
           for (const f of batch.fees) {
-            const sameCurrency = f.currency === batch.currency;
             feesToCreate.push({
               userId,
               name: f.name,
-              amount: sameCurrency ? f.amount / batch.monthsCovered : f.amount,
+              amount: f.amount / batch.monthsCovered,
               currency: f.currency,
               date: purchasedAtDate,
               category: 'OTHER' as any,

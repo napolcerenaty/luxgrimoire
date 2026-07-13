@@ -620,7 +620,7 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       }
     });
 
-    it('does NOT split batch fee when fee currency differs from batch currency', async () => {
+    it('splits batch fee by monthsCovered even when fee currency differs from batch currency', async () => {
       const sub = makeSub();
       jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
 
@@ -641,17 +641,17 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
           monthsCovered: 2,
           currency: 'USD',
           monthIds: ['m-1', 'm-2'],
-          fees: [{ name: 'EU VAT', amount: 20, currency: 'EUR' }], // different currency
+          fees: [{ name: 'EU VAT', amount: 20, currency: 'EUR' }], // different currency, still split
         }],
       } as any);
 
       const feeCalls = (prisma.userPurchaseFee.createMany as jest.Mock).mock.calls;
       expect(feeCalls).toHaveLength(1);
       const feeData = feeCalls[0][0].data as Array<{ amount: number }>;
-      // 2 records, each with full 20 (not 20/2=10) because currencies differ
+      // 2 records (one per month), each = 20/2 = 10 — always split regardless of currency
       expect(feeData).toHaveLength(2);
       for (const fd of feeData) {
-        expect(fd.amount).toBeCloseTo(20);
+        expect(fd.amount).toBeCloseTo(10);
       }
     });
   });
