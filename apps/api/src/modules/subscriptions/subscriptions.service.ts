@@ -2634,6 +2634,7 @@ export class SubscriptionsService {
           purchaseGroupId: group.id,
           signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
           changedAt: startDateObj,
+          ownershipStatus: 'PREORDER',
         });
 
       } catch {
