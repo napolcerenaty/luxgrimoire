@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { X, BookOpen } from 'lucide-react'
+import { groupIntoBundles, getBundleStart } from '@/lib/bundleHelpers'
 
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -25,6 +26,9 @@ interface ManagedMonth {
 interface ManagedMonthsResponse {
   entryId: string
   months: ManagedMonth[]
+  isBundleSubscription: boolean
+  intervalMonths: number
+  startingMonth: number
 }
 
 type Step = 'months' | 'confirm-books'
@@ -50,6 +54,8 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  const isBundleMode = (data?.isBundleSubscription ?? false) && (data?.intervalMonths ?? 1) > 1
+
   const effectiveSkipped = useMemo(() => {
     if (skippedKeys !== null) return skippedKeys
     if (!data) return new Set<string>()
@@ -64,8 +70,19 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
     setSkippedKeys(next)
   }
 
-  const { toSkip, toUnskip, hasChanges } = useMemo(() => {
-    if (!data) return { toSkip: [], toUnskip: [], hasChanges: false }
+  function toggleBundle(months: ManagedMonth[]) {
+    const allSkipped = months.every(m => effectiveSkipped.has(`${m.year}-${m.month}`))
+    const next = new Set(effectiveSkipped)
+    for (const m of months) {
+      const key = `${m.year}-${m.month}`
+      if (allSkipped) next.delete(key)
+      else next.add(key)
+    }
+    setSkippedKeys(next)
+  }
+
+  const { toSkip, toUnskip, hasChanges, bundlesToSkip, bundlesToUnskip } = useMemo(() => {
+    if (!data) return { toSkip: [], toUnskip: [], hasChanges: false, bundlesToSkip: 0, bundlesToUnskip: 0 }
     const originalSkipped = new Set<string>(data.months.filter(m => m.isSkipped).map(m => `${m.year}-${m.month}`))
     const toSkip: { year: number; month: number }[] = []
     const toUnskip: { year: number; month: number }[] = []
@@ -76,7 +93,18 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
       if (!wasSkipped && nowSkipped) toSkip.push({ year: m.year, month: m.month })
       if (wasSkipped && !nowSkipped) toUnskip.push({ year: m.year, month: m.month })
     }
-    return { toSkip, toUnskip, hasChanges: toSkip.length > 0 || toUnskip.length > 0 }
+    const uniqueBundleKeys = (arr: { year: number; month: number }[]) =>
+      new Set(arr.map(m => {
+        const s = getBundleStart(m.year, m.month, data.startingMonth, data.intervalMonths)
+        return `${s.year}-${s.month}`
+      })).size
+    return {
+      toSkip,
+      toUnskip,
+      hasChanges: toSkip.length > 0 || toUnskip.length > 0,
+      bundlesToSkip: uniqueBundleKeys(toSkip),
+      bundlesToUnskip: uniqueBundleKeys(toUnskip),
+    }
   }, [data, effectiveSkipped])
 
   async function save(addBooksForUnskipped: boolean, removeBooksForSkipped: boolean) {
@@ -136,41 +164,86 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
               )}
               {data && data.months.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  <p className="text-xs text-stone-500 mb-1">
-                    Click a month to toggle skip. <span className="text-amber-400">Highlighted</span> = skipped.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {data.months.map(m => {
-                      const key = `${m.year}-${m.month}`
-                      const isSkipped = effectiveSkipped.has(key)
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => toggle(m.year, m.month)}
-                          className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-all min-w-[90px] ${
-                            isSkipped
-                              ? 'border-amber-600 bg-amber-950/50 text-amber-300'
-                              : 'border-stone-700 bg-stone-800/60 text-stone-300 hover:border-stone-500'
-                          }`}
-                        >
-                          <span className="font-semibold text-sm">{MONTH_NAMES[m.month]} {m.year}</span>
-                          {m.books.length > 0 ? (
-                            m.books.map((b, i) => (
-                              <span key={i} className="text-[10px] text-stone-500 mt-0.5 leading-tight line-clamp-2">
-                                {b.title ?? '—'}
-                                {b.author ? <span className="text-stone-600"> · {b.author}</span> : null}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-[10px] text-stone-600 mt-0.5 flex items-center gap-1">
-                              <BookOpen size={10} /> No book
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
+                  {isBundleMode ? (
+                    <>
+                      <p className="text-xs text-stone-500 mb-1">
+                        Click a bundle to toggle skip. <span className="text-amber-400">Highlighted</span> = skipped.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {groupIntoBundles(data.months, data.intervalMonths, data.startingMonth).map(bundle => {
+                          const isBundleSkipped = bundle.items.every(m => effectiveSkipped.has(`${m.year}-${m.month}`))
+                          const allBooks = bundle.items.flatMap(m => m.books)
+                          const uniqueBooks = allBooks.filter((b, i, arr) =>
+                            arr.findIndex(x => x.title === b.title) === i
+                          )
+                          return (
+                            <button
+                              key={bundle.key}
+                              type="button"
+                              onClick={() => toggleBundle(bundle.items)}
+                              className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-all min-w-[120px] ${
+                                isBundleSkipped
+                                  ? 'border-amber-600 bg-amber-950/50 text-amber-300'
+                                  : 'border-stone-700 bg-stone-800/60 text-stone-300 hover:border-stone-500'
+                              }`}
+                            >
+                              <span className="font-semibold text-sm">{bundle.label}</span>
+                              {uniqueBooks.length > 0 ? (
+                                uniqueBooks.map((b, i) => (
+                                  <span key={i} className="text-[10px] text-stone-500 mt-0.5 leading-tight line-clamp-2">
+                                    {b.title ?? '—'}
+                                    {b.author ? <span className="text-stone-600"> · {b.author}</span> : null}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[10px] text-stone-600 mt-0.5 flex items-center gap-1">
+                                  <BookOpen size={10} /> No book
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-stone-500 mb-1">
+                        Click a month to toggle skip. <span className="text-amber-400">Highlighted</span> = skipped.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {data.months.map(m => {
+                          const key = `${m.year}-${m.month}`
+                          const isSkipped = effectiveSkipped.has(key)
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => toggle(m.year, m.month)}
+                              className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-all min-w-[90px] ${
+                                isSkipped
+                                  ? 'border-amber-600 bg-amber-950/50 text-amber-300'
+                                  : 'border-stone-700 bg-stone-800/60 text-stone-300 hover:border-stone-500'
+                              }`}
+                            >
+                              <span className="font-semibold text-sm">{MONTH_NAMES[m.month]} {m.year}</span>
+                              {m.books.length > 0 ? (
+                                m.books.map((b, i) => (
+                                  <span key={i} className="text-[10px] text-stone-500 mt-0.5 leading-tight line-clamp-2">
+                                    {b.title ?? '—'}
+                                    {b.author ? <span className="text-stone-600"> · {b.author}</span> : null}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[10px] text-stone-600 mt-0.5 flex items-center gap-1">
+                                  <BookOpen size={10} /> No book
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
               {saveError && (
@@ -182,9 +255,21 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
               <div className="text-xs text-stone-500">
                 {hasChanges ? (
                   <span>
-                    {toSkip.length > 0 && <span className="text-amber-400">{toSkip.length} to skip</span>}
+                    {toSkip.length > 0 && (
+                      <span className="text-amber-400">
+                        {isBundleMode
+                          ? `${bundlesToSkip} bundle${bundlesToSkip !== 1 ? 's' : ''} to skip`
+                          : `${toSkip.length} to skip`}
+                      </span>
+                    )}
                     {toSkip.length > 0 && toUnskip.length > 0 && <span className="mx-1">·</span>}
-                    {toUnskip.length > 0 && <span className="text-emerald-400">{toUnskip.length} to unskip</span>}
+                    {toUnskip.length > 0 && (
+                      <span className="text-emerald-400">
+                        {isBundleMode
+                          ? `${bundlesToUnskip} bundle${bundlesToUnskip !== 1 ? 's' : ''} to unskip`
+                          : `${toUnskip.length} to unskip`}
+                      </span>
+                    )}
                   </span>
                 ) : (
                   <span>No changes</span>
@@ -222,7 +307,9 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
               <div className="rounded-lg border border-emerald-800/60 bg-emerald-950/30 px-4 py-3 flex flex-col gap-3">
                 <div>
                   <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wide">
-                    {toUnskip.length} month{toUnskip.length !== 1 ? 's' : ''} unskipped
+                    {isBundleMode
+                      ? `${bundlesToUnskip} bundle${bundlesToUnskip !== 1 ? 's' : ''} unskipped`
+                      : `${toUnskip.length} month${toUnskip.length !== 1 ? 's' : ''} unskipped`}
                   </p>
                   <p className="text-stone-400 text-xs mt-0.5">What status should the added books get?</p>
                 </div>
@@ -248,7 +335,9 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
             {toSkip.length > 0 && (
               <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 px-4 py-3">
                 <p className="text-amber-300 text-xs font-semibold uppercase tracking-wide">
-                  {toSkip.length} month{toSkip.length !== 1 ? 's' : ''} skipped
+                  {isBundleMode
+                    ? `${bundlesToSkip} bundle${bundlesToSkip !== 1 ? 's' : ''} skipped`
+                    : `${toSkip.length} month${toSkip.length !== 1 ? 's' : ''} skipped`}
                 </p>
                 <p className="text-stone-400 text-xs mt-0.5">Subscription-sourced books will be removed from your collection.</p>
               </div>

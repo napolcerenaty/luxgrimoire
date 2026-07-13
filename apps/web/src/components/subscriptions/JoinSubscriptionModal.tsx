@@ -7,6 +7,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiFeeTemplate } from '@luxgrimoire/shared-types'
 
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { groupIntoBundles } from '@/lib/bundleHelpers'
 import {
   computeAutoBatches,
   resolveBackfillFallbackPrice,
@@ -74,6 +75,9 @@ interface Props {
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
   signupIncludesCurrentMonth?: boolean
+  isBundleSubscription?: boolean
+  intervalMonths?: number
+  startingMonth?: number
   onJoined: () => void
   onClose: () => void
 }
@@ -830,6 +834,9 @@ interface Step2Props {
   subscriptionSlug: string
   entry: JoinResult['entry']
   hasPrepayOptions?: boolean
+  isBundleSubscription?: boolean
+  intervalMonths?: number
+  startingMonth?: number
   onDone: () => void
   onSkip: () => void
   onBack: () => void
@@ -837,7 +844,8 @@ interface Step2Props {
   onBeforeBackfill?: () => Promise<void>
 }
 
-function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDone, onSkip, onBack, onNextWithBilling, onBeforeBackfill }: Step2Props) {
+function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBundleSubscription, intervalMonths = 1, startingMonth = 1, onDone, onSkip, onBack, onNextWithBilling, onBeforeBackfill }: Step2Props) {
+  const isBundleMode = (isBundleSubscription ?? false) && intervalMonths > 1
   const [wantBackfill, setWantBackfill] = useState<boolean | null>(null)
   // monthId → 'selected' | 'skipped'
   const [choices, setChoices] = useState<Record<string, 'selected' | 'skipped'>>(() => {
@@ -872,6 +880,15 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
 
   function toggle(id: string) {
     setChoices(prev => ({ ...prev, [id]: prev[id] === 'selected' ? 'skipped' : 'selected' }))
+  }
+
+  function toggleBundle(monthIds: string[]) {
+    const allBundleSelected = monthIds.every(id => choices[id] === 'selected')
+    setChoices(prev => {
+      const next = { ...prev }
+      for (const id of monthIds) next[id] = allBundleSelected ? 'skipped' : 'selected'
+      return next
+    })
   }
 
   async function submit() {
@@ -913,18 +930,25 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
     }
   }
 
-  // Group months by series
+  // Group months by series (non-bundle mode only)
   const seriesGroups: Map<string, { series: SubscriptionMonth['series']; months: SubscriptionMonth[] }> = new Map()
   const standalone: SubscriptionMonth[] = []
-  for (const m of eligibleMonths) {
-    if (m.series) {
-      const key = m.series.id
-      if (!seriesGroups.has(key)) seriesGroups.set(key, { series: m.series, months: [] })
-      seriesGroups.get(key)!.months.push(m)
-    } else {
-      standalone.push(m)
+  if (!isBundleMode) {
+    for (const m of eligibleMonths) {
+      if (m.series) {
+        const key = m.series.id
+        if (!seriesGroups.has(key)) seriesGroups.set(key, { series: m.series, months: [] })
+        seriesGroups.get(key)!.months.push(m)
+      } else {
+        standalone.push(m)
+      }
     }
   }
+
+  // Bundle grouping (bundle mode only)
+  const bundleGroups = isBundleMode
+    ? groupIntoBundles(eligibleMonths, intervalMonths, startingMonth)
+    : []
 
   if (wantBackfill === null) {
     return (
@@ -970,16 +994,20 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-serif text-stone-100 font-semibold">Select past boxes</h3>
-        <button
-          onClick={toggleAll}
-          className="text-xs text-amber-500 hover:text-amber-400 underline"
-        >
-          {allSelected ? 'Deselect all' : 'Select all'}
-        </button>
+        {!isBundleMode && (
+          <button
+            onClick={toggleAll}
+            className="text-xs text-amber-500 hover:text-amber-400 underline"
+          >
+            {allSelected ? 'Deselect all' : 'Select all'}
+          </button>
+        )}
       </div>
 
       <p className="text-xs text-stone-500">
-        Checked = received (added to collection). Unchecked = skipped.
+        {isBundleMode
+          ? 'Checked = received (added to collection). Unchecked = skipped. Bundles cannot be partially selected.'
+          : 'Checked = received (added to collection). Unchecked = skipped.'}
       </p>
 
       <div className="flex items-center gap-3">
@@ -995,22 +1023,70 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, onDo
       </div>
 
       <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
-        {/* Series groups */}
-        {Array.from(seriesGroups.values()).map(({ series, months }) => (
-          <div key={series!.id} className="border border-stone-700 rounded-lg overflow-hidden">
-            <div className="bg-stone-800/60 px-3 py-1.5 text-xs font-medium text-amber-400 uppercase tracking-wider">
-              {series!.name}
-            </div>
-            {months.map(m => (
+        {isBundleMode ? (
+          /* Bundle groups */
+          bundleGroups.map(bundle => {
+            const bundleMonthIds = bundle.items.map(m => m.id)
+            const allBundleSelected = bundleMonthIds.every(id => choices[id] === 'selected')
+            const allBooks = bundle.items.flatMap(m => m.books.filter(b => b.edition))
+            const uniqueBooks = allBooks.filter((b, i, arr) => arr.findIndex(x => x.edition?.id === b.edition?.id) === i)
+            const mainBook = uniqueBooks.find(b => b.isMainBook && b.edition) ?? uniqueBooks[0]
+            const authorName = mainBook?.edition?.book?.authors?.[0]?.author?.name
+            return (
+              <label key={bundle.key} className="flex items-start gap-3 border border-stone-700 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-stone-800/40">
+                <input
+                  type="checkbox"
+                  checked={allBundleSelected}
+                  onChange={() => toggleBundle(bundleMonthIds)}
+                  className="mt-0.5 rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-stone-100">{bundle.label}</p>
+                  {authorName && <p className="text-xs text-stone-400 mt-0.5">{authorName}</p>}
+                  {uniqueBooks.length > 1 && (
+                    <div className="mt-1 space-y-0.5">
+                      {uniqueBooks.map((b, i) => (
+                        <p key={i} className="text-xs text-stone-500">
+                          {b.edition?.book?.title ?? b.edition?.title ?? '—'}
+                          {b.edition?.book?.authors?.[0]?.author?.name
+                            ? <span className="text-stone-600"> · {b.edition.book.authors[0].author.name}</span>
+                            : null}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {mainBook?.edition?.additionalImages?.[0] && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={cloudinaryUrl(mainBook.edition.additionalImages[0], 'w_60,h_80,c_fill,q_auto,f_auto') ?? ''}
+                    alt=""
+                    className="w-10 h-14 object-cover rounded shrink-0"
+                  />
+                )}
+              </label>
+            )
+          })
+        ) : (
+          <>
+            {/* Series groups */}
+            {Array.from(seriesGroups.values()).map(({ series, months }) => (
+              <div key={series!.id} className="border border-stone-700 rounded-lg overflow-hidden">
+                <div className="bg-stone-800/60 px-3 py-1.5 text-xs font-medium text-amber-400 uppercase tracking-wider">
+                  {series!.name}
+                </div>
+                {months.map(m => (
+                  <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} bookPrices={bookPrices} onPriceChange={(k, v) => setBookPrices(prev => ({ ...prev, [k]: v }))} />
+                ))}
+              </div>
+            ))}
+
+            {/* Standalone months */}
+            {standalone.map(m => (
               <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} bookPrices={bookPrices} onPriceChange={(k, v) => setBookPrices(prev => ({ ...prev, [k]: v }))} />
             ))}
-          </div>
-        ))}
-
-        {/* Standalone months */}
-        {standalone.map(m => (
-          <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} bookPrices={bookPrices} onPriceChange={(k, v) => setBookPrices(prev => ({ ...prev, [k]: v }))} />
-        ))}
+          </>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
@@ -1799,6 +1875,9 @@ export default function JoinSubscriptionModal({
   isDiscontinued,
   subscriptionEndDate,
   signupIncludesCurrentMonth,
+  isBundleSubscription,
+  intervalMonths,
+  startingMonth,
   onJoined,
   onClose,
 }: Props) {
@@ -1929,6 +2008,9 @@ export default function JoinSubscriptionModal({
             subscriptionSlug={subscriptionSlug}
             entry={joinResult.entry}
             hasPrepayOptions={(prepayOptions?.length ?? 0) > 0}
+            isBundleSubscription={isBundleSubscription}
+            intervalMonths={intervalMonths}
+            startingMonth={startingMonth}
             onDone={() => { setStep('done'); onJoined() }}
             onBack={() => setStep(1)}
             onSkip={async () => {

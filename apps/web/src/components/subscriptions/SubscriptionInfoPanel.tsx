@@ -22,6 +22,8 @@ interface Props {
   originalBasePrice?: string | null
   currency: string
   intervalMonths: number
+  isBundleSubscription?: boolean
+  startingMonth?: number
   shipsInternationally: boolean
   country: string | null
   renewalDay?: number | null
@@ -101,6 +103,8 @@ export default function SubscriptionInfoPanel({
   originalBasePrice,
   currency,
   intervalMonths,
+  isBundleSubscription,
+  startingMonth,
   shipsInternationally,
   country,
   renewalDay,
@@ -579,6 +583,9 @@ export default function SubscriptionInfoPanel({
           isDiscontinued={isDiscontinued}
           subscriptionEndDate={subscriptionEndDate}
           signupIncludesCurrentMonth={signupIncludesCurrentMonth}
+          isBundleSubscription={isBundleSubscription}
+          intervalMonths={intervalMonths}
+          startingMonth={startingMonth}
           onJoined={() => {
             closeJoinModal()
             refreshEntry()

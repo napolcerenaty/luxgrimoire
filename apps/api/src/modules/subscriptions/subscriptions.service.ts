@@ -3846,7 +3846,11 @@ export class SubscriptionsService {
       };
     });
 
-    return { entryId: entry.id, months: result };
+    const isBundleSubscription = (sub as any).isBundleSubscription as boolean ?? false;
+    const intervalMonths = (sub as any).intervalMonths as number ?? 1;
+    const startingMonth = (sub as any).startingMonth as number ?? 1;
+
+    return { entryId: entry.id, months: result, isBundleSubscription, intervalMonths, startingMonth };
   }
 
   /**
