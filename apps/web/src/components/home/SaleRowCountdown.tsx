@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 
 interface Parts {
+  expired: boolean
   days: number
   hours: number
   minutes: number
@@ -11,8 +12,9 @@ interface Parts {
 
 function compute(target: Date): Parts {
   const diff = target.getTime() - Date.now()
-  if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 }
+  if (diff <= 0) return { expired: true, days: 0, hours: 0, minutes: 0, seconds: 0 }
   return {
+    expired: false,
     days: Math.floor(diff / 86400000),
     hours: Math.floor((diff % 86400000) / 3600000),
     minutes: Math.floor((diff % 3600000) / 60000),
@@ -44,8 +46,16 @@ export function SaleRowCountdown({ dateStr }: { dateStr: string }) {
     return () => clearInterval(id)
   }, [dateStr])
 
+  if (parts.expired) {
+    return (
+      <span className="ml-2 shrink-0 rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-green-900/70 border border-green-600 text-green-400">
+        Live
+      </span>
+    )
+  }
+
   return (
-    <div className="ml-3 flex shrink-0 items-center gap-1">
+    <div className="ml-2 flex shrink-0 items-center gap-1">
       {parts.days > 0 && <Box val={`${parts.days}d`} />}
       <Box val={`${String(parts.hours).padStart(2, '0')}h`} />
       <Box val={`${String(parts.minutes).padStart(2, '0')}m`} />
