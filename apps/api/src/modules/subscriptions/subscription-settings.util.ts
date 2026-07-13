@@ -46,10 +46,17 @@ export function resolveEffectiveSettings(
   if (applicable.length === 0) return fallback;
 
   const { effectiveFrom: _ignored, ...settings } = applicable[0];
-  // Null-coalesce renewalMonthOffset: older records may have null (field added after initial deployment).
-  // Fall back to the current subscription value so the user's configured offset is always respected.
+  // Null-coalesce fields that may be null in older DB records (added after initial deployment).
+  // Fall back to the current subscription value so the user's configured values are always respected.
+  //
+  // renewalDay=null with renewalDayUserSet=true is intentional (user-specific renewal day mode).
+  // renewalDay=null with renewalDayUserSet=false means the field wasn't stored in this record yet —
+  // coalesce to the current subscription's renewalDay so the correct day is used for eligibility checks.
   return {
     ...settings,
     renewalMonthOffset: settings.renewalMonthOffset ?? fallback.renewalMonthOffset,
+    renewalDay: (settings.renewalDay === null && !settings.renewalDayUserSet)
+      ? fallback.renewalDay
+      : settings.renewalDay,
   };
 }
