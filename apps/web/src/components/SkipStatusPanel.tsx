@@ -6,7 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 import type { ApiSkipStatus, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import { ManageSkipsModal } from '@/components/subscriptions/ManageSkipsModal'
 import { Settings2 } from 'lucide-react'
-import { groupIntoBundles, type BundleGroup } from '@/lib/bundleHelpers'
+import { groupIntoBundles, bundleRangeLabel, type BundleGroup } from '@/lib/bundleHelpers'
 
 interface Props {
   subscriptionSlug: string
@@ -19,15 +19,6 @@ const MONTH_NAMES = [
   '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
-
-function bundleRangeLabel(year: number, month: number, intervalMonths: number): string {
-  let endMonth = month + intervalMonths - 1
-  let endYear = year
-  while (endMonth > 12) { endMonth -= 12; endYear++ }
-  return year === endYear
-    ? `${MONTH_NAMES[month]}–${MONTH_NAMES[endMonth]} ${year}`
-    : `${MONTH_NAMES[month]} ${year}–${MONTH_NAMES[endMonth]} ${endYear}`
-}
 
 export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '', months, onSkipSuccess }: Props) {
   const queryClient = useQueryClient()

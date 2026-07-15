@@ -21,6 +21,32 @@ export function getBundleStart(
   }
 }
 
+/**
+ * Returns the {year, month} of the last calendar month covered by a bundle
+ * that starts at (startYear, startMonth) and covers `intervalMonths` months.
+ */
+export function getBundleEnd(
+  startYear: number,
+  startMonth: number,
+  intervalMonths: number,
+): { year: number; month: number } {
+  let endYear = startYear
+  let endMonth = startMonth + intervalMonths - 1
+  while (endMonth > 12) { endMonth -= 12; endYear++ }
+  return { year: endYear, month: endMonth }
+}
+
+/**
+ * Human-readable label for the bundle period starting at (year, month), e.g.
+ * "Apr–Jun 2025" or "Nov 2025–Jan 2026" when it crosses a year boundary.
+ */
+export function bundleRangeLabel(year: number, month: number, intervalMonths: number): string {
+  const end = getBundleEnd(year, month, intervalMonths)
+  return year === end.year
+    ? `${MONTH_NAMES_SHORT[month]}–${MONTH_NAMES_SHORT[end.month]} ${year}`
+    : `${MONTH_NAMES_SHORT[month]} ${year}–${MONTH_NAMES_SHORT[end.month]} ${end.year}`
+}
+
 export interface BundleGroup<T> {
   key: string
   startYear: number
@@ -45,14 +71,9 @@ export function groupIntoBundles<T extends { year: number; month: number }>(
     const start = getBundleStart(item.year, item.month, startingMonth, intervalMonths)
     const key = `${start.year}-${start.month}`
     if (!groups.has(key)) {
-      let endYear = start.year
-      let endMonth = start.month + intervalMonths - 1
-      while (endMonth > 12) { endMonth -= 12; endYear++ }
-      const label =
-        start.year === endYear
-          ? `${MONTH_NAMES_SHORT[start.month]}–${MONTH_NAMES_SHORT[endMonth]} ${start.year}`
-          : `${MONTH_NAMES_SHORT[start.month]} ${start.year}–${MONTH_NAMES_SHORT[endMonth]} ${endYear}`
-      groups.set(key, { key, startYear: start.year, startMonth: start.month, endYear, endMonth, label, items: [] })
+      const end = getBundleEnd(start.year, start.month, intervalMonths)
+      const label = bundleRangeLabel(start.year, start.month, intervalMonths)
+      groups.set(key, { key, startYear: start.year, startMonth: start.month, endYear: end.year, endMonth: end.month, label, items: [] })
     }
     groups.get(key)!.items.push(item)
   }
