@@ -6,6 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 import type { ApiSkipStatus, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import { ManageSkipsModal } from '@/components/subscriptions/ManageSkipsModal'
 import { Settings2 } from 'lucide-react'
+import { groupIntoBundles, type BundleGroup } from '@/lib/bundleHelpers'
 
 interface Props {
   subscriptionSlug: string
@@ -18,6 +19,15 @@ const MONTH_NAMES = [
   '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
+
+function bundleRangeLabel(year: number, month: number, intervalMonths: number): string {
+  let endMonth = month + intervalMonths - 1
+  let endYear = year
+  while (endMonth > 12) { endMonth -= 12; endYear++ }
+  return year === endYear
+    ? `${MONTH_NAMES[month]}–${MONTH_NAMES[endMonth]} ${year}`
+    : `${MONTH_NAMES[month]} ${year}–${MONTH_NAMES[endMonth]} ${endYear}`
+}
 
 export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '', months, onSkipSuccess }: Props) {
   const queryClient = useQueryClient()
@@ -86,6 +96,21 @@ export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '
     })
     .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
 
+  const isBundleMode = (status?.isBundleSubscription ?? false) && (status?.intervalMonths ?? 1) > 1
+
+  const upcomingBundles: BundleGroup<{ year: number; month: number }>[] = isBundleMode
+    ? groupIntoBundles(upcoming, status.intervalMonths, status.startingMonth)
+    : []
+
+  const futureSkippedMonths = (status?.skippedMonths ?? [])
+    .filter((s) => { const n = new Date(); const cy = n.getFullYear(), cm = n.getMonth() + 1; return s.year > cy || (s.year === cy && s.month >= cm) })
+  const skippedBundles: BundleGroup<{ year: number; month: number }>[] = isBundleMode
+    ? groupIntoBundles(futureSkippedMonths, status.intervalMonths, status.startingMonth)
+    : []
+  const allSkippedBundles: BundleGroup<{ year: number; month: number }>[] = isBundleMode
+    ? groupIntoBundles(status?.skippedMonths ?? [], status.intervalMonths, status.startingMonth)
+    : []
+
   const limitText =
     status.maxSkips !== null
       ? `${status.skipsInWindow} / ${status.maxSkips} skips used`
@@ -118,10 +143,12 @@ export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '
         {limitText}
         {status.skippedMonths && status.skippedMonths.length > 0 && (
           <span className="text-stone-500">
-            {' '}({status.skippedMonths
-              .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
-              .map((s) => `${MONTH_NAMES[s.month]} ${s.year}`)
-              .join(', ')})
+            {' '}({isBundleMode
+              ? allSkippedBundles.map((b) => b.label).join(', ')
+              : status.skippedMonths
+                  .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+                  .map((s) => `${MONTH_NAMES[s.month]} ${s.year}`)
+                  .join(', ')})
           </span>
         )}
       </p>
@@ -172,7 +199,25 @@ export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '
         </div>
       ))}
 
-      {status.canSkip && upcoming.length > 0 && (
+      {status.canSkip && isBundleMode && upcomingBundles.length > 0 && (
+        <div>
+          <p className="text-xs text-stone-400 mb-1">Track skip of:</p>
+          <div className="flex flex-wrap gap-2">
+            {upcomingBundles.map((b) => (
+              <button
+                key={b.key}
+                type="button"
+                onClick={() => setSkipTarget({ year: b.startYear, month: b.startMonth })}
+                className="text-xs px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors"
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {status.canSkip && !isBundleMode && upcoming.length > 0 && (
         <div>
           <p className="text-xs text-stone-400 mb-1">Track skip of:</p>
           <div className="flex flex-wrap gap-2">
@@ -227,20 +272,31 @@ export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '
           )}
 
           <div className="flex flex-wrap gap-2">
-            {status.skippedMonths
-              .filter((s) => { const n = new Date(); const cy = n.getFullYear(), cm = n.getMonth() + 1; return s.year > cy || (s.year === cy && s.month >= cm) })
-              .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
-              .map((s) => (
-                <button
-                  key={`unskip-${s.year}-${s.month}`}
-                  type="button"
-                  onClick={() => setUnskipTarget({ year: s.year, month: s.month })}
-                  className="text-xs px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors flex items-center gap-1"
-                >
-                  <span>↩</span>
-                  <span>{MONTH_NAMES[s.month]} {s.year}</span>
-                </button>
-              ))}
+            {isBundleMode
+              ? skippedBundles.map((b) => (
+                  <button
+                    key={`unskip-${b.key}`}
+                    type="button"
+                    onClick={() => setUnskipTarget({ year: b.startYear, month: b.startMonth })}
+                    className="text-xs px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors flex items-center gap-1"
+                  >
+                    <span>↩</span>
+                    <span>{b.label}</span>
+                  </button>
+                ))
+              : futureSkippedMonths
+                  .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+                  .map((s) => (
+                    <button
+                      key={`unskip-${s.year}-${s.month}`}
+                      type="button"
+                      onClick={() => setUnskipTarget({ year: s.year, month: s.month })}
+                      className="text-xs px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors flex items-center gap-1"
+                    >
+                      <span>↩</span>
+                      <span>{MONTH_NAMES[s.month]} {s.year}</span>
+                    </button>
+                  ))}
           </div>
         </div>
       )}
@@ -250,10 +306,14 @@ export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
             <p className="text-stone-100 font-semibold">
-              Skip {MONTH_NAMES[skipTarget.month]} {skipTarget.year}?
+              Skip {isBundleMode
+                ? bundleRangeLabel(skipTarget.year, skipTarget.month, status.intervalMonths)
+                : `${MONTH_NAMES[skipTarget.month]} ${skipTarget.year}`}?
             </p>
             <p className="text-sm text-stone-400">
-              This will record a skip for this month. Box from this period will not be added to your collection.
+              {isBundleMode
+                ? 'This will record a skip for the entire bundle. Boxes from this bundle period will not be added to your collection.'
+                : 'This will record a skip for this month. Box from this period will not be added to your collection.'}
             </p>
             {skipMutation.error && (
               <p className="text-xs text-red-400">
@@ -286,10 +346,14 @@ export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-stone-900 border border-stone-700 rounded-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
             <p className="text-stone-100 font-semibold">
-              Reverse skip for {MONTH_NAMES[unskipTarget.month]} {unskipTarget.year}?
+              Reverse skip for {isBundleMode
+                ? bundleRangeLabel(unskipTarget.year, unskipTarget.month, status.intervalMonths)
+                : `${MONTH_NAMES[unskipTarget.month]} ${unskipTarget.year}`}?
             </p>
             <p className="text-sm text-stone-400">
-              This will remove the skip record for this month. The box will be added back to your expected deliveries.
+              {isBundleMode
+                ? 'This will remove the skip record for the entire bundle. The boxes will be added back to your expected deliveries.'
+                : 'This will remove the skip record for this month. The box will be added back to your expected deliveries.'}
             </p>
             {unskipMutation.error && (
               <p className="text-xs text-red-400">

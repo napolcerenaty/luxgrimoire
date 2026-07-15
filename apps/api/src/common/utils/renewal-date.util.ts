@@ -31,6 +31,57 @@ export function renewalMonthFromBoxMonth(year: number, month: number, offset: nu
 }
 
 /**
+ * Returns the start {year, month} of the bundle period (box months) that contains the given
+ * (year, month). Bundle cycles begin at `startingMonth` and repeat every `intervalMonths` months.
+ * Mirrors apps/web/src/lib/bundleHelpers.ts#getBundleStart — keep in sync.
+ */
+export function getBundleBoxStart(
+  year: number,
+  month: number,
+  startingMonth: number,
+  intervalMonths: number,
+): { year: number; month: number } {
+  const absMonth = year * 12 + (month - 1);
+  const absStart = 2000 * 12 + (startingMonth - 1);
+  const intervals = Math.floor((absMonth - absStart) / intervalMonths);
+  const bundleAbsStart = absStart + intervals * intervalMonths;
+  return {
+    year: Math.floor(bundleAbsStart / 12),
+    month: (bundleAbsStart % 12) + 1,
+  };
+}
+
+/**
+ * Returns the `intervalMonths` consecutive calendar (year, month) slots that make up a bundle
+ * period, starting at `start`.
+ */
+export function enumerateBundleMonths(
+  start: { year: number; month: number },
+  intervalMonths: number,
+): { year: number; month: number }[] {
+  const months: { year: number; month: number }[] = [];
+  let y = start.year;
+  let m = start.month;
+  for (let i = 0; i < intervalMonths; i++) {
+    months.push({ year: y, month: m });
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return months;
+}
+
+/**
+ * Advances (year, month) forward by `n` months.
+ */
+export function addMonths(year: number, month: number, n: number): { year: number; month: number } {
+  let y = year;
+  let m = month + n;
+  while (m > 12) { m -= 12; y++; }
+  while (m < 1) { m += 12; y--; }
+  return { year: y, month: m };
+}
+
+/**
  * For bundle subscriptions: finds the renewal month for the most recently FIRED quarterly (or
  * N-monthly) renewal as of refDate. "Fired" = refDay >= renewalDay in or before the renewal month.
  *
