@@ -1,5 +1,17 @@
 # LuxGrimoire — Claude Code Instructions
 
+## Project location & session startup
+- Local path: `C:\Users\renat\Documents\luxgrimoire` (also the session working directory)
+- Before making code changes, verify:
+  - `node_modules` present at root and in each workspace — if missing/stale, run `pnpm install`
+  - `apps/api/.env` and `apps/web/.env.local` exist (copy from the adjacent `.env.example` if missing — not checked into git)
+  - Postgres reachable via `DATABASE_URL` in `apps/api/.env`
+  - Redis (localhost:6379) is optional — the API runs without cache if it's not up
+- Starting the dev servers:
+  - `pnpm dev` (turbo) — runs API (`nest start --watch`, :3001) + Web (`next dev`, :3000) together
+  - `.\restart.ps1` at repo root — user's preferred Windows script: kills anything on :3000/:3001, starts Redis if installed via scoop, then API (from built `dist/main`, not watch mode) + Web. Flags: `-ApiOnly`, `-WebOnly`, `-RedisOnly`
+  - API: http://localhost:3001 · Web: http://localhost:3000
+
 ## Branching & deployment
 - Always work on branch `development`
 - After every commit, push immediately (`git push`)
