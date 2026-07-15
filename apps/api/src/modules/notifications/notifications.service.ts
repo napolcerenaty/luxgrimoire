@@ -113,6 +113,7 @@ export class NotificationsService {
       await this.prisma.userNotification.createMany({
         data: userIds.map((uid) => ({ userId: uid, type, title, body: body ?? null, link: link ?? null, expiresAt })),
       });
+      void this.sendAdminPushFanout(userIds, title, body, link, type);
       void this.auditService.log({
         userId: actor?.id,
         username: actor?.username,
@@ -164,6 +165,7 @@ export class NotificationsService {
               expiresAt,
             })),
           });
+          void this.sendAdminPushFanout(batch.map((u) => u.id), title, body, link, type);
 
           consecutiveFailures = 0;
           skip += batch.length;
@@ -187,6 +189,40 @@ export class NotificationsService {
     });
 
     return { sent: estimatedCount, queued: true };
+  }
+
+  /**
+   * Sends push for an admin broadcast to whichever of the given users have opted in:
+   * appNotifPushEnabled (per-notification-type toggle, default OFF) AND pushEnabled
+   * (device-level preference). In-app is always shown regardless — this only
+   * controls the separate push channel. Best-effort: failures are logged, not
+   * thrown, so they never affect the in-app fanout that already completed.
+   */
+  private async sendAdminPushFanout(
+    userIds: string[],
+    title: string,
+    body: string | undefined,
+    link: string | undefined,
+    type: string,
+  ) {
+    try {
+      const optedIn = await this.prisma.userReminderSettings.findMany({
+        where: { userId: { in: userIds }, appNotifPushEnabled: true },
+        select: { userId: true },
+      });
+      if (optedIn.length === 0) return;
+
+      const devicesEnabled = await this.prisma.userNotificationPreference.findMany({
+        where: { userId: { in: optedIn.map((r) => r.userId) }, pushEnabled: true },
+        select: { userId: true },
+      });
+
+      await Promise.all(
+        devicesEnabled.map((p) => this.pushService.sendToUser(p.userId, { title, body, link, type })),
+      );
+    } catch (err) {
+      this.logger.error(`Admin notification push fanout failed: ${err}`);
+    }
   }
 
   /** Runs daily at 03:00 UTC — removes notifications whose expiresAt is in the past. */
