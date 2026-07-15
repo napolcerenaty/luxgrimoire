@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from './notifications.service';
+import { PushService } from './push.service';
 import { toZonedTime } from 'date-fns-tz';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class NotificationRemindersCron {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly pushService: PushService,
   ) {}
 
   /** Runs every 15 minutes — sends all scheduled reminders that are due */
@@ -118,10 +120,10 @@ export class NotificationRemindersCron {
         const body = lines.join('\n');
 
         if (settings.renewalInAppEnabled) {
-          await this.notificationsService.createNotification(userId, 'renewal_reminder', title, body, 'subscriptions', undefined);
+          await this.notificationsService.createNotification(userId, 'renewal_reminder', title, body, 'subscriptions', undefined, { skipPush: true });
         }
         if (settings.renewalPushEnabled) {
-          await this.sendPushIfEnabled(userId, title, body);
+          await this.sendPush(userId, 'renewal_reminder', title, body, 'subscriptions', undefined);
         }
       }
     } else {
@@ -134,10 +136,10 @@ export class NotificationRemindersCron {
         const title = 'Renewal reminder';
 
         if (settings.renewalInAppEnabled) {
-          await this.notificationsService.createNotification(userId, 'renewal_reminder', title, line, 'subscriptions', entry.subscription?.slug);
+          await this.notificationsService.createNotification(userId, 'renewal_reminder', title, line, 'subscriptions', entry.subscription?.slug, { skipPush: true });
         }
         if (settings.renewalPushEnabled) {
-          await this.sendPushIfEnabled(userId, title, line);
+          await this.sendPush(userId, 'renewal_reminder', title, line, 'subscriptions', entry.subscription?.slug);
         }
       }
     }
@@ -242,10 +244,11 @@ export class NotificationRemindersCron {
         body,
         'sale-announcements',
         ann.id,
+        { skipPush: true },
       );
     }
     if (settings.salePushEnabled) {
-      await this.sendPushIfEnabled(reminder.userId, title, body);
+      await this.sendPush(reminder.userId, 'sale_reminder', title, body, 'sale-announcements', ann.id);
     }
 
     await this.markSent([reminder.id]);
@@ -270,16 +273,25 @@ export class NotificationRemindersCron {
     return dateStr;
   }
 
-  private async sendPushIfEnabled(userId: string, title: string, body: string) {
+  /**
+   * Sends a push notification for a reminder, independent of whether the in-app
+   * notification was created. Still gated by the user's global device push
+   * preference (userNotificationPreference.pushEnabled) — the per-reminder-type
+   * toggle (salePushEnabled/renewalPushEnabled) only controls whether THIS
+   * reminder sends push at all, not whether push is enabled on the device.
+   */
+  private async sendPush(
+    userId: string,
+    type: string,
+    title: string,
+    body: string,
+    entityType?: string,
+    entityId?: string,
+  ) {
     const pref = await this.prisma.userNotificationPreference.findUnique({ where: { userId } });
-    if (pref?.pushEnabled) {
-      // NotificationsService already fires push in createNotification when pushEnabled,
-      // but for reminder-specific push we check salePushEnabled / renewalPushEnabled separately.
-      // We reach here only when those are true, so we can call push directly.
-    }
-    // Push is sent by NotificationsService.createNotification when pushEnabled is true.
-    // For dedicated push-only (no in-app), we'd call PushService directly.
-    // For now, push is triggered via createNotification's pref check.
+    if (!pref?.pushEnabled) return;
+    const link = entityType && entityId ? `/${entityType}/${entityId}` : undefined;
+    await this.pushService.sendToUser(userId, { title, body, link, type });
   }
 
   /** Runs daily at 03:00 — purges processed reminders older than 90 days */

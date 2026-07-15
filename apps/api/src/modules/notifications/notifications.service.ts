@@ -228,6 +228,7 @@ export class NotificationsService {
     body?: string,
     entityType?: string,
     entityId?: string,
+    opts?: { skipPush?: boolean },
   ) {
     const link = entityType && entityId ? `/${entityType}/${entityId}` : undefined;
     const ttlDays = await this.getDefaultTtlDays();
@@ -237,10 +238,14 @@ export class NotificationsService {
       data: { userId, type, title, body, link, expiresAt },
     });
 
-    // Fire-and-forget push if user has push enabled
-    const pref = await this.prisma.userNotificationPreference.findUnique({ where: { userId } });
-    if (pref?.pushEnabled) {
-      void this.pushService.sendToUser(userId, { title, body, link, type });
+    // Fire-and-forget push if user has push enabled. Callers with their own
+    // per-notification-type push toggle (e.g. sale/renewal reminders) pass
+    // skipPush and send push themselves so in-app and push stay independent.
+    if (!opts?.skipPush) {
+      const pref = await this.prisma.userNotificationPreference.findUnique({ where: { userId } });
+      if (pref?.pushEnabled) {
+        void this.pushService.sendToUser(userId, { title, body, link, type });
+      }
     }
 
     return notification;
