@@ -67,9 +67,14 @@ async function ghostFetch<T>(
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
   try {
     const res = await fetch(url.toString(), { next: { revalidate: 60 } })
-    if (!res.ok) return null
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      console.error(`[ghost] ${res.status} ${res.statusText} for ${GHOST_URL}/ghost/api/content/${resource}/ — ${body.slice(0, 300)}`)
+      return null
+    }
     return (await res.json()) as T
-  } catch {
+  } catch (err) {
+    console.error(`[ghost] fetch failed for ${GHOST_URL}/ghost/api/content/${resource}/ —`, err)
     return null
   }
 }
