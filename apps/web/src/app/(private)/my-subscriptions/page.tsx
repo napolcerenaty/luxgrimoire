@@ -14,6 +14,7 @@ import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
 import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
 import { Ban, ChevronDown, ChevronUp, LayoutGrid, List, Settings2, Trash2, XCircle } from 'lucide-react'
 import { ManageSkipsModal } from '@/components/subscriptions/ManageSkipsModal'
+import { bundleRangeLabel } from '@/lib/bundleHelpers'
 
 const PREFS_KEY = 'my_subscriptions_prefs'
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -60,6 +61,9 @@ interface MySubscriptionEntry {
     currency: string
     price: string | null
     isDiscontinued: boolean
+    isBundleSubscription: boolean
+    intervalMonths: number
+    startingMonth: number
     company: { name: string; slug: string; brandColors?: string[] | null }
   }
 }
@@ -437,7 +441,17 @@ function SubscriptionOverviewPanel({
     retry: false,
   })
 
-  const nextBoxQuery = useQuery<{ year: number; month: number; theme: string | null; isSpoiler: boolean; books: Array<{ title: string; authors: string; coverImage: string | null; isMainBook: boolean }> } | null>({
+  const nextBoxQuery = useQuery<{
+    year: number
+    month: number
+    endYear: number
+    endMonth: number
+    isBundleSubscription: boolean
+    intervalMonths: number
+    theme: string | null
+    isSpoiler: boolean
+    books: Array<{ title: string; authors: string; coverImage: string | null; isMainBook: boolean }>
+  } | null>({
     queryKey: ['sub-next-box-preview', subscriptionSlug, boxMonth?.year ?? null, boxMonth?.month ?? null],
     queryFn: () => authFetch(`/subscriptions/${subscriptionSlug}/next-box-preview/${boxMonth!.year}/${boxMonth!.month}`),
     enabled: isExpanded && !!boxMonth,
@@ -696,7 +710,11 @@ function SubscriptionOverviewPanel({
               </div>
 
               {boxMonth && (
-                <p className="text-xs text-stone-500">Box month: {formatMonthLabel(boxMonth.year, boxMonth.month)}</p>
+                <p className="text-xs text-stone-500">
+                  {nextBoxData?.isBundleSubscription
+                    ? `Bundle: ${bundleRangeLabel(nextBoxData.year, nextBoxData.month, nextBoxData.intervalMonths)}`
+                    : `Box month: ${formatMonthLabel(boxMonth.year, boxMonth.month)}`}
+                </p>
               )}
 
               {previewBook ? (

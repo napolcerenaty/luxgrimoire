@@ -34,7 +34,7 @@ import {
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
-import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, getBundleBoxStart } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, getBundleBoxStart, enumerateBundleMonths } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
@@ -1239,8 +1239,24 @@ export class SubscriptionsService {
   async getNextBoxPreview(userId: string, slug: string, year: number, month: number) {
     const sub = await this.findBySlug(slug);
     const subId = (sub as any).parentSubscriptionId ?? sub.id;
-    const boxMonth = await this.prisma.subscriptionMonth.findUnique({
-      where: { subscriptionId_year_month: { subscriptionId: subId, year, month } },
+    const intervalMonths: number = (sub as any).intervalMonths ?? 1;
+    const startingMonth: number = (sub as any).startingMonth ?? 1;
+    const isBundleSubscription = ((sub as any).isBundleSubscription ?? false) && intervalMonths > 1;
+
+    // For bundle subscriptions ALL months in the bundle ship together as one box —
+    // preview must show every covered month's books, not just the one requested.
+    const bundleStart = isBundleSubscription
+      ? getBundleBoxStart(year, month, startingMonth, intervalMonths)
+      : { year, month };
+    const bundleMonths = isBundleSubscription
+      ? enumerateBundleMonths(bundleStart, intervalMonths)
+      : [bundleStart];
+
+    const monthRecords = await this.prisma.subscriptionMonth.findMany({
+      where: {
+        subscriptionId: subId,
+        OR: bundleMonths.map((m) => ({ year: m.year, month: m.month })),
+      },
       select: {
         year: true,
         month: true,
@@ -1262,19 +1278,26 @@ export class SubscriptionsService {
           orderBy: [{ isMainBook: 'desc' }, { sortOrder: 'asc' }],
         },
       },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
     });
-    if (!boxMonth) return null;
+    if (monthRecords.length === 0) return null;
+
+    const bundleEnd = bundleMonths[bundleMonths.length - 1];
     return {
-      year: boxMonth.year,
-      month: boxMonth.month,
-      theme: boxMonth.theme,
-      isSpoiler: boxMonth.isSpoiler,
-      books: boxMonth.books.map((b) => ({
+      year: bundleStart.year,
+      month: bundleStart.month,
+      endYear: bundleEnd.year,
+      endMonth: bundleEnd.month,
+      isBundleSubscription,
+      intervalMonths,
+      theme: monthRecords[0].theme,
+      isSpoiler: monthRecords.some((m) => m.isSpoiler),
+      books: monthRecords.flatMap((m) => m.books.map((b) => ({
         title: b.book.title,
         authors: b.book.authors.map((a) => a.author.name).join(', '),
         coverImage: b.edition?.additionalImages?.[0] ?? null,
         isMainBook: b.isMainBook,
-      })),
+      }))),
     };
   }
 
@@ -1341,6 +1364,7 @@ export class SubscriptionsService {
             isDiscontinued: true,
             paymentOnStartup: true,
             renewalDay: true,
+            isBundleSubscription: true,
             intervalMonths: true,
             startingMonth: true,
             renewalMonthOffset: true,
