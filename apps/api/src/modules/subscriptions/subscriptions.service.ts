@@ -1365,7 +1365,7 @@ export class SubscriptionsService {
         },
       },
     });
-
+
     return Promise.all(entries.map(async (entry) => {
       const { priceChanges: subPriceChanges, ...subRest } = entry.subscription as any;
       const sub = {
@@ -3689,7 +3689,22 @@ export class SubscriptionsService {
       (entry.skipRecords as any[]).map(r => `${r.month.year}-${r.month.month}`),
     );
 
-    // Fetch subscription months in the [start, limit] range
+    // The upper bound is normally "last processed" (future boxes aren't manageable yet).
+    // But a month the user has already skipped must always stay manageable, even if it's
+    // in the future and even if the subscription's skip policy doesn't allow unskip via the
+    // regular flow — otherwise an accidental future skip becomes permanently uncorrectable.
+    // Extend the range to cover the furthest-out skipped month, for every subscription type.
+    let effectiveLimitYear = limitYear;
+    let effectiveLimitMonth = limitMonth;
+    for (const r of entry.skipRecords as any[]) {
+      const { year, month } = r.month;
+      if (year > effectiveLimitYear || (year === effectiveLimitYear && month > effectiveLimitMonth)) {
+        effectiveLimitYear = year;
+        effectiveLimitMonth = month;
+      }
+    }
+
+    // Fetch subscription months in the [start, effectiveLimit] range
     const allMonths = await this.prisma.subscriptionMonth.findMany({
       where: {
         subscriptionId: { in: monthsSubscriptionIds },
@@ -3702,8 +3717,8 @@ export class SubscriptionsService {
           },
           {
             OR: [
-              { year: { lt: limitYear } },
-              { year: limitYear, month: { lte: limitMonth } },
+              { year: { lt: effectiveLimitYear } },
+              { year: effectiveLimitYear, month: { lte: effectiveLimitMonth } },
             ],
           },
         ],

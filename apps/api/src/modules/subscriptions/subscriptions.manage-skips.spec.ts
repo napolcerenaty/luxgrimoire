@@ -129,6 +129,49 @@ describe('SubscriptionsService — getManagedMonths', () => {
     expect(jun?.isSkipped).toBe(false);
   });
 
+  it('extends the query range to include a future skipped month beyond the normal processed limit', async () => {
+    // now=Jul 13 2026, renewalDay=15 → computeLastProcessedBoxMonth = Jun 2026 (the normal upper bound).
+    // The user has an accidental skip on Dec 2026 (far in the future) — it must still be surfaced
+    // here so it can be corrected, even though it's well past the "processed" cutoff.
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(makeSub() as any);
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(
+      makeEntry({
+        startDate: '2026-01-01',
+        skipRecords: [{ month: { year: 2026, month: 12 } }],
+      }),
+    );
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([
+      { year: 2026, month: 12, books: [] },
+    ]);
+
+    const result = await service.getManagedMonths(USER_ID, SUB_SLUG);
+
+    // The query's upper bound must have been extended to December, not stopped at June.
+    const queryArgs = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls[0][0];
+    expect(queryArgs.where.AND[1]).toEqual({
+      OR: [{ year: { lt: 2026 } }, { year: 2026, month: { lte: 12 } }],
+    });
+
+    const dec = result.months.find(m => m.month === 12);
+    expect(dec?.isSkipped).toBe(true);
+  });
+
+  it('does not shrink the range when no skip is beyond the normal processed limit', async () => {
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(makeSub() as any);
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(
+      makeEntry({ startDate: '2026-05-01', skipRecords: [{ month: { year: 2026, month: 5 } }] }),
+    );
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+
+    await service.getManagedMonths(USER_ID, SUB_SLUG);
+
+    // Still bounded by the normal computeLastProcessedBoxMonth result (Jun 2026), unchanged.
+    const queryArgs = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls[0][0];
+    expect(queryArgs.where.AND[1]).toEqual({
+      OR: [{ year: { lt: 2026 } }, { year: 2026, month: { lte: 6 } }],
+    });
+  });
+
   it('includes book title and author for each month', async () => {
     jest.spyOn(service, 'findBySlug').mockResolvedValue(makeSub() as any);
     (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(
