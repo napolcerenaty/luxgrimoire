@@ -82,8 +82,18 @@ export class SubscriptionsController {
    *  alone is correct here (never throws, but still attempts to resolve the user). */
   @OptionalAuth()
   @Get('books-by-month')
-  getBooksByMonth(@Query() query: YearMonthQueryDto, @Request() req: any) {
-    return this.subscriptionsService.getBooksByMonth(req.user?.id ?? null, query.year, query.month);
+  async getBooksByMonth(@Query() query: YearMonthQueryDto, @Request() req: any) {
+    const userId = req.user?.id ?? null;
+    const result = await this.subscriptionsService.getBooksByMonth(userId, query.year, query.month);
+    // userId null vs set is how every event in this table distinguishes anonymous from
+    // logged-in visitors (see the 'user' groupBy's COALESCE(user_id, '(anonymous)')) —
+    // no separate event-type string needed for the two variants.
+    this.analyticsService.track({
+      eventType: 'books_by_month_view',
+      userId,
+      value: `${query.year}-${String(query.month).padStart(2, '0')}`,
+    });
+    return result;
   }
 
   @ApiBearerAuth()
