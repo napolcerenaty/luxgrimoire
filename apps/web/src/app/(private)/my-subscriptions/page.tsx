@@ -14,7 +14,7 @@ import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
 import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
 import { Ban, ChevronDown, ChevronUp, LayoutGrid, List, Settings2, Trash2, XCircle } from 'lucide-react'
 import { ManageSkipsModal } from '@/components/subscriptions/ManageSkipsModal'
-import { bundleRangeLabel } from '@/lib/bundleHelpers'
+import { bundleRangeLabel, groupIntoBundles } from '@/lib/bundleHelpers'
 
 const PREFS_KEY = 'my_subscriptions_prefs'
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -495,6 +495,7 @@ function SubscriptionOverviewPanel({
   const previewAuthors = previewEntry?.authors || null
   const skipStatus = skipQuery.data
   const skipLimit = `${skipStatus?.skipsInWindow ?? 0} / ${skipStatus?.maxSkips ?? '∞'} skips used`
+  const isBundleSkipMode = (skipStatus?.isBundleSubscription ?? false) && (skipStatus?.intervalMonths ?? 1) > 1
 
   return (
     <div className="border-t border-stone-700/50 bg-stone-800/30 px-4 py-4">
@@ -631,10 +632,12 @@ function SubscriptionOverviewPanel({
 
               {skipStatus.canSkip && skipStatus.targetMonth && (
                 <div className="rounded-lg border border-stone-200 bg-stone-50 p-3 dark:border-stone-700/60 dark:bg-stone-900/60">
-                  <p className="text-xs text-stone-500">Next eligible month</p>
+                  <p className="text-xs text-stone-500">{isBundleSkipMode ? 'Next eligible bundle' : 'Next eligible month'}</p>
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <span className="text-sm font-medium text-stone-800 dark:text-stone-100">
-                      {formatMonthLabel(skipStatus.targetMonth.year, skipStatus.targetMonth.month)}
+                      {isBundleSkipMode
+                        ? bundleRangeLabel(skipStatus.targetMonth.year, skipStatus.targetMonth.month, skipStatus.intervalMonths)
+                        : formatMonthLabel(skipStatus.targetMonth.year, skipStatus.targetMonth.month)}
                     </span>
                     <button
                       type="button"
@@ -642,7 +645,7 @@ function SubscriptionOverviewPanel({
                       disabled={skipMutation.isPending}
                       className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-500/30 disabled:opacity-50 dark:text-amber-300"
                     >
-                      {skipMutation.isPending ? 'Skipping…' : 'Skip'}
+                      {skipMutation.isPending ? 'Skipping…' : isBundleSkipMode ? 'Skip bundle' : 'Skip'}
                     </button>
                   </div>
                 </div>
@@ -654,7 +657,14 @@ function SubscriptionOverviewPanel({
 
               {skipStatus.skippedMonths.length > 0 && (
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-stone-500">{skipStatus.skippedMonths.length} skipped month{skipStatus.skippedMonths.length !== 1 ? 's' : ''}</p>
+                  <p className="text-xs text-stone-500">
+                    {isBundleSkipMode
+                      ? (() => {
+                          const n = groupIntoBundles(skipStatus.skippedMonths, skipStatus.intervalMonths, skipStatus.startingMonth).length
+                          return `${n} skipped bundle${n !== 1 ? 's' : ''}`
+                        })()
+                      : `${skipStatus.skippedMonths.length} skipped month${skipStatus.skippedMonths.length !== 1 ? 's' : ''}`}
+                  </p>
                   <Link href={`/my-subscriptions/skipped-months?sub=${subscriptionSlug}`} className="text-xs text-amber-600 transition-colors hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300">View all →</Link>
                 </div>
               )}
@@ -665,27 +675,43 @@ function SubscriptionOverviewPanel({
                 const unskippable = skipStatus.skippedMonths
                   .filter(m => m.year > cy || (m.year === cy && m.month >= cm))
                   .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
-                return unskippable.length > 0 ? (
+                if (unskippable.length === 0) return null
+                const unskippableBundles = isBundleSkipMode
+                  ? groupIntoBundles(unskippable, skipStatus.intervalMonths, skipStatus.startingMonth)
+                  : []
+                return (
                   <div className="space-y-2">
-                    <p className="text-xs text-stone-500">Unskip upcoming</p>
+                    <p className="text-xs text-stone-500">{isBundleSkipMode ? 'Unskip upcoming bundles' : 'Unskip upcoming'}</p>
                     <div className="flex flex-wrap gap-2">
-                      {unskippable.map(month => (
-                        <button
-                          key={`${month.year}-${month.month}`}
-                          type="button"
-                          onClick={() => unskipMutation.mutate(month)}
-                          disabled={unskipMutation.isPending}
-                          className="rounded-lg border border-stone-300 px-2.5 py-1 text-xs text-stone-600 transition-colors hover:border-stone-400 hover:text-stone-800 disabled:opacity-50 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:text-stone-100"
-                        >
-                          Unskip {formatMonthLabel(month.year, month.month)}
-                        </button>
-                      ))}
+                      {isBundleSkipMode
+                        ? unskippableBundles.map(bundle => (
+                            <button
+                              key={bundle.key}
+                              type="button"
+                              onClick={() => unskipMutation.mutate({ year: bundle.startYear, month: bundle.startMonth })}
+                              disabled={unskipMutation.isPending}
+                              className="rounded-lg border border-stone-300 px-2.5 py-1 text-xs text-stone-600 transition-colors hover:border-stone-400 hover:text-stone-800 disabled:opacity-50 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:text-stone-100"
+                            >
+                              Unskip {bundle.label}
+                            </button>
+                          ))
+                        : unskippable.map(month => (
+                            <button
+                              key={`${month.year}-${month.month}`}
+                              type="button"
+                              onClick={() => unskipMutation.mutate(month)}
+                              disabled={unskipMutation.isPending}
+                              className="rounded-lg border border-stone-300 px-2.5 py-1 text-xs text-stone-600 transition-colors hover:border-stone-400 hover:text-stone-800 disabled:opacity-50 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:text-stone-100"
+                            >
+                              Unskip {formatMonthLabel(month.year, month.month)}
+                            </button>
+                          ))}
                     </div>
                     {unskipMutation.error && (
                       <p className="text-xs text-red-400">{(unskipMutation.error as Error).message}</p>
                     )}
                   </div>
-                ) : null
+                )
               })()}
             </div>
           ) : (
