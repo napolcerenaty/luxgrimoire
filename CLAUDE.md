@@ -39,6 +39,13 @@
 - Run type-check: `pnpm --filter @luxgrimoire/api exec tsc --noEmit`
 - Run tests: `pnpm --filter @luxgrimoire/api exec jest <test-file> --no-coverage`
 
+## Analytics events
+- Service: `AnalyticsService.track({ eventType, userId?, entityType?, entityId?, entityName?, value? })` (`apps/api/src/modules/analytics/analytics.service.ts`) — fire-and-forget (never `await`ed, never throws), writes to `AnalyticsEvent` / table `analytics_events`.
+- To add a new event: (1) call `this.analyticsService.track({...})` inline in the relevant controller endpoint (most controllers already inject `analyticsService`), (2) add an entry to `SUPPORTED_EVENT_TYPES` in `apps/api/src/modules/analytics/analytics.dto.ts` so it's selectable in the admin analytics panel.
+- **One event type per action — never separate event-type strings for anonymous vs logged-in.** Distinguish via the nullable `userId` field instead (`COALESCE(user_id, '(anonymous)')` in the admin aggregation query). See `subscription_join`, `waitlist_join`, `books_by_month_view` for examples.
+- Auth on the endpoint determines whether `userId` can be populated at all: `@Public()` endpoints never see `req.user` (view events like `edition_view`/`book_view`/`subscription_view` only get `entityType`/`entityId`/`entityName`); `@OptionalAuth()` endpoints get `req.user?.id ?? null` (use this when a view/action should record identity when present without requiring login); fully authenticated endpoints use `@CurrentUser()`.
+- `AuditService` (`apps/api/src/modules/audit/audit.service.ts`) is a **different, unrelated** system — admin/moderator mutation audit trail only (`CREATE_SUBSCRIPTION`, `DELETE_SUBSCRIPTION`, etc.), always paired with `Roles(...)`-gated endpoints and an authenticated actor. Never use it for page views or anonymous-friendly events.
+
 ## Code conventions
 - All DB sentinel/initial records use `effectiveFrom = new Date(0)` (epoch) to cover all historical months — same pattern as `upsertSentinelPrice` and `subscription_settings_history`
 - Windows EPERM symlink errors during Next.js standalone build are pre-existing and not blocking
