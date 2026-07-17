@@ -75,11 +75,14 @@ function BookByMonthCard({ item }: { item: BookByMonthItem }) {
   )
 }
 
-const TOGGLE_BASE = 'px-3 py-2 rounded-lg text-xs font-medium transition-colors border'
-const TOGGLE_ACTIVE = 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-const TOGGLE_INACTIVE = 'bg-stone-800 text-stone-400 border-stone-700 hover:text-stone-200 hover:border-stone-600'
+// Both the view-mode toggle and the highlight filter render as this same segmented-control
+// shape — one bordered pill-group container, plain buttons inside — instead of two visually
+// different toolbar styles bolted on next to each other.
+const SEGMENT_WRAP = 'inline-flex items-center gap-1 rounded-lg border border-stone-700 bg-stone-900/60 p-1'
+const SEGMENT_BTN = 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap'
+const SEGMENT_ACTIVE = 'bg-stone-700 text-stone-100'
+const SEGMENT_INACTIVE = 'text-stone-400 hover:text-stone-200'
 
-const LEGEND_PILL_BASE = 'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors'
 const CARD_GRID = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'
 const SEARCH_INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-400 text-sm'
 
@@ -147,53 +150,52 @@ export function BooksByMonthClient() {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center mb-4">
         <MonthPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m) }} maxAheadMonths={1} />
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setViewMode('flat')} className={`${TOGGLE_BASE} ${viewMode === 'flat' ? TOGGLE_ACTIVE : TOGGLE_INACTIVE}`}>
-            Flat list
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by title, author, company, or subscription…"
+          className={`${SEARCH_INPUT} lg:flex-1`}
+          aria-label="Search books by month"
+        />
+        <div className={SEGMENT_WRAP}>
+          <button onClick={() => setViewMode('flat')} className={`${SEGMENT_BTN} ${viewMode === 'flat' ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}>
+            Flat
           </button>
-          <button onClick={() => setViewMode('by-book')} className={`${TOGGLE_BASE} ${viewMode === 'by-book' ? TOGGLE_ACTIVE : TOGGLE_INACTIVE}`}>
-            Group by book
+          <button onClick={() => setViewMode('by-book')} className={`${SEGMENT_BTN} ${viewMode === 'by-book' ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}>
+            By book
           </button>
-          <button onClick={() => setViewMode('by-company')} className={`${TOGGLE_BASE} ${viewMode === 'by-company' ? TOGGLE_ACTIVE : TOGGLE_INACTIVE}`}>
-            Group by company
+          <button onClick={() => setViewMode('by-company')} className={`${SEGMENT_BTN} ${viewMode === 'by-company' ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}>
+            By company
           </button>
         </div>
       </div>
 
-      <input
-        type="text"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        placeholder="Search by title, author, company, or subscription…"
-        className={`${SEARCH_INPUT} mb-6`}
-        aria-label="Search books by month"
-      />
-
       {hasAnyHighlight && (
-        <div className="flex flex-wrap gap-2 mb-6" aria-label="Highlight legend and filter">
+        <div className={`${SEGMENT_WRAP} mb-6`} aria-label="Highlight filter">
           <button
             onClick={() => setHighlightFilter(null)}
-            className={`${LEGEND_PILL_BASE} ${highlightFilter === null ? 'border-stone-300 text-stone-100' : 'border-stone-700 text-stone-400'}`}
+            className={`${SEGMENT_BTN} ${highlightFilter === null ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
           >
             All
           </button>
           <button
             onClick={() => setHighlightFilter((f) => (f === 'mine' ? null : 'mine'))}
-            className={`${LEGEND_PILL_BASE} edition-glow-gold ${highlightFilter === 'mine' ? 'border-[#d4af37] text-[#d4af37]' : 'border-stone-700 text-stone-400'}`}
+            className={`${SEGMENT_BTN} ${highlightFilter === 'mine' ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
           >
             <span className="h-2 w-2 rounded-full" style={{ background: '#d4af37' }} /> Mine
           </button>
           <button
             onClick={() => setHighlightFilter((f) => (f === 'skipped' ? null : 'skipped'))}
-            className={`${LEGEND_PILL_BASE} edition-glow-red ${highlightFilter === 'skipped' ? 'border-red-400 text-red-300' : 'border-stone-700 text-stone-400'}`}
+            className={`${SEGMENT_BTN} ${highlightFilter === 'skipped' ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
           >
             <span className="h-2 w-2 rounded-full bg-red-500" /> Skipped
           </button>
           <button
             onClick={() => setHighlightFilter((f) => (f === 'other' ? null : 'other'))}
-            className={`${LEGEND_PILL_BASE} ${highlightFilter === 'other' ? 'border-stone-400 text-stone-200' : 'border-stone-700 text-stone-400'}`}
+            className={`${SEGMENT_BTN} ${highlightFilter === 'other' ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
           >
             <span className="h-2 w-2 rounded-full bg-stone-600" /> Other
           </button>
@@ -217,7 +219,7 @@ export function BooksByMonthClient() {
       ) : (
         <div className="space-y-8">
           {multiGroups.length === 0 && (
-            <p className="text-sm text-stone-500 -mb-4">
+            <p className="text-sm text-stone-500">
               {viewMode === 'by-book'
                 ? 'No duplicates this month — every book is unique to one subscription.'
                 : 'No company has more than one release this month.'}
