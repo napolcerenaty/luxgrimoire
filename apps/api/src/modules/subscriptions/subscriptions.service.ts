@@ -34,7 +34,7 @@ import {
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
-import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, getBundleBoxStart } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
@@ -2923,7 +2923,47 @@ export class SubscriptionsService {
       date: Date; purchaseGroupId: string; billingPeriodId?: string;
     }[] = [];
 
-    for (const monthId of dto.selectedMonthIds) {
+    // ── Group selected months into purchase units ──────────────────────────────
+    // Bundle subscriptions ship intervalMonths calendar months as ONE package — one
+    // payment, one shipment — so backfilling them must create exactly ONE
+    // UserPurchaseGroup per bundle period (covering every selected month's books in
+    // it), not one per calendar month. Months already tied to an explicit prepay
+    // billing batch are kept as individual units (batches aren't used for bundles).
+    const isBundleSub = ((sub as any).isBundleSubscription ?? false) && ((sub as any).intervalMonths ?? 1) > 1;
+    const backfillIntervalMonths: number = (sub as any).intervalMonths ?? 1;
+    const backfillStartingMonth: number = (sub as any).startingMonth ?? 1;
+
+    type PurchaseUnit = { primaryMonthId: string; monthIds: string[] };
+    let units: PurchaseUnit[];
+    if (isBundleSub) {
+      const bundleGroups = new Map<string, string[]>();
+      const soloUnits: PurchaseUnit[] = [];
+      for (const monthId of dto.selectedMonthIds) {
+        const rec = monthMap.get(monthId);
+        if (!rec) continue;
+        if (batchByMonthId.has(monthId)) {
+          soloUnits.push({ primaryMonthId: monthId, monthIds: [monthId] });
+          continue;
+        }
+        const start = getBundleBoxStart(rec.year, rec.month, backfillStartingMonth, backfillIntervalMonths);
+        const key = `${start.year}-${start.month}`;
+        if (!bundleGroups.has(key)) bundleGroups.set(key, []);
+        bundleGroups.get(key)!.push(monthId);
+      }
+      const groupedUnits: PurchaseUnit[] = Array.from(bundleGroups.values()).map((monthIds) => {
+        const sorted = [...monthIds].sort((a, b) => {
+          const ra = monthMap.get(a)!, rb = monthMap.get(b)!;
+          return ra.year !== rb.year ? ra.year - rb.year : ra.month - rb.month;
+        });
+        return { primaryMonthId: sorted[0], monthIds: sorted };
+      });
+      units = [...groupedUnits, ...soloUnits];
+    } else {
+      units = dto.selectedMonthIds.map((monthId) => ({ primaryMonthId: monthId, monthIds: [monthId] }));
+    }
+
+    for (const unit of units) {
+      const monthId = unit.primaryMonthId;
       const monthRecord = monthMap.get(monthId);
       if (!monthRecord) continue;
 
@@ -2932,7 +2972,7 @@ export class SubscriptionsService {
       // Mirror backfillRenewalHistory logic: use entry's own day only in user-set mode,
       // otherwise use the subscription's historical fixed renewal day.
       const monthRenewalDay = monthSettings.renewalDayUserSet ? (entry.renewalDay ?? 1) : (monthSettings.renewalDay ?? 1);
-      const renewalDate = (earliestMonthId === monthId && entry.startDate)
+      const renewalDate = (earliestMonthId !== null && unit.monthIds.includes(earliestMonthId) && entry.startDate)
         ? new Date(entry.startDate)
         : (() => {
             const [ry, rm] = nonComboOffset === 0
@@ -2945,25 +2985,42 @@ export class SubscriptionsService {
                 })();
             return new Date(Date.UTC(ry, rm - 1, monthRenewalDay));
           })();
-      const monthBooks = monthRecord.books.filter(mb => mb.editionId && mb.bookId);
+
+      // Aggregate books from every month in this unit, deduped by editionId.
+      const unitBookMap = new Map<string, { editionId: string; bookId: string; signatureType: $Enums.SignatureType | null }>();
+      for (const mid of unit.monthIds) {
+        const rec = monthMap.get(mid);
+        if (!rec) continue;
+        for (const mb of rec.books) {
+          if (mb.editionId && mb.bookId && !unitBookMap.has(mb.editionId)) {
+            unitBookMap.set(mb.editionId, { editionId: mb.editionId, bookId: mb.bookId, signatureType: mb.signatureType });
+          }
+        }
+      }
+      const monthBooks = Array.from(unitBookMap.values());
 
       const batchInfo = batchByMonthId.get(monthId);
       const batch = batchInfo?.batch;
       const batchIdx = batchInfo?.batchIndex;
 
-      // Determine amounts
+      // Determine amounts — the resolved price represents ONE purchase (one bundle
+      // shipment, or one calendar month for regular subs), never split further.
       const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, entryCostCurrency, backfillFirstBilledYearMonth);
       const baseAmount = batch
         ? batch.baseAmount / batch.monthsCovered
         : (resolvedBase.price ?? fallbackBase);
       // For batch path: split shipping over batch.monthsCovered (one shipment per billing period).
-      // For no-batch (monthly): each month is its own billing event — full shipping per month.
+      // For no-batch (monthly or bundle): one purchase, one shipment — full shipping cost.
       const shippingAmt = batch
         ? (batch.shippingAmount != null ? batch.shippingAmount / batch.monthsCovered : null)
         : (entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null);
       const purchasedAtDate = batch ? new Date(batch.billedAt) : renewalDate;
 
-      // Create ONE purchase group per month
+      const groupTitle = unit.monthIds.length > 1
+        ? `Subscription Bundle – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`
+        : `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`;
+
+      // Create ONE purchase group per unit (per bundle period, or per month for regular subs)
       const group = await this.prisma.userPurchaseGroup.create({
         data: {
           userId,
@@ -2973,7 +3030,7 @@ export class SubscriptionsService {
           shippingAmount: shippingAmt,
           currency: (batch ? batch.currency : null) ?? entry.costCurrency ?? 'USD',
           purchasedAt: purchasedAtDate,
-          title: `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`,
+          title: groupTitle,
         },
       });
 
@@ -3043,7 +3100,7 @@ export class SubscriptionsService {
       }
 
       for (const mb of monthBooks) {
-        const override = dto.bookPrices?.find(bp => bp.monthId === monthId && bp.editionId === mb.editionId);
+        const override = dto.bookPrices?.find(bp => unit.monthIds.includes(bp.monthId) && bp.editionId === mb.editionId);
         if (override != null) {
           await this.prisma.userPurchaseGroup.update({
             where: { id: group.id },
@@ -3088,7 +3145,7 @@ export class SubscriptionsService {
           });
         }
       }
-    } // end for monthId loop
+    } // end for unit loop
 
     // Single batch insert for all fees
     if (feesToCreate.length > 0) {
