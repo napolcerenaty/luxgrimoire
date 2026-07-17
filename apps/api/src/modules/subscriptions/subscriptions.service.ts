@@ -3822,8 +3822,16 @@ export class SubscriptionsService {
       }
     }
 
+    const isBundleSubscription = ((sub as any).isBundleSubscription as boolean ?? false) && intervalMonths > 1;
+
     const result = Array.from(grouped.values()).map(({ year, month, booksMap }) => {
-      let ry = year, rm = month - renewalMonthOffset;
+      // For bundle subscriptions ALL months in a bundle ship together at the bundle's own
+      // renewal date, not each month's individual calendar date — resolve to the bundle's
+      // start month first so every constituent month reports the same, correct renewal date.
+      const { year: baseYear, month: baseMonth } = isBundleSubscription
+        ? getBundleBoxStart(year, month, startingMonth, intervalMonths)
+        : { year, month };
+      let ry = baseYear, rm = baseMonth - renewalMonthOffset;
       while (rm <= 0) { rm += 12; ry--; }
       while (rm > 12) { rm -= 12; ry++; }
       const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
@@ -3835,8 +3843,6 @@ export class SubscriptionsService {
         books: Array.from(booksMap.values()),
       };
     });
-
-    const isBundleSubscription = (sub as any).isBundleSubscription as boolean ?? false;
 
     return { entryId: entry.id, months: result, isBundleSubscription, intervalMonths, startingMonth };
   }
@@ -3876,6 +3882,25 @@ export class SubscriptionsService {
     const renewalDay: number =
       entry.renewalDay ?? (sub as any).renewalDay ?? 1;
     const renewalMonthOffset: number = (sub as any).renewalMonthOffset ?? 0;
+    const manageSkipsIntervalMonths: number = (sub as any).intervalMonths ?? 1;
+    const manageSkipsStartingMonth: number = (sub as any).startingMonth ?? 1;
+    const manageSkipsIsBundle = ((sub as any).isBundleSubscription ?? false) && manageSkipsIntervalMonths > 1;
+
+    /**
+     * The renewal date that actually delivers a box month's content to the collection.
+     * For bundle subscriptions ALL months in a bundle ship together at the bundle's own
+     * renewal date, not each month's individual calendar date — so this resolves to the
+     * bundle's start month before applying the renewal-day/offset math.
+     */
+    const renewalDateForBoxMonth = (year: number, month: number): Date => {
+      const { year: baseYear, month: baseMonth } = manageSkipsIsBundle
+        ? getBundleBoxStart(year, month, manageSkipsStartingMonth, manageSkipsIntervalMonths)
+        : { year, month };
+      let ry = baseYear, rm = baseMonth - renewalMonthOffset;
+      while (rm <= 0) { rm += 12; ry--; }
+      while (rm > 12) { rm -= 12; ry++; }
+      return new Date(Date.UTC(ry, rm - 1, renewalDay));
+    };
 
     // ── Apply new skips ───────────────────────────────────────────────────────
     for (const { year, month } of dto.toSkip) {
@@ -3911,6 +3936,11 @@ export class SubscriptionsService {
     // ── Add books for unskipped months ────────────────────────────────────────
     if (dto.addBooksForUnskipped && dto.toUnskip.length > 0) {
       for (const { year, month } of dto.toUnskip) {
+        // Future (not-yet-renewed) months are handled by the renewal cron when their
+        // renewal actually fires — adding books for them here would duplicate that,
+        // add them too early, and bypass the cron's own purchase-group logic.
+        if (renewalDateForBoxMonth(year, month) > now) continue;
+
         const subMonth = await this.prisma.subscriptionMonth.findFirst({
           where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
           select: {
@@ -3930,11 +3960,7 @@ export class SubscriptionsService {
         const shippingCost = entry.shippingCost ? parseFloat((entry.shippingCost as any).toString()) : null;
         const currency = entry.costCurrency ?? 'GBP';
 
-        // Use renewal date for purchasedAt timestamp (box month → renewal month)
-        let ry = year, rm = month - renewalMonthOffset;
-        while (rm <= 0) { rm += 12; ry--; }
-        while (rm > 12) { rm -= 12; ry++; }
-        const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
+        const renewalDate = renewalDateForBoxMonth(year, month);
 
         const group = await this.prisma.userPurchaseGroup.create({
           data: {
@@ -3994,6 +4020,11 @@ export class SubscriptionsService {
     // ── Remove books for newly-skipped months ─────────────────────────────────
     if (dto.removeBooksForSkipped && dto.toSkip.length > 0) {
       for (const { year, month } of dto.toSkip) {
+        // Future months haven't renewed yet, so nothing has been added to the
+        // collection for them — the skip record alone is enough to stop the
+        // renewal cron from adding them later. Nothing to remove here.
+        if (renewalDateForBoxMonth(year, month) > now) continue;
+
         const subMonth = await this.prisma.subscriptionMonth.findFirst({
           where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
           select: { books: { select: { editionId: true } } },

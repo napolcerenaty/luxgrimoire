@@ -342,13 +342,13 @@ describe('SubscriptionsService — manageSkips', () => {
     );
   });
 
-  it('adds books with PREORDER status when ownershipStatusForUnskipped=PREORDER', async () => {
+  it('adds books with PREORDER status when ownershipStatusForUnskipped=PREORDER (past/already-renewed month)', async () => {
     setupBase();
     (prisma.subscriptionMonth.findFirst as jest.Mock)
-      .mockResolvedValueOnce({ id: 'month-aug' }) // for unskip
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce({ id: MONTH_ID_JUN }) // for unskip
+      .mockResolvedValueOnce({ // for addBooks — June renewal (Jun 15) is already in the past
         year: 2026,
-        month: 8, // August — renewal Aug 15 is in the future
+        month: 6,
         signatureType: null,
         books: [{ editionId: 'ed-2', bookId: 'book-2', signatureType: null }],
       });
@@ -361,7 +361,7 @@ describe('SubscriptionsService — manageSkips', () => {
 
     await service.manageSkips(USER_ID, SUB_SLUG, {
       toSkip: [],
-      toUnskip: [{ year: 2026, month: 8 }],
+      toUnskip: [{ year: 2026, month: 6 }],
       addBooksForUnskipped: true,
       removeBooksForSkipped: false,
       ownershipStatusForUnskipped: 'PREORDER',
@@ -372,6 +372,56 @@ describe('SubscriptionsService — manageSkips', () => {
         data: expect.objectContaining({ ownershipStatus: 'PREORDER' }),
       }),
     );
+  });
+
+  // ── Future (not-yet-renewed) months: skip/unskip only, never touch the collection ──
+  // The renewal cron adds/removes books itself once a month's own renewal actually fires.
+
+  it('does NOT add books for a future (not-yet-renewed) unskipped month, even with addBooksForUnskipped=true', async () => {
+    setupBase();
+    // August renewal (Aug 15) is after "now" (Jul 13) — still future.
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'month-aug' }); // for unskip record only
+    (prisma.userSkipRecord.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+    await service.manageSkips(USER_ID, SUB_SLUG, {
+      toSkip: [],
+      toUnskip: [{ year: 2026, month: 8 }],
+      addBooksForUnskipped: true,
+      removeBooksForSkipped: false,
+      ownershipStatusForUnskipped: 'PREORDER',
+    });
+
+    // The unskip record itself is still applied...
+    expect(prisma.userSkipRecord.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionMonthId: 'month-aug' }) }),
+    );
+    // ...but no collection changes — the renewal cron will add these when August actually renews.
+    expect(prisma.userPurchaseGroup.create).not.toHaveBeenCalled();
+    expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+  });
+
+  it('does NOT remove books for a future (not-yet-renewed) skipped month, even with removeBooksForSkipped=true', async () => {
+    setupBase();
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'month-aug' }); // for skip record only
+    (prisma.userSkipRecord.upsert as jest.Mock).mockResolvedValue({});
+
+    await service.manageSkips(USER_ID, SUB_SLUG, {
+      toSkip: [{ year: 2026, month: 8 }],
+      toUnskip: [],
+      addBooksForUnskipped: false,
+      removeBooksForSkipped: true,
+    });
+
+    expect(prisma.userSkipRecord.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userEntryId_subscriptionMonthId: { userEntryId: ENTRY_ID, subscriptionMonthId: 'month-aug' } },
+      }),
+    );
+    // subscriptionMonth.findFirst called only once (for the skip record) — the
+    // remove-books branch's own lookup never ran because it was skipped as future.
+    expect(prisma.subscriptionMonth.findFirst).toHaveBeenCalledTimes(1);
+    expect(prisma.userBookEntry.findMany).not.toHaveBeenCalled();
+    expect(prisma.userBookEntry.deleteMany).not.toHaveBeenCalled();
   });
 
   it('removes subscription-sourced book entries when removeBooksForSkipped=true', async () => {

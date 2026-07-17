@@ -81,29 +81,57 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
     setSkippedKeys(next)
   }
 
-  const { toSkip, toUnskip, hasChanges, bundlesToSkip, bundlesToUnskip } = useMemo(() => {
-    if (!data) return { toSkip: [], toUnskip: [], hasChanges: false, bundlesToSkip: 0, bundlesToUnskip: 0 }
+  const {
+    toSkip, toUnskip, hasChanges, bundlesToSkip, bundlesToUnskip,
+    pastToSkip, pastToUnskip, bundlesToSkipPast, bundlesToUnskipPast, hasFutureOnlyChanges,
+  } = useMemo(() => {
+    if (!data) {
+      return {
+        toSkip: [], toUnskip: [], hasChanges: false, bundlesToSkip: 0, bundlesToUnskip: 0,
+        pastToSkip: [], pastToUnskip: [], bundlesToSkipPast: 0, bundlesToUnskipPast: 0, hasFutureOnlyChanges: false,
+      }
+    }
+    const now = new Date()
     const originalSkipped = new Set<string>(data.months.filter(m => m.isSkipped).map(m => `${m.year}-${m.month}`))
+    const renewalDateByKey = new Map<string, Date>(data.months.map(m => [`${m.year}-${m.month}`, new Date(m.renewalDate)]))
     const toSkip: { year: number; month: number }[] = []
     const toUnskip: { year: number; month: number }[] = []
+    // Subsets whose renewal has already fired — only these can have their collection
+    // entries touched here. Future (not-yet-renewed) months are skip-only: the renewal
+    // cron adds/removes their books itself once their own renewal date arrives.
+    const pastToSkip: { year: number; month: number }[] = []
+    const pastToUnskip: { year: number; month: number }[] = []
     for (const m of data.months) {
       const key = `${m.year}-${m.month}`
       const wasSkipped = originalSkipped.has(key)
       const nowSkipped = effectiveSkipped.has(key)
-      if (!wasSkipped && nowSkipped) toSkip.push({ year: m.year, month: m.month })
-      if (wasSkipped && !nowSkipped) toUnskip.push({ year: m.year, month: m.month })
+      const isPast = (renewalDateByKey.get(key) ?? now) <= now
+      if (!wasSkipped && nowSkipped) {
+        toSkip.push({ year: m.year, month: m.month })
+        if (isPast) pastToSkip.push({ year: m.year, month: m.month })
+      }
+      if (wasSkipped && !nowSkipped) {
+        toUnskip.push({ year: m.year, month: m.month })
+        if (isPast) pastToUnskip.push({ year: m.year, month: m.month })
+      }
     }
     const uniqueBundleKeys = (arr: { year: number; month: number }[]) =>
       new Set(arr.map(m => {
         const s = getBundleStart(m.year, m.month, data.startingMonth, data.intervalMonths)
         return `${s.year}-${s.month}`
       })).size
+    const hasChanges = toSkip.length > 0 || toUnskip.length > 0
     return {
       toSkip,
       toUnskip,
-      hasChanges: toSkip.length > 0 || toUnskip.length > 0,
+      hasChanges,
       bundlesToSkip: uniqueBundleKeys(toSkip),
       bundlesToUnskip: uniqueBundleKeys(toUnskip),
+      pastToSkip,
+      pastToUnskip,
+      bundlesToSkipPast: uniqueBundleKeys(pastToSkip),
+      bundlesToUnskipPast: uniqueBundleKeys(pastToUnskip),
+      hasFutureOnlyChanges: hasChanges && pastToSkip.length === 0 && pastToUnskip.length === 0,
     }
   }, [data, effectiveSkipped])
 
@@ -286,7 +314,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                 <button
                   type="button"
                   disabled={!hasChanges}
-                  onClick={() => setStep('confirm-books')}
+                  onClick={() => (hasFutureOnlyChanges ? save(false, false) : setStep('confirm-books'))}
                   className="bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-stone-950 font-semibold px-4 py-1.5 rounded text-sm transition-colors"
                 >
                   Save Changes
@@ -303,13 +331,13 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
               You made skip changes. Would you like to update your book collection accordingly?
             </p>
 
-            {toUnskip.length > 0 && (
+            {pastToUnskip.length > 0 && (
               <div className="rounded-lg border border-emerald-800/60 bg-emerald-950/30 px-4 py-3 flex flex-col gap-3">
                 <div>
                   <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wide">
                     {isBundleMode
-                      ? `${bundlesToUnskip} bundle${bundlesToUnskip !== 1 ? 's' : ''} unskipped`
-                      : `${toUnskip.length} month${toUnskip.length !== 1 ? 's' : ''} unskipped`}
+                      ? `${bundlesToUnskipPast} bundle${bundlesToUnskipPast !== 1 ? 's' : ''} unskipped`
+                      : `${pastToUnskip.length} month${pastToUnskip.length !== 1 ? 's' : ''} unskipped`}
                   </p>
                   <p className="text-stone-400 text-xs mt-0.5">What status should the added books get?</p>
                 </div>
@@ -332,15 +360,22 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
               </div>
             )}
 
-            {toSkip.length > 0 && (
+            {pastToSkip.length > 0 && (
               <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 px-4 py-3">
                 <p className="text-amber-300 text-xs font-semibold uppercase tracking-wide">
                   {isBundleMode
-                    ? `${bundlesToSkip} bundle${bundlesToSkip !== 1 ? 's' : ''} skipped`
-                    : `${toSkip.length} month${toSkip.length !== 1 ? 's' : ''} skipped`}
+                    ? `${bundlesToSkipPast} bundle${bundlesToSkipPast !== 1 ? 's' : ''} skipped`
+                    : `${pastToSkip.length} month${pastToSkip.length !== 1 ? 's' : ''} skipped`}
                 </p>
                 <p className="text-stone-400 text-xs mt-0.5">Subscription-sourced books will be removed from your collection.</p>
               </div>
+            )}
+
+            {(toUnskip.length > pastToUnskip.length || toSkip.length > pastToSkip.length) && (
+              <p className="text-xs text-stone-500 italic">
+                Changes to future (not-yet-renewed) months are recorded now but don't touch your collection —
+                they're applied automatically when each one actually renews.
+              </p>
             )}
 
             {saveError && <p className="text-red-400 text-xs">{saveError}</p>}
@@ -357,7 +392,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
               <button
                 type="button"
                 disabled={saving}
-                onClick={() => save(toUnskip.length > 0, toSkip.length > 0)}
+                onClick={() => save(pastToUnskip.length > 0, pastToSkip.length > 0)}
                 className="bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-stone-950 font-semibold px-3 py-2 rounded-lg text-sm transition-colors"
               >
                 {saving ? 'Saving…' : 'Save + Update collection'}
