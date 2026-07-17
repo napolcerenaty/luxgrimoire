@@ -216,6 +216,13 @@ export function BooksByMonthClient() {
         </div>
       ) : (
         <div className="space-y-8">
+          {multiGroups.length === 0 && (
+            <p className="text-sm text-stone-500 -mb-4">
+              {viewMode === 'by-book'
+                ? 'No duplicates this month — every book is unique to one subscription.'
+                : 'No company has more than one release this month.'}
+            </p>
+          )}
           {multiGroups.map((group) => (
             <div key={group.key}>
               <div className="flex items-center gap-2 mb-3">
