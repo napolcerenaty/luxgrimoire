@@ -1,12 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { authFetch } from '@/lib/authFetch'
-import type { ApiSkipStatus, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
+import type { ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import { ManageSkipsModal } from '@/components/subscriptions/ManageSkipsModal'
 import { Settings2 } from 'lucide-react'
 import { groupIntoBundles, bundleRangeLabel, type BundleGroup } from '@/lib/bundleHelpers'
+import { useSkipPolicyStatus } from '@/hooks/useSkipPolicyStatus'
 
 interface Props {
   subscriptionSlug: string
@@ -21,42 +19,13 @@ const MONTH_NAMES = [
 ]
 
 export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '', months, onSkipSuccess }: Props) {
-  const queryClient = useQueryClient()
-  const [skipTarget, setSkipTarget] = useState<{ year: number; month: number } | null>(null)
-  const [unskipTarget, setUnskipTarget] = useState<{ year: number; month: number } | null>(null)
-  const [showManageSkips, setShowManageSkips] = useState(false)
-
-  const { data: status, isLoading, error } = useQuery<ApiSkipStatus>({
-    queryKey: ['skip-status', subscriptionSlug],
-    queryFn: () => authFetch<ApiSkipStatus>(`/skip-policy/${subscriptionSlug}/status`),
-    retry: false,
-  })
-
-  const skipMutation = useMutation({
-    mutationFn: ({ year, month }: { year: number; month: number }) =>
-      authFetch<ApiSkipStatus>(`/skip-policy/${subscriptionSlug}/skip/${year}/${month}`, {
-        method: 'POST',
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] })
-      void queryClient.invalidateQueries({ queryKey: ['my-calendar-subscriptions'] })
-      setSkipTarget(null)
-      onSkipSuccess?.()
-    },
-  })
-
-  const unskipMutation = useMutation({
-    mutationFn: ({ year, month }: { year: number; month: number }) =>
-      authFetch<ApiSkipStatus>(`/skip-policy/${subscriptionSlug}/skip/${year}/${month}`, {
-        method: 'DELETE',
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] })
-      void queryClient.invalidateQueries({ queryKey: ['my-calendar-subscriptions'] })
-      setUnskipTarget(null)
-      onSkipSuccess?.()
-    },
-  })
+  const {
+    status, isLoading, error, isBundleMode,
+    skipTarget, setSkipTarget, unskipTarget, setUnskipTarget,
+    showManageSkips, setShowManageSkips,
+    skipMutation, unskipMutation,
+    futureSkippedMonths, skippedBundles, allSkippedBundles,
+  } = useSkipPolicyStatus(subscriptionSlug, onSkipSuccess)
 
   // Not subscribed or policy not configured → don't render
   if (isLoading) return null
@@ -87,19 +56,8 @@ export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '
     })
     .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
 
-  const isBundleMode = (status?.isBundleSubscription ?? false) && (status?.intervalMonths ?? 1) > 1
-
   const upcomingBundles: BundleGroup<{ year: number; month: number }>[] = isBundleMode
     ? groupIntoBundles(upcoming, status.intervalMonths, status.startingMonth)
-    : []
-
-  const futureSkippedMonths = (status?.skippedMonths ?? [])
-    .filter((s) => { const n = new Date(); const cy = n.getFullYear(), cm = n.getMonth() + 1; return s.year > cy || (s.year === cy && s.month >= cm) })
-  const skippedBundles: BundleGroup<{ year: number; month: number }>[] = isBundleMode
-    ? groupIntoBundles(futureSkippedMonths, status.intervalMonths, status.startingMonth)
-    : []
-  const allSkippedBundles: BundleGroup<{ year: number; month: number }>[] = isBundleMode
-    ? groupIntoBundles(status?.skippedMonths ?? [], status.intervalMonths, status.startingMonth)
     : []
 
   const limitText =

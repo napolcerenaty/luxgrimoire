@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ApiSkipStatus, ApiFeeTemplate } from '@luxgrimoire/shared-types'
+import type { ApiFeeTemplate } from '@luxgrimoire/shared-types'
 import Link from 'next/link'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -12,9 +12,9 @@ import { useBrandColors } from '@/lib/useBrandColors'
 import { CancelSubscriptionModal } from '@/components/subscriptions/CancelSubscriptionModal'
 import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
 import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
-import { Ban, ChevronDown, ChevronUp, LayoutGrid, List, Settings2, Trash2, XCircle } from 'lucide-react'
-import { ManageSkipsModal } from '@/components/subscriptions/ManageSkipsModal'
-import { bundleRangeLabel, groupIntoBundles } from '@/lib/bundleHelpers'
+import { Ban, ChevronDown, ChevronUp, LayoutGrid, List, Trash2, XCircle } from 'lucide-react'
+import SkipStatusCompact from '@/components/SkipStatusCompact'
+import { bundleRangeLabel } from '@/lib/bundleHelpers'
 
 const PREFS_KEY = 'my_subscriptions_prefs'
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -424,7 +424,6 @@ function SubscriptionOverviewPanel({
 }) {
   const queryClient = useQueryClient()
   const [editingCosts, setEditingCosts] = useState(false)
-  const [showManageSkips, setShowManageSkips] = useState(false)
   const boxMonth = entry.nextBoxMonth
   const subscriptionSlug = entry.subscription.slug
 
@@ -432,13 +431,6 @@ function SubscriptionOverviewPanel({
     queryKey: ['sub-entry-detail', subscriptionSlug],
     queryFn: () => authFetch<MyEntryDetail | null>(`/subscriptions/${subscriptionSlug}/my-entry`),
     enabled: isExpanded,
-  })
-
-  const skipQuery = useQuery<ApiSkipStatus>({
-    queryKey: ['skip-status', subscriptionSlug],
-    queryFn: () => authFetch<ApiSkipStatus>(`/skip-policy/${subscriptionSlug}/status`),
-    enabled: isExpanded,
-    retry: false,
   })
 
   const nextBoxQuery = useQuery<{
@@ -457,32 +449,6 @@ function SubscriptionOverviewPanel({
     enabled: isExpanded && !!boxMonth,
   })
 
-  const skipMutation = useMutation({
-    mutationFn: ({ year, month }: { year: number; month: number }) =>
-      authFetch(`/skip-policy/${subscriptionSlug}/skip/${year}/${month}`, {
-        method: 'POST',
-      }),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] }),
-        queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] }),
-      ])
-    },
-  })
-
-  const unskipMutation = useMutation({
-    mutationFn: ({ year, month }: { year: number; month: number }) =>
-      authFetch(`/skip-policy/${subscriptionSlug}/skip/${year}/${month}`, {
-        method: 'DELETE',
-      }),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] }),
-        queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] }),
-      ])
-    },
-  })
-
   const detail = detailQuery.data
   const detailCurrency = detail?.costCurrency ?? entry.costCurrency ?? entry.subscription.currency
   const total = detail ? getCostTotal(detail, entry.subscription.currency) : null
@@ -493,9 +459,6 @@ function SubscriptionOverviewPanel({
     ? cloudinaryUrl(previewEntry.coverImage, 'w_120,h_180,c_fill,q_auto,f_auto')
     : null
   const previewAuthors = previewEntry?.authors || null
-  const skipStatus = skipQuery.data
-  const skipLimit = `${skipStatus?.skipsInWindow ?? 0} / ${skipStatus?.maxSkips ?? '∞'} skips used`
-  const isBundleSkipMode = (skipStatus?.isBundleSubscription ?? false) && (skipStatus?.intervalMonths ?? 1) > 1
 
   return (
     <div className="border-t border-stone-700/50 bg-stone-800/30 px-4 py-4">
@@ -562,161 +525,11 @@ function SubscriptionOverviewPanel({
         </section>
 
         <section className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Skips</h4>
-            {skipStatus && skipStatus.policyType !== 'NONE' && (
-              <button
-                type="button"
-                onClick={() => setShowManageSkips(true)}
-                className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors"
-              >
-                <Settings2 size={11} />
-                Manage
-              </button>
-            )}
-          </div>
-
-          {skipQuery.isLoading && !skipStatus ? (
-            <OverviewLoadingBlock lines={5} />
-          ) : skipQuery.error ? (
-            <p className="text-sm text-red-400">Could not load skip status.</p>
-          ) : skipStatus?.policyType === 'NONE' ? (
-            <span className="inline-flex rounded-full border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-500 dark:border-stone-700 dark:bg-stone-900/70 dark:text-stone-400">
-              No skipping offered
-            </span>
-          ) : skipStatus ? (
-            <div className="space-y-3">
-              <span className="inline-flex rounded-full border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 dark:border-stone-700 dark:bg-stone-900/70 dark:text-stone-200">
-                {skipLimit}
-              </span>
-
-              {skipStatus.maxSkips !== null && skipStatus.windowResetDate && (
-                <p className="text-xs text-stone-500 dark:text-stone-500">
-                  Window resets:{' '}
-                  <span className="text-stone-600 dark:text-stone-400 font-medium">
-                    {new Date(skipStatus.windowResetDate).toLocaleDateString('en-GB', {
-                      day: 'numeric', month: 'short', year: 'numeric',
-                    })}
-                  </span>
-                </p>
-              )}
-
-              {!skipStatus.canSkip && skipStatus.isPastDeadline && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">Skip deadline has already passed for the next eligible box.</p>
-              )}
-
-              {skipStatus.warnings.length > 0 && (() => {
-                const skipsExhausted = skipStatus.maxSkips !== null && skipStatus.skipsInWindow >= skipStatus.maxSkips
-                const visibleWarnings = skipsExhausted
-                  ? skipStatus.warnings.filter(w => !/skip window.*passed|window.*passed/i.test(w))
-                  : skipStatus.warnings
-                if (visibleWarnings.length === 0) return null
-                return (
-                <div className="space-y-1.5">
-                  {visibleWarnings.map(warning => {
-                    const isCritical = /consecutive|cancel/i.test(warning)
-                    return isCritical ? (
-                      <div key={warning} className="flex items-start gap-2 rounded-lg border border-red-400/50 bg-red-50 px-3 py-2 dark:border-red-500/50 dark:bg-red-950/40">
-                        <span className="mt-px shrink-0">⚠️</span>
-                        <p className="text-xs font-semibold text-red-700 dark:text-red-300">{warning}</p>
-                      </div>
-                    ) : (
-                      <p key={warning} className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700 dark:border-transparent dark:bg-amber-500/10 dark:text-amber-300">
-                        {warning}
-                      </p>
-                    )
-                  })}
-                </div>
-                )
-              })()}
-
-              {skipStatus.canSkip && skipStatus.targetMonth && (
-                <div className="rounded-lg border border-stone-200 bg-stone-50 p-3 dark:border-stone-700/60 dark:bg-stone-900/60">
-                  <p className="text-xs text-stone-500">{isBundleSkipMode ? 'Next eligible bundle' : 'Next eligible month'}</p>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-stone-800 dark:text-stone-100">
-                      {isBundleSkipMode
-                        ? bundleRangeLabel(skipStatus.targetMonth.year, skipStatus.targetMonth.month, skipStatus.intervalMonths)
-                        : formatMonthLabel(skipStatus.targetMonth.year, skipStatus.targetMonth.month)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => skipMutation.mutate(skipStatus.targetMonth!)}
-                      disabled={skipMutation.isPending}
-                      className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-500/30 disabled:opacity-50 dark:text-amber-300"
-                    >
-                      {skipMutation.isPending ? 'Skipping…' : isBundleSkipMode ? 'Skip bundle' : 'Skip'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {skipMutation.error && (
-                <p className="text-xs text-red-400">{(skipMutation.error as Error).message}</p>
-              )}
-
-              {skipStatus.skippedMonths.length > 0 && (
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-stone-500">
-                    {isBundleSkipMode
-                      ? (() => {
-                          const n = groupIntoBundles(skipStatus.skippedMonths, skipStatus.intervalMonths, skipStatus.startingMonth).length
-                          return `${n} skipped bundle${n !== 1 ? 's' : ''}`
-                        })()
-                      : `${skipStatus.skippedMonths.length} skipped month${skipStatus.skippedMonths.length !== 1 ? 's' : ''}`}
-                  </p>
-                  <Link href={`/my-subscriptions/skipped-months?sub=${subscriptionSlug}`} className="text-xs text-amber-600 transition-colors hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300">View all →</Link>
-                </div>
-              )}
-
-              {skipStatus.allowUnskip && skipStatus.skippedMonths.length > 0 && (() => {
-                const now = new Date()
-                const cy = now.getFullYear(), cm = now.getMonth() + 1
-                const unskippable = skipStatus.skippedMonths
-                  .filter(m => m.year > cy || (m.year === cy && m.month >= cm))
-                  .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
-                if (unskippable.length === 0) return null
-                const unskippableBundles = isBundleSkipMode
-                  ? groupIntoBundles(unskippable, skipStatus.intervalMonths, skipStatus.startingMonth)
-                  : []
-                return (
-                  <div className="space-y-2">
-                    <p className="text-xs text-stone-500">{isBundleSkipMode ? 'Unskip upcoming bundles' : 'Unskip upcoming'}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {isBundleSkipMode
-                        ? unskippableBundles.map(bundle => (
-                            <button
-                              key={bundle.key}
-                              type="button"
-                              onClick={() => unskipMutation.mutate({ year: bundle.startYear, month: bundle.startMonth })}
-                              disabled={unskipMutation.isPending}
-                              className="rounded-lg border border-stone-300 px-2.5 py-1 text-xs text-stone-600 transition-colors hover:border-stone-400 hover:text-stone-800 disabled:opacity-50 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:text-stone-100"
-                            >
-                              Unskip {bundle.label}
-                            </button>
-                          ))
-                        : unskippable.map(month => (
-                            <button
-                              key={`${month.year}-${month.month}`}
-                              type="button"
-                              onClick={() => unskipMutation.mutate(month)}
-                              disabled={unskipMutation.isPending}
-                              className="rounded-lg border border-stone-300 px-2.5 py-1 text-xs text-stone-600 transition-colors hover:border-stone-400 hover:text-stone-800 disabled:opacity-50 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:text-stone-100"
-                            >
-                              Unskip {formatMonthLabel(month.year, month.month)}
-                            </button>
-                          ))}
-                    </div>
-                    {unskipMutation.error && (
-                      <p className="text-xs text-red-400">{(unskipMutation.error as Error).message}</p>
-                    )}
-                  </div>
-                )
-              })()}
-            </div>
-          ) : (
-            <p className="text-sm text-stone-500">No skip details yet.</p>
-          )}
+          <SkipStatusCompact
+            subscriptionSlug={subscriptionSlug}
+            subscriptionName={entry.subscription.name}
+            onSkipSuccess={() => void queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] })}
+          />
         </section>
 
         <section className="space-y-3">
@@ -764,19 +577,6 @@ function SubscriptionOverviewPanel({
           )}
         </section>
       </div>
-
-      {showManageSkips && (
-        <ManageSkipsModal
-          subscriptionSlug={subscriptionSlug}
-          subscriptionName={entry.subscription.name}
-          onClose={() => setShowManageSkips(false)}
-          onSaved={() => {
-            setShowManageSkips(false)
-            void queryClient.invalidateQueries({ queryKey: ['skip-status', subscriptionSlug] })
-            void queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] })
-          }}
-        />
-      )}
     </div>
   )
 }
