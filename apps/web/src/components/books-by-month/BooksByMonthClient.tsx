@@ -80,6 +80,19 @@ const TOGGLE_ACTIVE = 'bg-amber-500/20 text-amber-400 border-amber-500/30'
 const TOGGLE_INACTIVE = 'bg-stone-800 text-stone-400 border-stone-700 hover:text-stone-200 hover:border-stone-600'
 
 const LEGEND_PILL_BASE = 'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors'
+const CARD_GRID = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'
+const SEARCH_INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-400 text-sm'
+
+function matchesSearch(item: BookByMonthItem, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return (
+    (item.bookTitle?.toLowerCase().includes(q) ?? false) ||
+    item.authors.some((a) => a.toLowerCase().includes(q)) ||
+    item.companyName.toLowerCase().includes(q) ||
+    item.subscriptionName.toLowerCase().includes(q)
+  )
+}
 
 export function BooksByMonthClient() {
   const now = new Date()
@@ -87,6 +100,7 @@ export function BooksByMonthClient() {
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [viewMode, setViewMode] = useState<ViewMode>('flat')
   const [highlightFilter, setHighlightFilter] = useState<HighlightFilter>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const { data, isLoading } = useQuery<BooksByMonthResponse>({
     queryKey: ['books-by-month', year, month],
@@ -97,10 +111,15 @@ export function BooksByMonthClient() {
   const hasAnyHighlight = items.some((i) => i.highlight != null)
 
   const filteredItems = useMemo(() => {
-    if (!highlightFilter) return items
-    if (highlightFilter === 'other') return items.filter((i) => i.highlight == null)
-    return items.filter((i) => i.highlight === highlightFilter)
-  }, [items, highlightFilter])
+    let result = items
+    if (highlightFilter) {
+      result = highlightFilter === 'other'
+        ? result.filter((i) => i.highlight == null)
+        : result.filter((i) => i.highlight === highlightFilter)
+    }
+    if (searchQuery.trim()) result = result.filter((i) => matchesSearch(i, searchQuery))
+    return result
+  }, [items, highlightFilter, searchQuery])
 
   const groups = useMemo((): BookGroup[] | null => {
     if (viewMode === 'flat') return null
@@ -143,6 +162,15 @@ export function BooksByMonthClient() {
         </div>
       </div>
 
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Search by title, author, company, or subscription…"
+        className={`${SEARCH_INPUT} mb-6`}
+        aria-label="Search books by month"
+      />
+
       {hasAnyHighlight && (
         <div className="flex flex-wrap gap-2 mb-6" aria-label="Highlight legend and filter">
           <button
@@ -178,8 +206,12 @@ export function BooksByMonthClient() {
         <div className="text-stone-500 text-center py-12 bg-stone-900/50 rounded-2xl border border-stone-800">
           No entries for this month.
         </div>
+      ) : filteredItems.length === 0 ? (
+        <div className="text-stone-500 text-center py-12 bg-stone-900/50 rounded-2xl border border-stone-800">
+          No matches for your search{highlightFilter ? ' and filters' : ''}.
+        </div>
       ) : viewMode === 'flat' ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className={CARD_GRID}>
           {filteredItems.map((item) => <BookByMonthCard key={itemKey(item)} item={item} />)}
         </div>
       ) : (
@@ -192,7 +224,7 @@ export function BooksByMonthClient() {
                   {viewMode === 'by-book' ? `Shared by ${group.items.length} subscriptions this month` : `${group.items.length} books`}
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className={CARD_GRID}>
                 {group.items.map((item) => <BookByMonthCard key={itemKey(item)} item={item} />)}
               </div>
             </div>
@@ -204,7 +236,7 @@ export function BooksByMonthClient() {
                   {viewMode === 'by-book' ? 'Everything else this month' : 'Other releases'}
                 </h2>
               )}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className={CARD_GRID}>
                 {singleItems.map((item) => <BookByMonthCard key={itemKey(item)} item={item} />)}
               </div>
             </div>
