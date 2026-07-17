@@ -221,7 +221,7 @@ export function BooksByMonthClient() {
           {multiGroups.length === 0 && (
             <p className="text-sm text-stone-500">
               {viewMode === 'by-book'
-                ? 'No duplicates this month — every book is unique to one subscription.'
+                ? 'No duplicates this month.'
                 : 'No company has more than one release this month.'}
             </p>
           )}
