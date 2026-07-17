@@ -306,4 +306,40 @@ describe('isSubscriptionDueInMonth', () => {
     expect(isSubscriptionDueInMonth(sub, 2024, 12, NOW)).toBe(true); // end month
     expect(isSubscriptionDueInMonth(sub, 2025, 1, NOW)).toBe(false); // after end
   });
+
+  it('non-bundle quarterly (intervalMonths=3, isBundleSubscription=false) is only due on cadence-aligned months', () => {
+    // Real data case: "Romance Quarterly Subscription", startingMonth=3, intervalMonths=3
+    // → only has SubscriptionMonth rows in Mar/Jun/Sep/Dec, never Jan/Feb/Apr/May/...
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false, intervalMonths: 3, startingMonth: 3, isBundleSubscription: false };
+    expect(isSubscriptionDueInMonth(sub, 2026, 3, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 6, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 9, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 4, NOW)).toBe(false)
+    expect(isSubscriptionDueInMonth(sub, 2026, 5, NOW)).toBe(false)
+    expect(isSubscriptionDueInMonth(sub, 2026, 7, NOW)).toBe(false)
+    expect(isSubscriptionDueInMonth(sub, 2026, 8, NOW)).toBe(false)
+  })
+
+  it('bundle subscription (isBundleSubscription=true) is due EVERY calendar month regardless of intervalMonths', () => {
+    // Bundles ship N months packaged together but still carry one SubscriptionMonth row per
+    // real calendar month — content is monthly, only the shipping cadence is multi-month.
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false, intervalMonths: 3, startingMonth: 1, isBundleSubscription: true };
+    for (let m = 1; m <= 12; m++) {
+      expect(isSubscriptionDueInMonth(sub, 2026, m, NOW)).toBe(true)
+    }
+  })
+
+  it('intervalMonths omitted or 1 behaves as monthly regardless of startingMonth', () => {
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false, intervalMonths: 1, startingMonth: 7 };
+    expect(isSubscriptionDueInMonth(sub, 2026, 1, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 7, NOW)).toBe(true)
+  })
+
+  it('startingMonth null on a non-bundle multi-month sub defaults to 1', () => {
+    // Real data case: "Dystopian Romance Quarterly Subscription" has startingMonth: null
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false, intervalMonths: 3, startingMonth: null, isBundleSubscription: false };
+    expect(isSubscriptionDueInMonth(sub, 2026, 1, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 4, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 2, NOW)).toBe(false)
+  })
 });

@@ -31,6 +31,11 @@ interface BooksByMonthResponse {
 
 type ViewMode = 'flat' | 'by-book' | 'by-company'
 type HighlightFilter = 'mine' | 'skipped' | 'other' | null
+interface BookGroup {
+  key: string
+  label: string
+  items: BookByMonthItem[]
+}
 
 function itemKey(item: BookByMonthItem) {
   return `${item.subscriptionId}-${item.bookId ?? 'placeholder'}`
@@ -97,9 +102,9 @@ export function BooksByMonthClient() {
     return items.filter((i) => i.highlight === highlightFilter)
   }, [items, highlightFilter])
 
-  const groups = useMemo(() => {
+  const groups = useMemo((): BookGroup[] | null => {
     if (viewMode === 'flat') return null
-    const map = new Map<string, { key: string; label: string; items: BookByMonthItem[] }>()
+    const map = new Map<string, BookGroup>()
     for (const item of filteredItems) {
       const key = viewMode === 'by-book' ? (item.bookId ?? `placeholder-${item.subscriptionId}`) : item.companySlug
       const label = viewMode === 'by-company' ? item.companyName : (item.bookTitle ?? 'Not yet announced')
@@ -108,6 +113,18 @@ export function BooksByMonthClient() {
     }
     return [...map.values()]
   }, [filteredItems, viewMode])
+
+  // Most groups (especially "by book") only ever have one item — giving each of those its own
+  // header + near-empty row produces a long, sparse list. Only groups with an actual overlap
+  // (2+ items) earn a dedicated section; every singleton collapses into one compact flat grid
+  // below them (the company/book name is still visible per-card in its footer/title either way).
+  const { multiGroups, singleItems } = useMemo(() => {
+    if (!groups) return { multiGroups: [] as BookGroup[], singleItems: [] as BookByMonthItem[] }
+    return {
+      multiGroups: groups.filter((g) => g.items.length > 1),
+      singleItems: groups.filter((g) => g.items.length === 1).flatMap((g) => g.items),
+    }
+  }, [groups])
 
   return (
     <div>
@@ -129,10 +146,16 @@ export function BooksByMonthClient() {
       {hasAnyHighlight && (
         <div className="flex flex-wrap gap-2 mb-6" aria-label="Highlight legend and filter">
           <button
-            onClick={() => setHighlightFilter((f) => (f === 'mine' ? null : 'mine'))}
-            className={`${LEGEND_PILL_BASE} edition-glow-gold ${highlightFilter === 'mine' ? 'border-amber-400 text-amber-300' : 'border-stone-700 text-stone-400'}`}
+            onClick={() => setHighlightFilter(null)}
+            className={`${LEGEND_PILL_BASE} ${highlightFilter === null ? 'border-stone-300 text-stone-100' : 'border-stone-700 text-stone-400'}`}
           >
-            <span className="h-2 w-2 rounded-full bg-amber-400" /> Mine
+            All
+          </button>
+          <button
+            onClick={() => setHighlightFilter((f) => (f === 'mine' ? null : 'mine'))}
+            className={`${LEGEND_PILL_BASE} edition-glow-gold ${highlightFilter === 'mine' ? 'border-[#d4af37] text-[#d4af37]' : 'border-stone-700 text-stone-400'}`}
+          >
+            <span className="h-2 w-2 rounded-full" style={{ background: '#d4af37' }} /> Mine
           </button>
           <button
             onClick={() => setHighlightFilter((f) => (f === 'skipped' ? null : 'skipped'))}
@@ -161,21 +184,31 @@ export function BooksByMonthClient() {
         </div>
       ) : (
         <div className="space-y-8">
-          {groups!.map((group) => (
+          {multiGroups.map((group) => (
             <div key={group.key}>
               <div className="flex items-center gap-2 mb-3">
                 <h2 className="text-sm font-serif font-semibold text-stone-300">{group.label}</h2>
-                {group.items.length > 1 && (
-                  <span className="text-xs text-stone-500">
-                    {viewMode === 'by-book' ? `Shared by ${group.items.length} subscriptions this month` : `${group.items.length} books`}
-                  </span>
-                )}
+                <span className="text-xs text-stone-500">
+                  {viewMode === 'by-book' ? `Shared by ${group.items.length} subscriptions this month` : `${group.items.length} books`}
+                </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {group.items.map((item) => <BookByMonthCard key={itemKey(item)} item={item} />)}
               </div>
             </div>
           ))}
+          {singleItems.length > 0 && (
+            <div>
+              {multiGroups.length > 0 && (
+                <h2 className="text-sm font-serif font-semibold text-stone-300 mb-3">
+                  {viewMode === 'by-book' ? 'Everything else this month' : 'Other releases'}
+                </h2>
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {singleItems.map((item) => <BookByMonthCard key={itemKey(item)} item={item} />)}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

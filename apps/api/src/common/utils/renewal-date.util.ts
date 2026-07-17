@@ -91,9 +91,26 @@ export function addMonths(year: number, month: number, n: number): { year: numbe
  * Discontinued subscriptions stay visible for PAST months (they were live then) but drop out of
  * the current/future scan — that's the whole point of "discontinued". `isHidden` subscriptions
  * (incomplete historical data, not yet ready to show users) are excluded unconditionally.
+ *
+ * Cadence: `intervalMonths`/`startingMonth` behave differently depending on `isBundleSubscription`.
+ * A bundle (isBundleSubscription=true) ships N calendar months packaged together, but each of
+ * those calendar months still gets its own SubscriptionMonth row — content is monthly, only the
+ * shipping/packaging is multi-month — so a bundle is due EVERY calendar month. A non-bundle
+ * subscription with intervalMonths>1 (e.g. a genuinely quarterly release, isBundleSubscription
+ * false) only has SubscriptionMonth rows on its cadence-aligned months (e.g. Mar/Jun/Sep/Dec for
+ * startingMonth=3, intervalMonths=3) — every other month is never going to have data and must not
+ * be flagged as due/missing.
  */
 export function isSubscriptionDueInMonth(
-  sub: { startDate: Date | null; endDate: Date | null; isDiscontinued: boolean; isHidden: boolean },
+  sub: {
+    startDate: Date | null;
+    endDate: Date | null;
+    isDiscontinued: boolean;
+    isHidden: boolean;
+    intervalMonths?: number;
+    startingMonth?: number | null;
+    isBundleSubscription?: boolean;
+  },
   year: number,
   month: number,
   now: Date = new Date(),
@@ -105,6 +122,12 @@ export function isSubscriptionDueInMonth(
   if (sub.isDiscontinued && monthStart >= currentMonthStart) return false;
   if (sub.startDate && sub.startDate > monthEnd) return false;
   if (sub.endDate && sub.endDate < monthStart) return false;
+
+  const interval = sub.intervalMonths ?? 1;
+  if (interval > 1 && !sub.isBundleSubscription) {
+    const cycleStart = getBundleBoxStart(year, month, sub.startingMonth ?? 1, interval);
+    if (cycleStart.year !== year || cycleStart.month !== month) return false;
+  }
   return true;
 }
 
