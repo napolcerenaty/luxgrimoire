@@ -307,6 +307,20 @@ describe('isSubscriptionDueInMonth', () => {
     expect(isSubscriptionDueInMonth(sub, 2025, 1, NOW)).toBe(false); // after end
   });
 
+  it('isUpcoming=true is excluded unconditionally, even with no startDate at all', () => {
+    // Real data case: "Eclipse" / "Wicked Pages" — isUpcoming=true, startDate: null.
+    // Without an isUpcoming check these have no lower bound at all and are wrongly "due" every month.
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false, isUpcoming: true };
+    expect(isSubscriptionDueInMonth(sub, 2025, 3, NOW)).toBe(false); // current month
+    expect(isSubscriptionDueInMonth(sub, 2020, 1, NOW)).toBe(false); // past
+    expect(isSubscriptionDueInMonth(sub, 2030, 1, NOW)).toBe(false); // future
+  });
+
+  it('isUpcoming=true is excluded even with a startDate that has already passed', () => {
+    const sub = { startDate: new Date(Date.UTC(2024, 0, 1)), endDate: null, isDiscontinued: false, isHidden: false, isUpcoming: true };
+    expect(isSubscriptionDueInMonth(sub, 2025, 3, NOW)).toBe(false);
+  });
+
   it('non-bundle quarterly (intervalMonths=3, isBundleSubscription=false) is only due on cadence-aligned months', () => {
     // Real data case: "Romance Quarterly Subscription", startingMonth=3, intervalMonths=3
     // → only has SubscriptionMonth rows in Mar/Jun/Sep/Dec, never Jan/Feb/Apr/May/...

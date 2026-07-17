@@ -90,7 +90,11 @@ export function addMonths(year: number, month: number, n: number): { year: numbe
  *
  * Discontinued subscriptions stay visible for PAST months (they were live then) but drop out of
  * the current/future scan — that's the whole point of "discontinued". `isHidden` subscriptions
- * (incomplete historical data, not yet ready to show users) are excluded unconditionally.
+ * (incomplete historical data, not yet ready to show users) and `isUpcoming` subscriptions
+ * (announced/waitlist-only, not actually launched) are excluded unconditionally, in every month —
+ * unlike `isDiscontinued`, an upcoming subscription has no past either, so there's no month where
+ * it should ever count as due. `startDate` alone isn't a reliable signal for this: an upcoming
+ * subscription commonly has no startDate set yet at all.
  *
  * Cadence: `intervalMonths`/`startingMonth` behave differently depending on `isBundleSubscription`.
  * A bundle (isBundleSubscription=true) ships N calendar months packaged together, but each of
@@ -107,6 +111,7 @@ export function isSubscriptionDueInMonth(
     endDate: Date | null;
     isDiscontinued: boolean;
     isHidden: boolean;
+    isUpcoming?: boolean;
     intervalMonths?: number;
     startingMonth?: number | null;
     isBundleSubscription?: boolean;
@@ -116,6 +121,7 @@ export function isSubscriptionDueInMonth(
   now: Date = new Date(),
 ): boolean {
   if (sub.isHidden) return false;
+  if (sub.isUpcoming) return false;
   const monthStart = new Date(Date.UTC(year, month - 1, 1));
   const monthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
   const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
