@@ -1,6 +1,13 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { refreshNextRenewalDate, renewalMonthFromBoxMonth } from '../../common/utils/renewal-date.util';
+import {
+  refreshNextRenewalDate,
+  renewalMonthFromBoxMonth,
+  computeFirstEligibleBoxMonth,
+  getBundleBoxStart,
+  enumerateBundleMonths,
+  addMonths,
+} from '../../common/utils/renewal-date.util';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
 
 export interface SkipStatus {
@@ -36,6 +43,12 @@ export interface SkipStatus {
   targetMonth: { year: number; month: number } | null;
   /** ISO date string (YYYY-MM-DD) of when the current skip window resets to 0, or null if not applicable */
   windowResetDate: string | null;
+  /** Whether this subscription ships multiple months as one bundle package */
+  isBundleSubscription: boolean;
+  /** Number of calendar months covered by one bundle package (1 for non-bundle subscriptions) */
+  intervalMonths: number;
+  /** The calendar month bundle cycles are aligned to */
+  startingMonth: number;
 }
 
 @Injectable()
@@ -195,6 +208,22 @@ export class SkipPolicyEngine {
         // For combo subscriptions the months live on component subscriptions — skip first-box protection.
         firstMonthInfo = isCombo ? null : await this.getFirstDeliverableMonthInfo(monthsSubscriptionId, effectiveStartDate);
 
+        const intervalMonths: number = (subscription as any).intervalMonths ?? 1;
+        const startingMonth: number = (subscription as any).startingMonth ?? 1;
+        const isBundle = ((subscription as any).isBundleSubscription ?? false) && intervalMonths > 1;
+
+        if (isBundle) {
+          // Bundle subscriptions ship `intervalMonths` calendar months as one package.
+          // The target is the START of the next FULL, not-yet-skipped bundle — never a
+          // month in the middle of the bundle the user is currently in.
+          const excludeBundleStart = firstMonthInfo
+            ? getBundleBoxStart(firstMonthInfo.year, firstMonthInfo.month, startingMonth, intervalMonths)
+            : null;
+          targetMonth = await this.findBundleTargetMonth(
+            isCombo, componentIds, monthsSubscriptionId, now, renewalDay, offset,
+            startingMonth, intervalMonths, skippedSet, excludeBundleStart,
+          );
+        } else {
         // Find the first upcoming month the user CAN skip:
         // - must be >= candidate month (next calendar month + offset)
         // - must not already be skipped
@@ -259,6 +288,7 @@ export class SkipPolicyEngine {
           targetMonth = m;
           break;
         }
+        }
       }
     }
 
@@ -321,7 +351,7 @@ export class SkipPolicyEngine {
       status.windowResetDate = this.computeWindowResetDate(policy, activeWindowKey);
     }
 
-    return status;
+    return this.attachBundleInfo(status, subscription);
   }
 
   /** Public entry point for recomputing skip state after bulk operations (e.g. backfill) */
@@ -336,7 +366,11 @@ export class SkipPolicyEngine {
     });
     const isPrepaid = (entry?.prepaidMonths ?? 1) > 1;
     const policy = this.selectApplicablePolicy(subscription?.skipPolicies ?? [], isPrepaid);
-    return this.recomputeState(userId, subscriptionId, policy);
+    return this.recomputeState(userId, subscriptionId, policy, {
+      intervalMonths: (subscription as any)?.intervalMonths ?? 1,
+      startingMonth: (subscription as any)?.startingMonth ?? 1,
+      isBundleSubscription: (subscription as any)?.isBundleSubscription ?? false,
+    });
   }
 
   async recordSkip(
@@ -351,6 +385,20 @@ export class SkipPolicyEngine {
     }
 
     // Deadline is informational only — we allow late tracking (user may have skipped on time but forgot to log it here)
+
+    // Bundle subscriptions ship intervalMonths calendar months as ONE package: skipping any
+    // month in that package skips the whole package as a single unit against the skip allowance.
+    const intervalMonths: number = (subscription as any).intervalMonths ?? 1;
+    const startingMonth: number = (subscription as any).startingMonth ?? 1;
+    if (((subscription as any).isBundleSubscription ?? false) && intervalMonths > 1) {
+      return this.attachBundleInfo(
+        await this.recordBundleSkip(
+          userId, subscription, policy, state, entry, isCombo, componentIds, monthsSubscriptionId,
+          year, month, intervalMonths, startingMonth,
+        ),
+        subscription,
+      );
+    }
 
     // Find the subscription month.
     // For combo subscriptions the months live on component subscriptions;
@@ -455,7 +503,7 @@ export class SkipPolicyEngine {
     // Update persisted nextRenewalDate so cron jobs see the correct date
     await refreshNextRenewalDate(this.prisma, entry.id);
     this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
-    return this.buildStatus(policy, newState, deadline, skippedMonths, { year, month });
+    return this.attachBundleInfo(this.buildStatus(policy, newState, deadline, skippedMonths, { year, month }), subscription);
   }
 
   /**
@@ -472,6 +520,161 @@ export class SkipPolicyEngine {
       if (m > 12) { m = 1; y++; }
     }
     return months;
+  }
+
+  /**
+   * Records a bundle skip: creates skip records for ALL calendar months in the bundle period
+   * that contains (year, month) — regardless of which month within the bundle was passed in —
+   * and counts as a single skip against the skip allowance (not one per covered month).
+   */
+  private async recordBundleSkip(
+    userId: string,
+    subscription: { id: string },
+    policy: any,
+    state: { windowKey: string | null; consecutiveSkips: number } | null,
+    entry: { id: string; firstSkipDate: Date | null; prepaidMonths: number; effectiveRenewalDay: number | null },
+    isCombo: boolean,
+    componentIds: string[],
+    monthsSubscriptionId: string,
+    year: number,
+    month: number,
+    intervalMonths: number,
+    startingMonth: number,
+  ): Promise<SkipStatus> {
+    const bundleStart = getBundleBoxStart(year, month, startingMonth, intervalMonths);
+    const bundleMonths = enumerateBundleMonths(bundleStart, intervalMonths);
+
+    const subMonths = await this.prisma.subscriptionMonth.findMany({
+      where: {
+        subscriptionId: isCombo ? { in: componentIds } : monthsSubscriptionId,
+        OR: bundleMonths.map((m) => ({ year: m.year, month: m.month })),
+      },
+    });
+    if (subMonths.length === 0) {
+      throw new NotFoundException(`Bundle starting ${bundleStart.month}/${bundleStart.year} not found for this subscription`);
+    }
+
+    const now = new Date();
+    const windowKey = this.computeWindowKey(policy, state, entry as any);
+    const newConsecutive = await this.computeNewConsecutive(
+      entry.id, subscription.id, bundleStart.year, bundleStart.month, state, isCombo ? componentIds : null,
+    );
+
+    // One skip record per covered calendar month (so books/collection logic still works per month),
+    // but the quota counters below increment by exactly 1 for the whole bundle.
+    for (const sm of subMonths) {
+      await this.prisma.userSkipRecord.upsert({
+        where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: sm.id } },
+        create: { userId, userEntryId: entry.id, subscriptionMonthId: sm.id, windowKey, skippedAt: now },
+        update: { windowKey, skippedAt: now, undoneAt: null },
+      });
+    }
+
+    const newWindow = windowKey !== state?.windowKey;
+    const newState = await this.prisma.userSubscriptionSkipState.upsert({
+      where: { userId_subscriptionId: { userId, subscriptionId: subscription.id } },
+      create: {
+        userId,
+        subscriptionId: subscription.id,
+        windowKey,
+        skipsInWindow: 1,
+        consecutiveSkips: 1,
+        totalSkips: 1,
+        lastSkipAt: now,
+      },
+      update: {
+        windowKey,
+        skipsInWindow: newWindow ? 1 : { increment: 1 },
+        consecutiveSkips: newConsecutive,
+        totalSkips: { increment: 1 },
+        lastSkipAt: now,
+      },
+    });
+
+    if (!entry.firstSkipDate) {
+      await this.prisma.userSubscriptionEntry.update({
+        where: { id: entry.id },
+        data: { firstSkipDate: now },
+      });
+    }
+
+    if (entry.prepaidMonths > 1) {
+      await this.adjustPrepaidBillingPeriod(entry.id, 1, entry.effectiveRenewalDay ?? 1);
+    }
+
+    const deadline = this.computeDeadline(policy, entry, bundleStart, (subscription as any).renewalMonthOffset ?? 0);
+    const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
+      where: { userEntryId: entry.id, undoneAt: null },
+      include: { month: { select: { year: true, month: true } } },
+    });
+    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
+    await refreshNextRenewalDate(this.prisma, entry.id);
+    this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
+    return this.buildStatus(policy, newState, deadline, skippedMonths, bundleStart);
+  }
+
+  /**
+   * Undoes a bundle skip: soft-deletes skip records for ALL calendar months in the bundle
+   * period that contains (year, month), regardless of which month within the bundle was
+   * passed in, and retracts the skip allowance by the whole bundle.
+   */
+  private async undoBundleSkip(
+    userId: string,
+    subscription: { id: string },
+    policy: any,
+    entry: { id: string; prepaidMonths: number; effectiveRenewalDay: number | null },
+    isCombo: boolean,
+    componentIds: string[],
+    monthsSubscriptionId: string,
+    year: number,
+    month: number,
+    intervalMonths: number,
+    startingMonth: number,
+  ): Promise<SkipStatus> {
+    const bundleStart = getBundleBoxStart(year, month, startingMonth, intervalMonths);
+    const bundleMonths = enumerateBundleMonths(bundleStart, intervalMonths);
+
+    const subMonths = await this.prisma.subscriptionMonth.findMany({
+      where: {
+        subscriptionId: isCombo ? { in: componentIds } : monthsSubscriptionId,
+        OR: bundleMonths.map((m) => ({ year: m.year, month: m.month })),
+      },
+    });
+    if (subMonths.length === 0) {
+      throw new NotFoundException(`Bundle starting ${bundleStart.month}/${bundleStart.year} not found`);
+    }
+
+    const monthIds = subMonths.map((m) => m.id);
+    const result = await this.prisma.userSkipRecord.updateMany({
+      where: { userEntryId: entry.id, subscriptionMonthId: { in: monthIds }, undoneAt: null },
+      data: { undoneAt: new Date() },
+    });
+    if (!result.count) {
+      throw new BadRequestException('No active skip found for this bundle');
+    }
+
+    const updatedState = await this.recomputeState(userId, subscription.id, policy, {
+      intervalMonths, startingMonth, isBundleSubscription: true,
+    });
+
+    if (entry.prepaidMonths > 1) {
+      await this.adjustPrepaidBillingPeriod(entry.id, -1, entry.effectiveRenewalDay ?? 1);
+    }
+
+    const offset: number = (subscription as any).renewalMonthOffset ?? 0;
+    const deadline = this.computeDeadline(policy, entry, bundleStart, offset);
+    const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
+      where: { userEntryId: entry.id, undoneAt: null },
+      include: { month: { select: { year: true, month: true } } },
+    });
+    const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
+    await refreshNextRenewalDate(this.prisma, entry.id);
+    this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
+    const latestSkipped = skippedMonths.length > 0
+      ? skippedMonths.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b)
+      : null;
+    const unskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
+    return this.buildStatus(policy, updatedState, deadline, skippedMonths, bundleStart, undefined, null, unskipDeadline);
   }
 
   /**
@@ -554,7 +757,7 @@ export class SkipPolicyEngine {
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
     await refreshNextRenewalDate(this.prisma, entry.id);
     this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
-    return this.buildStatus(policy, newState, deadline, skippedMonths, { year, month });
+    return this.attachBundleInfo(this.buildStatus(policy, newState, deadline, skippedMonths, { year, month }), subscription);
   }
 
   async undoSkip(
@@ -567,6 +770,20 @@ export class SkipPolicyEngine {
 
     if (!policy?.allowUnskip) {
       throw new ForbiddenException('Unskip is not allowed for this subscription');
+    }
+
+    // Bundle subscriptions: undoing any month in the bundle undoes the WHOLE bundle as one unit,
+    // mirroring recordSkip's behavior — a partial (mid-bundle) skip/unskip state is never left behind.
+    const bundleIntervalMonths: number = (subscription as any).intervalMonths ?? 1;
+    const bundleStartingMonth: number = (subscription as any).startingMonth ?? 1;
+    if (((subscription as any).isBundleSubscription ?? false) && bundleIntervalMonths > 1) {
+      return this.attachBundleInfo(
+        await this.undoBundleSkip(
+          userId, subscription, policy, entry, isCombo, componentIds, monthsSubscriptionId,
+          year, month, bundleIntervalMonths, bundleStartingMonth,
+        ),
+        subscription,
+      );
     }
 
     // PREPAID_WINDOW_SKIP: undo reverses ALL months in the prepaid window and retracts
@@ -601,7 +818,11 @@ export class SkipPolicyEngine {
     });
 
     // Recompute state from scratch (simplest safe approach)
-    const updatedState = await this.recomputeState(userId, subscription.id, policy);
+    const updatedState = await this.recomputeState(userId, subscription.id, policy, {
+      intervalMonths: (subscription as any).intervalMonths ?? 1,
+      startingMonth: (subscription as any).startingMonth ?? 1,
+      isBundleSubscription: (subscription as any).isBundleSubscription ?? false,
+    });
 
     // If prepaid subscription, retract the billing period by 1 month
     if (entry.prepaidMonths > 1) {
@@ -623,7 +844,10 @@ export class SkipPolicyEngine {
       ? skippedMonths.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b)
       : null;
     const unskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
-    return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month }, undefined, null, unskipDeadline);
+    return this.attachBundleInfo(
+      this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month }, undefined, null, unskipDeadline),
+      subscription,
+    );
   }
 
   /**
@@ -663,7 +887,11 @@ export class SkipPolicyEngine {
       throw new BadRequestException('No active skip found for this window');
     }
 
-    const updatedState = await this.recomputeState(userId, subscription.id, policy);
+    const updatedState = await this.recomputeState(userId, subscription.id, policy, {
+      intervalMonths: (subscription as any).intervalMonths ?? 1,
+      startingMonth: (subscription as any).startingMonth ?? 1,
+      isBundleSubscription: (subscription as any).isBundleSubscription ?? false,
+    });
 
     // Retract the prepaid billing period by the whole window.
     await this.adjustPrepaidBillingPeriod(entry.id, -entry.prepaidMonths, entry.effectiveRenewalDay ?? 1);
@@ -681,7 +909,10 @@ export class SkipPolicyEngine {
       ? skippedMonths.reduce((a, b) => (a.year > b.year || (a.year === b.year && a.month > b.month)) ? a : b)
       : null;
     const unskipDeadline = this.computeUnskipDeadline(policy, entry, latestSkipped, offset);
-    return this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month }, undefined, null, unskipDeadline);
+    return this.attachBundleInfo(
+      this.buildStatus(policy, updatedState, deadline, skippedMonths, { year, month }, undefined, null, unskipDeadline),
+      subscription,
+    );
   }
 
   async recordSeriesSkip(userId: string, subscriptionSlug: string, seriesSlug: string): Promise<SkipStatus> {
@@ -763,7 +994,7 @@ export class SkipPolicyEngine {
       include: { month: { select: { year: true, month: true } } },
     });
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
-    return this.buildStatus(policy, newState, deadline, skippedMonths, lastMonth ?? null);
+    return this.attachBundleInfo(this.buildStatus(policy, newState, deadline, skippedMonths, lastMonth ?? null), subscription);
   }
 
   async undoSeriesSkip(userId: string, subscriptionSlug: string, seriesSlug: string): Promise<SkipStatus> {
@@ -787,7 +1018,11 @@ export class SkipPolicyEngine {
       data: { undoneAt: new Date() },
     });
 
-    const updatedState = await this.recomputeState(userId, subscription.id, policy);
+    const updatedState = await this.recomputeState(userId, subscription.id, policy, {
+      intervalMonths: (subscription as any).intervalMonths ?? 1,
+      startingMonth: (subscription as any).startingMonth ?? 1,
+      isBundleSubscription: (subscription as any).isBundleSubscription ?? false,
+    });
 
     const deadline = this.computeDeadline(policy, entry, null, (subscription as any).renewalMonthOffset ?? 0);
     const freshSkipRecords = await this.prisma.userSkipRecord.findMany({
@@ -795,7 +1030,7 @@ export class SkipPolicyEngine {
       include: { month: { select: { year: true, month: true } } },
     });
     const skippedMonths = freshSkipRecords.map((r) => ({ year: r.month.year, month: r.month.month }));
-    return this.buildStatus(policy, updatedState, deadline, skippedMonths);
+    return this.attachBundleInfo(this.buildStatus(policy, updatedState, deadline, skippedMonths), subscription);
   }
 
   /** Returns all active (not undone) skip records for the user with book/month details. */
@@ -880,6 +1115,71 @@ export class SkipPolicyEngine {
       year: firstMonth.year,
       month: firstMonth.month,
     };
+  }
+
+  /** Appends bundle-shape info to a SkipStatus so clients can group skip/unskip UI by bundle period. */
+  private attachBundleInfo(status: SkipStatus, subscription: unknown): SkipStatus {
+    const sub = subscription as { intervalMonths?: number | null; startingMonth?: number | null; isBundleSubscription?: boolean | null };
+    const intervalMonths = sub.intervalMonths ?? 1;
+    return {
+      ...status,
+      isBundleSubscription: !!sub.isBundleSubscription && intervalMonths > 1,
+      intervalMonths,
+      startingMonth: sub.startingMonth ?? 1,
+    };
+  }
+
+  /**
+   * Finds the next skippable bundle for a bundle subscription (intervalMonths > 1).
+   * A bundle ships `intervalMonths` calendar months as one package, so:
+   * - the target is always the START of a bundle, never a mid-bundle month
+   * - the currently in-flight bundle is never offered (only future ones)
+   * - a bundle counts as "already skipped" if ANY of its calendar months has an active skip record
+   * - the user's very first deliverable bundle can never be skipped
+   */
+  private async findBundleTargetMonth(
+    isCombo: boolean,
+    componentIds: string[],
+    monthsSubscriptionId: string,
+    now: Date,
+    renewalDay: number | null,
+    offset: number,
+    startingMonth: number,
+    intervalMonths: number,
+    skippedSet: Set<string>,
+    excludeBundleStart: { year: number; month: number } | null,
+  ): Promise<{ id: string; year: number; month: number; seriesId: string | null } | null> {
+    // Box month of the next upcoming bundle (the current in-flight cycle's own box month —
+    // signupIncludesCurrentMonth=true skips the "new subscriber" +intervalMonths shift, since
+    // here we want the subscriber's own next occurrence, not a fresh joiner's first eligible one).
+    let candidate = computeFirstEligibleBoxMonth(now, renewalDay ?? 1, offset, true, intervalMonths, startingMonth);
+
+    // Bounded walk forward over already-skipped bundles (mirrors the non-bundle candidate loop).
+    for (let i = 0; i < 24; i++) {
+      const bundleMonths = enumerateBundleMonths(candidate, intervalMonths);
+      const alreadySkipped = bundleMonths.some((m) => skippedSet.has(`${m.year}-${m.month}`));
+      const isFirstBundle =
+        !!excludeBundleStart &&
+        excludeBundleStart.year === candidate.year &&
+        excludeBundleStart.month === candidate.month;
+
+      if (!alreadySkipped && !isFirstBundle) {
+        const subMonth = isCombo
+          ? await this.prisma.subscriptionMonth.findFirst({
+              where: { subscriptionId: { in: componentIds }, year: candidate.year, month: candidate.month },
+              select: { id: true, year: true, month: true, seriesId: true },
+              orderBy: { subscriptionId: 'asc' },
+            })
+          : await this.prisma.subscriptionMonth.findUnique({
+              where: { subscriptionId_year_month: { subscriptionId: monthsSubscriptionId, year: candidate.year, month: candidate.month } },
+              select: { id: true, year: true, month: true, seriesId: true },
+            });
+        return subMonth ?? null;
+      }
+
+      candidate = addMonths(candidate.year, candidate.month, intervalMonths);
+    }
+    return null;
   }
 
   /**
@@ -1110,6 +1410,10 @@ export class SkipPolicyEngine {
       isUnskipPastDeadline: unskipDeadline ? new Date() > unskipDeadline : false,
       targetMonth: deadlineMonth,
       windowResetDate: null,
+      // Overwritten by attachBundleInfo() at each call site with the subscription's actual shape.
+      isBundleSubscription: false,
+      intervalMonths: 1,
+      startingMonth: 1,
     };
   }
 
@@ -1334,6 +1638,7 @@ export class SkipPolicyEngine {
     userId: string,
     subscriptionId: string,
     policy: { type: string; windowMonths: number | null } | null,
+    bundleInfo?: { intervalMonths: number; startingMonth: number; isBundleSubscription: boolean },
   ) {
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
       where: { userId, subscriptionId, active: true },
@@ -1341,6 +1646,10 @@ export class SkipPolicyEngine {
 
     // No active entry (e.g. cancelled/historical subscription) — skip state is not applicable
     if (!entry) return null;
+
+    const bundleIntervalMonths = bundleInfo?.intervalMonths ?? 1;
+    const bundleStartingMonth = bundleInfo?.startingMonth ?? 1;
+    const isBundle = !!bundleInfo?.isBundleSubscription && bundleIntervalMonths > 1;
 
     const allRecords = await this.prisma.userSkipRecord.findMany({
       where: { userEntryId: entry.id, undoneAt: null },
@@ -1353,14 +1662,23 @@ export class SkipPolicyEngine {
 
     // Compute logical skip count:
     // SERIES_AS_ONE (and legacy SERIES_ONLY) → all records for same seriesId = 1 skip
+    // Bundle subscriptions → all records covering the same bundle period = 1 skip
     // SERIES_AS_MANY / individual (no seriesId) → each record = 1 skip
     const countLogicalSkips = (records: typeof allRecords): number => {
       const seenSeriesAsOne = new Set<string>();
+      const seenBundle = new Set<string>();
       let count = 0;
       for (const r of records) {
         if (r.seriesId && (r.series?.skipMode === 'SERIES_AS_ONE' || r.series?.skipMode === 'SERIES_ONLY')) {
           if (!seenSeriesAsOne.has(r.seriesId)) {
             seenSeriesAsOne.add(r.seriesId);
+            count++;
+          }
+        } else if (isBundle && r.month) {
+          const bundleStart = getBundleBoxStart(r.month.year, r.month.month, bundleStartingMonth, bundleIntervalMonths);
+          const key = `${bundleStart.year}-${bundleStart.month}`;
+          if (!seenBundle.has(key)) {
+            seenBundle.add(key);
             count++;
           }
         } else {

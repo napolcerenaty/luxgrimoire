@@ -31,7 +31,6 @@ interface ListSaleAnnouncement {
   firstAccessDate: string | null
   earlyAccessDate: string | null
   company: { name: string; slug?: string | null; brandColors?: string[] } | null
-  editions: Array<{ edition: { additionalImages: string[] } | null }>
   regions: Array<{ id: string; name: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null; countryCodes: string; currency: string | null }>
 }
 
@@ -41,8 +40,7 @@ function formatDate(iso: string | null) {
 }
 
 function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
-  const firstEdition = a.editions?.[0]?.edition
-  const cover = firstEdition?.additionalImages?.[0] ?? a.imageUrl ?? null
+  const cover = a.imageUrl ?? null
   const imgUrl = cover ? cloudinaryUrl(cover, 'w_400,h_600,c_fill,q_auto,f_auto') : null
   const saleDate = formatDate(a.generalSaleDate)
   const getBrandColors = useBrandColors()
@@ -151,8 +149,7 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
 }
 
 function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
-  const firstEdition = a.editions?.[0]?.edition
-  const cover = firstEdition?.additionalImages?.[0] ?? a.imageUrl ?? null
+  const cover = a.imageUrl ?? null
   const thumb = cover ? cloudinaryUrl(cover, 'w_80,h_80,c_fill,q_auto,f_auto') : null
   const saleDate = formatDate(a.generalSaleDate)
   const getBrandColors = useBrandColors()

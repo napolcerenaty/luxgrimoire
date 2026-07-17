@@ -80,14 +80,13 @@ export class RenewalCronService {
     const renewalDate = entry.nextRenewalDate!;
     const offset = entry.subscription?.renewalMonthOffset ?? 0;
     // Box month = renewal month + offset (e.g. April renewal + 1 = May box)
-    const [year, month] = offset === 0
-      ? [renewalDate.getUTCFullYear(), renewalDate.getUTCMonth() + 1]
-      : (() => {
-          let m = renewalDate.getUTCMonth() + 1 + offset;
-          let y = renewalDate.getUTCFullYear();
-          while (m > 12) { m -= 12; y++; }
-          return [y, m] as [number, number];
-        })();
+    const [year, month] = (() => {
+      let m = renewalDate.getUTCMonth() + 1 + offset;
+      let y = renewalDate.getUTCFullYear();
+      while (m > 12) { m -= 12; y++; }
+      while (m < 1)  { m += 12; y--; }
+      return [y, m] as [number, number];
+    })();
 
     // Idempotency: if we already recorded this exact renewal date → skip book-add
     // (nextRenewalDate might not have advanced yet if the API was down)

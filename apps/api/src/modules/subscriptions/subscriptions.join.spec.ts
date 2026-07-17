@@ -574,4 +574,190 @@ describe('SubscriptionsService — joinSubscription', () => {
       expect(getMonthLte(ub, 2026)).toBe(7); // limit = July
     });
   });
+
+  // ── recordFirstMonthAsPreorder — which month gets registered as preorder ──
+  //
+  // When paymentOnStartup=true the service calls recordFirstMonthAsPreorder,
+  // which must find the SAME "current box month" as getEligibleMonths and register
+  // it as PREORDER.  The DB query inside the function uses:
+  //
+  //   renewalAlreadyHappened = joinDay >= subRenewalDay
+  //   lastBillingMonth = joinMonth            (if happened)
+  //                    = joinMonth - 1         (if not)
+  //   currentBoxMonth  = lastBillingMonth + renewalMonthOffset
+  //   firstEligibleMonth = currentBoxMonth     (signupIncludesCurrentMonth=true)
+  //                      = currentBoxMonth + 1 (false)
+  //
+  // We verify by inspecting the subscriptionMonth.findFirst call made inside the function.
+
+  describe('recordFirstMonthAsPreorder — first preorder month', () => {
+    afterEach(() => jest.useRealTimers());
+
+    /**
+     * Sets up a real join (not dryRun) with paymentOnStartup=true and returns
+     * the `where` clause from the subscriptionMonth.findFirst call made inside
+     * recordFirstMonthAsPreorder (the SECOND findFirst call — the first is for
+     * the active-entry check).
+     */
+    async function getPreorderQuery(
+      subOverrides: Record<string, unknown>,
+      startDate: string,
+    ): Promise<{ yearGt?: number; monthGte?: number; yearGt2?: number } | undefined> {
+      jest.clearAllMocks();
+      const sub = makeSub({
+        paymentOnStartup: true,
+        signupIncludesCurrentMonth: true,
+        renewalDay: 15,
+        renewalMonthOffset: 0,
+        ...subOverrides,
+      });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      // No active entry
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      // Created entry — renewalDay is null because sub has a fixed renewalDay (not user-set)
+      (prisma.userSubscriptionEntry.create as jest.Mock).mockResolvedValueOnce(
+        makeEntry({ startDate, renewalDay: null }),
+      );
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+      // findFirst returns null → recordFirstMonthAsPreorder exits early (no books to add)
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate }));
+
+      const call = (prisma.subscriptionMonth.findFirst as jest.Mock).mock.calls[0]?.[0];
+      const or: Array<any> | undefined = call?.where?.OR;
+      if (!or) return undefined;
+      const yearGtClause = or.find((c: any) => c.year?.gt !== undefined);
+      const monthGteClause = or.find((c: any) => typeof c.year === 'number');
+      return {
+        yearGt: yearGtClause?.year?.gt,
+        monthGte: monthGteClause?.month?.gte,
+        yearGt2: monthGteClause?.year,
+      };
+    }
+
+    // ── bimonthly (intervalMonths=2), renewalDay=15, signupIncludesCurrentMonth=true ──
+    // This is the Enchantasy regression: startDate=01.06.2026
+    // joinDay=1 < renewalDay=15 → renewal NOT happened → lastBillingMonth=May
+    // currentBoxMonth = May + 0 = May → firstEligibleMonth=5 (May)
+    // DB must query months >= May, NOT >= June (which would skip to July for bimonthly)
+
+    it('bimonthly, renewalDay=15, includes=true, join Jun 1 (before renewal) → preorder query starts at May', async () => {
+      const q = await getPreorderQuery(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2026-06-01',
+      );
+      expect(q?.monthGte).toBe(5);   // >= May, not >= June
+      expect(q?.yearGt2).toBe(2026);
+    });
+
+    it('bimonthly, renewalDay=15, includes=true, join Jun 20 (after renewal) → preorder query starts at June', async () => {
+      // joinDay=20 >= renewalDay=15 → renewal happened → lastBillingMonth=June → firstEligibleMonth=June
+      const q = await getPreorderQuery(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2026-06-20',
+      );
+      expect(q?.monthGte).toBe(6);   // >= June → next bimonthly is July
+      expect(q?.yearGt2).toBe(2026);
+    });
+
+    it('monthly, renewalDay=15, includes=true, join Jun 1 (before renewal) → preorder query starts at May', async () => {
+      const q = await getPreorderQuery(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2026-06-01',
+      );
+      expect(q?.monthGte).toBe(5);
+      expect(q?.yearGt2).toBe(2026);
+    });
+
+    it('monthly, renewalDay=15, includes=true, join Jun 20 (after renewal) → preorder query starts at June', async () => {
+      const q = await getPreorderQuery(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2026-06-20',
+      );
+      expect(q?.monthGte).toBe(6);
+      expect(q?.yearGt2).toBe(2026);
+    });
+
+    it('monthly, renewalDay=15, includes=false, join Jun 1 (before renewal) → preorder query starts at June', async () => {
+      // !includes → first = currentBoxMonth+1 = May+1 = June
+      const q = await getPreorderQuery(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: false },
+        '2026-06-01',
+      );
+      expect(q?.monthGte).toBe(6);
+      expect(q?.yearGt2).toBe(2026);
+    });
+
+    it('monthly, renewalDay=15, includes=false, join Jun 20 (after renewal) → preorder query starts at July', async () => {
+      // joinDay=20 >= 15 → lastBillingMonth=June → currentBox=June → !includes → July
+      const q = await getPreorderQuery(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: false },
+        '2026-06-20',
+      );
+      expect(q?.monthGte).toBe(7);
+      expect(q?.yearGt2).toBe(2026);
+    });
+
+    it('with renewalMonthOffset=1, renewalDay=15, includes=true, join Jun 1 → preorder query starts at June (May billing + offset 1)', async () => {
+      // lastBillingMonth=May, currentBoxMonth=May+1=June
+      const q = await getPreorderQuery(
+        { renewalDay: 15, renewalMonthOffset: 1, signupIncludesCurrentMonth: true },
+        '2026-06-01',
+      );
+      expect(q?.monthGte).toBe(6);
+      expect(q?.yearGt2).toBe(2026);
+    });
+
+    it('monthly, renewalDay=1, includes=true, join Jun 1 (renewal already happened) → preorder query starts at June', async () => {
+      // joinDay=1 >= renewalDay=1 → renewal happened → lastBillingMonth=June → firstEligibleMonth=June
+      const q = await getPreorderQuery(
+        { renewalDay: 1, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2026-06-01',
+      );
+      expect(q?.monthGte).toBe(6);
+      expect(q?.yearGt2).toBe(2026);
+    });
+
+    it('join Jan 1, renewalDay=15, includes=true → lastBillingMonth=Dec → preorder query starts at December prev year', async () => {
+      // joinDay=1 < 15 → lastBillingMonth = Jan-1 = Dec 2025 → firstEligibleMonth=Dec 2025
+      const q = await getPreorderQuery(
+        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
+        '2026-01-01',
+      );
+      expect(q?.monthGte).toBe(12);
+      expect(q?.yearGt2).toBe(2025);  // year wraps back to 2025
+    });
+
+    it('preorder entry is created with ownershipStatus PREORDER not OWNED', async () => {
+      jest.clearAllMocks();
+      const sub = makeSub({ paymentOnStartup: true, signupIncludesCurrentMonth: true, renewalDay: 15, renewalMonthOffset: 0 });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionEntry.create as jest.Mock).mockResolvedValueOnce(
+        makeEntry({ startDate: '2026-06-01', renewalDay: null }),
+      );
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+
+      const mayMonth = { id: 'may-month', year: 2026, month: 5, signatureType: null, books: [{ editionId: 'ed-1', bookId: 'book-1', signatureType: null }] };
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue(mayMonth);
+      (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValue({ id: 'group-1' });
+      // findFirst for upsertSubscriptionBookEntry (checks if entry exists)
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'be-1' });
+      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValue({});
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ ownershipStatus: 'PREORDER' }),
+        }),
+      );
+    });
+  });
 });

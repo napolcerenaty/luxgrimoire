@@ -26,6 +26,8 @@
 
 import { SkipPolicyEngine } from './skip-policy.engine';
 import { PrismaService } from '../../prisma/prisma.service';
+import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
+import { BadRequestException } from '@nestjs/common';
 
 // ─── Fake time ────────────────────────────────────────────────────────────────
 
@@ -102,19 +104,17 @@ function makeBundleMonth(year: number, month: number, id?: string) {
 /**
  * Builds a Prisma mock for recordSkip on a bundle subscription.
  *
- * recordSkip call sequence:
+ * recordSkip call sequence (bundle path, via recordBundleSkip):
  *   1. subscription.findUnique             (loadContext)
  *   2. userSubscriptionSkipState.findUnique (loadContext)
- *   3. subscriptionMonth.findUnique        (find target month)
- *   4. subscriptionMonth.findUnique        (computeNewConsecutive: prev month)
- *   5. userSkipRecord.upsert              (create skip record)
- *   6. userSubscriptionSkipState.upsert   (update state)
- *   7. userSubscriptionEntry.update       (firstSkipDate)
- *   8. userSkipRecord.findMany            (fresh skip records)
- *   9. userSubscriptionEntry.findUnique   (refreshNextRenewalDate)
- *  10. userSubscriptionEntry.update       (persist nextRenewalDate)
- *
- * Note: computeNewConsecutive returns 1 when prev month record is null (step 4 → null).
+ *   3. subscriptionMonth.findMany          (find all real rows in the bundle's month range)
+ *   4. subscriptionMonth.findUnique        (computeNewConsecutive: prev month → null)
+ *   5. userSkipRecord.upsert (×N)          (one per row found in step 3)
+ *   6. userSubscriptionSkipState.upsert    (update state, +1 regardless of N)
+ *   7. userSubscriptionEntry.update        (firstSkipDate)
+ *   8. userSkipRecord.findMany             (fresh skip records)
+ *   9. userSubscriptionEntry.findUnique    (refreshNextRenewalDate)
+ *  10. userSubscriptionEntry.update        (persist nextRenewalDate)
  */
 function makePrismaForRecordSkip(opts: {
   subscription: ReturnType<typeof makeQuarterlyBundleSubscription>;
@@ -152,10 +152,6 @@ function makePrismaForRecordSkip(opts: {
     },
   };
 
-  const subscriptionMonthFindUnique = jest.fn()
-    .mockResolvedValueOnce(opts.targetSubMonth)  // step 3: target month
-    .mockResolvedValueOnce(null);                 // step 4: prev month → null → consecutive=1
-
   return {
     subscription: {
       findUnique: jest.fn().mockResolvedValue(sub),
@@ -165,8 +161,11 @@ function makePrismaForRecordSkip(opts: {
       upsert: jest.fn().mockResolvedValue(upsertedState),
     },
     subscriptionMonth: {
-      findUnique: subscriptionMonthFindUnique,
-      findMany: jest.fn().mockResolvedValue([]),
+      // recordBundleSkip resolves the bundle's calendar-month range via findMany (not findUnique) —
+      // this mock models a bundle with a single real SubscriptionMonth row (the target).
+      findMany: jest.fn().mockResolvedValue([opts.targetSubMonth]),
+      // Only used by computeNewConsecutive's prev-month lookup — no prior month record.
+      findUnique: jest.fn().mockResolvedValue(null),
       findFirst: jest.fn().mockResolvedValue(null),
     },
     userSkipRecord: {
@@ -212,6 +211,13 @@ function makePrismaForGetStatus(opts: {
     subscriptionMonth: {
       findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue(opts.upcomingBundleMonths),
+      // findBundleTargetMonth resolves each candidate bundle-start via findUnique.
+      findUnique: jest.fn().mockImplementation(({ where }: any) => {
+        const key = where.subscriptionId_year_month;
+        return Promise.resolve(
+          opts.upcomingBundleMonths.find((m) => m.year === key.year && m.month === key.month) ?? null,
+        );
+      }),
     },
   } as unknown as PrismaService;
 }
@@ -712,6 +718,249 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
       const firstSkipDateUpdates = updateCalls.filter((c) => c[0].data?.firstSkipDate !== undefined);
       // Should NOT update firstSkipDate a second time
       expect(firstSkipDateUpdates).toHaveLength(0);
+    });
+  });
+
+  // =========================================================================
+  // getStatus — first bundle can never be skipped
+  // =========================================================================
+
+  describe('getStatus — first deliverable bundle is never offered as a skip target', () => {
+    it('excludes the bundle containing the first deliverable month', async () => {
+      const sub = makeQuarterlyBundleSubscription();
+      const prisma = makePrismaForGetStatus({
+        subscription: sub,
+        state: null,
+        // Q2 (Apr/May/Jun) is the user's first bundle; Q3 (Jul) is the first skippable one.
+        upcomingBundleMonths: [makeBundleMonth(2025, 4), makeBundleMonth(2025, 7), makeBundleMonth(2025, 10)],
+      });
+      // getFirstDeliverableMonthInfo → subscriptionMonth.findFirst → April is the first month
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({
+        id: 'sm-2025-4', seriesId: null, year: 2025, month: 4,
+      });
+      const engine = new SkipPolicyEngine(prisma);
+      const status = await engine.getStatus('user-1', 'test-bundle-sub');
+
+      // April (Q2, the first bundle) must be skipped over — target should resolve to July (Q3) instead.
+      expect(status.canSkip).toBe(true);
+      const findUniqueMock = prisma.subscriptionMonth.findUnique as jest.Mock;
+      const queriedMonths = findUniqueMock.mock.calls.map((c) => c[0].where.subscriptionId_year_month);
+      // April must never be queried as a candidate — it's excluded before any DB lookup.
+      expect(queriedMonths.some((m: any) => m.month === 4)).toBe(false);
+    });
+  });
+
+  // =========================================================================
+  // undoSkip — undoing any month in a bundle undoes the WHOLE bundle,
+  // and the skip quota is recomputed per-bundle (not per-month).
+  // =========================================================================
+
+  describe('undoSkip — undoes the whole bundle as one unit', () => {
+    let engine: SkipPolicyEngine;
+    let prisma: DeepMockProxy<PrismaService>;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(FIXED_NOW);
+      prisma = mockDeep<PrismaService>();
+      engine = new SkipPolicyEngine(prisma);
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    /** A still-active (undoneAt: null) skip record, shaped for both recomputeState and undoBundleSkip. */
+    function activeRecord(year: number, month: number) {
+      return {
+        id: `skip-${year}-${month}`,
+        userEntryId: 'entry-1',
+        subscriptionMonthId: `sm-${year}-${month}`,
+        month: { year, month },
+        series: null,
+        seriesId: null,
+        windowKey: null,
+        skippedAt: new Date('2025-01-01'),
+        undoneAt: null,
+      };
+    }
+
+    /** Wires up the common mocks shared by every undoSkip bundle test. */
+    function setupBase(opts: {
+      sub: ReturnType<typeof makeQuarterlyBundleSubscription>;
+      /** Real SubscriptionMonth rows found for the bundle range being undone. */
+      bundleRows: ReturnType<typeof makeBundleMonth>[];
+      /** How many of those rows actually had an active skip record (updateMany's affected count). */
+      undoneCount: number;
+      /** Records still active (undoneAt: null) AFTER the undo — used by recomputeState's recount. */
+      remainingActiveRecords: ReturnType<typeof activeRecord>[];
+      prepaidMonths?: number;
+    }) {
+      prisma.subscription.findUnique.mockResolvedValue(opts.sub as any);
+      prisma.userSubscriptionSkipState.findUnique.mockResolvedValue(null as any);
+      prisma.subscriptionMonth.findMany.mockResolvedValue(opts.bundleRows as any);
+      prisma.userSkipRecord.updateMany.mockResolvedValue({ count: opts.undoneCount } as any);
+      prisma.userSkipRecord.findMany.mockResolvedValue(opts.remainingActiveRecords as any);
+      prisma.userSubscriptionEntry.findFirst.mockResolvedValue({ id: 'entry-1' } as any);
+      prisma.userSubscriptionSkipState.upsert.mockImplementation(
+        (({ create, update }: any) => Promise.resolve({ ...create, ...update })) as any,
+      );
+      prisma.userSubscriptionEntry.findUnique.mockResolvedValue({
+        id: 'entry-1',
+        active: true,
+        startDate: opts.sub.userEntries[0].startDate,
+        renewalDay: opts.sub.userEntries[0].renewalDay,
+        nextRenewalDate: null,
+        skipRecords: opts.remainingActiveRecords,
+        subscription: {
+          id: opts.sub.id,
+          renewalDay: opts.sub.renewalDay,
+          intervalMonths: opts.sub.intervalMonths,
+          startingMonth: opts.sub.startingMonth,
+          paymentOnStartup: opts.sub.paymentOnStartup,
+          renewalMonthOffset: opts.sub.renewalMonthOffset,
+          signupIncludesCurrentMonth: opts.sub.signupIncludesCurrentMonth,
+        },
+      } as any);
+      prisma.userSubscriptionEntry.update.mockResolvedValue({} as any);
+      if (opts.prepaidMonths && opts.prepaidMonths > 1) {
+        opts.sub.userEntries[0].prepaidMonths = opts.prepaidMonths;
+        prisma.userSubBillingPeriod.findFirst.mockResolvedValue({
+          id: 'bp-1', coveredToMonth: 8, coveredToYear: 2025,
+        } as any);
+        prisma.userSubBillingPeriod.update.mockResolvedValue({} as any);
+      }
+    }
+
+    it('undoing via a non-start month (May) still resolves and clears the whole Q2 bundle (Apr/May/Jun)', async () => {
+      const sub = makeQuarterlyBundleSubscription({
+        policy: makePolicy('UNLIMITED', { allowUnskip: true }),
+        skipRecords: [
+          { id: 's1', month: { year: 2025, month: 4 }, series: null },
+          { id: 's2', month: { year: 2025, month: 5 }, series: null },
+          { id: 's3', month: { year: 2025, month: 6 }, series: null },
+        ],
+      });
+      setupBase({
+        sub,
+        bundleRows: [makeBundleMonth(2025, 4), makeBundleMonth(2025, 5), makeBundleMonth(2025, 6)],
+        undoneCount: 3,
+        remainingActiveRecords: [], // nothing left after undoing the only skipped bundle
+      });
+
+      await engine.undoSkip('user-1', 'test-bundle-sub', 2025, 5);
+
+      // updateMany targets all 3 months of the bundle, not just May.
+      expect(prisma.userSkipRecord.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            subscriptionMonthId: { in: ['sm-2025-4', 'sm-2025-5', 'sm-2025-6'] },
+          }),
+        }),
+      );
+      // recomputeState sees zero active records → quota resets to 0.
+      const stateUpsertArg = (prisma.userSubscriptionSkipState.upsert as jest.Mock).mock.calls[0][0];
+      expect(stateUpsertArg.update.skipsInWindow).toBe(0);
+      expect(stateUpsertArg.update.totalSkips).toBe(0);
+    });
+
+    it('undoing one of two skipped bundles leaves the other bundle counted as exactly 1 skip (not 3)', async () => {
+      const sub = makeQuarterlyBundleSubscription({
+        policy: makePolicy('UNLIMITED', { allowUnskip: true }),
+        skipRecords: [
+          { id: 's1', month: { year: 2025, month: 4 }, series: null },
+          { id: 's2', month: { year: 2025, month: 5 }, series: null },
+          { id: 's3', month: { year: 2025, month: 6 }, series: null },
+          { id: 's4', month: { year: 2025, month: 7 }, series: null },
+          { id: 's5', month: { year: 2025, month: 8 }, series: null },
+          { id: 's6', month: { year: 2025, month: 9 }, series: null },
+        ],
+      });
+      setupBase({
+        sub,
+        // Undoing Q2 (2025, 4) → bundle range query resolves to Apr/May/Jun only.
+        bundleRows: [makeBundleMonth(2025, 4), makeBundleMonth(2025, 5), makeBundleMonth(2025, 6)],
+        undoneCount: 3,
+        // Q3 (Jul/Aug/Sep) is still fully skipped after undoing Q2.
+        remainingActiveRecords: [
+          activeRecord(2025, 7), activeRecord(2025, 8), activeRecord(2025, 9),
+        ],
+      });
+
+      await engine.undoSkip('user-1', 'test-bundle-sub', 2025, 4);
+
+      // Only Q2's 3 months are targeted by the undo.
+      expect(prisma.userSkipRecord.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            subscriptionMonthId: { in: ['sm-2025-4', 'sm-2025-5', 'sm-2025-6'] },
+          }),
+        }),
+      );
+      // recomputeState must group Q3's 3 remaining records into ONE logical skip, not 3.
+      const stateUpsertArg = (prisma.userSubscriptionSkipState.upsert as jest.Mock).mock.calls[0][0];
+      expect(stateUpsertArg.update.skipsInWindow).toBe(1);
+      expect(stateUpsertArg.update.totalSkips).toBe(1);
+    });
+
+    it('self-heals a partial bundle skip: undo succeeds even when only 1 of 3 months had a skip record', async () => {
+      // Simulates the pre-fix bug state: only April was ever skipped (May/June were never
+      // touched because the old UI let users skip individual months). All 3 real
+      // SubscriptionMonth rows exist, but updateMany only finds 1 matching skip record.
+      const sub = makeQuarterlyBundleSubscription({
+        policy: makePolicy('UNLIMITED', { allowUnskip: true }),
+        skipRecords: [{ id: 's1', month: { year: 2025, month: 4 }, series: null }],
+      });
+      setupBase({
+        sub,
+        bundleRows: [makeBundleMonth(2025, 4), makeBundleMonth(2025, 5), makeBundleMonth(2025, 6)],
+        undoneCount: 1, // only April actually had a record to undo
+        remainingActiveRecords: [],
+      });
+
+      await expect(engine.undoSkip('user-1', 'test-bundle-sub', 2025, 4)).resolves.not.toThrow();
+
+      const stateUpsertArg = (prisma.userSubscriptionSkipState.upsert as jest.Mock).mock.calls[0][0];
+      expect(stateUpsertArg.update.skipsInWindow).toBe(0);
+      expect(stateUpsertArg.update.totalSkips).toBe(0);
+    });
+
+    it('throws BadRequestException when the bundle has no active skip at all', async () => {
+      const sub = makeQuarterlyBundleSubscription({
+        policy: makePolicy('UNLIMITED', { allowUnskip: true }),
+      });
+      setupBase({
+        sub,
+        bundleRows: [makeBundleMonth(2025, 4), makeBundleMonth(2025, 5), makeBundleMonth(2025, 6)],
+        undoneCount: 0,
+        remainingActiveRecords: [],
+      });
+
+      await expect(engine.undoSkip('user-1', 'test-bundle-sub', 2025, 4)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('prepaid bundle: undo retracts the billing period by 1 month (symmetric with recordSkip)', async () => {
+      const sub = makeQuarterlyBundleSubscription({
+        policy: makePolicy('UNLIMITED', { allowUnskip: true }),
+        skipRecords: [
+          { id: 's1', month: { year: 2025, month: 4 }, series: null },
+          { id: 's2', month: { year: 2025, month: 5 }, series: null },
+          { id: 's3', month: { year: 2025, month: 6 }, series: null },
+        ],
+      });
+      setupBase({
+        sub,
+        bundleRows: [makeBundleMonth(2025, 4), makeBundleMonth(2025, 5), makeBundleMonth(2025, 6)],
+        undoneCount: 3,
+        remainingActiveRecords: [],
+        prepaidMonths: 3,
+      });
+
+      await engine.undoSkip('user-1', 'test-bundle-sub', 2025, 4);
+
+      // coveredTo Aug 2025 (−1 month) → Jul 2025 — NOT −3 months.
+      expect(prisma.userSubBillingPeriod.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { coveredToMonth: 7, coveredToYear: 2025 } }),
+      );
     });
   });
 });

@@ -17,12 +17,261 @@ function shiftMonth(year: number, month: number, offset: number): [number, numbe
   return [y, m];
 }
 
+function getRenewalAlignmentBaseMonth(startingMonth: number, renewalMonthOffset: number): number {
+  const adjustedStartingMonth = startingMonth - Math.min(renewalMonthOffset, 0);
+  return ((adjustedStartingMonth - 1 + 1200) % 12) + 1;
+}
+
 /**
  * Converts a box month to its corresponding renewal month.
  * renewal month = box month - offset  (e.g. May box, offset=1 → April renewal)
  */
 export function renewalMonthFromBoxMonth(year: number, month: number, offset: number): [number, number] {
   return shiftMonth(year, month, -offset);
+}
+
+/**
+ * Returns the start {year, month} of the bundle period (box months) that contains the given
+ * (year, month). Bundle cycles begin at `startingMonth` and repeat every `intervalMonths` months.
+ * Mirrors apps/web/src/lib/bundleHelpers.ts#getBundleStart — keep in sync.
+ */
+export function getBundleBoxStart(
+  year: number,
+  month: number,
+  startingMonth: number,
+  intervalMonths: number,
+): { year: number; month: number } {
+  const absMonth = year * 12 + (month - 1);
+  const absStart = 2000 * 12 + (startingMonth - 1);
+  const intervals = Math.floor((absMonth - absStart) / intervalMonths);
+  const bundleAbsStart = absStart + intervals * intervalMonths;
+  return {
+    year: Math.floor(bundleAbsStart / 12),
+    month: (bundleAbsStart % 12) + 1,
+  };
+}
+
+/**
+ * Returns the `intervalMonths` consecutive calendar (year, month) slots that make up a bundle
+ * period, starting at `start`.
+ */
+export function enumerateBundleMonths(
+  start: { year: number; month: number },
+  intervalMonths: number,
+): { year: number; month: number }[] {
+  const months: { year: number; month: number }[] = [];
+  let y = start.year;
+  let m = start.month;
+  for (let i = 0; i < intervalMonths; i++) {
+    months.push({ year: y, month: m });
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return months;
+}
+
+/**
+ * Advances (year, month) forward by `n` months.
+ */
+export function addMonths(year: number, month: number, n: number): { year: number; month: number } {
+  let y = year;
+  let m = month + n;
+  while (m > 12) { m -= 12; y++; }
+  while (m < 1) { m += 12; y--; }
+  return { year: y, month: m };
+}
+
+/**
+ * For bundle subscriptions: finds the renewal month for the most recently FIRED quarterly (or
+ * N-monthly) renewal as of refDate. "Fired" = refDay >= renewalDay in or before the renewal month.
+ *
+ * Algorithm:
+ * - Base renewal month stays on startingMonth for non-negative offsets and shifts forward for
+ *   negative offsets, e.g. startingMonth=1, offset=-2 → base=3 (March)
+ * - Find k such that baseAbs + k*interval is the most recent aligned month
+ * - If that month has fired (is in the past or is current with refDay >= renewalDay) → return it
+ * - Otherwise → go back one interval
+ */
+function findMostRecentFiredRenewalMonth(
+  refDate: Date,
+  renewalDay: number,
+  renewalMonthOffset: number,
+  startingMonth: number,
+  intervalMonths: number,
+): { year: number; month: number } {
+  const baseMonth0 = getRenewalAlignmentBaseMonth(startingMonth, renewalMonthOffset) - 1;
+  const baseAbs = 2000 * 12 + baseMonth0;
+  const refAbs0 = refDate.getFullYear() * 12 + refDate.getMonth();
+
+  const k = Math.floor((refAbs0 - baseAbs) / intervalMonths);
+  let candidateAbs0 = baseAbs + k * intervalMonths;
+  let cYear = Math.floor(candidateAbs0 / 12);
+  let cMonth = (candidateAbs0 % 12) + 1;
+
+  const refYear = refDate.getFullYear();
+  const refMonth = refDate.getMonth() + 1;
+  const refDay = refDate.getDate();
+
+  const hasFired =
+    cYear < refYear ||
+    (cYear === refYear && cMonth < refMonth) ||
+    (cYear === refYear && cMonth === refMonth && refDay >= renewalDay);
+
+  if (!hasFired) {
+    candidateAbs0 -= intervalMonths;
+    cYear = Math.floor(candidateAbs0 / 12);
+    cMonth = (candidateAbs0 % 12) + 1;
+  }
+
+  return { year: cYear, month: cMonth };
+}
+
+/**
+ * For bundle subscriptions: finds the renewal month for the CURRENT bundle cycle.
+ * "Current" means the renewal that defines the bundle the user is currently in or joining.
+ * "Expired" = the renewal has passed AND refDay > renewalDay (strictly past) — if refDay === renewalDay,
+ * the renewal fires today and we stay in the current cycle.
+ *
+ * Used by computeFirstEligibleBoxMonth for bundle subscriptions.
+ */
+function findCurrentBundleRenewal(
+  refDate: Date,
+  renewalDay: number,
+  renewalMonthOffset: number,
+  startingMonth: number,
+  intervalMonths: number,
+): { year: number; month: number } {
+  const baseMonth0 = getRenewalAlignmentBaseMonth(startingMonth, renewalMonthOffset) - 1;
+  const baseAbs = 2000 * 12 + baseMonth0;
+  const refAbs0 = refDate.getFullYear() * 12 + refDate.getMonth();
+
+  const k = Math.floor((refAbs0 - baseAbs) / intervalMonths);
+  let candidateAbs0 = baseAbs + k * intervalMonths;
+  let cYear = Math.floor(candidateAbs0 / 12);
+  let cMonth = (candidateAbs0 % 12) + 1;
+
+  const refYear = refDate.getFullYear();
+  const refMonth = refDate.getMonth() + 1;
+  const refDay = refDate.getDate();
+
+  const isExpired =
+    cYear < refYear ||
+    (cYear === refYear && cMonth < refMonth) ||
+    (cYear === refYear && cMonth === refMonth && refDay > renewalDay);
+
+  if (isExpired) {
+    candidateAbs0 += intervalMonths;
+    cYear = Math.floor(candidateAbs0 / 12);
+    cMonth = (candidateAbs0 % 12) + 1;
+  }
+
+  return { year: cYear, month: cMonth };
+}
+
+/**
+ * Compute the first eligible box month for a subscriber.
+ * For monthly subscriptions (intervalMonths=1): uses the simple joinDay >= renewalDay heuristic.
+ * For bundle subscriptions (intervalMonths>1): uses findCurrentBundleRenewal to correctly
+ * identify the current bundle and apply offset.
+ *
+ *   signupIncludesCurrentMonth=true  → firstBox = current bundle start
+ *   signupIncludesCurrentMonth=false → firstBox = next bundle start (current + intervalMonths)
+ */
+export function computeFirstEligibleBoxMonth(
+  joinDate: Date,
+  renewalDay: number,
+  renewalMonthOffset: number,
+  signupIncludesCurrentMonth: boolean,
+  intervalMonths = 1,
+  startingMonth = 1,
+): { year: number; month: number } {
+  if (intervalMonths > 1) {
+    const { year: rYear, month: rMonth } = findCurrentBundleRenewal(
+      joinDate, renewalDay, renewalMonthOffset, startingMonth, intervalMonths,
+    );
+    let boxMonth = rMonth + renewalMonthOffset;
+    let boxYear = rYear;
+    while (boxMonth > 12) { boxMonth -= 12; boxYear++; }
+    while (boxMonth < 1)  { boxMonth += 12; boxYear--; }
+
+    if (!signupIncludesCurrentMonth) {
+      boxMonth += intervalMonths;
+      while (boxMonth > 12) { boxMonth -= 12; boxYear++; }
+    }
+    return { year: boxYear, month: boxMonth };
+  }
+
+  const joinDay = joinDate.getDate();
+  const renewalAlreadyHappened = joinDay >= renewalDay;
+
+  let lastBillingMonth = joinDate.getMonth() + 1;
+  let lastBillingYear = joinDate.getFullYear();
+  if (!renewalAlreadyHappened) {
+    lastBillingMonth -= 1;
+    if (lastBillingMonth === 0) { lastBillingMonth = 12; lastBillingYear -= 1; }
+  }
+
+  let boxMonth = lastBillingMonth + renewalMonthOffset;
+  let boxYear = lastBillingYear;
+  while (boxMonth > 12) { boxMonth -= 12; boxYear += 1; }
+  while (boxMonth < 1)  { boxMonth += 12; boxYear -= 1; }
+
+  if (!signupIncludesCurrentMonth) {
+    boxMonth += 1;
+    if (boxMonth > 12) { boxMonth = 1; boxYear += 1; }
+  }
+
+  return { year: boxYear, month: boxMonth };
+}
+
+/**
+ * Compute the last box month whose renewal has already processed as of the reference date.
+ * For monthly subscriptions: uses the simple refDay >= renewalDay heuristic.
+ * For bundle subscriptions (intervalMonths>1): uses findMostRecentFiredRenewalMonth to correctly
+ * identify the last fired quarterly (or N-monthly) renewal and returns the bundle END month.
+ *
+ *   refDay >= renewalDay → renewal has happened → lastBilledMonth = refMonth (for monthly)
+ *   refDay <  renewalDay → renewal hasn't fired  → lastBilledMonth = refMonth - 1 (for monthly)
+ *   For bundles: returns the END month of the last fired bundle (bundleStart + intervalMonths - 1)
+ */
+export function computeLastProcessedBoxMonth(
+  referenceDate: Date,
+  renewalDay: number,
+  renewalMonthOffset: number,
+  intervalMonths = 1,
+  startingMonth = 1,
+): { year: number; month: number } {
+  if (intervalMonths > 1) {
+    const { year: rYear, month: rMonth } = findMostRecentFiredRenewalMonth(
+      referenceDate, renewalDay, renewalMonthOffset, startingMonth, intervalMonths,
+    );
+    let boxStart = rMonth + renewalMonthOffset;
+    let boxStartYear = rYear;
+    while (boxStart > 12) { boxStart -= 12; boxStartYear++; }
+    while (boxStart < 1)  { boxStart += 12; boxStartYear--; }
+
+    let boxEnd = boxStart + intervalMonths - 1;
+    let boxEndYear = boxStartYear;
+    while (boxEnd > 12) { boxEnd -= 12; boxEndYear++; }
+    return { year: boxEndYear, month: boxEnd };
+  }
+
+  const refDay = referenceDate.getDate();
+  const renewalHappened = refDay >= renewalDay;
+
+  let lastBilledMonth = referenceDate.getMonth() + 1;
+  let lastBilledYear = referenceDate.getFullYear();
+  if (!renewalHappened) {
+    lastBilledMonth -= 1;
+    if (lastBilledMonth === 0) { lastBilledMonth = 12; lastBilledYear -= 1; }
+  }
+
+  let boxMonth = lastBilledMonth + renewalMonthOffset;
+  let boxYear = lastBilledYear;
+  while (boxMonth > 12) { boxMonth -= 12; boxYear += 1; }
+  while (boxMonth < 1)  { boxMonth += 12; boxYear -= 1; }
+
+  return { year: boxYear, month: boxMonth };
 }
 
 /**
@@ -40,6 +289,7 @@ export function computePastRenewalDates(
   startingMonth: number | null,
   startDate: Date,
   skippedMonths: { year: number; month: number }[],
+  renewalMonthOffset: number = 0,
   renewalDayFn?: (year: number, month: number) => number,
 ): Date[] {
   const interval = intervalMonths;
@@ -50,10 +300,12 @@ export function computePastRenewalDates(
   let month = startDate.getUTCMonth() + 1;
 
   for (let i = 0; i < 120; i++) {
-    // For multi-month intervals, skip months that don't align
+    // For multi-month intervals, skip months that don't align to renewal months.
+    // Negative renewalMonthOffset values shift the alignment base forward into renewal-month space.
     if (interval > 1 && startingMonth != null) {
-      const offset = ((month - startingMonth) % 12 + 12) % 12;
-      if (offset % interval !== 0) {
+      const alignBase = getRenewalAlignmentBaseMonth(startingMonth, renewalMonthOffset);
+      const monthDiff = ((month - alignBase) % 12 + 12) % 12;
+      if (monthDiff % interval !== 0) {
         [year, month] = incrementMonth(year, month);
         continue;
       }
@@ -97,6 +349,12 @@ export function computeNextRenewalDate(
    * a 4-month cycle) should not be returned as the next renewal.
    */
   subscriptionEarliestDate: Date | null = null,
+  /**
+   * Offset from renewal month to box/content month. For example, renewalMonthOffset=-2
+   * means the renewal in March covers the January–March bundle (1 - (-2) = March for renewal).
+   * This shifts the alignment base so renewal months land on correct quarterly dates.
+   */
+  renewalMonthOffset: number = 0,
 ): Date | null {
   const interval = intervalMonths;
   const now = new Date();
@@ -111,8 +369,11 @@ export function computeNextRenewalDate(
 
   for (let i = 0; i < 24; i++) {
     if (interval > 1 && startingMonth != null) {
-      const offset = ((candMonth - startingMonth) % 12 + 12) % 12;
-      if (offset % interval !== 0) {
+      // Negative renewalMonthOffset values shift the alignment base forward.
+      // e.g. startingMonth=1 (Jan content), offset=-2 → alignBase=3 (March renewals)
+      const alignBase = getRenewalAlignmentBaseMonth(startingMonth, renewalMonthOffset);
+      const monthDiff = ((candMonth - alignBase) % 12 + 12) % 12;
+      if (monthDiff % interval !== 0) {
         [candYear, candMonth] = incrementMonth(candYear, candMonth);
         continue;
       }
@@ -318,6 +579,7 @@ export async function refreshNextRenewalDate(
     [],
     null,
     buildSubscriptionEarliestDate(fallbackSettings.renewalMonthOffset),
+    fallbackSettings.renewalMonthOffset,
   );
   const targetYear = roughCandidate?.getUTCFullYear() ?? now.getUTCFullYear();
   const targetMonth = roughCandidate ? roughCandidate.getUTCMonth() + 1 : now.getUTCMonth() + 1;
@@ -341,17 +603,14 @@ export async function refreshNextRenewalDate(
   let paidUpFrontDate: Date | null = null;
   if (effectiveSettings.paymentOnStartup && entry.startDate) {
     const joinDate = new Date(entry.startDate);
-    const joinDay = joinDate.getUTCDate();
-    const joinYear = joinDate.getUTCFullYear();
-    const joinMonth = joinDate.getUTCMonth() + 1;
-    // If signupIncludesCurrentMonth: the signup month itself is always the first paid month,
-    // regardless of whether the renewalDay has already passed.
-    const renewalPassedThisMonth = !effectiveSettings.signupIncludesCurrentMonth && renewalDay < joinDay;
-    let firstEligibleYear = joinYear;
-    let firstEligibleMonth = joinMonth;
-    if (renewalPassedThisMonth) {
-      [firstEligibleYear, firstEligibleMonth] = incrementMonth(firstEligibleYear, firstEligibleMonth);
-    }
+    const { year: firstEligibleYear, month: firstEligibleMonth } = computeFirstEligibleBoxMonth(
+      joinDate,
+      renewalDay,
+      offset,
+      effectiveSettings.signupIncludesCurrentMonth,
+      sub.intervalMonths ?? 1,
+      sub.startingMonth ?? 1,
+    );
     const firstSubMonth = await prisma.subscriptionMonth.findFirst({
       where: {
         subscriptionId: sub.id,
@@ -395,6 +654,7 @@ export async function refreshNextRenewalDate(
       skippedMonths,
       paidUpFrontDate,
       buildSubscriptionEarliestDate(offset),
+      offset,
     );
   }
 
@@ -496,6 +756,7 @@ export async function backfillRenewalHistory(
     sub.startingMonth ?? null,
     startDate,
     skippedMonths,
+    fallback.renewalMonthOffset,
     renewalDayFn,
   );
 

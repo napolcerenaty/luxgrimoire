@@ -34,7 +34,7 @@ import {
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
-import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, getBundleBoxStart, enumerateBundleMonths } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
@@ -1239,8 +1239,24 @@ export class SubscriptionsService {
   async getNextBoxPreview(userId: string, slug: string, year: number, month: number) {
     const sub = await this.findBySlug(slug);
     const subId = (sub as any).parentSubscriptionId ?? sub.id;
-    const boxMonth = await this.prisma.subscriptionMonth.findUnique({
-      where: { subscriptionId_year_month: { subscriptionId: subId, year, month } },
+    const intervalMonths: number = (sub as any).intervalMonths ?? 1;
+    const startingMonth: number = (sub as any).startingMonth ?? 1;
+    const isBundleSubscription = ((sub as any).isBundleSubscription ?? false) && intervalMonths > 1;
+
+    // For bundle subscriptions ALL months in the bundle ship together as one box —
+    // preview must show every covered month's books, not just the one requested.
+    const bundleStart = isBundleSubscription
+      ? getBundleBoxStart(year, month, startingMonth, intervalMonths)
+      : { year, month };
+    const bundleMonths = isBundleSubscription
+      ? enumerateBundleMonths(bundleStart, intervalMonths)
+      : [bundleStart];
+
+    const monthRecords = await this.prisma.subscriptionMonth.findMany({
+      where: {
+        subscriptionId: subId,
+        OR: bundleMonths.map((m) => ({ year: m.year, month: m.month })),
+      },
       select: {
         year: true,
         month: true,
@@ -1262,19 +1278,26 @@ export class SubscriptionsService {
           orderBy: [{ isMainBook: 'desc' }, { sortOrder: 'asc' }],
         },
       },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
     });
-    if (!boxMonth) return null;
+    if (monthRecords.length === 0) return null;
+
+    const bundleEnd = bundleMonths[bundleMonths.length - 1];
     return {
-      year: boxMonth.year,
-      month: boxMonth.month,
-      theme: boxMonth.theme,
-      isSpoiler: boxMonth.isSpoiler,
-      books: boxMonth.books.map((b) => ({
+      year: bundleStart.year,
+      month: bundleStart.month,
+      endYear: bundleEnd.year,
+      endMonth: bundleEnd.month,
+      isBundleSubscription,
+      intervalMonths,
+      theme: monthRecords[0].theme,
+      isSpoiler: monthRecords.some((m) => m.isSpoiler),
+      books: monthRecords.flatMap((m) => m.books.map((b) => ({
         title: b.book.title,
         authors: b.book.authors.map((a) => a.author.name).join(', '),
         coverImage: b.edition?.additionalImages?.[0] ?? null,
         isMainBook: b.isMainBook,
-      })),
+      }))),
     };
   }
 
@@ -1341,6 +1364,7 @@ export class SubscriptionsService {
             isDiscontinued: true,
             paymentOnStartup: true,
             renewalDay: true,
+            isBundleSubscription: true,
             intervalMonths: true,
             startingMonth: true,
             renewalMonthOffset: true,
@@ -1365,7 +1389,7 @@ export class SubscriptionsService {
         },
       },
     });
-
+
     return Promise.all(entries.map(async (entry) => {
       const { priceChanges: subPriceChanges, ...subRest } = entry.subscription as any;
       const sub = {
@@ -2156,8 +2180,8 @@ export class SubscriptionsService {
       }
       const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
       const eligibleMonths = isCombo
-        ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay)
-        : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay);
+        ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1)
+        : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1);
       const mockEntry = {
         id: '__preview__',
         startDate: startDateStr,
@@ -2246,14 +2270,14 @@ export class SubscriptionsService {
     const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
 
     const eligibleMonths = isCombo
-      ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay)
-      : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay);
+      ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1)
+      : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1);
 
     // If paymentOnStartup and NOT already cancelled: register the first upcoming month's books as preorders
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
     if (paymentOnStartup && startDateObj && !isCombo && !dto.alreadyCancelled) {
-      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth);
+      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth, renewalDay, renewalMonthOffset, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1);
     }
 
     // Persist nextRenewalDate (will be null for cancelled entries)
@@ -2270,88 +2294,19 @@ export class SubscriptionsService {
     return { entry, eligibleMonths };
   }
 
-  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null) {
+  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null, intervalMonths = 1, startingMonth = 1) {
     if (!startDateObj) return [];
 
     const now = new Date();
-    // Use endDate if provided (cancelled subscription), otherwise current month.
-    // Apply the same renewal-cycle logic to the upper bound:
-    //   If cancelDay >= renewalDay → the last renewal already happened → lastBilledMonth = cancelMonth
-    //   If cancelDay <  renewalDay → renewal hasn't happened yet       → lastBilledMonth = cancelMonth - 1
-    //   lastBoxMonth = lastBilledMonth + renewalMonthOffset
-    // For "now" (no cancellation), use the current month directly as the upper bound.
-    let limitYear: number;
-    let limitMonth: number;
-    if (endDateObj) {
-      const cancelDay = endDateObj.getDate();
-      const effectiveRenewalDayForLimit = renewalDay ?? 1;
-      const lastRenewalHappened = cancelDay >= effectiveRenewalDayForLimit;
-      let lastBilledLimitMonth = endDateObj.getMonth() + 1;
-      let lastBilledLimitYear = endDateObj.getFullYear();
-      if (!lastRenewalHappened) {
-        lastBilledLimitMonth -= 1;
-        if (lastBilledLimitMonth === 0) { lastBilledLimitMonth = 12; lastBilledLimitYear -= 1; }
-      }
-      let lastBoxLimitMonth = lastBilledLimitMonth + renewalMonthOffset;
-      let lastBoxLimitYear = lastBilledLimitYear;
-      while (lastBoxLimitMonth > 12) { lastBoxLimitMonth -= 12; lastBoxLimitYear += 1; }
-      while (lastBoxLimitMonth < 1)  { lastBoxLimitMonth += 12; lastBoxLimitYear -= 1; }
-      limitYear = lastBoxLimitYear;
-      limitMonth = lastBoxLimitMonth;
-    } else {
-      // Apply the same renewal-day check for "now" — if today is before the renewal day,
-      // the current month's renewal hasn't happened yet so it shouldn't be included.
-      const nowDay = now.getDate();
-      const effectiveRenewalDayForLimit = renewalDay ?? 1;
-      const currentRenewalHappened = nowDay >= effectiveRenewalDayForLimit;
-      let lastBilledNowMonth = now.getMonth() + 1;
-      let lastBilledNowYear = now.getFullYear();
-      if (!currentRenewalHappened) {
-        lastBilledNowMonth -= 1;
-        if (lastBilledNowMonth === 0) { lastBilledNowMonth = 12; lastBilledNowYear -= 1; }
-      }
-      let lastBoxNowMonth = lastBilledNowMonth + renewalMonthOffset;
-      let lastBoxNowYear = lastBilledNowYear;
-      while (lastBoxNowMonth > 12) { lastBoxNowMonth -= 12; lastBoxNowYear += 1; }
-      while (lastBoxNowMonth < 1)  { lastBoxNowMonth += 12; lastBoxNowYear -= 1; }
-      limitYear = lastBoxNowYear;
-      limitMonth = lastBoxNowMonth;
-    }
-
-    // Determine the first eligible box month based on renewal cycle position.
-    //
-    // "Current month" = the month the LAST renewal was for.
-    // "Next month"    = the month the NEXT renewal is for.
-    //
-    // Logic:
-    //   If joinDay >= renewalDay → renewal already happened this month (lastBillingMonth = joinMonth)
-    //   If joinDay <  renewalDay → renewal hasn't happened yet    (lastBillingMonth = joinMonth - 1)
-    //   currentBoxMonth = lastBillingMonth + renewalMonthOffset
-    //
-    // signupIncludesCurrentMonth=true  → first box = currentBoxMonth
-    // signupIncludesCurrentMonth=false → first box = currentBoxMonth + 1
-    const joinDay = startDateObj.getDate();
     const effectiveRenewalDay = renewalDay ?? 1;
-    const renewalAlreadyHappened = joinDay >= effectiveRenewalDay;
 
-    let lastBillingMonth = startDateObj.getMonth() + 1; // 1-indexed
-    let lastBillingYear = startDateObj.getFullYear();
-    if (!renewalAlreadyHappened) {
-      lastBillingMonth -= 1;
-      if (lastBillingMonth === 0) { lastBillingMonth = 12; lastBillingYear -= 1; }
-    }
+    const { year: limitYear, month: limitMonth } = endDateObj
+      ? computeLastProcessedBoxMonth(endDateObj, effectiveRenewalDay, renewalMonthOffset, intervalMonths, startingMonth)
+      : computeLastProcessedBoxMonth(now, effectiveRenewalDay, renewalMonthOffset, intervalMonths, startingMonth);
 
-    let currentBoxMonth = lastBillingMonth + renewalMonthOffset;
-    let currentBoxYear = lastBillingYear;
-    while (currentBoxMonth > 12) { currentBoxMonth -= 12; currentBoxYear += 1; }
-    while (currentBoxMonth < 1)  { currentBoxMonth += 12; currentBoxYear -= 1; }
-
-    let startMonth = currentBoxMonth;
-    let startYear = currentBoxYear;
-    if (!signupIncludesCurrentMonth) {
-      startMonth += 1;
-      if (startMonth > 12) { startMonth = 1; startYear += 1; }
-    }
+    const { year: startYear, month: startMonth } = computeFirstEligibleBoxMonth(
+      startDateObj, effectiveRenewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth,
+    );
 
     // If startDate is at or after limit month → nothing to backfill
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
@@ -2415,70 +2370,19 @@ export class SubscriptionsService {
     return subs.map((s) => s.parentSubscriptionId ?? s.id);
   }
 
-  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null) {
+  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null, intervalMonths = 1, startingMonth = 1) {
     if (!startDateObj || componentIds.length === 0) return [];
 
     const now = new Date();
-    // Same upper-bound offset logic as getEligibleMonths.
-    let limitYear: number;
-    let limitMonth: number;
-    if (endDateObj) {
-      const cancelDay = endDateObj.getDate();
-      const effectiveRenewalDayForLimit = renewalDay ?? 1;
-      const lastRenewalHappened = cancelDay >= effectiveRenewalDayForLimit;
-      let lastBilledLimitMonth = endDateObj.getMonth() + 1;
-      let lastBilledLimitYear = endDateObj.getFullYear();
-      if (!lastRenewalHappened) {
-        lastBilledLimitMonth -= 1;
-        if (lastBilledLimitMonth === 0) { lastBilledLimitMonth = 12; lastBilledLimitYear -= 1; }
-      }
-      let lastBoxLimitMonth = lastBilledLimitMonth + renewalMonthOffset;
-      let lastBoxLimitYear = lastBilledLimitYear;
-      while (lastBoxLimitMonth > 12) { lastBoxLimitMonth -= 12; lastBoxLimitYear += 1; }
-      while (lastBoxLimitMonth < 1)  { lastBoxLimitMonth += 12; lastBoxLimitYear -= 1; }
-      limitYear = lastBoxLimitYear;
-      limitMonth = lastBoxLimitMonth;
-    } else {
-      const nowDay = now.getDate();
-      const effectiveRenewalDayForLimit = renewalDay ?? 1;
-      const currentRenewalHappened = nowDay >= effectiveRenewalDayForLimit;
-      let lastBilledNowMonth = now.getMonth() + 1;
-      let lastBilledNowYear = now.getFullYear();
-      if (!currentRenewalHappened) {
-        lastBilledNowMonth -= 1;
-        if (lastBilledNowMonth === 0) { lastBilledNowMonth = 12; lastBilledNowYear -= 1; }
-      }
-      let lastBoxNowMonth = lastBilledNowMonth + renewalMonthOffset;
-      let lastBoxNowYear = lastBilledNowYear;
-      while (lastBoxNowMonth > 12) { lastBoxNowMonth -= 12; lastBoxNowYear += 1; }
-      while (lastBoxNowMonth < 1)  { lastBoxNowMonth += 12; lastBoxNowYear -= 1; }
-      limitYear = lastBoxNowYear;
-      limitMonth = lastBoxNowMonth;
-    }
-
-    // Same renewal-cycle-aware logic as getEligibleMonths.
-    const joinDay = startDateObj.getDate();
     const effectiveRenewalDay = renewalDay ?? 1;
-    const renewalAlreadyHappened = joinDay >= effectiveRenewalDay;
 
-    let lastBillingMonth = startDateObj.getMonth() + 1;
-    let lastBillingYear = startDateObj.getFullYear();
-    if (!renewalAlreadyHappened) {
-      lastBillingMonth -= 1;
-      if (lastBillingMonth === 0) { lastBillingMonth = 12; lastBillingYear -= 1; }
-    }
+    const { year: limitYear, month: limitMonth } = endDateObj
+      ? computeLastProcessedBoxMonth(endDateObj, effectiveRenewalDay, renewalMonthOffset, intervalMonths, startingMonth)
+      : computeLastProcessedBoxMonth(now, effectiveRenewalDay, renewalMonthOffset, intervalMonths, startingMonth);
 
-    let currentBoxMonth = lastBillingMonth + renewalMonthOffset;
-    let currentBoxYear = lastBillingYear;
-    while (currentBoxMonth > 12) { currentBoxMonth -= 12; currentBoxYear += 1; }
-    while (currentBoxMonth < 1)  { currentBoxMonth += 12; currentBoxYear -= 1; }
-
-    let startMonth = currentBoxMonth;
-    let startYear = currentBoxYear;
-    if (!signupIncludesCurrentMonth) {
-      startMonth += 1;
-      if (startMonth > 12) { startMonth = 1; startYear += 1; }
-    }
+    const { year: startYear, month: startMonth } = computeFirstEligibleBoxMonth(
+      startDateObj, effectiveRenewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth,
+    );
 
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
       return [];
@@ -2559,25 +2463,20 @@ export class SubscriptionsService {
     startDateObj: Date,
     entry: { id: string; renewalDay: number | null; basePrice: unknown; shippingCost: unknown; costCurrency: string | null; feeTemplates?: unknown[] },
     signupIncludesCurrentMonth = false,
+    subRenewalDay: number | null = null,
+    renewalMonthOffset = 0,
+    intervalMonths = 1,
+    startingMonth = 1,
   ) {
-    const startYear = startDateObj.getFullYear();
-    const startMonth = startDateObj.getMonth() + 1;
-    const joinDay = startDateObj.getDate();
-    const renewalDay = entry.renewalDay ?? 1;
-
-    // If signupIncludesCurrentMonth: signup month is always the first paid month.
-    // Otherwise: if renewalDay has already passed this month, start from next month.
-    const renewalPassedThisMonth = !signupIncludesCurrentMonth && renewalDay < joinDay;
-    let firstEligibleYear = startYear;
-    let firstEligibleMonth = startMonth;
-    if (renewalPassedThisMonth) {
-      if (startMonth === 12) {
-        firstEligibleYear = startYear + 1;
-        firstEligibleMonth = 1;
-      } else {
-        firstEligibleMonth = startMonth + 1;
-      }
-    }
+    const renewalDay = subRenewalDay ?? entry.renewalDay ?? 1;
+    const { year: firstEligibleYear, month: firstEligibleMonth } = computeFirstEligibleBoxMonth(
+      startDateObj,
+      renewalDay,
+      renewalMonthOffset,
+      signupIncludesCurrentMonth,
+      intervalMonths,
+      startingMonth,
+    );
 
     // Find the first subscription month at or after the first eligible month
     const firstMonth = await this.prisma.subscriptionMonth.findFirst({
@@ -2634,6 +2533,7 @@ export class SubscriptionsService {
           purchaseGroupId: group.id,
           signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
           changedAt: startDateObj,
+          ownershipStatus: 'PREORDER',
         });
 
       } catch {
@@ -2767,7 +2667,7 @@ export class SubscriptionsService {
         const parts = entry.cancellationDate.split('-').map(Number);
         return new Date(parts[0], parts[1] - 1, parts[2] ?? 1);
       })() : null;
-      const eligibleComboMonths = await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj, fallbackSettings.signupIncludesCurrentMonth);
+      const eligibleComboMonths = await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj, fallbackSettings.signupIncludesCurrentMonth, fallbackSettings.renewalMonthOffset, fallbackSettings.renewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1);
       const eligibleIds = new Set(eligibleComboMonths.map(m => m.id));
 
       // Resolve effective IDs once — for content stream variants, months live on the parent.
@@ -3047,7 +2947,47 @@ export class SubscriptionsService {
       date: Date; purchaseGroupId: string; billingPeriodId?: string;
     }[] = [];
 
-    for (const monthId of dto.selectedMonthIds) {
+    // ── Group selected months into purchase units ──────────────────────────────
+    // Bundle subscriptions ship intervalMonths calendar months as ONE package — one
+    // payment, one shipment — so backfilling them must create exactly ONE
+    // UserPurchaseGroup per bundle period (covering every selected month's books in
+    // it), not one per calendar month. Months already tied to an explicit prepay
+    // billing batch are kept as individual units (batches aren't used for bundles).
+    const isBundleSub = ((sub as any).isBundleSubscription ?? false) && ((sub as any).intervalMonths ?? 1) > 1;
+    const backfillIntervalMonths: number = (sub as any).intervalMonths ?? 1;
+    const backfillStartingMonth: number = (sub as any).startingMonth ?? 1;
+
+    type PurchaseUnit = { primaryMonthId: string; monthIds: string[] };
+    let units: PurchaseUnit[];
+    if (isBundleSub) {
+      const bundleGroups = new Map<string, string[]>();
+      const soloUnits: PurchaseUnit[] = [];
+      for (const monthId of dto.selectedMonthIds) {
+        const rec = monthMap.get(monthId);
+        if (!rec) continue;
+        if (batchByMonthId.has(monthId)) {
+          soloUnits.push({ primaryMonthId: monthId, monthIds: [monthId] });
+          continue;
+        }
+        const start = getBundleBoxStart(rec.year, rec.month, backfillStartingMonth, backfillIntervalMonths);
+        const key = `${start.year}-${start.month}`;
+        if (!bundleGroups.has(key)) bundleGroups.set(key, []);
+        bundleGroups.get(key)!.push(monthId);
+      }
+      const groupedUnits: PurchaseUnit[] = Array.from(bundleGroups.values()).map((monthIds) => {
+        const sorted = [...monthIds].sort((a, b) => {
+          const ra = monthMap.get(a)!, rb = monthMap.get(b)!;
+          return ra.year !== rb.year ? ra.year - rb.year : ra.month - rb.month;
+        });
+        return { primaryMonthId: sorted[0], monthIds: sorted };
+      });
+      units = [...groupedUnits, ...soloUnits];
+    } else {
+      units = dto.selectedMonthIds.map((monthId) => ({ primaryMonthId: monthId, monthIds: [monthId] }));
+    }
+
+    for (const unit of units) {
+      const monthId = unit.primaryMonthId;
       const monthRecord = monthMap.get(monthId);
       if (!monthRecord) continue;
 
@@ -3056,7 +2996,7 @@ export class SubscriptionsService {
       // Mirror backfillRenewalHistory logic: use entry's own day only in user-set mode,
       // otherwise use the subscription's historical fixed renewal day.
       const monthRenewalDay = monthSettings.renewalDayUserSet ? (entry.renewalDay ?? 1) : (monthSettings.renewalDay ?? 1);
-      const renewalDate = (earliestMonthId === monthId && entry.startDate)
+      const renewalDate = (earliestMonthId !== null && unit.monthIds.includes(earliestMonthId) && entry.startDate)
         ? new Date(entry.startDate)
         : (() => {
             const [ry, rm] = nonComboOffset === 0
@@ -3069,25 +3009,42 @@ export class SubscriptionsService {
                 })();
             return new Date(Date.UTC(ry, rm - 1, monthRenewalDay));
           })();
-      const monthBooks = monthRecord.books.filter(mb => mb.editionId && mb.bookId);
+
+      // Aggregate books from every month in this unit, deduped by editionId.
+      const unitBookMap = new Map<string, { editionId: string; bookId: string; signatureType: $Enums.SignatureType | null }>();
+      for (const mid of unit.monthIds) {
+        const rec = monthMap.get(mid);
+        if (!rec) continue;
+        for (const mb of rec.books) {
+          if (mb.editionId && mb.bookId && !unitBookMap.has(mb.editionId)) {
+            unitBookMap.set(mb.editionId, { editionId: mb.editionId, bookId: mb.bookId, signatureType: mb.signatureType });
+          }
+        }
+      }
+      const monthBooks = Array.from(unitBookMap.values());
 
       const batchInfo = batchByMonthId.get(monthId);
       const batch = batchInfo?.batch;
       const batchIdx = batchInfo?.batchIndex;
 
-      // Determine amounts
+      // Determine amounts — the resolved price represents ONE purchase (one bundle
+      // shipment, or one calendar month for regular subs), never split further.
       const resolvedBase = resolveEffectiveBasePrice(subPriceChanges, monthRecord.year, monthRecord.month, fallbackBase, entryCostCurrency, backfillFirstBilledYearMonth);
       const baseAmount = batch
         ? batch.baseAmount / batch.monthsCovered
         : (resolvedBase.price ?? fallbackBase);
       // For batch path: split shipping over batch.monthsCovered (one shipment per billing period).
-      // For no-batch (monthly): each month is its own billing event — full shipping per month.
+      // For no-batch (monthly or bundle): one purchase, one shipment — full shipping cost.
       const shippingAmt = batch
         ? (batch.shippingAmount != null ? batch.shippingAmount / batch.monthsCovered : null)
         : (entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null);
       const purchasedAtDate = batch ? new Date(batch.billedAt) : renewalDate;
 
-      // Create ONE purchase group per month
+      const groupTitle = unit.monthIds.length > 1
+        ? `Subscription Bundle – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`
+        : `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`;
+
+      // Create ONE purchase group per unit (per bundle period, or per month for regular subs)
       const group = await this.prisma.userPurchaseGroup.create({
         data: {
           userId,
@@ -3097,7 +3054,7 @@ export class SubscriptionsService {
           shippingAmount: shippingAmt,
           currency: (batch ? batch.currency : null) ?? entry.costCurrency ?? 'USD',
           purchasedAt: purchasedAtDate,
-          title: `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`,
+          title: groupTitle,
         },
       });
 
@@ -3134,8 +3091,8 @@ export class SubscriptionsService {
           data: { billingPeriodId: periodId },
         });
 
-        // Add batch-level fees to this purchase group (always divided by N months)
-        // The fee amount entered by the user represents the total for the whole period.
+        // Add batch-level fees to this purchase group (always divided by N months).
+        // The fee amount entered represents the total for the whole billing period.
         if (batch.fees?.length) {
           for (const f of batch.fees) {
             feesToCreate.push({
@@ -3167,7 +3124,7 @@ export class SubscriptionsService {
       }
 
       for (const mb of monthBooks) {
-        const override = dto.bookPrices?.find(bp => bp.monthId === monthId && bp.editionId === mb.editionId);
+        const override = dto.bookPrices?.find(bp => unit.monthIds.includes(bp.monthId) && bp.editionId === mb.editionId);
         if (override != null) {
           await this.prisma.userPurchaseGroup.update({
             where: { id: group.id },
@@ -3212,7 +3169,7 @@ export class SubscriptionsService {
           });
         }
       }
-    } // end for monthId loop
+    } // end for unit loop
 
     // Single batch insert for all fees
     if (feesToCreate.length > 0) {
@@ -3261,6 +3218,8 @@ export class SubscriptionsService {
         fallbackSettings.signupIncludesCurrentMonth,
         fallbackSettings.renewalMonthOffset,
         fallbackSettings.renewalDay,
+        (sub as any).intervalMonths ?? 1,
+        (sub as any).startingMonth ?? 1,
       );
       const skippableMonths = eligibleMonths
         .filter(m => m.books.length > 0 && !selectedSet.has(m.id))
@@ -3753,5 +3712,393 @@ export class SubscriptionsService {
     }
 
     return { migratedCount: count, sourceId: source.id, targetId: target.id };
+  }
+
+  // ── Manage Skips ────────────────────────────────────────────────────────────
+
+  /**
+   * Returns all subscription months from the user's join date up to (and including)
+   * the last month whose renewal date has already passed.  Each month includes its
+   * skip status and the books assigned to that month.
+   */
+  async getManagedMonths(userId: string, slug: string) {
+    const sub = await this.findBySlug(slug);
+    const isCombo = (sub as any).isCombo as boolean;
+    const componentIds: string[] = (sub as any).componentIds ?? [];
+    // For variant streams: months live on the parent subscription
+    const subId = (sub as any).parentSubscriptionId ?? sub.id;
+    // For combo subscriptions: months live on the component subscriptions
+    const monthsSubscriptionIds: string[] = isCombo
+      ? await this.resolveEffectiveComponentIds(componentIds)
+      : [subId];
+
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: sub.id, active: true },
+      select: {
+        id: true,
+        startDate: true,
+        renewalDay: true,
+        skipRecords: {
+          where: { undoneAt: null },
+          select: { month: { select: { year: true, month: true } } },
+        },
+      },
+    });
+    if (!entry) throw new NotFoundException('Subscription entry not found');
+
+    const renewalDay: number =
+      entry.renewalDay ?? (sub as any).renewalDay ?? 1;
+    const renewalMonthOffset: number = (sub as any).renewalMonthOffset ?? 0;
+    const signupIncludesCurrentMonth: boolean = (sub as any).signupIncludesCurrentMonth ?? false;
+    const intervalMonths: number = (sub as any).intervalMonths ?? 1;
+    const startingMonth: number = (sub as any).startingMonth ?? 1;
+    const now = new Date();
+
+    // First eligible box month — same renewal-cycle logic as joinSubscription/getEligibleMonths
+    const joinDate = entry.startDate ? new Date(entry.startDate) : now;
+    const { year: startYear, month: startMonth } = computeFirstEligibleBoxMonth(
+      joinDate, renewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth,
+    );
+
+    // Last processed box month — upper limit
+    const { year: limitYear, month: limitMonth } = computeLastProcessedBoxMonth(
+      now, renewalDay, renewalMonthOffset, intervalMonths, startingMonth,
+    );
+
+    // Build set of skipped months for O(1) lookup
+    const skippedSet = new Set<string>(
+      (entry.skipRecords as any[]).map(r => `${r.month.year}-${r.month.month}`),
+    );
+
+    // The upper bound is normally "last processed" (future boxes aren't manageable yet).
+    // But a month the user has already skipped must always stay manageable, even if it's
+    // in the future and even if the subscription's skip policy doesn't allow unskip via the
+    // regular flow — otherwise an accidental future skip becomes permanently uncorrectable.
+    // Extend the range to cover the furthest-out skipped month, for every subscription type.
+    let effectiveLimitYear = limitYear;
+    let effectiveLimitMonth = limitMonth;
+    for (const r of entry.skipRecords as any[]) {
+      const { year, month } = r.month;
+      if (year > effectiveLimitYear || (year === effectiveLimitYear && month > effectiveLimitMonth)) {
+        effectiveLimitYear = year;
+        effectiveLimitMonth = month;
+      }
+    }
+
+    // Fetch subscription months in the [start, effectiveLimit] range
+    const allMonths = await this.prisma.subscriptionMonth.findMany({
+      where: {
+        subscriptionId: { in: monthsSubscriptionIds },
+        AND: [
+          {
+            OR: [
+              { year: { gt: startYear } },
+              { year: startYear, month: { gte: startMonth } },
+            ],
+          },
+          {
+            OR: [
+              { year: { lt: effectiveLimitYear } },
+              { year: effectiveLimitYear, month: { lte: effectiveLimitMonth } },
+            ],
+          },
+        ],
+      },
+      select: {
+        year: true,
+        month: true,
+        books: {
+          select: {
+            editionId: true,
+            book: {
+              select: {
+                title: true,
+                authors: {
+                  select: { author: { select: { name: true } } },
+                  take: 2,
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+
+    // Group by year/month, merging books from all component subscriptions (combo support)
+    const grouped = new Map<string, {
+      year: number; month: number;
+      booksMap: Map<string, { title: string | null; author: string | null }>;
+    }>();
+    for (const m of allMonths) {
+      const key = `${m.year}-${m.month}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, { year: m.year, month: m.month, booksMap: new Map() });
+      }
+      for (const mb of (m.books as any[])) {
+        const mapKey = mb.editionId ?? `noedition-${mb.book?.title ?? Math.random()}`;
+        if (!grouped.get(key)!.booksMap.has(mapKey)) {
+          grouped.get(key)!.booksMap.set(mapKey, {
+            title: mb.book?.title ?? null,
+            author: (mb.book?.authors as any[])?.map((a: any) => a.author?.name).filter(Boolean).join(', ') ?? null,
+          });
+        }
+      }
+    }
+
+    const isBundleSubscription = ((sub as any).isBundleSubscription as boolean ?? false) && intervalMonths > 1;
+
+    const result = Array.from(grouped.values()).map(({ year, month, booksMap }) => {
+      // For bundle subscriptions ALL months in a bundle ship together at the bundle's own
+      // renewal date, not each month's individual calendar date — resolve to the bundle's
+      // start month first so every constituent month reports the same, correct renewal date.
+      const { year: baseYear, month: baseMonth } = isBundleSubscription
+        ? getBundleBoxStart(year, month, startingMonth, intervalMonths)
+        : { year, month };
+      let ry = baseYear, rm = baseMonth - renewalMonthOffset;
+      while (rm <= 0) { rm += 12; ry--; }
+      while (rm > 12) { rm -= 12; ry++; }
+      const renewalDate = new Date(Date.UTC(ry, rm - 1, renewalDay));
+      return {
+        year,
+        month,
+        isSkipped: skippedSet.has(`${year}-${month}`),
+        renewalDate: renewalDate.toISOString(),
+        books: Array.from(booksMap.values()),
+      };
+    });
+
+    return { entryId: entry.id, months: result, isBundleSubscription, intervalMonths, startingMonth };
+  }
+
+  /**
+   * Bulk skip/unskip months for the user's active entry, optionally adding or removing
+   * books from the collection for the affected months.
+   */
+  async manageSkips(
+    userId: string,
+    slug: string,
+    dto: {
+      toSkip: { year: number; month: number }[];
+      toUnskip: { year: number; month: number }[];
+      addBooksForUnskipped: boolean;
+      removeBooksForSkipped: boolean;
+      ownershipStatusForUnskipped?: 'OWNED' | 'PREORDER';
+    },
+  ) {
+    const sub = await this.findBySlug(slug);
+    const isCombo = (sub as any).isCombo as boolean;
+    const componentIds: string[] = (sub as any).componentIds ?? [];
+    const subId = (sub as any).parentSubscriptionId ?? sub.id;
+    const monthsSubscriptionIds: string[] = isCombo
+      ? await this.resolveEffectiveComponentIds(componentIds)
+      : [subId];
+    const now = new Date();
+
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: sub.id, active: true },
+      include: {
+        feeTemplates: { include: { feeTemplate: true } },
+      },
+    });
+    if (!entry) throw new NotFoundException('Subscription entry not found');
+
+    const renewalDay: number =
+      entry.renewalDay ?? (sub as any).renewalDay ?? 1;
+    const renewalMonthOffset: number = (sub as any).renewalMonthOffset ?? 0;
+    const manageSkipsIntervalMonths: number = (sub as any).intervalMonths ?? 1;
+    const manageSkipsStartingMonth: number = (sub as any).startingMonth ?? 1;
+    const manageSkipsIsBundle = ((sub as any).isBundleSubscription ?? false) && manageSkipsIntervalMonths > 1;
+
+    /**
+     * The renewal date that actually delivers a box month's content to the collection.
+     * For bundle subscriptions ALL months in a bundle ship together at the bundle's own
+     * renewal date, not each month's individual calendar date — so this resolves to the
+     * bundle's start month before applying the renewal-day/offset math.
+     */
+    const renewalDateForBoxMonth = (year: number, month: number): Date => {
+      const { year: baseYear, month: baseMonth } = manageSkipsIsBundle
+        ? getBundleBoxStart(year, month, manageSkipsStartingMonth, manageSkipsIntervalMonths)
+        : { year, month };
+      let ry = baseYear, rm = baseMonth - renewalMonthOffset;
+      while (rm <= 0) { rm += 12; ry--; }
+      while (rm > 12) { rm -= 12; ry++; }
+      return new Date(Date.UTC(ry, rm - 1, renewalDay));
+    };
+
+    // ── Apply new skips ───────────────────────────────────────────────────────
+    for (const { year, month } of dto.toSkip) {
+      const subMonth = await this.prisma.subscriptionMonth.findFirst({
+        where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
+      });
+      if (!subMonth) continue;
+      await this.prisma.userSkipRecord.upsert({
+        where: { userEntryId_subscriptionMonthId: { userEntryId: entry.id, subscriptionMonthId: subMonth.id } },
+        create: {
+          userId,
+          userEntryId: entry.id,
+          subscriptionMonthId: subMonth.id,
+          windowKey: null,
+          skippedAt: now,
+        },
+        update: { undoneAt: null, skippedAt: now },
+      });
+    }
+
+    // ── Apply unskips ─────────────────────────────────────────────────────────
+    for (const { year, month } of dto.toUnskip) {
+      const subMonth = await this.prisma.subscriptionMonth.findFirst({
+        where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
+      });
+      if (!subMonth) continue;
+      await this.prisma.userSkipRecord.updateMany({
+        where: { userEntryId: entry.id, subscriptionMonthId: subMonth.id, undoneAt: null },
+        data: { undoneAt: now },
+      });
+    }
+
+    // ── Add books for unskipped months ────────────────────────────────────────
+    if (dto.addBooksForUnskipped && dto.toUnskip.length > 0) {
+      for (const { year, month } of dto.toUnskip) {
+        // Future (not-yet-renewed) months are handled by the renewal cron when their
+        // renewal actually fires — adding books for them here would duplicate that,
+        // add them too early, and bypass the cron's own purchase-group logic.
+        if (renewalDateForBoxMonth(year, month) > now) continue;
+
+        const subMonth = await this.prisma.subscriptionMonth.findFirst({
+          where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
+          select: {
+            year: true,
+            month: true,
+            signatureType: true,
+            books: { select: { editionId: true, bookId: true, signatureType: true } },
+          },
+        });
+        if (!subMonth || subMonth.books.length === 0) continue;
+
+        const ownershipStatus: 'OWNED' | 'PREORDER' =
+          dto.ownershipStatusForUnskipped ?? 'OWNED';
+
+        const feeTemplates = entry.feeTemplates as any[];
+        const basePrice = entry.basePrice ? parseFloat((entry.basePrice as any).toString()) : 0;
+        const shippingCost = entry.shippingCost ? parseFloat((entry.shippingCost as any).toString()) : null;
+        const currency = entry.costCurrency ?? 'GBP';
+
+        const renewalDate = renewalDateForBoxMonth(year, month);
+
+        const group = await this.prisma.userPurchaseGroup.create({
+          data: {
+            userId,
+            fromSubscription: true,
+            subscriptionEntryId: entry.id,
+            title: `${sub.name} – ${String(year)}/${String(month).padStart(2, '0')}`,
+            totalAmount: basePrice,
+            shippingAmount: shippingCost ?? null,
+            currency,
+            purchasedAt: renewalDate,
+          },
+        });
+
+        for (const mb of subMonth.books) {
+          if (!mb.editionId || !mb.bookId) continue;
+          await this.upsertSubscriptionBookEntry({
+            userId,
+            bookId: mb.bookId,
+            editionId: mb.editionId,
+            subscriptionEntryId: entry.id,
+            purchaseGroupId: group.id,
+            signatureType: mb.signatureType ?? null,
+            changedAt: renewalDate,
+            ownershipStatus,
+          });
+        }
+
+        // Add fee template charges
+        const feesToCreate: any[] = [];
+        for (const link of feeTemplates) {
+          const ft = link.feeTemplate;
+          const feeCurrency = (link.customCurrency ?? ft.defaultCurrency ?? currency) as string;
+          const feeAmount = link.customAmount
+            ? parseFloat(link.customAmount.toString())
+            : ft.defaultAmount
+              ? parseFloat(ft.defaultAmount.toString())
+              : null;
+          if (feeAmount == null || isNaN(feeAmount)) continue;
+          feesToCreate.push({
+            userId,
+            feeTemplateId: ft.id,
+            name: ft.name,
+            amount: feeAmount,
+            currency: feeCurrency,
+            date: renewalDate,
+            category: ft.category ?? 'OTHER',
+            purchaseGroupId: group.id,
+          });
+        }
+        if (feesToCreate.length > 0) {
+          await this.prisma.userPurchaseFee.createMany({ data: feesToCreate, skipDuplicates: true });
+        }
+      }
+    }
+
+    // ── Remove books for newly-skipped months ─────────────────────────────────
+    if (dto.removeBooksForSkipped && dto.toSkip.length > 0) {
+      for (const { year, month } of dto.toSkip) {
+        // Future months haven't renewed yet, so nothing has been added to the
+        // collection for them — the skip record alone is enough to stop the
+        // renewal cron from adding them later. Nothing to remove here.
+        if (renewalDateForBoxMonth(year, month) > now) continue;
+
+        const subMonth = await this.prisma.subscriptionMonth.findFirst({
+          where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
+          select: { books: { select: { editionId: true } } },
+        });
+        if (!subMonth) continue;
+
+        const editionIds = subMonth.books
+          .map(b => b.editionId)
+          .filter((id): id is string => id !== null);
+        if (editionIds.length === 0) continue;
+
+        // Delete book entries that came from this subscription entry (not manually added)
+        const toDelete = await this.prisma.userBookEntry.findMany({
+          where: {
+            userId,
+            editionId: { in: editionIds },
+            subscriptionEntryId: entry.id,
+          },
+          select: { id: true, purchaseGroupId: true },
+        });
+
+        if (toDelete.length === 0) continue;
+
+        await this.prisma.userBookEntry.deleteMany({
+          where: { id: { in: toDelete.map(b => b.id) } },
+        });
+
+        // Delete ownershipStatusHistory for deleted entries
+        await this.prisma.ownershipStatusHistory.deleteMany({
+          where: { userBookEntryId: { in: toDelete.map(b => b.id) } },
+        }).catch(() => {});
+
+        // Remove empty purchase groups
+        const groupIds = [...new Set(toDelete.map(b => b.purchaseGroupId).filter((id): id is string => id !== null))];
+        for (const groupId of groupIds) {
+          const remaining = await this.prisma.userBookEntry.count({ where: { purchaseGroupId: groupId } });
+          if (remaining === 0) {
+            await this.prisma.userPurchaseFee.deleteMany({ where: { purchaseGroupId: groupId } });
+            await this.prisma.userPurchaseGroup.delete({ where: { id: groupId } }).catch(() => {});
+          }
+        }
+      }
+    }
+
+    // Recompute skip state + renewal date
+    await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
+    await refreshNextRenewalDate(this.prisma, entry.id);
+    backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
+    this.statsService.markStatsStale(userId);
+
+    return { ok: true };
   }
 }
