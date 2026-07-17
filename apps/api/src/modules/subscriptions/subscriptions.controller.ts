@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   Query,
+  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SubscriptionsService } from './subscriptions.service';
@@ -34,8 +35,9 @@ import {
   MigrateMonthsDto,
   UpdateSettingsHistoryEffectiveFromDto,
   ManageSkipsDto,
+  YearMonthQueryDto,
 } from './subscriptions.dto';
-import { Public, Roles } from '../../common/decorators/auth.decorators';
+import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
 import { AnalyticsService } from '../analytics/analytics.service';
@@ -64,6 +66,24 @@ export class SubscriptionsController {
   @Get('genres')
   findGenres(@Query('search') search?: string) {
     return this.subscriptionsService.findGenres(search);
+  }
+
+  /** Catalog-wide scan (cross-company) — deliberately ADMIN/MODERATOR only, not COMPANY_MANAGER. */
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Get('admin/month-gaps')
+  getMonthGaps(@Query() query: YearMonthQueryDto) {
+    return this.subscriptionsService.getMonthGaps(query.year, query.month);
+  }
+
+  /** Public "Books by Month" catalog — works for guests too; personalization (mine/skipped
+   *  highlight) only applies when a valid session is present. @Public() would skip the JWT
+   *  guard entirely and never populate req.user even for logged-in visitors — @OptionalAuth()
+   *  alone is correct here (never throws, but still attempts to resolve the user). */
+  @OptionalAuth()
+  @Get('books-by-month')
+  getBooksByMonth(@Query() query: YearMonthQueryDto, @Request() req: any) {
+    return this.subscriptionsService.getBooksByMonth(req.user?.id ?? null, query.year, query.month);
   }
 
   @ApiBearerAuth()

@@ -269,6 +269,43 @@ input[type=number] {
   box-shadow: 0 0 0 1px rgba(212,175,55,0.55), 0 16px 44px rgba(212,175,55,0.22) !important;
   border-color: rgba(212,175,55,0.7) !important;
 }
+/* Light theme: the translucent glow above has very low contrast against a light background —
+   use a stronger, near-solid border instead of relying on shadow blur for visibility. */
+[data-theme="light"] .blog-featured-glow {
+  box-shadow: 0 0 0 2px rgba(180,140,20,0.75), 0 6px 18px rgba(180,140,20,0.18);
+}
+[data-theme="light"] .blog-featured-glow:hover {
+  box-shadow: 0 0 0 2px rgba(180,140,20,0.9), 0 10px 26px rgba(180,140,20,0.28) !important;
+}
+
+/* Edition card highlights — gold for the user's own active subscriptions, red for months
+   they've skipped. Same shadow pattern as .blog-featured-glow, with the same light-theme fix. */
+.edition-glow-gold {
+  box-shadow: 0 0 0 1px rgba(212,175,55,0.3), 0 8px 32px rgba(212,175,55,0.12);
+}
+.edition-glow-gold:hover {
+  box-shadow: 0 0 0 1px rgba(212,175,55,0.55), 0 16px 44px rgba(212,175,55,0.22) !important;
+  border-color: rgba(212,175,55,0.7) !important;
+}
+.edition-glow-red {
+  box-shadow: 0 0 0 1px rgba(220,38,38,0.35), 0 8px 32px rgba(220,38,38,0.14);
+}
+.edition-glow-red:hover {
+  box-shadow: 0 0 0 1px rgba(220,38,38,0.6), 0 16px 44px rgba(220,38,38,0.24) !important;
+  border-color: rgba(220,38,38,0.7) !important;
+}
+[data-theme="light"] .edition-glow-gold {
+  box-shadow: 0 0 0 2px rgba(180,140,20,0.75), 0 6px 18px rgba(180,140,20,0.18);
+}
+[data-theme="light"] .edition-glow-gold:hover {
+  box-shadow: 0 0 0 2px rgba(180,140,20,0.9), 0 10px 26px rgba(180,140,20,0.28) !important;
+}
+[data-theme="light"] .edition-glow-red {
+  box-shadow: 0 0 0 2px rgba(190,30,30,0.75), 0 6px 18px rgba(190,30,30,0.18);
+}
+[data-theme="light"] .edition-glow-red:hover {
+  box-shadow: 0 0 0 2px rgba(190,30,30,0.9), 0 10px 26px rgba(190,30,30,0.28) !important;
+}
 
 /* Sponsored content disclosure strip — theme-aware */
 .blog-sponsored-strip {

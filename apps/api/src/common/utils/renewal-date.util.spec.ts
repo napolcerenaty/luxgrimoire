@@ -1,4 +1,4 @@
-import { computeNextRenewalDate, computeNextRenewalDatePrepaid, computePastRenewalDates } from './renewal-date.util';
+import { computeNextRenewalDate, computeNextRenewalDatePrepaid, computePastRenewalDates, isSubscriptionDueInMonth } from './renewal-date.util';
 
 const FIXED_NOW = new Date('2025-03-15T12:00:00Z');
 
@@ -244,5 +244,66 @@ describe('computeNextRenewalDatePrepaid', () => {
     // Period 5: Mar, Apr, May 2025 → next Jun 1 2025 (future) ✓
     const result = computeNextRenewalDatePrepaid(1, 3, startDate, false, null, []);
     expect(result).toEqual(new Date(Date.UTC(2025, 5, 1))); // Jun 1 2025
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isSubscriptionDueInMonth
+// ---------------------------------------------------------------------------
+
+describe('isSubscriptionDueInMonth', () => {
+  const NOW = new Date(Date.UTC(2025, 2, 15)); // March 15 2025
+
+  it('active subscription with no bounds is due in any month', () => {
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false };
+    expect(isSubscriptionDueInMonth(sub, 2025, 3, NOW)).toBe(true);
+    expect(isSubscriptionDueInMonth(sub, 2020, 1, NOW)).toBe(true);
+    expect(isSubscriptionDueInMonth(sub, 2030, 12, NOW)).toBe(true);
+  });
+
+  it('isHidden=true is excluded unconditionally, past or future', () => {
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: true };
+    expect(isSubscriptionDueInMonth(sub, 2024, 1, NOW)).toBe(false);
+    expect(isSubscriptionDueInMonth(sub, 2025, 3, NOW)).toBe(false);
+    expect(isSubscriptionDueInMonth(sub, 2026, 1, NOW)).toBe(false);
+  });
+
+  it('isDiscontinued=true stays visible for PAST months', () => {
+    const sub = { startDate: null, endDate: null, isDiscontinued: true, isHidden: false };
+    expect(isSubscriptionDueInMonth(sub, 2025, 2, NOW)).toBe(true); // February, before current month
+    expect(isSubscriptionDueInMonth(sub, 2020, 6, NOW)).toBe(true);
+  });
+
+  it('isDiscontinued=true is excluded for the current month and future months', () => {
+    const sub = { startDate: null, endDate: null, isDiscontinued: true, isHidden: false };
+    expect(isSubscriptionDueInMonth(sub, 2025, 3, NOW)).toBe(false); // current month
+    expect(isSubscriptionDueInMonth(sub, 2025, 4, NOW)).toBe(false); // future
+    expect(isSubscriptionDueInMonth(sub, 2030, 1, NOW)).toBe(false);
+  });
+
+  it('startDate in the future excludes months before it', () => {
+    const sub = { startDate: new Date(Date.UTC(2025, 5, 1)), endDate: null, isDiscontinued: false, isHidden: false };
+    expect(isSubscriptionDueInMonth(sub, 2025, 5, NOW)).toBe(false); // May, before June start
+    expect(isSubscriptionDueInMonth(sub, 2025, 6, NOW)).toBe(true); // June, start month itself
+    expect(isSubscriptionDueInMonth(sub, 2025, 7, NOW)).toBe(true);
+  });
+
+  it('endDate in the past excludes months after it', () => {
+    const sub = { startDate: null, endDate: new Date(Date.UTC(2025, 0, 31)), isDiscontinued: false, isHidden: false };
+    expect(isSubscriptionDueInMonth(sub, 2025, 1, NOW)).toBe(true); // January, endDate falls within it
+    expect(isSubscriptionDueInMonth(sub, 2025, 2, NOW)).toBe(false); // February, after endDate
+  });
+
+  it('startDate and endDate together bound an active window', () => {
+    const sub = {
+      startDate: new Date(Date.UTC(2024, 5, 1)),
+      endDate: new Date(Date.UTC(2024, 11, 31)),
+      isDiscontinued: false,
+      isHidden: false,
+    };
+    expect(isSubscriptionDueInMonth(sub, 2024, 5, NOW)).toBe(false); // before start
+    expect(isSubscriptionDueInMonth(sub, 2024, 6, NOW)).toBe(true); // start month
+    expect(isSubscriptionDueInMonth(sub, 2024, 12, NOW)).toBe(true); // end month
+    expect(isSubscriptionDueInMonth(sub, 2025, 1, NOW)).toBe(false); // after end
   });
 });

@@ -643,7 +643,12 @@ export default function MySubscriptionsPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Header: title + view toggle */}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-serif text-stone-100">My Subscriptions</h1>
+        <div>
+          <h1 className="text-2xl font-serif text-stone-100">My Subscriptions</h1>
+          <Link href="/books-by-month" className="text-xs text-stone-500 hover:text-amber-400 transition-colors">
+            See all books this month →
+          </Link>
+        </div>
         <div className="flex overflow-hidden rounded-lg border border-stone-700 shrink-0">
           <button
             type="button"

@@ -82,6 +82,33 @@ export function addMonths(year: number, month: number, n: number): { year: numbe
 }
 
 /**
+ * Subscription-wide (not per-user) check: is this subscription generally due to ship/renew in
+ * calendar month (year, month)? Unlike computeFirstEligibleBoxMonth/computeLastProcessedBoxMonth
+ * (which are per-user, keyed off a join date), this only looks at the subscription's own
+ * lifecycle fields — used to scan across all subscriptions for a given month (admin gap view,
+ * public books-by-month catalog).
+ *
+ * Discontinued subscriptions stay visible for PAST months (they were live then) but drop out of
+ * the current/future scan — that's the whole point of "discontinued". `isHidden` subscriptions
+ * (incomplete historical data, not yet ready to show users) are excluded unconditionally.
+ */
+export function isSubscriptionDueInMonth(
+  sub: { startDate: Date | null; endDate: Date | null; isDiscontinued: boolean; isHidden: boolean },
+  year: number,
+  month: number,
+  now: Date = new Date(),
+): boolean {
+  if (sub.isHidden) return false;
+  const monthStart = new Date(Date.UTC(year, month - 1, 1));
+  const monthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+  const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  if (sub.isDiscontinued && monthStart >= currentMonthStart) return false;
+  if (sub.startDate && sub.startDate > monthEnd) return false;
+  if (sub.endDate && sub.endDate < monthStart) return false;
+  return true;
+}
+
+/**
  * For bundle subscriptions: finds the renewal month for the most recently FIRED quarterly (or
  * N-monthly) renewal as of refDate. "Fired" = refDay >= renewalDay in or before the renewal month.
  *
