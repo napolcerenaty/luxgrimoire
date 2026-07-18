@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 import { MonthPicker } from '@/components/ui/MonthPicker'
 import { EditionCard } from '@/components/books/EditionCard'
 
@@ -98,6 +99,7 @@ function matchesSearch(item: BookByMonthItem, query: string): boolean {
 }
 
 export function BooksByMonthClient() {
+  const { user } = useAuth()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -105,8 +107,11 @@ export function BooksByMonthClient() {
   const [highlightFilter, setHighlightFilter] = useState<HighlightFilter>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
+  // user?.id in the key (not just year/month) so logging in/out — a client-side navigation that
+  // reuses the same React Query cache — gets its own cache entry instead of serving back the
+  // other identity's cached highlight data (e.g. a guest's null-highlight response after login).
   const { data, isLoading } = useQuery<BooksByMonthResponse>({
-    queryKey: ['books-by-month', year, month],
+    queryKey: ['books-by-month', year, month, user?.id ?? null],
     queryFn: () => authFetch<BooksByMonthResponse>(`/subscriptions/books-by-month?year=${year}&month=${month}`),
   })
 

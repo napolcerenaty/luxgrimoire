@@ -34,7 +34,7 @@ import {
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
-import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
@@ -1219,10 +1219,13 @@ export class SubscriptionsService {
   /** Resolves which subscriptionIds a user's active entries (direct or via combo) map to for
    *  (year, month), so the catalog list above can be overlaid with 'mine'/'skipped' highlights. */
   private async buildUserHighlightMap(userId: string, year: number, month: number): Promise<Map<string, 'mine' | 'skipped'>> {
-    const entries = await this.prisma.userSubscriptionEntry.findMany({
-      where: { userId, active: true },
+    const allEntries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { userId },
       select: {
         id: true,
+        active: true,
+        startDate: true,
+        cancellationDate: true,
         subscription: {
           select: {
             id: true,
@@ -1233,6 +1236,9 @@ export class SubscriptionsService {
         },
       },
     });
+    // Include cancelled entries that were still active (or skipped) during the viewed month —
+    // "mine"/"skipped" should reflect what was true THEN, not the user's current subscription list.
+    const entries = allEntries.filter((e) => entryCoversMonth(e, year, month));
     if (entries.length === 0) return new Map();
 
     const highlightMap = new Map<string, 'mine' | 'skipped'>();

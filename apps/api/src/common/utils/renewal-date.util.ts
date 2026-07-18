@@ -138,6 +138,34 @@ export function isSubscriptionDueInMonth(
 }
 
 /**
+ * Does a UserSubscriptionEntry cover calendar month (year, month)? Cancellation (see
+ * cancelMySubscription) never deletes the row or touches startDate — it only sets
+ * active=false and cancellationDate — so a CANCELLED entry still counts as covering any month
+ * up to (and including) the one it was cancelled in: a user who cancelled mid-July was still
+ * subscribed for part of July, so July should still show as "theirs". Month-level granularity
+ * (not day-level) is enough here since highlighting is per calendar month, not per day.
+ */
+export function entryCoversMonth(
+  entry: { startDate: string | null; cancellationDate: string | null; active: boolean },
+  year: number,
+  month: number,
+): boolean {
+  const targetAbs = year * 12 + (month - 1);
+  if (entry.startDate) {
+    const p = entry.startDate.split('-').map(Number);
+    const startAbs = p[0] * 12 + ((p[1] ?? 1) - 1);
+    if (startAbs > targetAbs) return false;
+  }
+  if (!entry.active) {
+    if (!entry.cancellationDate) return false;
+    const p = entry.cancellationDate.split('-').map(Number);
+    const cancelAbs = p[0] * 12 + ((p[1] ?? 1) - 1);
+    if (cancelAbs < targetAbs) return false;
+  }
+  return true;
+}
+
+/**
  * For bundle subscriptions: finds the renewal month for the most recently FIRED quarterly (or
  * N-monthly) renewal as of refDate. "Fired" = refDay >= renewalDay in or before the renewal month.
  *

@@ -1,4 +1,4 @@
-import { computeNextRenewalDate, computeNextRenewalDatePrepaid, computePastRenewalDates, isSubscriptionDueInMonth } from './renewal-date.util';
+import { computeNextRenewalDate, computeNextRenewalDatePrepaid, computePastRenewalDates, isSubscriptionDueInMonth, entryCoversMonth } from './renewal-date.util';
 
 const FIXED_NOW = new Date('2025-03-15T12:00:00Z');
 
@@ -355,5 +355,54 @@ describe('isSubscriptionDueInMonth', () => {
     expect(isSubscriptionDueInMonth(sub, 2026, 1, NOW)).toBe(true)
     expect(isSubscriptionDueInMonth(sub, 2026, 4, NOW)).toBe(true)
     expect(isSubscriptionDueInMonth(sub, 2026, 2, NOW)).toBe(false)
+  })
+});
+
+// ---------------------------------------------------------------------------
+// entryCoversMonth
+// ---------------------------------------------------------------------------
+
+describe('entryCoversMonth', () => {
+  it('active entry with a past startDate covers the current month and every month after', () => {
+    const entry = { startDate: '2024-01-15', cancellationDate: null, active: true };
+    expect(entryCoversMonth(entry, 2024, 1)).toBe(true)
+    expect(entryCoversMonth(entry, 2026, 7)).toBe(true)
+  })
+
+  it('active entry does not cover months before its startDate', () => {
+    const entry = { startDate: '2024-06-01', cancellationDate: null, active: true };
+    expect(entryCoversMonth(entry, 2024, 5)).toBe(false)
+    expect(entryCoversMonth(entry, 2024, 6)).toBe(true)
+  })
+
+  it('cancelled entry still covers months up to and including the cancellation month', () => {
+    // User cancelled mid-July 2026 — was still subscribed for part of July.
+    const entry = { startDate: '2025-01-01', cancellationDate: '2026-07-15', active: false };
+    expect(entryCoversMonth(entry, 2026, 6)).toBe(true) // before cancellation
+    expect(entryCoversMonth(entry, 2026, 7)).toBe(true) // cancellation month itself
+    expect(entryCoversMonth(entry, 2026, 8)).toBe(false) // after cancellation
+  })
+
+  it('cancelled entry with no cancellationDate (defensive/malformed data) covers nothing', () => {
+    const entry = { startDate: '2025-01-01', cancellationDate: null, active: false };
+    expect(entryCoversMonth(entry, 2025, 6)).toBe(false)
+  })
+
+  it('cancelled entry does not cover months before its original startDate', () => {
+    const entry = { startDate: '2026-03-01', cancellationDate: '2026-07-01', active: false };
+    expect(entryCoversMonth(entry, 2026, 1)).toBe(false)
+    expect(entryCoversMonth(entry, 2026, 4)).toBe(true)
+  })
+
+  it('entry with no startDate at all has no lower bound', () => {
+    const entry = { startDate: null, cancellationDate: null, active: true };
+    expect(entryCoversMonth(entry, 2015, 1)).toBe(true)
+  })
+
+  it('tolerates YYYY-MM (no day) format defensively', () => {
+    const entry = { startDate: '2026-03', cancellationDate: '2026-07', active: false };
+    expect(entryCoversMonth(entry, 2026, 3)).toBe(true)
+    expect(entryCoversMonth(entry, 2026, 7)).toBe(true)
+    expect(entryCoversMonth(entry, 2026, 8)).toBe(false)
   })
 });
