@@ -17,6 +17,8 @@ interface BookByMonthItem {
   bookId: string | null
   bookSlug: string | null
   bookTitle: string | null
+  seriesName: string | null
+  volumeNumber: number | null
   authors: string[]
   editionId: string | null
   editionSlug: string | null
@@ -59,6 +61,8 @@ function BookByMonthCard({ item }: { item: BookByMonthItem }) {
       // two card kinds' headings landed at different heights. Routing both through the same
       // branch keeps them pixel-aligned.
       title={item.bookTitle ?? 'Not yet announced'}
+      seriesName={item.seriesName}
+      volumeNumber={item.volumeNumber}
       authors={item.authors.map((name) => ({ name }))}
       highlight={item.highlight}
       imageActions={
