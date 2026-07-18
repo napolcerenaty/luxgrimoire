@@ -68,13 +68,10 @@ function BookByMonthCard({ item }: { item: BookByMonthItem }) {
       imageActions={
         // Same bottom-ribbon treatment used for company name on EditionCarousel/MonthCard —
         // here it carries the subscription name so it's in one consistent spot on every card.
-        <div
-          className="absolute bottom-0 left-0 right-0 px-2 py-2 text-center"
-          style={{ background: 'rgba(5,10,18,0.88)', borderTop: '1px solid rgba(200,180,140,0.2)' }}
-        >
+        <div className="card-ribbon absolute bottom-0 left-0 right-0 px-2 py-2 text-center">
           <span
-            className="font-serif font-semibold uppercase tracking-widest leading-tight line-clamp-2 text-white"
-            style={{ fontSize: '10px', letterSpacing: '0.08em', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
+            className="card-ribbon-text font-serif font-semibold uppercase tracking-widest leading-tight line-clamp-2 text-white"
+            style={{ fontSize: '10px', letterSpacing: '0.08em' }}
           >
             {item.subscriptionName}
           </span>
