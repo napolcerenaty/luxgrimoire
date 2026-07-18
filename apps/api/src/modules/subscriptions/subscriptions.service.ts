@@ -167,38 +167,41 @@ export class SubscriptionsService {
     return (await this.cache.get<number>(this.catalogBooksBustKey())) ?? 0;
   }
 
-  // Earliest-year floor for the month pickers on the admin gaps / books-by-month pages — derived
-  // from data instead of a guessed constant, since a subscription could predate (or postdate) any
-  // fixed year we hardcode. Changes rarely (only on subscription create/edit), so a long TTL is
-  // safe — same bust trigger as the catalog caches below.
-  private readonly CATALOG_EARLIEST_YEAR_TTL = 7 * 24 * 60 * 60 * 1000;
-  private readonly catalogEarliestYearBustKey = () => 'subscriptions:catalog-earliest-year-bust';
-  private readonly catalogEarliestYearKey = (version: number) => `subscriptions:catalog-earliest-year:v${version}`;
+  // Earliest year+month floor for the month pickers on the admin gaps / books-by-month pages —
+  // derived from data instead of a guessed constant, since a subscription could predate (or
+  // postdate) any fixed year we hardcode, and truncating to year-only would still let the picker
+  // offer months before the earliest subscription actually started within its first year (e.g.
+  // startDate 2015-03 would wrongly allow Jan/Feb 2015). Changes rarely (only on subscription
+  // create/edit), so a long TTL is safe — same bust trigger as the catalog caches below.
+  private readonly CATALOG_EARLIEST_MONTH_TTL = 7 * 24 * 60 * 60 * 1000;
+  private readonly catalogEarliestMonthBustKey = () => 'subscriptions:catalog-earliest-month-bust';
+  private readonly catalogEarliestMonthKey = (version: number) => `subscriptions:catalog-earliest-month:v${version}`;
 
-  private async getCatalogEarliestYearCacheVersion(): Promise<number> {
-    return (await this.cache.get<number>(this.catalogEarliestYearBustKey())) ?? 0;
+  private async getCatalogEarliestMonthCacheVersion(): Promise<number> {
+    return (await this.cache.get<number>(this.catalogEarliestMonthBustKey())) ?? 0;
   }
 
   /** Bumps all catalog-wide caches — called whenever a month/book/subscription mutation
-   *  could change gap status, the books-by-month catalog, or the earliest-year floor. */
+   *  could change gap status, the books-by-month catalog, or the earliest-month floor. */
   private async invalidateCatalogMonthCaches(): Promise<void> {
     const now = Date.now();
     await Promise.all([
       this.cache.set(this.catalogGapsBustKey(), now, this.CATALOG_GAPS_TTL),
       this.cache.set(this.catalogBooksBustKey(), now, this.CATALOG_BOOKS_TTL),
-      this.cache.set(this.catalogEarliestYearBustKey(), now, this.CATALOG_EARLIEST_YEAR_TTL),
+      this.cache.set(this.catalogEarliestMonthBustKey(), now, this.CATALOG_EARLIEST_MONTH_TTL),
     ]);
   }
 
-  /** Earliest year any (non-hidden) subscription could plausibly need a month for — used as the
-   *  month pickers' lower bound instead of a hardcoded guess. Subscriptions with no startDate at
-   *  all can't contribute a floor (nothing to derive one from) — that's a data-completeness gap
-   *  to close by backfilling startDate, not something this query can compensate for. */
-  async getCatalogEarliestYear(): Promise<{ year: number }> {
-    const FALLBACK_YEAR = 2015;
-    const version = await this.getCatalogEarliestYearCacheVersion();
-    const cacheKey = this.catalogEarliestYearKey(version);
-    const cached = await this.cache.get<{ year: number }>(cacheKey);
+  /** Earliest (year, month) any (non-hidden) subscription could plausibly need a month for —
+   *  used as the month pickers' lower bound instead of a hardcoded guess. Subscriptions with no
+   *  startDate at all can't contribute a floor (nothing to derive one from) — that's a
+   *  data-completeness gap to close by backfilling startDate, not something this query can
+   *  compensate for. */
+  async getCatalogEarliestMonth(): Promise<{ year: number; month: number }> {
+    const FALLBACK = { year: 2015, month: 1 };
+    const version = await this.getCatalogEarliestMonthCacheVersion();
+    const cacheKey = this.catalogEarliestMonthKey(version);
+    const cached = await this.cache.get<{ year: number; month: number }>(cacheKey);
     if (cached) return cached;
 
     const earliest = await this.prisma.subscription.findFirst({
@@ -206,8 +209,10 @@ export class SubscriptionsService {
       orderBy: { startDate: 'asc' },
       select: { startDate: true },
     });
-    const result = { year: earliest?.startDate ? earliest.startDate.getUTCFullYear() : FALLBACK_YEAR };
-    await this.cache.set(cacheKey, result, this.CATALOG_EARLIEST_YEAR_TTL);
+    const result = earliest?.startDate
+      ? { year: earliest.startDate.getUTCFullYear(), month: earliest.startDate.getUTCMonth() + 1 }
+      : FALLBACK;
+    await this.cache.set(cacheKey, result, this.CATALOG_EARLIEST_MONTH_TTL);
     return result;
   }
 
@@ -1203,7 +1208,21 @@ export class SubscriptionsService {
             bookId: true,
             editionId: true,
             book: { select: { slug: true, title: true, seriesName: true, volumeNumber: true, authors: { select: { author: { select: { name: true } } } } } },
-            edition: { select: { slug: true, additionalImages: true } },
+            edition: {
+              select: {
+                slug: true,
+                additionalImages: true,
+                // Same official-cover-first, community-photo-fallback precedence used
+                // everywhere else covers are shown (editions/books/collection/search/etc.) —
+                // APPROVED only, never PENDING/REMOVED, in a public-facing catalog.
+                communityImages: {
+                  where: { status: 'APPROVED' },
+                  orderBy: { sortOrder: 'asc' },
+                  take: 1,
+                  select: { url: true },
+                },
+              },
+            },
           },
         },
       },
@@ -1248,7 +1267,7 @@ export class SubscriptionsService {
           authors: mb.book.authors.map((a) => a.author.name),
           editionId: mb.editionId,
           editionSlug: mb.edition?.slug ?? null,
-          coverImage: mb.edition?.additionalImages?.[0] ?? null,
+          coverImage: mb.edition?.additionalImages?.[0] ?? mb.edition?.communityImages?.[0]?.url ?? null,
           isPlaceholder: false,
         });
       }

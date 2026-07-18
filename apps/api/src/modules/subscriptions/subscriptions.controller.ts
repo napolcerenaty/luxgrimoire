@@ -68,13 +68,13 @@ export class SubscriptionsController {
     return this.subscriptionsService.findGenres(search);
   }
 
-  /** Earliest year any subscription plausibly needs a month for — the month pickers' lower
-   *  bound, computed from data instead of a hardcoded guess. Used by both the admin gaps page
-   *  and the public books-by-month page, so it's public/unauthenticated. */
+  /** Earliest (year, month) any subscription plausibly needs a month for — the month pickers'
+   *  lower bound, computed from data instead of a hardcoded guess. Used by both the admin gaps
+   *  page and the public books-by-month page, so it's public/unauthenticated. */
   @Public()
-  @Get('catalog-earliest-year')
-  getCatalogEarliestYear() {
-    return this.subscriptionsService.getCatalogEarliestYear();
+  @Get('catalog-earliest-month')
+  getCatalogEarliestMonth() {
+    return this.subscriptionsService.getCatalogEarliestMonth();
   }
 
   /** Catalog-wide scan (cross-company) — deliberately ADMIN/MODERATOR only, not COMPANY_MANAGER. */
