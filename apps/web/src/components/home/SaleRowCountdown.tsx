@@ -37,7 +37,7 @@ function Box({ val }: { val: string }) {
   )
 }
 
-export function SaleRowCountdown({ dateStr }: { dateStr: string }) {
+export function SaleRowCountdown({ dateStr, className = 'ml-2' }: { dateStr: string; className?: string }) {
   const target = new Date(dateStr)
   const [parts, setParts] = useState<Parts>(() => compute(target))
 
@@ -48,14 +48,14 @@ export function SaleRowCountdown({ dateStr }: { dateStr: string }) {
 
   if (parts.expired) {
     return (
-      <span className="ml-2 shrink-0 rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-green-900/70 border border-green-600 text-green-400">
+      <span className={`${className} shrink-0 rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-green-900/70 border border-green-600 text-green-400`}>
         Live
       </span>
     )
   }
 
   return (
-    <div className="ml-2 flex shrink-0 items-center gap-1">
+    <div className={`${className} flex shrink-0 items-center gap-1`}>
       {parts.days > 0 && <Box val={`${parts.days}d`} />}
       <Box val={`${String(parts.hours).padStart(2, '0')}h`} />
       <Box val={`${String(parts.minutes).padStart(2, '0')}m`} />

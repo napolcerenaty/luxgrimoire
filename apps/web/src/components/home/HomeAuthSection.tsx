@@ -109,16 +109,16 @@ function HeroShell({
                 <Link
                   key={s.announcementId}
                   href={`/sale-announcements/${s.announcement.id}`}
-                className="flex items-center gap-2 rounded-lg border border-stone-700/60 bg-stone-900/60 px-3 py-2 text-left transition-colors hover:border-stone-600 hover:bg-stone-800/60"
+                  className="flex flex-col items-center gap-1.5 rounded-lg border border-stone-700/60 bg-stone-900/60 px-3 py-3 text-center transition-colors hover:border-stone-600 hover:bg-stone-800/60"
                 >
-                  <div className="min-w-0 flex-1">
+                  <div>
                     {s.announcement.company && (
-                      <p className="truncate text-[11px] text-stone-400">{s.announcement.company.name}</p>
+                      <p className="text-[11px] text-stone-400">{s.announcement.company.name}</p>
                     )}
-                  <span className="block truncate text-sm font-medium text-stone-100">{s.announcement.title}</span>
+                    <span className="block text-sm font-medium leading-snug text-stone-100">{s.announcement.title}</span>
                   </div>
                   {resolveTierDate(s) && (
-                    <SaleRowCountdown dateStr={resolveTierDate(s)!} />
+                    <SaleRowCountdown dateStr={resolveTierDate(s)!} className="" />
                   )}
                 </Link>
               ))}

@@ -34,7 +34,7 @@ import {
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
-import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, getBundleBoxStart, enumerateBundleMonths } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
@@ -50,6 +50,25 @@ function formatIntervalForTypesense(intervalMonths: number): string {
   if (intervalMonths === 2) return 'Bimonthly';
   if (intervalMonths === 3) return 'Quarterly';
   return `Every ${intervalMonths} months`;
+}
+
+export interface CatalogMonthBookItem {
+  subscriptionId: string;
+  subscriptionSlug: string;
+  subscriptionName: string;
+  companyName: string;
+  companySlug: string;
+  companyBrandColors: string[];
+  bookId: string | null;
+  bookSlug: string | null;
+  bookTitle: string | null;
+  seriesName: string | null;
+  volumeNumber: number | null;
+  authors: string[];
+  editionId: string | null;
+  editionSlug: string | null;
+  coverImage: string | null;
+  isPlaceholder: boolean;
 }
 
 export interface CountryFeeHint {
@@ -128,6 +147,69 @@ export class SubscriptionsService {
     await this.cache.set(this.subMonthsBustKey(slug), Date.now(), this.SUB_MONTHS_TTL);
   }
 
+  // Catalog-wide scans (admin month-gaps, public books-by-month) — global caches, not per-slug,
+  // since both endpoints scan across every subscription for a given (year, month).
+  private readonly CATALOG_GAPS_TTL = 24 * 60 * 60 * 1000;
+  private readonly catalogGapsBustKey = () => 'subscriptions:catalog-gaps-bust';
+  private readonly catalogGapsKey = (version: number, year: number, month: number) =>
+    `subscriptions:catalog-gaps:v${version}:${year}:${month}`;
+
+  private readonly CATALOG_BOOKS_TTL = 24 * 60 * 60 * 1000;
+  private readonly catalogBooksBustKey = () => 'subscriptions:catalog-books-bust';
+  private readonly catalogBooksKey = (version: number, year: number, month: number) =>
+    `subscriptions:catalog-books:v${version}:${year}:${month}`;
+
+  private async getCatalogGapsCacheVersion(): Promise<number> {
+    return (await this.cache.get<number>(this.catalogGapsBustKey())) ?? 0;
+  }
+
+  private async getCatalogBooksCacheVersion(): Promise<number> {
+    return (await this.cache.get<number>(this.catalogBooksBustKey())) ?? 0;
+  }
+
+  // Earliest-year floor for the month pickers on the admin gaps / books-by-month pages — derived
+  // from data instead of a guessed constant, since a subscription could predate (or postdate) any
+  // fixed year we hardcode. Changes rarely (only on subscription create/edit), so a long TTL is
+  // safe — same bust trigger as the catalog caches below.
+  private readonly CATALOG_EARLIEST_YEAR_TTL = 7 * 24 * 60 * 60 * 1000;
+  private readonly catalogEarliestYearBustKey = () => 'subscriptions:catalog-earliest-year-bust';
+  private readonly catalogEarliestYearKey = (version: number) => `subscriptions:catalog-earliest-year:v${version}`;
+
+  private async getCatalogEarliestYearCacheVersion(): Promise<number> {
+    return (await this.cache.get<number>(this.catalogEarliestYearBustKey())) ?? 0;
+  }
+
+  /** Bumps all catalog-wide caches — called whenever a month/book/subscription mutation
+   *  could change gap status, the books-by-month catalog, or the earliest-year floor. */
+  private async invalidateCatalogMonthCaches(): Promise<void> {
+    const now = Date.now();
+    await Promise.all([
+      this.cache.set(this.catalogGapsBustKey(), now, this.CATALOG_GAPS_TTL),
+      this.cache.set(this.catalogBooksBustKey(), now, this.CATALOG_BOOKS_TTL),
+      this.cache.set(this.catalogEarliestYearBustKey(), now, this.CATALOG_EARLIEST_YEAR_TTL),
+    ]);
+  }
+
+  /** Earliest year any (non-hidden) subscription could plausibly need a month for — used as the
+   *  month pickers' lower bound instead of a hardcoded guess. Subscriptions with no startDate at
+   *  all can't contribute a floor (nothing to derive one from) — that's a data-completeness gap
+   *  to close by backfilling startDate, not something this query can compensate for. */
+  async getCatalogEarliestYear(): Promise<{ year: number }> {
+    const FALLBACK_YEAR = 2015;
+    const version = await this.getCatalogEarliestYearCacheVersion();
+    const cacheKey = this.catalogEarliestYearKey(version);
+    const cached = await this.cache.get<{ year: number }>(cacheKey);
+    if (cached) return cached;
+
+    const earliest = await this.prisma.subscription.findFirst({
+      where: { isHidden: false, startDate: { not: null } },
+      orderBy: { startDate: 'asc' },
+      select: { startDate: true },
+    });
+    const result = { year: earliest?.startDate ? earliest.startDate.getUTCFullYear() : FALLBACK_YEAR };
+    await this.cache.set(cacheKey, result, this.CATALOG_EARLIEST_YEAR_TTL);
+    return result;
+  }
 
   private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
 
@@ -260,6 +342,7 @@ export class SubscriptionsService {
 
     await this.indexSubscription(subscription.id);
     await this.cache.del(`companies:slug:${company.slug}`);
+    void this.invalidateCatalogMonthCaches();
     return this.mapSubscriptionAssets({
       ...subscription,
       coverImageAsset: coverImageAsset
@@ -833,6 +916,7 @@ export class SubscriptionsService {
     if (existing.company?.slug) {
       await this.cache.del(`companies:slug:${existing.company.slug}`);
     }
+    void this.invalidateCatalogMonthCaches();
     return this.mapSubscriptionAssets(updated);
   }
 
@@ -840,6 +924,7 @@ export class SubscriptionsService {
     const sub = await this.findBySlug(slug);
     await this.uploadService.deleteImages([sub.coverImage, sub.logoUrl]);
     await this.typesense.deleteDocument('subscriptions', sub.id);
+    void this.invalidateCatalogMonthCaches();
     return this.prisma.subscription.delete({ where: { slug } });
   }
 
@@ -973,6 +1058,270 @@ export class SubscriptionsService {
     return result;
   }
 
+  /** Admin catalog scan: for the given (year, month), find every non-combo, non-multi-month-bundle
+   *  subscription due to ship that month and flag ones missing the month itself or missing books.
+   *  Variants (parentSubscriptionId set) are never scanned directly — their months live on the
+   *  parent, so checking the parent is sufficient. */
+  async getMonthGaps(year: number, month: number) {
+    const version = await this.getCatalogGapsCacheVersion();
+    const cacheKey = this.catalogGapsKey(version, year, month);
+    const cached = await this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const candidates = await this.prisma.subscription.findMany({
+      where: {
+        isCombo: false,
+        parentSubscriptionId: null,
+        OR: [{ isBundleSubscription: false }, { intervalMonths: { lte: 1 } }],
+      },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        startDate: true,
+        endDate: true,
+        isDiscontinued: true,
+        isHidden: true,
+        isUpcoming: true,
+        isContentStream: true,
+        intervalMonths: true,
+        startingMonth: true,
+        isBundleSubscription: true,
+        company: { select: { name: true, slug: true } },
+      },
+    });
+
+    const due = candidates.filter((s) => isSubscriptionDueInMonth(s, year, month));
+
+    type MonthGapItem = {
+      subscriptionId: string;
+      slug: string;
+      name: string;
+      companyName: string;
+      companySlug: string;
+      isContentStream: boolean;
+      status: 'missing_month' | 'missing_book';
+    };
+    let gaps: MonthGapItem[] = [];
+
+    if (due.length > 0) {
+      const dueIds = due.map((s) => s.id);
+      const months = await this.prisma.subscriptionMonth.findMany({
+        where: { subscriptionId: { in: dueIds }, year, month },
+        select: { subscriptionId: true, _count: { select: { books: true } } },
+      });
+      const monthBySubId = new Map(months.map((m) => [m.subscriptionId, m]));
+
+      gaps = due.flatMap((s): MonthGapItem[] => {
+        const m = monthBySubId.get(s.id);
+        const base = {
+          subscriptionId: s.id,
+          slug: s.slug,
+          name: s.name,
+          companyName: s.company.name,
+          companySlug: s.company.slug,
+          isContentStream: s.isContentStream,
+        };
+        if (!m) return [{ ...base, status: 'missing_month' }];
+        if (m._count.books === 0) return [{ ...base, status: 'missing_book' }];
+        return [];
+      });
+    }
+
+    const result = { year, month, totalEligible: due.length, gaps };
+    await this.cache.set(cacheKey, result, this.CATALOG_GAPS_TTL);
+    return result;
+  }
+
+  /** Public catalog scan for the "Books by Month" page: every book across every eligible
+   *  subscription (combo/bundle/content-stream all included — combos resolved to their
+   *  component subscriptions, which already appear as their own candidates) for a given
+   *  (year, month). Cached globally, identical for every viewer; `userId` (if logged in)
+   *  only drives the cheap, uncached "mine"/"skipped" highlight overlay. */
+  async getBooksByMonth(userId: string | null, year: number, month: number) {
+    const now = new Date();
+    const nowAbs = now.getFullYear() * 12 + now.getMonth();
+    const reqAbs = year * 12 + (month - 1);
+    if (reqAbs > nowAbs + 1) {
+      throw new BadRequestException('Cannot view more than 1 month into the future');
+    }
+
+    const version = await this.getCatalogBooksCacheVersion();
+    const catalogCacheKey = this.catalogBooksKey(version, year, month);
+    let catalogItems = await this.cache.get<CatalogMonthBookItem[]>(catalogCacheKey);
+    if (!catalogItems) {
+      catalogItems = await this.buildCatalogMonthBooks(year, month);
+      await this.cache.set(catalogCacheKey, catalogItems, this.CATALOG_BOOKS_TTL);
+    }
+
+    const highlightMap = userId ? await this.buildUserHighlightMap(userId, year, month) : new Map<string, 'mine' | 'skipped'>();
+
+    return {
+      year,
+      month,
+      items: catalogItems.map((item) => ({ ...item, highlight: highlightMap.get(item.subscriptionId) ?? null })),
+    };
+  }
+
+  /** Builds the full, unpersonalized catalog of books for (year, month) — one item per
+   *  subscription-month-book, or a placeholder item for subscriptions due that month with
+   *  no month/books added yet. NEVER expands combos into their components here — combos own
+   *  no SubscriptionMonth rows themselves and are excluded as candidates; their components
+   *  already appear as their own independent candidates, so expanding combos too would
+   *  duplicate every component's books. */
+  private async buildCatalogMonthBooks(year: number, month: number): Promise<CatalogMonthBookItem[]> {
+    const candidates = await this.prisma.subscription.findMany({
+      where: { isCombo: false, parentSubscriptionId: null },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        startDate: true,
+        endDate: true,
+        isDiscontinued: true,
+        isHidden: true,
+        isUpcoming: true,
+        intervalMonths: true,
+        startingMonth: true,
+        isBundleSubscription: true,
+        company: { select: { name: true, slug: true, brandColors: true } },
+      },
+      orderBy: [{ company: { name: 'asc' } }, { name: 'asc' }],
+    });
+
+    const due = candidates.filter((s) => isSubscriptionDueInMonth(s, year, month));
+    if (due.length === 0) return [];
+
+    const dueIds = due.map((s) => s.id);
+    const months = await this.prisma.subscriptionMonth.findMany({
+      where: { subscriptionId: { in: dueIds }, year, month },
+      select: {
+        subscriptionId: true,
+        books: {
+          orderBy: [{ isMainBook: 'desc' }, { sortOrder: 'asc' }],
+          select: {
+            bookId: true,
+            editionId: true,
+            book: { select: { slug: true, title: true, seriesName: true, volumeNumber: true, authors: { select: { author: { select: { name: true } } } } } },
+            edition: { select: { slug: true, additionalImages: true } },
+          },
+        },
+      },
+    });
+    const monthBySubId = new Map(months.map((m) => [m.subscriptionId, m]));
+
+    const items: CatalogMonthBookItem[] = [];
+    for (const s of due) {
+      const m = monthBySubId.get(s.id);
+      const base = {
+        subscriptionId: s.id,
+        subscriptionSlug: s.slug,
+        subscriptionName: s.name,
+        companyName: s.company.name,
+        companySlug: s.company.slug,
+        companyBrandColors: s.company.brandColors,
+      };
+      if (!m || m.books.length === 0) {
+        items.push({
+          ...base,
+          bookId: null,
+          bookSlug: null,
+          bookTitle: null,
+          seriesName: null,
+          volumeNumber: null,
+          authors: [],
+          editionId: null,
+          editionSlug: null,
+          coverImage: null,
+          isPlaceholder: true,
+        });
+        continue;
+      }
+      for (const mb of m.books) {
+        items.push({
+          ...base,
+          bookId: mb.bookId,
+          bookSlug: mb.book.slug,
+          bookTitle: mb.book.title,
+          seriesName: mb.book.seriesName,
+          volumeNumber: mb.book.volumeNumber,
+          authors: mb.book.authors.map((a) => a.author.name),
+          editionId: mb.editionId,
+          editionSlug: mb.edition?.slug ?? null,
+          coverImage: mb.edition?.additionalImages?.[0] ?? null,
+          isPlaceholder: false,
+        });
+      }
+    }
+    return items;
+  }
+
+  /** Resolves which subscriptionIds a user's active entries (direct or via combo) map to for
+   *  (year, month), so the catalog list above can be overlaid with 'mine'/'skipped' highlights. */
+  private async buildUserHighlightMap(userId: string, year: number, month: number): Promise<Map<string, 'mine' | 'skipped'>> {
+    const allEntries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        active: true,
+        startDate: true,
+        cancellationDate: true,
+        subscription: {
+          select: {
+            id: true,
+            isCombo: true,
+            parentSubscriptionId: true,
+            comboComponents: { select: { componentId: true } },
+          },
+        },
+      },
+    });
+    // Include cancelled entries that were still active (or skipped) during the viewed month —
+    // "mine"/"skipped" should reflect what was true THEN, not the user's current subscription list.
+    const entries = allEntries.filter((e) => entryCoversMonth(e, year, month));
+    if (entries.length === 0) return new Map();
+
+    const highlightMap = new Map<string, 'mine' | 'skipped'>();
+    const entryToSubIds = new Map<string, string[]>();
+    for (const entry of entries) {
+      const ids = entry.subscription.isCombo
+        ? await this.resolveEffectiveComponentIds(entry.subscription.comboComponents.map((c) => c.componentId))
+        : [entry.subscription.parentSubscriptionId ?? entry.subscription.id];
+      entryToSubIds.set(entry.id, ids);
+      for (const id of ids) if (!highlightMap.has(id)) highlightMap.set(id, 'mine');
+    }
+
+    const allSubIds = [...new Set([...entryToSubIds.values()].flat())];
+    const monthsForRange = await this.prisma.subscriptionMonth.findMany({
+      where: { subscriptionId: { in: allSubIds }, year, month },
+      select: { id: true, subscriptionId: true },
+    });
+    const monthIdBySubId = new Map(monthsForRange.map((m) => [m.subscriptionId, m.id]));
+
+    const skipLookups: { entryId: string; monthId: string; subIds: string[] }[] = [];
+    for (const entry of entries) {
+      const ids = entryToSubIds.get(entry.id)!;
+      const targetSubId = ids.find((id) => monthIdBySubId.has(id));
+      if (targetSubId) skipLookups.push({ entryId: entry.id, monthId: monthIdBySubId.get(targetSubId)!, subIds: ids });
+    }
+    if (skipLookups.length > 0) {
+      const skips = await this.prisma.userSkipRecord.findMany({
+        where: {
+          undoneAt: null,
+          OR: skipLookups.map((l) => ({ userEntryId: l.entryId, subscriptionMonthId: l.monthId })),
+        },
+        select: { userEntryId: true, subscriptionMonthId: true },
+      });
+      const skippedSet = new Set(skips.map((s) => `${s.userEntryId}:${s.subscriptionMonthId}`));
+      for (const l of skipLookups) {
+        if (skippedSet.has(`${l.entryId}:${l.monthId}`)) {
+          for (const id of l.subIds) highlightMap.set(id, 'skipped');
+        }
+      }
+    }
+    return highlightMap;
+  }
+
   async addMonth(subscriptionSlug: string, dto: CreateMonthDto) {
     const subscription = await this.getSubscriptionMonths(subscriptionSlug);
 
@@ -1013,6 +1362,7 @@ export class SubscriptionsService {
     });
 
     void this.invalidateMonthsCache(subscriptionSlug);
+    void this.invalidateCatalogMonthCaches();
     return this.mapMonthAssets({
       ...created,
       coverImageAsset: coverImageAsset
@@ -1095,6 +1445,7 @@ export class SubscriptionsService {
     }
 
     void this.invalidateMonthsCache(subscriptionSlug);
+    void this.invalidateCatalogMonthCaches();
     return deleted;
   }
 
@@ -1151,6 +1502,7 @@ export class SubscriptionsService {
     }
 
     void this.invalidateMonthsCache(subscriptionSlug);
+    void this.invalidateCatalogMonthCaches();
     return newBook;
   }
 
@@ -1167,6 +1519,7 @@ export class SubscriptionsService {
       where: { monthId_bookId: { monthId: monthRecord.id, bookId } },
     });
     void this.invalidateMonthsCache(subscriptionSlug);
+    void this.invalidateCatalogMonthCaches();
     return result;
   }
 

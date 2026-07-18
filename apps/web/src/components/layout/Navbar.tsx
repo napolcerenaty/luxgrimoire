@@ -18,6 +18,7 @@ import { SearchDropdown } from '@/components/search/SearchDropdown'
 const NAV_LINKS = [
   { href: '/companies', label: 'Book Boxes' },
   { href: '/subscriptions', label: 'Subscriptions' },
+  { href: '/books-by-month', label: 'Boxes by Month' },
   { href: '/sale-announcements', label: 'Sale Announcements' },
   { href: '/blog', label: 'Blog' },
 ]

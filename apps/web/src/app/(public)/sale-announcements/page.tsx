@@ -87,13 +87,10 @@ function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
 
         {/* Company ribbon — same style as EditionCarousel */}
         {a.company?.name && (
-          <div
-            className="absolute bottom-0 left-0 right-0 px-2 py-2 text-center pointer-events-none"
-            style={{ background: 'rgba(5,10,18,0.88)', borderTop: '1px solid rgba(200,180,140,0.2)' }}
-          >
+          <div className="card-ribbon absolute bottom-0 left-0 right-0 px-2 py-2 text-center pointer-events-none">
             <span
-              className="font-serif font-semibold uppercase leading-none line-clamp-1 text-white"
-              style={{ fontSize: '10px', letterSpacing: '0.12em', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
+              className="card-ribbon-text font-serif font-semibold uppercase leading-none line-clamp-1 text-white"
+              style={{ fontSize: '10px', letterSpacing: '0.12em' }}
             >
               {a.company.name}
             </span>
