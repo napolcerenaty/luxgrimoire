@@ -16,7 +16,8 @@ COPY packages/shared-types/package.json ./packages/shared-types/
 RUN pnpm install --frozen-lockfile
 
 # Limit memory and webpack parallelism to avoid saturating build servers
-ENV NODE_OPTIONS="--max-old-space-size=3500"
+# Server has 3.7GB total RAM shared with Ghost/Postgres/Redis/API — must leave headroom
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 ENV NEXT_WEBPACK_PARALLELISM="1"
 ENV NEXT_TELEMETRY_DISABLED="1"
 ENV GENERATE_SOURCEMAP="false"
