@@ -167,14 +167,48 @@ export class SubscriptionsService {
     return (await this.cache.get<number>(this.catalogBooksBustKey())) ?? 0;
   }
 
-  /** Bumps both catalog-wide caches — called whenever a month/book/subscription mutation
-   *  could change gap status or the books-by-month catalog for any (year, month). */
+  // Earliest-year floor for the month pickers on the admin gaps / books-by-month pages — derived
+  // from data instead of a guessed constant, since a subscription could predate (or postdate) any
+  // fixed year we hardcode. Changes rarely (only on subscription create/edit), so a long TTL is
+  // safe — same bust trigger as the catalog caches below.
+  private readonly CATALOG_EARLIEST_YEAR_TTL = 7 * 24 * 60 * 60 * 1000;
+  private readonly catalogEarliestYearBustKey = () => 'subscriptions:catalog-earliest-year-bust';
+  private readonly catalogEarliestYearKey = (version: number) => `subscriptions:catalog-earliest-year:v${version}`;
+
+  private async getCatalogEarliestYearCacheVersion(): Promise<number> {
+    return (await this.cache.get<number>(this.catalogEarliestYearBustKey())) ?? 0;
+  }
+
+  /** Bumps all catalog-wide caches — called whenever a month/book/subscription mutation
+   *  could change gap status, the books-by-month catalog, or the earliest-year floor. */
   private async invalidateCatalogMonthCaches(): Promise<void> {
     const now = Date.now();
     await Promise.all([
       this.cache.set(this.catalogGapsBustKey(), now, this.CATALOG_GAPS_TTL),
       this.cache.set(this.catalogBooksBustKey(), now, this.CATALOG_BOOKS_TTL),
+      this.cache.set(this.catalogEarliestYearBustKey(), now, this.CATALOG_EARLIEST_YEAR_TTL),
     ]);
+  }
+
+  /** Earliest year any (non-hidden) subscription could plausibly need a month for — used as the
+   *  month pickers' lower bound instead of a hardcoded guess. Subscriptions with no startDate at
+   *  all can't contribute a floor (nothing to derive one from) — that's a data-completeness gap
+   *  to close by backfilling startDate, not something this query can compensate for. */
+  async getCatalogEarliestYear(): Promise<{ year: number }> {
+    const FALLBACK_YEAR = 2015;
+    const version = await this.getCatalogEarliestYearCacheVersion();
+    const cacheKey = this.catalogEarliestYearKey(version);
+    const cached = await this.cache.get<{ year: number }>(cacheKey);
+    if (cached) return cached;
+
+    const earliest = await this.prisma.subscription.findFirst({
+      where: { isHidden: false, startDate: { not: null } },
+      orderBy: { startDate: 'asc' },
+      select: { startDate: true },
+    });
+    const result = { year: earliest?.startDate ? earliest.startDate.getUTCFullYear() : FALLBACK_YEAR };
+    await this.cache.set(cacheKey, result, this.CATALOG_EARLIEST_YEAR_TTL);
+    return result;
   }
 
   private countryFeeCache = new Map<string, { data: CountryFeeHint[]; expiresAt: number }>();
