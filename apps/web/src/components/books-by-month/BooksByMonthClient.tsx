@@ -69,8 +69,8 @@ function BookByMonthCard({ item }: { item: BookByMonthItem }) {
           style={{ background: 'rgba(5,10,18,0.88)', borderTop: '1px solid rgba(200,180,140,0.2)' }}
         >
           <span
-            className="font-serif font-semibold uppercase tracking-widest leading-none line-clamp-1 text-white"
-            style={{ fontSize: '10px', letterSpacing: '0.12em', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
+            className="font-serif font-semibold uppercase tracking-widest leading-tight line-clamp-2 text-white"
+            style={{ fontSize: '10px', letterSpacing: '0.08em', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
           >
             {item.subscriptionName}
           </span>
