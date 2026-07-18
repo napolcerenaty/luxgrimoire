@@ -54,11 +54,11 @@ function BookByMonthCard({ item }: { item: BookByMonthItem }) {
       href={href}
       coverImage={item.coverImage}
       companyBrandColors={item.companyBrandColors}
-      title={item.bookTitle ?? undefined}
-      // No title (placeholder) → EditionCard's own fallback heading kicks in; feed it the
-      // "Not yet announced" status instead of the subscription name (which now lives in the
-      // ribbon below, same as every other card) so the two card kinds read the same way.
-      companyName={item.isPlaceholder ? 'Not yet announced' : undefined}
+      // Always pass a title, even for placeholders — EditionCard's "no title" fallback branch
+      // skips the reserved series-name line above the heading that the title branch has, so the
+      // two card kinds' headings landed at different heights. Routing both through the same
+      // branch keeps them pixel-aligned.
+      title={item.bookTitle ?? 'Not yet announced'}
       authors={item.authors.map((name) => ({ name }))}
       highlight={item.highlight}
       imageActions={
