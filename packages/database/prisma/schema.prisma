@@ -399,6 +399,7 @@ model Subscription {
   comboComponents      SubscriptionComboComponent[] @relation("SubscriptionAsCombo")
   comboOf              SubscriptionComboComponent[] @relation("SubscriptionAsComponent")
   months               SubscriptionMonth[]
+  monthSkips           SubscriptionMonthSkip[]
   prepayOptions        SubscriptionPrepayOption[]
   series               SubscriptionSeries[]
   skipPolicies         SubscriptionSkipPolicy[]
@@ -906,6 +907,30 @@ model SubscriptionSettingsHistory {
 
   @@index([subscriptionId, effectiveFrom])
   @@map("subscription_settings_history")
+}
+
+/// Admin-declared "this calendar month doesn't happen" for a subscription — company-wide,
+/// e.g. a shipping delay/skip the company itself announced. NOT the per-user UserSkipRecord.
+/// Written once per member subscription id of a content stream (parent + every variant) so
+/// every reader (renewal math, gap/catalog scans) can do a plain subscriptionId lookup with
+/// no parent/variant resolution — see the feature plan for why this is denormalized at write
+/// time. One active (undoneAt: null) row per (subscriptionId, year, month); re-skipping an
+/// unskipped month reuses the same row via upsert, mirroring UserSkipRecord's toggle pattern.
+model SubscriptionMonthSkip {
+  id             String    @id @default(uuid())
+  subscriptionId String
+  year           Int
+  month          Int
+  reason         String?
+  createdBy      String?  /// userId of admin who marked it skipped (audit)
+  createdAt      DateTime  @default(now())
+  undoneAt       DateTime?
+
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, year, month])
+  @@index([subscriptionId])
+  @@map("subscription_month_skips")
 }
 
 model SubscriptionPriceChange {
