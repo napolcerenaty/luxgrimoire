@@ -34,7 +34,7 @@ import {
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
-import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth, resolveSignupIncludesCurrentMonth } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
@@ -2550,6 +2550,10 @@ export class SubscriptionsService {
       if (parentSubscriptionId && variantDbStartDate && (!effectiveStartDateObj || variantDbStartDate > effectiveStartDateObj)) {
         effectiveStartDateObj = variantDbStartDate;
         effectiveSignupIncludes = true;
+      } else if (!parentSubscriptionId) {
+        // Standalone sub: an entry startDate before the sub's own startDate means the user is
+        // joining for its very first box — never skip past that regardless of the configured setting.
+        effectiveSignupIncludes = resolveSignupIncludesCurrentMonth(signupIncludesCurrentMonth, effectiveStartDateObj, variantDbStartDate);
       }
       const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
       const eligibleMonths = isCombo
@@ -2639,6 +2643,10 @@ export class SubscriptionsService {
         effectiveStartDateObj = variantDbStartDate;
         effectiveSignupIncludes = true; // subscription's first month is always eligible for pre-launch joiners
       }
+    } else if (!parentSubscriptionId) {
+      // Standalone sub: an entry startDate before the sub's own startDate means the user is
+      // joining for its very first box — never skip past that regardless of the configured setting.
+      effectiveSignupIncludes = resolveSignupIncludesCurrentMonth(signupIncludesCurrentMonth, effectiveStartDateObj, variantDbStartDate);
     }
     const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
 
@@ -2650,7 +2658,7 @@ export class SubscriptionsService {
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
     if (paymentOnStartup && startDateObj && !isCombo && !dto.alreadyCancelled) {
-      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth, renewalDay, renewalMonthOffset, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1);
+      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, effectiveSignupIncludes, renewalDay, renewalMonthOffset, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1);
     }
 
     // Persist nextRenewalDate (will be null for cancelled entries)

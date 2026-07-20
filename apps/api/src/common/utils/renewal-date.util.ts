@@ -33,6 +33,23 @@ export function renewalMonthFromBoxMonth(year: number, month: number, offset: nu
 }
 
 /**
+ * signupIncludesCurrentMonth decides whether a mid-cycle joiner gets the box that's
+ * about to ship or waits for the next cycle — that question only makes sense once the
+ * subscription has an earlier cycle to be "mid-way through". If the entry's startDate is
+ * before the subscription's own startDate, the user is signing up for the subscription's
+ * very first box; there's no earlier cycle to skip, so this one box is always included
+ * regardless of the subscription's configured setting.
+ */
+export function resolveSignupIncludesCurrentMonth(
+  configured: boolean,
+  entryStartDate: Date | null,
+  subscriptionStartDate: Date | null,
+): boolean {
+  if (entryStartDate && subscriptionStartDate && entryStartDate < subscriptionStartDate) return true;
+  return configured;
+}
+
+/**
  * Returns the start {year, month} of the bundle period (box months) that contains the given
  * (year, month). Bundle cycles begin at `startingMonth` and repeat every `intervalMonths` months.
  * Mirrors apps/web/src/lib/bundleHelpers.ts#getBundleStart — keep in sync.
@@ -689,11 +706,14 @@ export async function refreshNextRenewalDate(
   let paidUpFrontDate: Date | null = null;
   if (effectiveSettings.paymentOnStartup && entry.startDate) {
     const joinDate = new Date(entry.startDate);
+    const signupIncludesCurrentMonth = resolveSignupIncludesCurrentMonth(
+      effectiveSettings.signupIncludesCurrentMonth, joinDate, subStartDate,
+    );
     const { year: firstEligibleYear, month: firstEligibleMonth } = computeFirstEligibleBoxMonth(
       joinDate,
       renewalDay,
       offset,
-      effectiveSettings.signupIncludesCurrentMonth,
+      signupIncludesCurrentMonth,
       sub.intervalMonths ?? 1,
       sub.startingMonth ?? 1,
     );

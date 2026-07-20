@@ -1,4 +1,4 @@
-import { computeNextRenewalDate, computeNextRenewalDatePrepaid, computePastRenewalDates, isSubscriptionDueInMonth, entryCoversMonth } from './renewal-date.util';
+import { computeNextRenewalDate, computeNextRenewalDatePrepaid, computePastRenewalDates, computeFirstEligibleBoxMonth, isSubscriptionDueInMonth, entryCoversMonth, resolveSignupIncludesCurrentMonth } from './renewal-date.util';
 
 const FIXED_NOW = new Date('2025-03-15T12:00:00Z');
 
@@ -403,6 +403,45 @@ describe('regression: startingMonth consistency across box-month and renewal-mon
     const result = computeNextRenewalDate(1, 2, 6, null, [], null, subscriptionEarliestDate, 1);
     expect(result).toEqual(new Date(Date.UTC(2026, 4, 1))); // May 1 2026
     jest.useRealTimers();
+  })
+});
+
+// ---------------------------------------------------------------------------
+// resolveSignupIncludesCurrentMonth
+// ---------------------------------------------------------------------------
+//
+// Real bug: "Fantasy & Romance Bi-Monthly Subscription" — subscription startDate
+// 2026-06-01 (box months Jun/Aug/Oct..., offset=1, interval=2), signupIncludesCurrentMonth=false.
+// An entry backdated to 2026-04-15 (before the subscription itself launched) is signing up
+// for the subscription's very first box, not joining mid-cycle — signupIncludesCurrentMonth
+// must not skip it forward to the second box (August).
+
+describe('resolveSignupIncludesCurrentMonth', () => {
+  it('forces true when the entry startDate is before the subscription startDate, regardless of the configured value', () => {
+    const entryStart = new Date(Date.UTC(2026, 3, 15)); // Apr 15 2026
+    const subStart = new Date(Date.UTC(2026, 5, 1)); // Jun 1 2026
+    expect(resolveSignupIncludesCurrentMonth(false, entryStart, subStart)).toBe(true)
+    expect(resolveSignupIncludesCurrentMonth(true, entryStart, subStart)).toBe(true)
+  })
+
+  it('returns the configured value unchanged once the subscription has already launched', () => {
+    const entryStart = new Date(Date.UTC(2026, 6, 15)); // Jul 15 2026, after sub launch
+    const subStart = new Date(Date.UTC(2026, 5, 1)); // Jun 1 2026
+    expect(resolveSignupIncludesCurrentMonth(false, entryStart, subStart)).toBe(false)
+    expect(resolveSignupIncludesCurrentMonth(true, entryStart, subStart)).toBe(true)
+  })
+
+  it('returns the configured value unchanged when either date is missing', () => {
+    expect(resolveSignupIncludesCurrentMonth(false, null, new Date())).toBe(false)
+    expect(resolveSignupIncludesCurrentMonth(false, new Date(), null)).toBe(false)
+  })
+
+  it('end-to-end: pre-launch entry gets the subscription\'s first box (Jun), not the second (Aug)', () => {
+    const entryStart = new Date(Date.UTC(2026, 3, 15)); // Apr 15 2026
+    const subStart = new Date(Date.UTC(2026, 5, 1)); // Jun 1 2026
+    const resolved = resolveSignupIncludesCurrentMonth(false, entryStart, subStart)
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 1, resolved, 2, 6)
+    expect(result).toEqual({ year: 2026, month: 6 })
   })
 });
 
