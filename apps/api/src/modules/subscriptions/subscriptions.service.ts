@@ -1064,6 +1064,37 @@ export class SubscriptionsService {
     return result;
   }
 
+  /** Filters isSubscriptionDueInMonth's result down to subscriptions that aren't company-wide
+   *  skipped for (year, month) — see SubscriptionMonthSkip. One batched query, not per-candidate;
+   *  callers here already restrict candidates to parentSubscriptionId: null (content-stream/parent
+   *  subscriptions only), which is exactly the id level SubscriptionMonthSkip rows are written at
+   *  (markMonthSkipped denormalizes one row per content-stream member), so no further parent/variant
+   *  resolution is needed. */
+  private async excludeCompanySkippedMonth<T extends {
+    id: string;
+    startDate: Date | null;
+    endDate: Date | null;
+    isDiscontinued: boolean;
+    isHidden: boolean;
+    isUpcoming?: boolean;
+    intervalMonths?: number;
+    startingMonth?: number | null;
+    isBundleSubscription?: boolean;
+  }>(
+    candidates: T[],
+    year: number,
+    month: number,
+  ): Promise<T[]> {
+    const dueBase = candidates.filter((s) => isSubscriptionDueInMonth(s, year, month));
+    if (dueBase.length === 0) return dueBase;
+    const skipped = await this.prisma.subscriptionMonthSkip.findMany({
+      where: { subscriptionId: { in: dueBase.map((s) => s.id) }, year, month, undoneAt: null },
+      select: { subscriptionId: true },
+    });
+    const skippedIds = new Set(skipped.map((s) => s.subscriptionId));
+    return dueBase.filter((s) => !skippedIds.has(s.id));
+  }
+
   /** Admin catalog scan: for the given (year, month), find every non-combo, non-multi-month-bundle
    *  subscription due to ship that month and flag ones missing the month itself or missing books.
    *  Variants (parentSubscriptionId set) are never scanned directly — their months live on the
@@ -1097,7 +1128,7 @@ export class SubscriptionsService {
       },
     });
 
-    const due = candidates.filter((s) => isSubscriptionDueInMonth(s, year, month));
+    const due = await this.excludeCompanySkippedMonth(candidates, year, month);
 
     type MonthGapItem = {
       subscriptionId: string;
@@ -1195,7 +1226,7 @@ export class SubscriptionsService {
       orderBy: [{ company: { name: 'asc' } }, { name: 'asc' }],
     });
 
-    const due = candidates.filter((s) => isSubscriptionDueInMonth(s, year, month));
+    const due = await this.excludeCompanySkippedMonth(candidates, year, month);
     if (due.length === 0) return [];
 
     const dueIds = due.map((s) => s.id);
