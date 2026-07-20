@@ -1,4 +1,4 @@
-import { computeNextRenewalDate, computeNextRenewalDatePrepaid, computePastRenewalDates, computeFirstEligibleBoxMonth, isSubscriptionDueInMonth, entryCoversMonth, resolveSignupIncludesCurrentMonth } from './renewal-date.util';
+import { computeNextRenewalDate, computeNextRenewalDatePrepaid, computePastRenewalDates, computeFirstEligibleBoxMonth, isSubscriptionDueInMonth, entryCoversMonth } from './renewal-date.util';
 
 const FIXED_NOW = new Date('2025-03-15T12:00:00Z');
 
@@ -407,41 +407,65 @@ describe('regression: startingMonth consistency across box-month and renewal-mon
 });
 
 // ---------------------------------------------------------------------------
-// resolveSignupIncludesCurrentMonth
+// computeFirstEligibleBoxMonth — subscriptionStartDate (pre-launch entries)
 // ---------------------------------------------------------------------------
 //
-// Real bug: "Fantasy & Romance Bi-Monthly Subscription" — subscription startDate
-// 2026-06-01 (box months Jun/Aug/Oct..., offset=1, interval=2), signupIncludesCurrentMonth=false.
-// An entry backdated to 2026-04-15 (before the subscription itself launched) is signing up
-// for the subscription's very first box, not joining mid-cycle — signupIncludesCurrentMonth
-// must not skip it forward to the second box (August).
+// Standalone subs may have an entry startDate before the subscription's own startDate
+// (allowed for historical data entry — see joinSubscription). signupIncludesCurrentMonth
+// decides whether a mid-cycle joiner gets the box about to ship or waits for the next one,
+// but that question only makes sense once a prior cycle exists to be "mid-way through" — a
+// pre-launch joiner has no earlier cycle to skip.
+//
+// An earlier fix attempted this by forcing signupIncludesCurrentMonth=true whenever
+// entryStart < subscriptionStart, but that's not equivalent: the normal cycle math has no
+// concept of "this cycle didn't exist yet" and, depending on offset/interval/startingMonth
+// phase alignment, can land before, at, or after the true launch box even with
+// signupIncludesCurrentMonth forced true (verified against 7 real pre-launch entries in the
+// database — forcing true gave the wrong box, before the subscription even existed, for 3 of
+// them). The correct fix bypasses the cycle math entirely for this case and returns the box
+// month containing subscriptionStartDate directly (via getBundleBoxStart).
 
-describe('resolveSignupIncludesCurrentMonth', () => {
-  it('forces true when the entry startDate is before the subscription startDate, regardless of the configured value', () => {
+describe('computeFirstEligibleBoxMonth — subscriptionStartDate override', () => {
+  it('real case: Fantasy & Romance Bi-Monthly (interval=2, offset=1) — pre-launch entry gets the first box (Jun), not the second (Aug)', () => {
     const entryStart = new Date(Date.UTC(2026, 3, 15)); // Apr 15 2026
     const subStart = new Date(Date.UTC(2026, 5, 1)); // Jun 1 2026
-    expect(resolveSignupIncludesCurrentMonth(false, entryStart, subStart)).toBe(true)
-    expect(resolveSignupIncludesCurrentMonth(true, entryStart, subStart)).toBe(true)
-  })
-
-  it('returns the configured value unchanged once the subscription has already launched', () => {
-    const entryStart = new Date(Date.UTC(2026, 6, 15)); // Jul 15 2026, after sub launch
-    const subStart = new Date(Date.UTC(2026, 5, 1)); // Jun 1 2026
-    expect(resolveSignupIncludesCurrentMonth(false, entryStart, subStart)).toBe(false)
-    expect(resolveSignupIncludesCurrentMonth(true, entryStart, subStart)).toBe(true)
-  })
-
-  it('returns the configured value unchanged when either date is missing', () => {
-    expect(resolveSignupIncludesCurrentMonth(false, null, new Date())).toBe(false)
-    expect(resolveSignupIncludesCurrentMonth(false, new Date(), null)).toBe(false)
-  })
-
-  it('end-to-end: pre-launch entry gets the subscription\'s first box (Jun), not the second (Aug)', () => {
-    const entryStart = new Date(Date.UTC(2026, 3, 15)); // Apr 15 2026
-    const subStart = new Date(Date.UTC(2026, 5, 1)); // Jun 1 2026
-    const resolved = resolveSignupIncludesCurrentMonth(false, entryStart, subStart)
-    const result = computeFirstEligibleBoxMonth(entryStart, 1, 1, resolved, 2, 6)
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6, subStart)
     expect(result).toEqual({ year: 2026, month: 6 })
+  })
+
+  it('real case: Phoenix Fantasy (interval=4, startingMonth=11) — subscriptionStartDate itself is already the aligned box start', () => {
+    const entryStart = new Date(Date.UTC(2026, 3, 15)); // Apr 15 2026
+    const subStart = new Date(Date.UTC(2026, 10, 1)); // Nov 1 2026
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 0, false, 4, 11, subStart)
+    expect(result).toEqual({ year: 2026, month: 11 })
+  })
+
+  it('real case: Cosy Fantasy Book-Only (interval=3) — matches the actually-recorded first purchase month', () => {
+    const entryStart = new Date(Date.UTC(2025, 11, 3)); // Dec 3 2025
+    const subStart = new Date(Date.UTC(2026, 0, 1)); // Jan 1 2026
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 0, false, 3, 1, subStart)
+    expect(result).toEqual({ year: 2026, month: 1 })
+  })
+
+  it('real case: monthly interval (interval=1) — box is simply the subscription\'s own start month', () => {
+    const entryStart = new Date(Date.UTC(2024, 8, 11)); // Sep 11 2024
+    const subStart = new Date(Date.UTC(2024, 9, 1)); // Oct 1 2024
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 0, false, 1, 1, subStart)
+    expect(result).toEqual({ year: 2024, month: 10 })
+  })
+
+  it('does not override when entryStart is on/after subscriptionStartDate — normal cycle math applies', () => {
+    const entryStart = new Date(Date.UTC(2026, 5, 1)); // Jun 1 2026, exactly at launch
+    const subStart = new Date(Date.UTC(2026, 5, 1));
+    const withOverride = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6, subStart)
+    const withoutOverride = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6, null)
+    expect(withOverride).toEqual(withoutOverride)
+  })
+
+  it('is a no-op (defers to normal computation) when subscriptionStartDate is not provided', () => {
+    const entryStart = new Date(Date.UTC(2026, 3, 15));
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6)
+    expect(result).not.toEqual({ year: 2026, month: 6 }) // the un-overridden (buggy-looking) result
   })
 });
 

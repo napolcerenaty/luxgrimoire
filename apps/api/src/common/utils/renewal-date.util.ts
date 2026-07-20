@@ -33,23 +33,6 @@ export function renewalMonthFromBoxMonth(year: number, month: number, offset: nu
 }
 
 /**
- * signupIncludesCurrentMonth decides whether a mid-cycle joiner gets the box that's
- * about to ship or waits for the next cycle — that question only makes sense once the
- * subscription has an earlier cycle to be "mid-way through". If the entry's startDate is
- * before the subscription's own startDate, the user is signing up for the subscription's
- * very first box; there's no earlier cycle to skip, so this one box is always included
- * regardless of the subscription's configured setting.
- */
-export function resolveSignupIncludesCurrentMonth(
-  configured: boolean,
-  entryStartDate: Date | null,
-  subscriptionStartDate: Date | null,
-): boolean {
-  if (entryStartDate && subscriptionStartDate && entryStartDate < subscriptionStartDate) return true;
-  return configured;
-}
-
-/**
  * Returns the start {year, month} of the bundle period (box months) that contains the given
  * (year, month). Bundle cycles begin at `startingMonth` and repeat every `intervalMonths` months.
  * Mirrors apps/web/src/lib/bundleHelpers.ts#getBundleStart — keep in sync.
@@ -279,6 +262,13 @@ function findCurrentBundleRenewal(
  *
  *   signupIncludesCurrentMonth=true  → firstBox = current bundle start
  *   signupIncludesCurrentMonth=false → firstBox = next bundle start (current + intervalMonths)
+ *
+ * @param subscriptionStartDate - When provided and `joinDate` is before it, the entry predates
+ *   the subscription's own launch (allowed for standalone subs, for historical data entry — see
+ *   joinSubscription). There's no earlier cycle for such a joiner to be "mid-way through", and the
+ *   normal cycle math has no notion of "this cycle didn't exist yet": depending on phase alignment
+ *   it can land before, at, or after the true launch box. So this case is special-cased directly to
+ *   the box month containing subscriptionStartDate, bypassing signupIncludesCurrentMonth entirely.
  */
 export function computeFirstEligibleBoxMonth(
   joinDate: Date,
@@ -287,7 +277,17 @@ export function computeFirstEligibleBoxMonth(
   signupIncludesCurrentMonth: boolean,
   intervalMonths = 1,
   startingMonth = 1,
+  subscriptionStartDate: Date | null = null,
 ): { year: number; month: number } {
+  if (subscriptionStartDate && joinDate < subscriptionStartDate) {
+    return getBundleBoxStart(
+      subscriptionStartDate.getUTCFullYear(),
+      subscriptionStartDate.getUTCMonth() + 1,
+      startingMonth,
+      intervalMonths,
+    );
+  }
+
   if (intervalMonths > 1) {
     const { year: rYear, month: rMonth } = findCurrentBundleRenewal(
       joinDate, renewalDay, renewalMonthOffset, startingMonth, intervalMonths,
@@ -706,16 +706,14 @@ export async function refreshNextRenewalDate(
   let paidUpFrontDate: Date | null = null;
   if (effectiveSettings.paymentOnStartup && entry.startDate) {
     const joinDate = new Date(entry.startDate);
-    const signupIncludesCurrentMonth = resolveSignupIncludesCurrentMonth(
-      effectiveSettings.signupIncludesCurrentMonth, joinDate, subStartDate,
-    );
     const { year: firstEligibleYear, month: firstEligibleMonth } = computeFirstEligibleBoxMonth(
       joinDate,
       renewalDay,
       offset,
-      signupIncludesCurrentMonth,
+      effectiveSettings.signupIncludesCurrentMonth,
       sub.intervalMonths ?? 1,
       sub.startingMonth ?? 1,
+      subStartDate,
     );
     const firstSubMonth = await prisma.subscriptionMonth.findFirst({
       where: {
