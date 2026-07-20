@@ -876,15 +876,16 @@ describe('backfillRenewalHistory', () => {
 
   // ── Bundle subscription with renewalMonthOffset ───────────────────────────
   //
-  // When renewalMonthOffset > 0, skip records are stored as BOX months.
+  // startingMonth is always the BOX (content) month anchor, never the renewal
+  // month — see getRenewalAlignmentBaseMonth in renewal-date.util.ts. When
+  // renewalMonthOffset > 0, skip records are stored as BOX months.
   // backfillRenewalHistory calls renewalMonthFromBoxMonth(year, month, -offset)
   // to convert each skip record to its renewal month before passing to
   // computePastRenewalDates.
   //
-  // 2-month bundle (intervalMonths=2, startingMonth=1), offset=1:
-  //   Renewal months: Jan, Mar, May, Jul, Sep, Nov ...
-  //   Box months shift by +1:  first box of Jan bundle = Feb,
-  //                            first box of Mar bundle = Apr, etc.
+  // 2-month bundle (intervalMonths=2, startingMonth=2 i.e. Feb box), offset=1:
+  //   Box months: Feb, Apr, Jun, Aug, Oct, Dec ...
+  //   Renewal months shift by -1: Jan, Mar, May, Jul, Sep, Nov ...
   //
   // startDate=2025-01-01, now=2025-04-01 → past renewal months: Jan 1, Mar 1 = 2 dates
 
@@ -897,7 +898,7 @@ describe('backfillRenewalHistory', () => {
         makeEntry({
           startDate: '2025-01-01',
           skipRecords: [{ month: { year: 2025, month: 2 } }], // box Feb → renewal Jan
-          subscription: { renewalDay: 1, intervalMonths: 2, startingMonth: 1, renewalMonthOffset: 1 },
+          subscription: { renewalDay: 1, intervalMonths: 2, startingMonth: 2, renewalMonthOffset: 1 },
         }),
       );
 
@@ -913,15 +914,15 @@ describe('backfillRenewalHistory', () => {
       expect(upsertedDates).toContain('2025-03-01T00:00:00.000Z'); // Mar renewal still present
     });
 
-    it('skip on SECOND box month of Jan bundle (box Mar, offset=1) → converted renewal Feb (non-aligned) → no effect → 2 dates', async () => {
+    it('skip on non-box month Mar (box Feb, offset=1) → converted renewal Feb (non-aligned) → no effect → 2 dates', async () => {
       // Box Mar 2025 → renewalMonthFromBoxMonth(2025, 3, 1) = {2025, 2} = Feb renewal
-      // Feb is not a renewal month (offset=(2-1)%12=1, 1%2=1 → not aligned)
+      // Feb is not a renewal month (renewal months are Jan, Mar, May... — see block comment above)
       // → skip has no effect; Jan and Mar 2025 both present
       (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
         makeEntry({
           startDate: '2025-01-01',
-          skipRecords: [{ month: { year: 2025, month: 3 } }], // box Mar → renewal Feb (non-aligned)
-          subscription: { renewalDay: 1, intervalMonths: 2, startingMonth: 1, renewalMonthOffset: 1 },
+          skipRecords: [{ month: { year: 2025, month: 3 } }], // box Mar (non-aligned) → renewal Feb (non-aligned)
+          subscription: { renewalDay: 1, intervalMonths: 2, startingMonth: 2, renewalMonthOffset: 1 },
         }),
       );
 
@@ -938,15 +939,15 @@ describe('backfillRenewalHistory', () => {
     });
 
     it('3-month bundle with offset=2: skip first box month of Jan quarter (box Mar, offset=2) → Jan renewal excluded', async () => {
-      // 3-month bundle (startingMonth=1, offset=2): renewal Jan → boxes are Mar,Apr,May
+      // 3-month bundle (startingMonth=3, i.e. box Mar/Apr/May, offset=2): renewal Jan
       // Box Mar 2025 → renewalMonthFromBoxMonth(2025, 3, 2) = {2025, 1} = Jan renewal
-      // startDate=2025-01-01, now=2025-04-01, intervalMonths=3, startingMonth=1
+      // startDate=2025-01-01, now=2025-04-01, intervalMonths=3, startingMonth=3 (box month)
       // Past renewal months: Jan 2025 only (Apr 2025 >= now)
       (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
         makeEntry({
           startDate: '2025-01-01',
           skipRecords: [{ month: { year: 2025, month: 3 } }], // box Mar → renewal Jan
-          subscription: { renewalDay: 1, intervalMonths: 3, startingMonth: 1, renewalMonthOffset: 2 },
+          subscription: { renewalDay: 1, intervalMonths: 3, startingMonth: 3, renewalMonthOffset: 2 },
         }),
       );
 
@@ -958,13 +959,13 @@ describe('backfillRenewalHistory', () => {
 
     it('3-month bundle with offset=2: skip second box month (box Apr, offset=2) → converted renewal Feb (non-aligned) → no effect', async () => {
       // Box Apr 2025 → renewalMonthFromBoxMonth(2025, 4, 2) = {2025, 2} = Feb renewal
-      // Feb offset=(2-1)%12=1, 1%3=1 → not aligned → no effect
+      // Renewal months for this cycle are Jan, Apr, Jul, Oct... → Feb not aligned → no effect
       // Jan 2025 renewal still present
       (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(
         makeEntry({
           startDate: '2025-01-01',
           skipRecords: [{ month: { year: 2025, month: 4 } }], // box Apr → renewal Feb (non-aligned)
-          subscription: { renewalDay: 1, intervalMonths: 3, startingMonth: 1, renewalMonthOffset: 2 },
+          subscription: { renewalDay: 1, intervalMonths: 3, startingMonth: 3, renewalMonthOffset: 2 },
         }),
       );
 
@@ -990,7 +991,7 @@ describe('backfillRenewalHistory', () => {
             { month: { year: 2024, month: 4 } },  // box Apr → renewal Mar 2024
             { month: { year: 2024, month: 10 } }, // box Oct → renewal Sep 2024
           ],
-          subscription: { renewalDay: 1, intervalMonths: 2, startingMonth: 1, renewalMonthOffset: 1 },
+          subscription: { renewalDay: 1, intervalMonths: 2, startingMonth: 2, renewalMonthOffset: 1 },
         }),
       );
 

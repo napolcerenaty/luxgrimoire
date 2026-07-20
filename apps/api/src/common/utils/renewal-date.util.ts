@@ -18,7 +18,9 @@ function shiftMonth(year: number, month: number, offset: number): [number, numbe
 }
 
 function getRenewalAlignmentBaseMonth(startingMonth: number, renewalMonthOffset: number): number {
-  const adjustedStartingMonth = startingMonth - Math.min(renewalMonthOffset, 0);
+  // startingMonth is always the box (content) month; renewal month = box month - offset,
+  // for both positive and negative offsets (see renewalMonthFromBoxMonth).
+  const adjustedStartingMonth = startingMonth - renewalMonthOffset;
   return ((adjustedStartingMonth - 1 + 1200) % 12) + 1;
 }
 

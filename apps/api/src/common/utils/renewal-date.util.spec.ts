@@ -106,7 +106,11 @@ describe('computeNextRenewalDate', () => {
 
     it('renewalMonthOffset=1: subscriptionEarliestDate shifted back by 1 month → returns Oct renewal', () => {
       // Sub's first BOX is Nov 2026, renewalMonthOffset=1 → first RENEWAL is Oct 2026.
-      // DB stores startingMonth in renewal-month space: box Nov, offset=1 → startingMonth=10.
+      // This test exercises the low-level fn directly with offset=0 (not passed) and a
+      // startingMonth arg pre-shifted into renewal-month space by the caller (mirroring what
+      // getRenewalAlignmentBaseMonth would compute internally) — sub.startingMonth in the DB is
+      // always the BOX month (10 here stands in for that already-shifted alignment base, not
+      // for how the field is actually stored — see getRenewalAlignmentBaseMonth).
       // refreshNextRenewalDate shifts sub.startDate back by offset before passing here:
       //   Nov 2026 - 1 month = Oct 2026 → subscriptionEarliestDate = Oct 1 2026.
       // Aligned 4-monthly renewal months from Oct: Oct, Feb, Jun, Oct...
@@ -355,6 +359,50 @@ describe('isSubscriptionDueInMonth', () => {
     expect(isSubscriptionDueInMonth(sub, 2026, 1, NOW)).toBe(true)
     expect(isSubscriptionDueInMonth(sub, 2026, 4, NOW)).toBe(true)
     expect(isSubscriptionDueInMonth(sub, 2026, 2, NOW)).toBe(false)
+  })
+});
+
+// ---------------------------------------------------------------------------
+// Regression: startingMonth must consistently mean the BOX month everywhere,
+// including when renewalMonthOffset is positive and NOT a multiple of
+// intervalMonths (the one combination that exposes any drift between
+// isSubscriptionDueInMonth's box-month reading and computeNextRenewalDate's
+// renewal-month reading of the same field).
+//
+// Real bug: "Fantasy & Romance Bi-Monthly Subscription" — intervalMonths=2,
+// renewalMonthOffset=1, actual box months Jun/Aug/Oct/Dec, actual renewal
+// months May/Jul/Sep/Nov. Admin had startingMonth set to 7 (the renewal
+// month) to work around a bug in the old renewal-date math, which broke the
+// admin month-gaps view (it flagged Jul as a missing box). With
+// startingMonth correctly set to 6 (the box month), both views must agree.
+// ---------------------------------------------------------------------------
+
+describe('regression: startingMonth consistency across box-month and renewal-month reads (offset=1, interval=2)', () => {
+  const REGRESSION_NOW = new Date(Date.UTC(2026, 6, 19)); // Jul 19 2026
+  const sub = {
+    startDate: null, endDate: null, isDiscontinued: false, isHidden: false,
+    intervalMonths: 2, startingMonth: 6, isBundleSubscription: false,
+  };
+
+  it('isSubscriptionDueInMonth: box months are Jun/Aug/Oct/Dec, not May/Jul/Sep/Nov', () => {
+    expect(isSubscriptionDueInMonth(sub, 2026, 6, REGRESSION_NOW)).toBe(true)  // Jun
+    expect(isSubscriptionDueInMonth(sub, 2026, 8, REGRESSION_NOW)).toBe(true)  // Aug
+    expect(isSubscriptionDueInMonth(sub, 2026, 10, REGRESSION_NOW)).toBe(true) // Oct
+    expect(isSubscriptionDueInMonth(sub, 2026, 5, REGRESSION_NOW)).toBe(false) // May
+    expect(isSubscriptionDueInMonth(sub, 2026, 7, REGRESSION_NOW)).toBe(false) // Jul
+    expect(isSubscriptionDueInMonth(sub, 2026, 9, REGRESSION_NOW)).toBe(false) // Sep
+  })
+
+  it('computeNextRenewalDate: renewal months are May/Jul/Sep/Nov, matching box - offset', () => {
+    // subscriptionEarliestDate is in renewal-month space (as refreshNextRenewalDate's
+    // buildSubscriptionEarliestDate produces: box start Jun 2026 - offset 1 = May 2026).
+    const subscriptionEarliestDate = new Date(Date.UTC(2026, 4, 1)); // May 1 2026
+    jest.useFakeTimers({ now: new Date('2026-04-01T00:00:00Z') });
+    // First aligned renewal on/after now, with startingMonth=6 (box) and offset=1:
+    // renewal months are box - 1 = May, Jul, Sep, Nov...
+    const result = computeNextRenewalDate(1, 2, 6, null, [], null, subscriptionEarliestDate, 1);
+    expect(result).toEqual(new Date(Date.UTC(2026, 4, 1))); // May 1 2026
+    jest.useRealTimers();
   })
 });
 
