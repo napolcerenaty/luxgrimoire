@@ -159,8 +159,10 @@ export default function SubscriptionList() {
       if (query && !s.name.toLowerCase().includes(query) && !s.company?.name.toLowerCase().includes(query)) return false
       if (companyFilter && s.company?.name !== companyFilter) return false
       if (genreFiltersLower.length > 0) {
-        const subGenres = [...(Array.isArray(s.genres) ? s.genres : []), ...(s.genre ? [s.genre] : [])]
-        if (!subGenres.some((genre) => genreFiltersLower.includes(genre.toLowerCase()))) return false
+        // AND, not OR: a subscription must match every selected genre (e.g. Romance + Fantasy
+        // means "both", not "either") — matches how the multi-select reads to users.
+        const subGenresLower = [...(Array.isArray(s.genres) ? s.genres : []), ...(s.genre ? [s.genre] : [])].map((genre) => genre.toLowerCase())
+        if (!genreFiltersLower.every((gf) => subGenresLower.includes(gf))) return false
       }
       if (typeFilter && String(s.intervalMonths) !== typeFilter) return false
       if (countryFilter && s.company?.country !== countryFilter) return false
