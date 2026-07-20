@@ -240,14 +240,6 @@ export default function SubscriptionList() {
                 </span>
               )}
             </button>
-            <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-lg p-1 shrink-0">
-              <button onClick={() => setView('grid')} className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="Grid view">
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button onClick={() => setView('list')} className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="List view">
-                <List className="w-4 h-4" />
-              </button>
-            </div>
           </div>
           <div className={`${filtersOpen ? 'flex' : 'hidden'} sm:flex gap-2`}>
             <select className={SELECT_CLASS} value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}>
@@ -265,22 +257,33 @@ export default function SubscriptionList() {
           </div>
         </div>
 
-        {/* Row 2 — attribute filters: type, skip policy, genre. Collapsed behind the Filters button on
-            mobile, always visible from sm: up. */}
-        <div className={`${filtersOpen ? 'flex' : 'hidden'} sm:flex flex-col sm:flex-row gap-2`}>
-          <select className={SELECT_CLASS} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-            <option value="">All types</option>
-            {intervals.map((interval) => (
-              <option key={interval} value={interval}>{formatInterval(interval)}</option>
-            ))}
-          </select>
-          <select className={SELECT_CLASS} value={skipPolicyFilter} onChange={(e) => setSkipPolicyFilter(e.target.value)}>
-            <option value="">All skip policies</option>
-            {SKIP_POLICY_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <MultiSelect label="genres" options={genres} selected={genreFilters} onChange={setGenreFilters} className="sm:w-64" />
+        {/* Row 2 — attribute filters (type, skip policy, genre; collapsed behind the Filters button on
+            mobile, always visible from sm: up), with the grid/list toggle at the very end — always
+            visible since it's a display preference, not a filter. */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className={`${filtersOpen ? 'flex' : 'hidden'} sm:flex flex-1 flex-col sm:flex-row gap-2`}>
+            <select className={SELECT_CLASS} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <option value="">All types</option>
+              {intervals.map((interval) => (
+                <option key={interval} value={interval}>{formatInterval(interval)}</option>
+              ))}
+            </select>
+            <select className={SELECT_CLASS} value={skipPolicyFilter} onChange={(e) => setSkipPolicyFilter(e.target.value)}>
+              <option value="">All skip policies</option>
+              {SKIP_POLICY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <MultiSelect label="genres" options={genres} selected={genreFilters} onChange={setGenreFilters} className="sm:w-64" />
+          </div>
+          <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-lg p-1 shrink-0 self-start sm:self-auto">
+            <button onClick={() => setView('grid')} className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="Grid view">
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button onClick={() => setView('list')} className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="List view">
+              <List className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Active filter chips — quick visibility + one-tap removal, especially useful once selects are collapsed on mobile */}
