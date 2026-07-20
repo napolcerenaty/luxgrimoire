@@ -211,32 +211,18 @@ export default function SubscriptionList() {
       </div>
 
       <div className="mb-8 space-y-2">
-        {/* Row 1 — "narrow down what/where": search + company + country, always visible (not gated by
-            the Filters toggle) since these are the primary identifying filters. Stacks on mobile,
-            single row from sm: up. */}
+        {/* Row 1 — search is always visible; company/country sit next to it on desktop (the primary
+            "narrow down what/where" filters) but collapse behind the Filters button on mobile along
+            with row 2, same as everything else. */}
         <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="text"
-            placeholder="Search by name or company…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-200 text-sm rounded-lg px-3 py-2 placeholder:text-stone-500 focus:outline-none focus:border-amber-600"
-          />
           <div className="flex gap-2">
-            <select className={SELECT_CLASS} value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}>
-              <option value="">All companies</option>
-              {companies.map((company) => (
-                <option key={company} value={company}>{company}</option>
-              ))}
-            </select>
-            <select className={SELECT_CLASS} value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
-              <option value="">All countries</option>
-              {countries.map((country) => (
-                <option key={country} value={country}>{country}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
+            <input
+              type="text"
+              placeholder="Search by name or company…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-200 text-sm rounded-lg px-3 py-2 placeholder:text-stone-500 focus:outline-none focus:border-amber-600"
+            />
             <button
               onClick={() => setFiltersOpen((v) => !v)}
               className={`sm:hidden relative flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
@@ -260,6 +246,20 @@ export default function SubscriptionList() {
                 <List className="w-4 h-4" />
               </button>
             </div>
+          </div>
+          <div className={`${filtersOpen ? 'flex' : 'hidden'} sm:flex gap-2`}>
+            <select className={SELECT_CLASS} value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}>
+              <option value="">All companies</option>
+              {companies.map((company) => (
+                <option key={company} value={company}>{company}</option>
+              ))}
+            </select>
+            <select className={SELECT_CLASS} value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
+              <option value="">All countries</option>
+              {countries.map((country) => (
+                <option key={country} value={country}>{country}</option>
+              ))}
+            </select>
           </div>
         </div>
 
