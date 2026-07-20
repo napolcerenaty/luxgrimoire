@@ -454,6 +454,17 @@ describe('computeFirstEligibleBoxMonth — subscriptionStartDate override', () =
     expect(result).toEqual({ year: 2024, month: 10 })
   })
 
+  it('still overrides correctly when subscriptionStartDate arrives as a string typed as Date (cache round-trip)', () => {
+    // subscriptions.service.ts#findBySlug caches results; a cache-manager round-trip (Redis or
+    // any JSON-serializing store) turns Date fields into ISO strings on retrieval, even though
+    // the TS type still says Date. Without defensive coercion, `joinDate < subscriptionStartDate`
+    // silently becomes `number < NaN` (always false) and this whole branch is skipped.
+    const entryStart = new Date(Date.UTC(2026, 3, 15)); // Apr 15 2026
+    const subStartAsStringFromCache = '2026-06-01T00:00:00.000Z' as unknown as Date;
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6, subStartAsStringFromCache)
+    expect(result).toEqual({ year: 2026, month: 6 })
+  })
+
   it('does not override when entryStart is on/after subscriptionStartDate — normal cycle math applies', () => {
     const entryStart = new Date(Date.UTC(2026, 5, 1)); // Jun 1 2026, exactly at launch
     const subStart = new Date(Date.UTC(2026, 5, 1));

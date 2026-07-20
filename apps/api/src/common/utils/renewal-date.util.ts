@@ -279,13 +279,20 @@ export function computeFirstEligibleBoxMonth(
   startingMonth = 1,
   subscriptionStartDate: Date | null = null,
 ): { year: number; month: number } {
-  if (subscriptionStartDate && joinDate < subscriptionStartDate) {
-    return getBundleBoxStart(
-      subscriptionStartDate.getUTCFullYear(),
-      subscriptionStartDate.getUTCMonth() + 1,
-      startingMonth,
-      intervalMonths,
-    );
+  if (subscriptionStartDate) {
+    // Defensive: callers may pass a value that's typed as Date but is actually a string at
+    // runtime (e.g. subscriptions fetched through a cache layer that JSON-serializes results,
+    // turning Date fields into ISO strings) — coerce so the comparison below can't silently
+    // become `number < NaN` (always false) and skip this branch.
+    const subStart = subscriptionStartDate instanceof Date ? subscriptionStartDate : new Date(subscriptionStartDate);
+    if (joinDate < subStart) {
+      return getBundleBoxStart(
+        subStart.getUTCFullYear(),
+        subStart.getUTCMonth() + 1,
+        startingMonth,
+        intervalMonths,
+      );
+    }
   }
 
   if (intervalMonths > 1) {
