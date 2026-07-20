@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 import type { ApiBookBoxCollection, ApiBookEdition } from '@luxgrimoire/shared-types'
 
 interface CollectionWithEditions extends ApiBookBoxCollection {
@@ -121,7 +122,7 @@ export default async function CollectionPage({ params }: Props) {
                   )}
                   <p className="text-[10px] text-stone-500 line-clamp-1 font-sans leading-tight">
                     {book?.seriesName
-                      ? `${book.seriesName}${book.volumeNumber != null ? ` #${book.volumeNumber}` : ''}`
+                      ? `${book.seriesName}${book.volumeNumbers?.length ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}`
                       : '\u00A0'}
                   </p>
                   <p className="text-[10px] text-stone-400 line-clamp-1 font-sans leading-tight mt-0.5">

@@ -237,8 +237,13 @@ export default function CreateBookEditionForm({
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim() || undefined,
-          seriesName: seriesName.trim() || undefined,
-          volumeNumber: volumeNumber ? Number(volumeNumber) : undefined,
+          seriesEntries: seriesName.trim()
+            ? [{
+                seriesName: seriesName.trim(),
+                volumeNumbers: volumeNumber ? [Number(volumeNumber)] : [],
+                isPrimary: true,
+              }]
+            : undefined,
           genres: genres.length ? genres : undefined,
         }),
       })

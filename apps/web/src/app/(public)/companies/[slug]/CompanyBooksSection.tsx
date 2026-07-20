@@ -248,7 +248,7 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
                 coverImage={resolveEditionCoverRaw(edition)}
                 title={edition.book.title}
                 seriesName={edition.book.seriesName}
-                volumeNumber={edition.book.volumeNumber}
+                volumeNumbers={edition.book.volumeNumbers}
                 authors={edition.book.authors.map((a) => ({ name: a.author.name }))}
                 companyBrandColors={brandColors}
               />

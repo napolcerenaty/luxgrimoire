@@ -11,8 +11,9 @@ import FormModal from '@/components/admin/FormModal'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import { Pagination } from '@/components/admin/Pagination'
 import { type PersonEntry } from '@/components/admin/pickers/PersonPicker'
-import { BookForm, type BookFormState } from '@/components/admin/BookForm'
+import { BookForm, seriesEntriesToPayload, type BookFormState } from '@/components/admin/BookForm'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 
 const BTN_SM = 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors'
 
@@ -26,8 +27,14 @@ function rawBookToForm(book: RawBook): BookFormState {
   return {
     title: book.title,
     description: book.description ?? '',
-    seriesName: book.seriesName ?? '',
-    volumeNumber: book.volumeNumber != null ? String(book.volumeNumber) : '',
+    seriesEntries: (book.seriesEntries ?? [])
+      .slice()
+      .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0))
+      .map(e => ({
+        seriesName: e.series.name,
+        volumeNumbers: formatVolumeNumbers(e.volumeNumbers),
+        isPrimary: e.isPrimary,
+      })),
     genres: book.genres ?? [],
     authors: book.authors.map(ba => ({ id: ba.author.id, name: ba.author.name })),
   }
@@ -50,6 +57,7 @@ export default function AdminBooksPage() {
 
   const [search, setSearch] = useState('')
   const [seriesFilter, setSeriesFilter] = useState('')
+  const [omnibusOnly, setOmnibusOnly] = useState(false)
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
 
@@ -60,17 +68,18 @@ export default function AdminBooksPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [seriesFilter])
+  }, [seriesFilter, omnibusOnly])
 
   const buildParams = () => {
     const p = new URLSearchParams({ page: String(page), pageSize: '20' })
     if (debouncedSearch) p.set('search', debouncedSearch)
     if (seriesFilter) p.set('seriesName', seriesFilter)
+    if (omnibusOnly) p.set('isOmnibus', 'true')
     return p.toString()
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'books', page, debouncedSearch, seriesFilter],
+    queryKey: ['admin', 'books', page, debouncedSearch, seriesFilter, omnibusOnly],
     queryFn: () => authFetch<PaginatedResponse<RawBook>>(`/books?${buildParams()}`),
     placeholderData: keepPreviousData,
   })
@@ -85,8 +94,7 @@ export default function AdminBooksPage() {
         body: JSON.stringify({
           title: form.title,
           description: form.description || null,
-          seriesName: form.seriesName || null,
-          volumeNumber: form.volumeNumber ? Number(form.volumeNumber) : null,
+          seriesEntries: seriesEntriesToPayload(form.seriesEntries),
           genres: form.genres,
         }),
       })
@@ -141,7 +149,11 @@ export default function AdminBooksPage() {
     {
       key: 'series', label: 'Series',
       render: (row: RawBook) => row.seriesName
-        ? `${row.seriesName}${row.volumeNumber != null ? ` #${row.volumeNumber}` : ''}` : '—',
+        ? `${row.seriesName}${row.volumeNumbers?.length ? ` #${formatVolumeNumbers(row.volumeNumbers)}` : ''}` : '—',
+    },
+    {
+      key: 'isOmnibus', label: 'Omnibus',
+      render: (row: RawBook) => row.isOmnibus ? `Yes (${row.componentCount ?? 0})` : '—',
     },
     {
       key: 'authors', label: 'Authors',
@@ -186,9 +198,14 @@ export default function AdminBooksPage() {
           onChange={(e) => setSeriesFilter(e.target.value)}
           className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 w-48"
         />
-        {(search || seriesFilter) && (
+        <label className="flex items-center gap-2 px-3 py-2 text-sm text-stone-300 whitespace-nowrap">
+          <input type="checkbox" checked={omnibusOnly} onChange={e => setOmnibusOnly(e.target.checked)}
+            className="accent-amber-400" />
+          Omnibuses only
+        </label>
+        {(search || seriesFilter || omnibusOnly) && (
           <button
-            onClick={() => { setSearch(''); setSeriesFilter('') }}
+            onClick={() => { setSearch(''); setSeriesFilter(''); setOmnibusOnly(false) }}
             className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2"
           >
             Clear
@@ -223,7 +240,7 @@ export default function AdminBooksPage() {
         )}
         {editBookData && (
           <BookForm initial={rawBookToForm(editBookData)} submitLabel="Save Changes"
-            submitting={editMutation.isPending}
+            submitting={editMutation.isPending} bookSlug={editBookData.slug}
             onSubmit={form => editMutation.mutate({ book: editBookData, form })} />
         )}
       </FormModal>

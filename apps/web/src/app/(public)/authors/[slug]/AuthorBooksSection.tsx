@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { EditionCard } from '@/components/books/EditionCard'
+import { formatVolumeNumbers, compareVolumeNumbers } from '@/lib/volumeNumbers'
 
 interface EditionSnippet {
   id: string
@@ -19,13 +20,13 @@ interface BookSnippet {
   title: string
   seriesName: string | null
   series?: { id: string; slug: string; name: string } | null
-  volumeNumber: number | null
+  volumeNumbers: number[]
   editions: EditionSnippet[]
 }
 
 function BookRow({ book }: { book: BookSnippet }) {
-  const label = book.volumeNumber != null
-    ? `#${book.volumeNumber} ${book.title}`
+  const label = book.volumeNumbers.length > 0
+    ? `#${formatVolumeNumbers(book.volumeNumbers)} ${book.title}`
     : book.title
 
   return (
@@ -76,7 +77,7 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
     else seriesMap.set(key, { label: book.series?.name ?? book.seriesName!, slug: book.series?.slug ?? null, books: [book] })
   }
   for (const entry of seriesMap.values()) {
-    entry.books.sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0))
+    entry.books.sort((a, b) => compareVolumeNumbers(a.volumeNumbers, b.volumeNumbers))
   }
 
   return (
