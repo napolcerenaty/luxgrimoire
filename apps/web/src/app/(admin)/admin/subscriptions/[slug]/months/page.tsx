@@ -238,13 +238,34 @@ interface MonthCardProps {
   defaultLanguage?: string | null
   onRefresh?: () => void
   highlighted?: boolean
+  skipped?: MonthSkip | null
+  isBundleSubscription?: boolean | null
 }
 
-function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage, onRefresh, highlighted }: MonthCardProps) {
+function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage, onRefresh, highlighted, skipped, isBundleSubscription }: MonthCardProps) {
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'months']
+  const skipsQKey = ['admin', 'subscriptions', slug, 'month-skips']
 
   const refresh = () => { queryClient.invalidateQueries({ queryKey: qKey }); onRefresh?.() }
+  const refreshSkips = () => { queryClient.invalidateQueries({ queryKey: skipsQKey }); refresh() }
+  const [skipFormOpen, setSkipFormOpen] = useState(false)
+  const [skipReason, setSkipReason] = useState('')
+
+  const markSkippedMutation = useMutation({
+    mutationFn: () => authFetch<SkipRecomputeSummary>(`/subscriptions/${slug}/months/${month.year}/${month.month}/skip`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: skipReason || undefined }),
+    }),
+    onSuccess: (result) => { refreshSkips(); setSkipFormOpen(false); setSkipReason(''); reportSkipRecompute(result) },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const unmarkSkippedMutation = useMutation({
+    mutationFn: () => authFetch<SkipRecomputeSummary>(`/subscriptions/${slug}/months/${month.year}/${month.month}/skip`, { method: 'DELETE' }),
+    onSuccess: (result) => { refreshSkips(); reportSkipRecompute(result) },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
   const [editing, setEditing] = useState(false)
   const [editTheme, setEditTheme] = useState(month.theme ?? '')
   const [editCover, setEditCover] = useState(month.coverImage ?? '')
@@ -345,6 +366,18 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                 disabled={deleteMutation.isPending}
                 className={`${BTN_SM} bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-50`}
               >{deleteMutation.isPending ? '…' : 'Delete'}</button>
+              {skipped ? (
+                <button
+                  onClick={() => { if (confirm(`Unskip ${monthLabel}? This affects only this subscription — sibling variants stay skipped.`)) unmarkSkippedMutation.mutate() }}
+                  disabled={unmarkSkippedMutation.isPending}
+                  className={`${BTN_SM} bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50`}
+                >{unmarkSkippedMutation.isPending ? '…' : 'Unskip'}</button>
+              ) : (
+                <button
+                  onClick={() => setSkipFormOpen(!skipFormOpen)}
+                  className={`${BTN_SM} ${skipFormOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}
+                >Mark skipped</button>
+              )}
             </div>
           </div>
           {month.theme && <p className="text-stone-400 text-sm mt-0.5 truncate">{month.theme}</p>}
@@ -354,6 +387,43 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
           <p className="text-stone-500 text-xs mt-0.5">{month.books.length} book{month.books.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
+
+      {/* Skipped banner */}
+      {skipped && (
+        <div className="border-t border-stone-800 px-4 py-3 bg-amber-900/10">
+          <p className="text-amber-400 text-sm font-medium">⏭ Skipped — this month doesn&apos;t happen for this subscription&apos;s subscribers</p>
+          {skipped.reason && <p className="text-amber-500/80 text-xs mt-0.5">{skipped.reason}</p>}
+        </div>
+      )}
+
+      {/* Mark-skipped inline form */}
+      {skipFormOpen && !skipped && (
+        <div className="border-t border-stone-800 p-4 space-y-3 bg-stone-800/30">
+          {month.books.length > 0 && (
+            <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
+              This month already has {month.books.length} book{month.books.length !== 1 ? 's' : ''} — skipping hides it from gap scans, books-by-month, and the public page, but doesn&apos;t delete the content.
+            </p>
+          )}
+          {isBundleSubscription && (
+            <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
+              This is a bundle — skipping one month still ships whatever content remains in the bundle, it doesn&apos;t stop the bundle itself. Company-wide skip of a single bundle month isn&apos;t specially modeled; verify the result manually.
+            </p>
+          )}
+          <div>
+            <label className={LABEL}>Reason <span className="text-stone-600">(optional — shown to subscribers)</span></label>
+            <textarea value={skipReason} onChange={e => setSkipReason(e.target.value)} rows={2}
+              placeholder="e.g. Printer delay — this box will ship next month instead" className={INPUT} />
+          </div>
+          <div className="flex gap-2">
+            <button type="button" disabled={markSkippedMutation.isPending} onClick={() => markSkippedMutation.mutate()}
+              className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
+              {markSkippedMutation.isPending ? 'Marking…' : 'Confirm skip'}
+            </button>
+            <button type="button" onClick={() => setSkipFormOpen(false)}
+              className="text-stone-400 hover:text-stone-200 text-sm px-2">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* Edit form */}
       {editing && (
@@ -1093,9 +1163,24 @@ function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; com
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: string | null; originalBasePrice?: string | null; renewalDay?: number | null; renewalDayUserSet?: boolean | null; renewalMonthOffset?: number | null; language?: string | null; parentSubscriptionId?: string | null; parent?: { slug: string; name: string } | null; isContentStream?: boolean | null }
+interface SubscriptionInfo { id: string; name: string; currency?: string | null; companyId?: string | null; price?: string | null; originalBasePrice?: string | null; renewalDay?: number | null; renewalDayUserSet?: boolean | null; renewalMonthOffset?: number | null; language?: string | null; parentSubscriptionId?: string | null; parent?: { slug: string; name: string } | null; isContentStream?: boolean | null; isBundleSubscription?: boolean | null }
 
 type MonthsPage = { data: Month[]; total: number; page: number; pageSize: number; totalPages: number }
+
+// A company-wide "this month doesn't happen" skip — see SubscriptionMonthSkip. Distinct from
+// per-user UserSkipRecord; this is admin-declared and applies to every subscriber at once.
+type MonthSkip = { year: number; month: number; reason: string | null }
+type SkipRecomputeSummary = { succeeded: number; failed: { entryId: string; error: string }[] }
+
+function skipKey(year: number, month: number) {
+  return `${year}-${month}`
+}
+
+function reportSkipRecompute(result: SkipRecomputeSummary) {
+  if (result.failed.length > 0) {
+    alert(`${result.succeeded} subscriber(s) updated. ${result.failed.length} failed — check server logs.`)
+  }
+}
 
 /** Mirrors the backend resolveEffectiveBasePrice — returns the most recent price change
  *  effective at or before (year, month), or fallback if none applies. */
@@ -1110,6 +1195,109 @@ function resolveEffectivePrice(
     .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth)
   if (applicable.length === 0) return fallback
   return parseFloat(applicable[0].newBasePrice)
+}
+
+// ─── Skipped months (no content) panel ─────────────────────────────────────────
+// Lists company-wide skips that have no SubscriptionMonth row at all (the common case — a
+// skip is usually declared before any content is authored) and lets an admin declare a new
+// one directly, without first having to create an empty month.
+function SkipOnlyMonthsPanel({ slug, skipOnly, isBundleSubscription, onChange }: {
+  slug: string
+  skipOnly: MonthSkip[]
+  isBundleSubscription?: boolean | null
+  onChange: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [year, setYear] = useState(String(new Date().getFullYear()))
+  const [month, setMonth] = useState(String(new Date().getMonth() + 1))
+  const [reason, setReason] = useState('')
+
+  const markMutation = useMutation({
+    mutationFn: () => authFetch<SkipRecomputeSummary>(`/subscriptions/${slug}/months/${year}/${month}/skip`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || undefined }),
+    }),
+    onSuccess: (result) => { onChange(); setOpen(false); setReason(''); reportSkipRecompute(result) },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const unmarkMutation = useMutation({
+    mutationFn: (s: MonthSkip) => authFetch<SkipRecomputeSummary>(`/subscriptions/${slug}/months/${s.year}/${s.month}/skip`, { method: 'DELETE' }),
+    onSuccess: (result) => { onChange(); reportSkipRecompute(result) },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  if (skipOnly.length === 0 && !open) {
+    return (
+      <div className="flex justify-end">
+        <button onClick={() => setOpen(true)} className={`${BTN_SM} bg-stone-800 text-stone-400 border border-stone-700 hover:text-stone-200 hover:border-stone-600`}>
+          ⏭ Skip a month
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-stone-100 font-semibold text-sm">Skipped months (no content)</div>
+        <button onClick={() => setOpen(!open)} className={`${BTN_SM} ${open ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+          {open ? 'Cancel' : '+ Skip a month'}
+        </button>
+      </div>
+
+      {skipOnly.length > 0 && (
+        <div className="space-y-2">
+          {skipOnly.map(s => (
+            <div key={skipKey(s.year, s.month)} className="flex items-center justify-between bg-amber-900/10 border border-amber-700/30 rounded-lg px-3 py-2">
+              <div>
+                <span className="text-amber-400 text-sm font-medium">⏭ {MONTH_NAMES[s.month - 1]} {s.year}</span>
+                {s.reason && <p className="text-amber-500/80 text-xs mt-0.5">{s.reason}</p>}
+              </div>
+              <button
+                onClick={() => { if (confirm(`Unskip ${MONTH_NAMES[s.month - 1]} ${s.year}?`)) unmarkMutation.mutate(s) }}
+                disabled={unmarkMutation.isPending}
+                className={`${BTN_SM} bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 shrink-0`}
+              >Unskip</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div className="border-t border-stone-800 pt-3 space-y-3">
+          {isBundleSubscription && (
+            <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
+              This is a bundle — skipping one month still ships whatever content remains in the bundle, it doesn&apos;t stop the bundle itself. Company-wide skip of a single bundle month isn&apos;t specially modeled; verify the result manually.
+            </p>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL}>Year *</label>
+              <input type="number" value={year} onChange={e => setYear(e.target.value)} min={2000} max={2100} className={INPUT} />
+            </div>
+            <div>
+              <label className={LABEL}>Month *</label>
+              <select value={month} onChange={e => setMonth(e.target.value)} className={INPUT}>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>{i + 1} — {MONTH_NAMES[i]}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className={LABEL}>Reason <span className="text-stone-600">(optional — shown to subscribers)</span></label>
+            <textarea value={reason} onChange={e => setReason(e.target.value)} rows={2}
+              placeholder="e.g. Printer delay — this box will ship next month instead" className={INPUT} />
+          </div>
+          <button type="button" disabled={markMutation.isPending} onClick={() => markMutation.mutate()}
+            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
+            {markMutation.isPending ? 'Marking…' : 'Confirm skip'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function SubscriptionMonthsPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -1155,6 +1343,16 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
     enabled: !!subscription?.parentSubscriptionId,
   })
 
+  // Company-wide month skips — small, unpaginated (a subscription is rarely skipped often),
+  // fetched separately from the paginated content list and merged client-side, both to flag
+  // existing month cards as skipped and to surface skip-only entries with no content row at all.
+  const { data: monthSkips = [] } = useQuery<MonthSkip[]>({
+    queryKey: ['admin', 'subscriptions', slug, 'month-skips'],
+    queryFn: () => authFetch<MonthSkip[]>(`/subscriptions/${slug}/months/skips`),
+    enabled: !!subscription && !subscription.parentSubscriptionId,
+  })
+  const skipsByKey = new Map(monthSkips.map(s => [skipKey(s.year, s.month), s]))
+
   // Populate loadedPages from firstPage on initial load only (not after manual reloads)
   useEffect(() => {
     if (firstPage && loadedPages.length === 0) {
@@ -1166,6 +1364,10 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
 
   const months = loadedPages.length > 0 ? loadedPages : (firstPage?.data ?? [])
   const displayedMonths = filterEmpty ? months.filter(m => m.books.length === 0) : months
+  // Skips with no SubscriptionMonth row at all (the common case — a company skip is usually
+  // declared before any content is authored) never appear in `months`, however many pages are
+  // loaded, since that list only ever contains real content rows.
+  const skipOnlyEntries = monthSkips.filter(s => !months.some(m => m.year === s.year && m.month === s.month))
 
   const loadMore = async () => {
     if (loadingMore || currentPage >= totalPages) return
@@ -1235,6 +1437,11 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
     } finally {
       setLoadingMore(false)
     }
+  }
+
+  const invalidateSkips = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions', slug, 'month-skips'] })
+    void invalidateMonths()
   }
 
   return (
@@ -1315,6 +1522,16 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           deepLinkBanner={deepLinkAddMonth ? `No month exists yet for ${MONTH_NAMES[deepLinkAddMonth.month - 1]} ${deepLinkAddMonth.year} — add it below.` : undefined}
         />
 
+        {/* Skipped-months panel (no content) */}
+        {subscription && !subscription.parentSubscriptionId && (
+          <SkipOnlyMonthsPanel
+            slug={slug}
+            skipOnly={skipOnlyEntries}
+            isBundleSubscription={subscription.isBundleSubscription}
+            onChange={invalidateSkips}
+          />
+        )}
+
         {/* Month list */}
         {isLoading ? (
           <div className="text-stone-400 py-8 text-center">Loading months…</div>
@@ -1340,6 +1557,8 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 defaultLanguage={subscription?.language}
                 onRefresh={invalidateMonths}
                 highlighted={highlightKey === `${m.year}-${m.month}`}
+                skipped={skipsByKey.get(skipKey(m.year, m.month)) ?? null}
+                isBundleSubscription={subscription?.isBundleSubscription}
               />
             ))}
             {currentPage < totalPages && (
