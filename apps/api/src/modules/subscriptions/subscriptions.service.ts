@@ -1586,6 +1586,19 @@ export class SubscriptionsService {
     return { subscriptionId: (sub as any).id, year, month, ...recompute };
   }
 
+  /** Lists currently-active company-wide month skips for a subscription — feeds the admin months
+   *  editor UI (both to show existing SubscriptionMonth rows as "Skipped" and to show skipped
+   *  months that have no content row at all). Reuses getSubscriptionMonths's variant-blocking
+   *  guard: this is scoped to the page an admin actually lands on, same as getMonths/addMonth. */
+  async listMonthSkips(slug: string) {
+    const subscription = await this.getSubscriptionMonths(slug);
+    return this.prisma.subscriptionMonthSkip.findMany({
+      where: { subscriptionId: subscription.id, undoneAt: null },
+      select: { year: true, month: true, reason: true },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+  }
+
   private async getMonth(subscriptionId: string, year: number, month: number) {
     const existing = await this.prisma.subscriptionMonth.findUnique({
       where: {

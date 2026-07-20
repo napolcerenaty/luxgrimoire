@@ -163,6 +163,14 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Get(':slug/months/skips')
+  async listMonthSkips(@Param('slug') slug: string, @CurrentUser() user: CurrentUserType) {
+    if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
+    return this.subscriptionsService.listMonthSkips(slug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Post(':slug/months')
   async addMonth(@Param('slug') slug: string, @Body() dto: CreateMonthDto, @CurrentUser() user: CurrentUserType) {
     if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }

@@ -224,3 +224,37 @@ describe('SubscriptionsService — unmarkMonthSkipped', () => {
     await expect(service.unmarkMonthSkipped(PARENT_SLUG, YEAR, MONTH)).resolves.not.toThrow();
   });
 });
+
+describe('SubscriptionsService — listMonthSkips', () => {
+  let prisma: DeepMockProxy<PrismaService>;
+  let service: SubscriptionsService;
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    service = makeService(prisma);
+  });
+
+  it('returns active skips for the subscription, ordered by year/month', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(makeSub());
+    (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValueOnce([
+      { year: 2026, month: 9, reason: 'shipping delay' },
+    ]);
+
+    const result = await service.listMonthSkips(PARENT_SLUG);
+
+    expect(prisma.subscriptionMonthSkip.findMany).toHaveBeenCalledWith({
+      where: { subscriptionId: PARENT_ID, undoneAt: null },
+      select: { year: true, month: true, reason: true },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
+    expect(result).toEqual([{ year: 2026, month: 9, reason: 'shipping delay' }]);
+  });
+
+  it('rejects a variant slug, matching getMonths/addMonth\'s existing convention', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(
+      makeSub({ id: VARIANT_1_ID, slug: VARIANT_1_SLUG, parentSubscriptionId: PARENT_ID }),
+    );
+
+    await expect(service.listMonthSkips(VARIANT_1_SLUG)).rejects.toThrow(BadRequestException);
+  });
+});
