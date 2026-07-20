@@ -217,7 +217,7 @@ export default function SubscriptionList() {
             "narrow down what/where" filters) but collapse behind the Filters button on mobile along
             with row 2, same as everything else. */}
         <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-1 min-w-0">
             <input
               type="text"
               placeholder="Search by name or company…"
