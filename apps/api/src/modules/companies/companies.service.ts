@@ -219,37 +219,53 @@ export class CompaniesService {
 
   async getEditions(
     slug: string,
-    filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean },
+    filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean; search?: string },
     pagination: { skip: number; take: number } = { skip: 0, take: 20 },
   ) {
     const { skip, take } = pagination;
 
-    // Resolve count cache key and fetch/populate it
-    let countKey: string;
-    if (filter?.subscriptionId) {
-      countKey = companyEditionsSubCountKey(slug, filter.subscriptionId);
-    } else if (filter?.collectionId) {
-      countKey = companyEditionsColCountKey(slug, filter.collectionId);
-    } else if (filter?.noCollection) {
-      countKey = companyEditionsNoCollectionCountKey(slug);
-    } else {
-      countKey = companyEditionsAllCountKey(slug);
-    }
-
-    const cachedCount = await this.cache.get(countKey);
+    // Search results aren't cached — the count varies per query string and caching it
+    // per-search-term would either explode the cache key space or serve stale totals.
     let total: number;
-    if (cachedCount !== undefined && cachedCount !== null) {
-      total = cachedCount as number;
-    } else {
+    if (filter?.search) {
       total = await this._countCompanyEditions(slug, filter);
-      await this.cache.set(countKey, total, COMPANY_EDITIONS_COUNT_TTL);
+    } else {
+      // Resolve count cache key and fetch/populate it
+      let countKey: string;
+      if (filter?.subscriptionId) {
+        countKey = companyEditionsSubCountKey(slug, filter.subscriptionId);
+      } else if (filter?.collectionId) {
+        countKey = companyEditionsColCountKey(slug, filter.collectionId);
+      } else if (filter?.noCollection) {
+        countKey = companyEditionsNoCollectionCountKey(slug);
+      } else {
+        countKey = companyEditionsAllCountKey(slug);
+      }
+
+      const cachedCount = await this.cache.get(countKey);
+      if (cachedCount !== undefined && cachedCount !== null) {
+        total = cachedCount as number;
+      } else {
+        total = await this._countCompanyEditions(slug, filter);
+        await this.cache.set(countKey, total, COMPANY_EDITIONS_COUNT_TTL);
+      }
     }
 
     const data = await this._fetchCompanyEditions(slug, filter, skip, take);
     return { data, total };
   }
 
-  private async _countCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean }): Promise<number> {
+  private buildEditionSearchWhere(search?: string): Prisma.BookEditionWhereInput {
+    if (!search) return {};
+    return {
+      OR: [
+        { book: { title: { contains: search, mode: 'insensitive' } } },
+        { book: { authors: { some: { author: { name: { contains: search, mode: 'insensitive' } } } } } },
+      ],
+    };
+  }
+
+  private async _countCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean; search?: string }): Promise<number> {
     const company = await this.prisma.bookBoxCompany.findUnique({ where: { slug }, select: { id: true } });
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
     return this.prisma.bookEdition.count({
@@ -258,11 +274,12 @@ export class CompaniesService {
         ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
         ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
         ...(filter?.noCollection ? { collectionId: null, subscriptionId: null } : {}),
+        ...this.buildEditionSearchWhere(filter?.search),
       },
     });
   }
 
-  private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean }, skip = 0, take = 20) {
+  private async _fetchCompanyEditions(slug: string, filter?: { subscriptionId?: string; collectionId?: string; noCollection?: boolean; search?: string }, skip = 0, take = 20) {
     const company = await this.prisma.bookBoxCompany.findUnique({
       where: { slug },
       select: { id: true },
@@ -275,6 +292,7 @@ export class CompaniesService {
         ...(filter?.subscriptionId ? { subscriptionId: filter.subscriptionId } : {}),
         ...(filter?.collectionId ? { collectionId: filter.collectionId } : {}),
         ...(filter?.noCollection ? { collectionId: null, subscriptionId: null } : {}),
+        ...this.buildEditionSearchWhere(filter?.search),
       },
       select: {
         id: true,
