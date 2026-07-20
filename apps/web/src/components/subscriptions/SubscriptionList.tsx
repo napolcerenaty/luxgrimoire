@@ -338,6 +338,7 @@ export default function SubscriptionList() {
                   <h2 className="font-serif font-bold text-sm text-stone-100 group-hover:text-amber-400 transition-colors mb-1 line-clamp-2 leading-snug">{sub.name}</h2>
                   {sub.isUpcoming && sub.upcomingNote && <p className="text-xs text-amber-400/80 mb-1 line-clamp-1">{sub.upcomingNote}</p>}
                   <div className="flex items-center gap-1 flex-wrap">
+                    {sub.intervalMonths !== 1 && <Badge variant="warning">{formatInterval(sub.intervalMonths)}</Badge>}
                     {subGenres.slice(0, 2).map((genre) => <Badge key={genre} variant="outline">{genre}</Badge>)}
                     {sub.isDiscontinued && <Badge variant="destructive">Discontinued</Badge>}
                     {sub.isUpcoming && <Badge variant="outline">🔔 Upcoming</Badge>}
@@ -378,6 +379,7 @@ export default function SubscriptionList() {
                   {sub.company && <p className="text-xs text-amber-600/80 truncate">{sub.company.name}</p>}
                   {sub.isUpcoming && sub.upcomingNote && <p className="text-xs text-amber-400/80 truncate">{sub.upcomingNote}</p>}
                   <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                    {sub.intervalMonths !== 1 && <Badge variant="warning">{formatInterval(sub.intervalMonths)}</Badge>}
                     {subGenres.slice(0, 3).map((genre) => <Badge key={genre} variant="outline">{genre}</Badge>)}
                     {sub.isDiscontinued && <Badge variant="destructive">Discontinued</Badge>}
                     {sub.isUpcoming && <Badge variant="outline">🔔 Upcoming</Badge>}
