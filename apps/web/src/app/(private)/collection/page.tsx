@@ -19,7 +19,7 @@ import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
-
+
 const OWNERSHIP_LABEL: Record<string, string> = {
   OWNED: 'OWN',
   PREORDER: 'PREORDER',
@@ -31,6 +31,30 @@ const OWNERSHIP_LABEL: Record<string, string> = {
   GIFTED_AWAY: 'GIFTED AWAY',
 }
 const fmtStatus = (s: string) => OWNERSHIP_LABEL[s] ?? s.replace(/_/g, ' ').toUpperCase()
+
+const SIG_FILTER_LABEL: Record<string, string> = {
+  UNSIGNED: 'Unsigned',
+  SIGNED: '✍️ Signed',
+  AUTOPEN: '✒️ Autopen',
+  DIGITALLY_SIGNED: '🖨️ Digitally Signed',
+  SIGNED_BOOKPLATE: '🏷️ Signed Bookplate',
+  STAMPED: '🕹️ Stamped',
+}
+const STATUS_FILTER_LABEL: Record<string, string> = {
+  PREORDER: 'Preorder',
+  SHIPPING: 'Shipping',
+  OWNED: 'Own',
+  BORROWED: 'Borrowed',
+  LENDED: 'Lended',
+  TO_SELL: 'To Sell',
+  GIFTED_AWAY: 'Gifted Away',
+}
+const READING_FILTER_LABEL: Record<string, string> = {
+  UNREAD: '📚 Unread',
+  READING: '📖 Reading',
+  READ: '✅ Read',
+  DNF: '❌ DNF',
+}
 
 interface CollectionEntry {
   id: string
@@ -96,7 +120,7 @@ interface FeeTemplate {
   defaultCurrency: string | null
   isActive: boolean
 }
-
+
 interface DiscountEntry { key: number; name: string; amount: string; currency: string }
 
 const ADD_OWNERSHIP_OPTIONS = [
@@ -616,6 +640,15 @@ export default function CollectionPage() {
   // Unified server-side filtered query — activates when any filter is set
   const hasActiveFilters = sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || readingFilter !== 'ALL' || subFilter !== 'ALL' || bookFilterDebounced.length > 0
 
+  const clearAllFilters = () => {
+    setSigFilter('ALL')
+    setStatusFilter('ALL')
+    setCompanyFilter('ALL')
+    setTagFilter('ALL')
+    setReadingFilter('ALL')
+    setSubFilter('ALL')
+  }
+
   const buildFilterParams = useCallback((page = 1) => {
     const params = new URLSearchParams({ isWishlist: 'false', pageSize: '50', page: String(page) })
     if (statusFilter !== 'ALL') params.set('ownershipStatus', statusFilter)
@@ -847,6 +880,21 @@ export default function CollectionPage() {
   })
   const subFilterOptions = subscriptions
 
+  const activeFilterChips = useMemo(() => {
+    const chips: { key: string; label: string; onRemove: () => void }[] = []
+    if (sigFilter !== 'ALL') chips.push({ key: 'sig', label: SIG_FILTER_LABEL[sigFilter] ?? sigFilter, onRemove: () => setSigFilter('ALL') })
+    if (statusFilter !== 'ALL') chips.push({ key: 'status', label: STATUS_FILTER_LABEL[statusFilter] ?? statusFilter, onRemove: () => setStatusFilter('ALL') })
+    if (companyFilter !== 'ALL') chips.push({ key: 'company', label: companyFilter, onRemove: () => setCompanyFilter('ALL') })
+    if (tagFilter !== 'ALL') chips.push({ key: 'tag', label: tagFilter, onRemove: () => setTagFilter('ALL') })
+    if (readingFilter !== 'ALL') chips.push({ key: 'reading', label: READING_FILTER_LABEL[readingFilter] ?? readingFilter, onRemove: () => setReadingFilter('ALL') })
+    if (subFilter !== 'ALL') {
+      const sub = subFilterOptions.find((s) => s.id === subFilter)
+      chips.push({ key: 'sub', label: sub?.name ?? subFilter, onRemove: () => setSubFilter('ALL') })
+    }
+    return chips
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, subFilterOptions])
+
   const baseEntries = hasActiveFilters ? filteredEntries : allEntries
 
   const filtered = baseEntries.filter((e) => {
@@ -1020,14 +1068,14 @@ export default function CollectionPage() {
             <option value="DATE_ASC">Sort: Oldest first</option>
           </select>
 
-          {/* Filters toggle button — all screen sizes */}
+          {/* Filters toggle button — mobile only; panel is always visible from sm: up */}
           {(() => {
-            const activeCount = [sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter].filter(f => f !== 'ALL').length
+            const activeCount = activeFilterChips.length
             return (
               <button
                 type="button"
                 onClick={() => setFiltersOpen(prev => !prev)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors ${activeCount > 0 ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500 bg-stone-900'}`}
+                className={`sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors ${activeCount > 0 ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500 bg-stone-900'}`}
               >
                 <SlidersHorizontal size={13} />
                 Filters
@@ -1043,8 +1091,8 @@ export default function CollectionPage() {
           </span>
         </div>
 
-        {/* Filter selects — collapsible panel */}
-        <div className={`${filtersOpen ? 'flex' : 'hidden'} gap-2 flex-wrap items-center mb-4`}>
+        {/* Filter selects — collapsed behind the Filters button on mobile, always visible from sm: up */}
+        <div className={`${filtersOpen ? 'flex' : 'hidden'} sm:flex gap-2 flex-wrap items-center mb-2`}>
             {/* Signature */}
             <select
               value={sigFilter}
@@ -1125,17 +1173,26 @@ export default function CollectionPage() {
               </select>
             )}
 
-            {/* Reset filters */}
-            {(sigFilter !== 'ALL' || statusFilter !== 'ALL' || companyFilter !== 'ALL' || tagFilter !== 'ALL' || readingFilter !== 'ALL' || subFilter !== 'ALL' || bookFilter) && (
-              <button
-                type="button"
-                onClick={() => { setSigFilter('ALL'); setStatusFilter('ALL'); setCompanyFilter('ALL'); setTagFilter('ALL'); setReadingFilter('ALL'); setSubFilter('ALL'); setBookFilter('') }}
-                className="px-3 py-1.5 rounded-lg text-xs text-stone-500 border border-stone-700 hover:text-red-400 hover:border-red-700/50 transition-colors"
-              >
-                ✕ Clear
-              </button>
-            )}
           </div>
+
+          {/* Active filter chips — quick visibility + one-tap removal, especially useful once selects are collapsed on mobile */}
+          {activeFilterChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-4">
+              {activeFilterChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  onClick={chip.onRemove}
+                  className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-amber-950/40 border border-amber-800/50 text-amber-300 text-xs hover:bg-amber-950/70 transition-colors"
+                >
+                  {chip.label}
+                  <X className="w-3 h-3" />
+                </button>
+              ))}
+              <button onClick={clearAllFilters} className="text-xs text-stone-500 hover:text-stone-300 underline underline-offset-2 ml-1">
+                Clear all
+              </button>
+            </div>
+          )}
 
           {entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-stone-500">
