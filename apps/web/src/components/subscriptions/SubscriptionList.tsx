@@ -210,9 +210,11 @@ export default function SubscriptionList() {
         ))}
       </div>
 
-      <div className="mb-8 space-y-3">
-        {/* Primary row: search, filters toggle, view toggle — always fits on one line, even on mobile */}
-        <div className="flex gap-2">
+      <div className="mb-8 space-y-2">
+        {/* Row 1 — "narrow down what/where": search + company + country, always visible (not gated by
+            the Filters toggle) since these are the primary identifying filters. Stacks on mobile,
+            single row from sm: up. */}
+        <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
             placeholder="Search by name or company…"
@@ -220,35 +222,6 @@ export default function SubscriptionList() {
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-200 text-sm rounded-lg px-3 py-2 placeholder:text-stone-500 focus:outline-none focus:border-amber-600"
           />
-          <button
-            onClick={() => setFiltersOpen((v) => !v)}
-            className={`sm:hidden relative flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
-              filtersOpen ? 'bg-stone-700 border-amber-600 text-amber-400' : 'bg-stone-800 border-stone-700 text-stone-300'
-            }`}
-            aria-expanded={filtersOpen}
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            Filters
-            {activeFilterChips.length > 0 && (
-              <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-amber-600 text-[10px] font-semibold text-stone-950">
-                {activeFilterChips.length}
-              </span>
-            )}
-          </button>
-          <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-lg p-1 shrink-0">
-            <button onClick={() => setView('grid')} className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="Grid view">
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button onClick={() => setView('list')} className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="List view">
-              <List className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Filter selects — collapsed behind the Filters button on mobile, always visible from sm: up.
-            Paired into fixed-width rows (company+country, type+skip policy) so the pairing holds at
-            every screen size instead of depending on incidental flex-wrap. */}
-        <div className={`${filtersOpen ? 'flex' : 'hidden'} sm:flex flex-col gap-2`}>
           <div className="flex gap-2">
             <select className={SELECT_CLASS} value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}>
               <option value="">All companies</option>
@@ -263,20 +236,48 @@ export default function SubscriptionList() {
               ))}
             </select>
           </div>
-          <div className="flex gap-2">
-            <select className={SELECT_CLASS} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-              <option value="">All types</option>
-              {intervals.map((interval) => (
-                <option key={interval} value={interval}>{formatInterval(interval)}</option>
-              ))}
-            </select>
-            <select className={SELECT_CLASS} value={skipPolicyFilter} onChange={(e) => setSkipPolicyFilter(e.target.value)}>
-              <option value="">All skip policies</option>
-              {SKIP_POLICY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setFiltersOpen((v) => !v)}
+              className={`sm:hidden relative flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
+                filtersOpen ? 'bg-stone-700 border-amber-600 text-amber-400' : 'bg-stone-800 border-stone-700 text-stone-300'
+              }`}
+              aria-expanded={filtersOpen}
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              Filters
+              {activeFilterChips.length > 0 && (
+                <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-amber-600 text-[10px] font-semibold text-stone-950">
+                  {activeFilterChips.length}
+                </span>
+              )}
+            </button>
+            <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-lg p-1 shrink-0">
+              <button onClick={() => setView('grid')} className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="Grid view">
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button onClick={() => setView('list')} className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="List view">
+                <List className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+        </div>
+
+        {/* Row 2 — attribute filters: type, skip policy, genre. Collapsed behind the Filters button on
+            mobile, always visible from sm: up. */}
+        <div className={`${filtersOpen ? 'flex' : 'hidden'} sm:flex flex-col sm:flex-row gap-2`}>
+          <select className={SELECT_CLASS} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+            <option value="">All types</option>
+            {intervals.map((interval) => (
+              <option key={interval} value={interval}>{formatInterval(interval)}</option>
+            ))}
+          </select>
+          <select className={SELECT_CLASS} value={skipPolicyFilter} onChange={(e) => setSkipPolicyFilter(e.target.value)}>
+            <option value="">All skip policies</option>
+            {SKIP_POLICY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
           <MultiSelect label="genres" options={genres} selected={genreFilters} onChange={setGenreFilters} className="sm:w-64" />
         </div>
 
