@@ -438,6 +438,7 @@ export class SubscriptionsService {
               name: true,
               logoUrl: true,
               logoAsset: { select: { id: true, publicId: true } },
+              country: true,
               brandColors: true,
             },
           },
