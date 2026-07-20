@@ -17,6 +17,7 @@ import {
   UpdateSubscriptionDto,
   CreateMonthDto,
   UpdateMonthDto,
+  MarkMonthSkippedDto,
   AddMonthBookDto,
   UpdateMonthBookDto,
   SubscriptionQueryDto,
@@ -191,6 +192,41 @@ export class SubscriptionsController {
     @Param('month') month: string,
   ) {
     return this.subscriptionsService.deleteMonth(slug, parseInt(year, 10), parseInt(month, 10));
+  }
+
+  // Cascades to the whole content stream (parent + every variant) — see markMonthSkipped.
+  // :slug may be the content-stream's own slug or any variant's; both resolve to the same set.
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Post(':slug/months/:year/:month/skip')
+  async markMonthSkipped(
+    @Param('slug') slug: string,
+    @Param('year') year: string,
+    @Param('month') month: string,
+    @Body() dto: MarkMonthSkippedDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
+    const result = await this.subscriptionsService.markMonthSkipped(slug, parseInt(year, 10), parseInt(month, 10), dto.reason, user.id);
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'MARK_MONTH_SKIPPED', entityType: 'subscription', entityId: slug, metadata: { year: parseInt(year, 10), month: parseInt(month, 10), reason: dto.reason ?? null, memberSubscriptionIds: result.memberSubscriptionIds } });
+    return result;
+  }
+
+  // Deliberately NOT cascaded — scoped to exactly the one subscription in :slug, so an admin can
+  // correct a single variant without touching the content-stream's own row or sibling variants.
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Delete(':slug/months/:year/:month/skip')
+  async unmarkMonthSkipped(
+    @Param('slug') slug: string,
+    @Param('year') year: string,
+    @Param('month') month: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
+    const result = await this.subscriptionsService.unmarkMonthSkipped(slug, parseInt(year, 10), parseInt(month, 10));
+    void this.auditService.log({ userId: user.id, username: user.username, action: 'UNMARK_MONTH_SKIPPED', entityType: 'subscription', entityId: slug, metadata: { year: parseInt(year, 10), month: parseInt(month, 10) } });
+    return result;
   }
 
   @ApiBearerAuth()

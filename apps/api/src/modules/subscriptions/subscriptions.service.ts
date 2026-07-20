@@ -1500,6 +1500,92 @@ export class SubscriptionsService {
     return deleted;
   }
 
+  /** Recomputes nextRenewalDate for every active entry across the given subscription ids.
+   *  Mirrors renewal.cron.ts's per-entry try/catch loop — one entry's failure never blocks or
+   *  rolls back another's, and the caller gets back a summary instead of a silent partial result. */
+  private async recalculateRenewalDatesForSubscriptions(subscriptionIds: string[]): Promise<{
+    succeeded: number;
+    failed: { entryId: string; error: string }[];
+  }> {
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { subscriptionId: { in: subscriptionIds }, active: true },
+      select: { id: true },
+    });
+    const failed: { entryId: string; error: string }[] = [];
+    let succeeded = 0;
+    for (const entry of entries) {
+      try {
+        await refreshNextRenewalDate(this.prisma, entry.id);
+        succeeded++;
+      } catch (err: any) {
+        this.logger.error(`[MonthSkip] recompute failed for entry ${entry.id}: ${err?.message}`);
+        failed.push({ entryId: entry.id, error: err?.message ?? 'unknown error' });
+      }
+    }
+    return { succeeded, failed };
+  }
+
+  /** Admin-declared "this month doesn't happen" for a subscription's whole content stream —
+   *  company-wide, NOT the per-user UserSkipRecord/manageSkips flow. Cascades: resolves the
+   *  content-stream (parent) id plus every variant pointing at it, and writes one
+   *  SubscriptionMonthSkip row per member — so marking skip via any variant's slug applies to
+   *  every sibling variant sharing that content, matching how SubscriptionMonth content itself
+   *  is already shared at the parent level. Combos own no months of their own and are rejected;
+   *  mark the underlying component subscription instead. */
+  async markMonthSkipped(slug: string, year: number, month: number, reason: string | undefined, adminUserId: string) {
+    const sub = await findBySlugOrThrow(this.prisma.subscription, slug, 'Subscription');
+    if ((sub as any).isCombo) {
+      throw new BadRequestException('Cannot mark a combo subscription as skipped — mark the underlying component subscription instead.');
+    }
+
+    const contentStreamId: string = (sub as any).parentSubscriptionId ?? (sub as any).id;
+    const members = await this.prisma.subscription.findMany({
+      where: { OR: [{ id: contentStreamId }, { parentSubscriptionId: contentStreamId }] },
+      select: { id: true },
+    });
+    const memberIds = members.map((m) => m.id);
+
+    await Promise.all(memberIds.map((id) =>
+      this.prisma.subscriptionMonthSkip.upsert({
+        where: { subscriptionId_year_month: { subscriptionId: id, year, month } },
+        create: { subscriptionId: id, year, month, reason: reason ?? null, createdBy: adminUserId },
+        update: { undoneAt: null, reason: reason ?? null, createdBy: adminUserId },
+      }),
+    ));
+
+    const recompute = await this.recalculateRenewalDatesForSubscriptions(memberIds);
+
+    void this.invalidateMonthsCache(slug);
+    void this.invalidateCatalogMonthCaches();
+
+    return { subscriptionId: contentStreamId, memberSubscriptionIds: memberIds, year, month, reason: reason ?? null, ...recompute };
+  }
+
+  /** Unmarks a company-wide month skip — deliberately scoped to exactly the one subscription in
+   *  `slug`, NOT cascaded to the rest of the content stream. Since markMonthSkipped writes an
+   *  independent row per member subscription, this lets an admin correct a single variant that
+   *  turns out not to match the rest of the content stream (e.g. it shipped after all) without
+   *  touching the content-stream's own row or sibling variants. Un-skipping just the parent still
+   *  leaves any variant rows untouched, and vice versa — that asymmetry is intentional. */
+  async unmarkMonthSkipped(slug: string, year: number, month: number) {
+    const sub = await findBySlugOrThrow(this.prisma.subscription, slug, 'Subscription');
+    if ((sub as any).isCombo) {
+      throw new BadRequestException('Cannot unmark a combo subscription — it was never markable.');
+    }
+
+    await this.prisma.subscriptionMonthSkip.updateMany({
+      where: { subscriptionId: (sub as any).id, year, month, undoneAt: null },
+      data: { undoneAt: new Date() },
+    });
+
+    const recompute = await this.recalculateRenewalDatesForSubscriptions([(sub as any).id]);
+
+    void this.invalidateMonthsCache(slug);
+    void this.invalidateCatalogMonthCaches();
+
+    return { subscriptionId: (sub as any).id, year, month, ...recompute };
+  }
+
   private async getMonth(subscriptionId: string, year: number, month: number) {
     const existing = await this.prisma.subscriptionMonth.findUnique({
       where: {
