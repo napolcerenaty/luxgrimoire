@@ -582,6 +582,23 @@ describe('refreshNextRenewalDate — company-wide month skip', () => {
     });
   });
 
+  it('a newly-joined entry still correctly skips a month that was already company-skipped before it joined', async () => {
+    // Joins Jun 20, just before the already-skipped Jul — proves the company skip isn't
+    // something only pre-existing entries pick up; a brand-new join respects it too, since
+    // refreshNextRenewalDate always reads the current skip rows fresh, not a snapshot from join time.
+    (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue(
+      makeEntry({ startDate: '2025-06-20', skipRecords: [], subscription: makeSub() }),
+    );
+    (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValue([{ year: 2025, month: 7 }]);
+
+    await refreshNextRenewalDate(prisma, 'entry-1');
+
+    expect(prisma.userSubscriptionEntry.update).toHaveBeenCalledWith({
+      where: { id: 'entry-1' },
+      data: { nextRenewalDate: new Date(Date.UTC(2025, 7, 1)) }, // Aug 1, not Jul
+    });
+  });
+
   it('looks up company skips by the entry\'s own subscriptionId, no parent/variant resolution', async () => {
     (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue(
       makeEntry({ subscription: makeSub({ id: 'sub-42' }) }),
