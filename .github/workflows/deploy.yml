@@ -49,9 +49,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    name: Sequential Deploy
-    needs: build-web
+  deploy-api:
+    name: Deploy API
     runs-on: ubuntu-latest
     steps:
       - name: Deploy API
@@ -88,6 +87,11 @@ jobs:
           echo "❌ API deployment timed out"
           exit 1
 
+  deploy-web:
+    name: Deploy Web
+    needs: [build-web, deploy-api]
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy Web
         id: deploy_web
         run: |
