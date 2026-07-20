@@ -85,6 +85,7 @@ describe('SubscriptionsService — getManagedMonths', () => {
       { markStatsStale: jest.fn() } as any,
       { del: jest.fn(), get: jest.fn(), set: jest.fn() } as any,
     );
+    (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => jest.useRealTimers());
@@ -200,6 +201,23 @@ describe('SubscriptionsService — getManagedMonths', () => {
     await expect(service.getManagedMonths(USER_ID, SUB_SLUG)).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('excludes a company-skipped month even though a SubscriptionMonth row (with content) exists for it', async () => {
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(makeSub() as any);
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(
+      makeEntry({ startDate: '2026-05-01', skipRecords: [] }),
+    );
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([
+      { year: 2026, month: 5, books: [{ book: { title: 'Some Book', authors: [] } }] },
+      { year: 2026, month: 6, books: [] },
+    ]);
+    // Company-wide skip on May — not a personal choice, must never be offered here
+    (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValue([{ year: 2026, month: 5 }]);
+
+    const result = await service.getManagedMonths(USER_ID, SUB_SLUG);
+
+    expect(result.months.map(m => m.month)).toEqual([6]);
+  });
+
   it('respects renewalMonthOffset when computing renewal date', async () => {
     // offset=1: renewal for box month M fires in month M-1
     // User joins Jul 1, signupIncludesCurrentMonth=true:
@@ -250,6 +268,7 @@ describe('SubscriptionsService — manageSkips', () => {
     // Default: update resolves, userSubscriptionEntry.findUnique for refreshNextRenewalDate
     (prisma.userSubscriptionEntry.update as jest.Mock).mockResolvedValue({});
     (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => jest.useRealTimers());
@@ -281,6 +300,24 @@ describe('SubscriptionsService — manageSkips', () => {
         update: expect.objectContaining({ undoneAt: null }),
       }),
     );
+  });
+
+  it('is a no-op for a toSkip request targeting a company-skipped month — no personal UserSkipRecord created', async () => {
+    setupBase();
+    (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValue([{ year: 2026, month: 5 }]);
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ id: MONTH_ID_MAY });
+    (prisma.userSkipRecord.upsert as jest.Mock).mockResolvedValue({});
+
+    await service.manageSkips(USER_ID, SUB_SLUG, {
+      toSkip: [{ year: 2026, month: 5 }],
+      toUnskip: [],
+      addBooksForUnskipped: false,
+      removeBooksForSkipped: false,
+    });
+
+    expect(prisma.userSkipRecord.upsert).not.toHaveBeenCalled();
+    // Never even looked up the SubscriptionMonth row — rejected before that point
+    expect(prisma.subscriptionMonth.findFirst).not.toHaveBeenCalled();
   });
 
   it('soft-deletes skip records for months in toUnskip', async () => {

@@ -4359,7 +4359,20 @@ export class SubscriptionsService {
 
     const isBundleSubscription = ((sub as any).isBundleSubscription as boolean ?? false) && intervalMonths > 1;
 
-    const result = Array.from(grouped.values()).map(({ year, month, booksMap }) => {
+    // A company-wide skip (SubscriptionMonthSkip) is never a personal choice to make/unmake here —
+    // exclude it even if a SubscriptionMonth row happens to already exist for it (content authored
+    // before the admin later decided to skip the month). Defense-in-depth: today this can't
+    // actually happen since no row gets created for a company-skipped month in the first place,
+    // but that's an emergent property, not a guarantee this method should rely on silently.
+    const companySkips = await this.prisma.subscriptionMonthSkip.findMany({
+      where: { subscriptionId: { in: monthsSubscriptionIds }, undoneAt: null },
+      select: { year: true, month: true },
+    });
+    const companySkippedSet = new Set(companySkips.map((s) => `${s.year}-${s.month}`));
+
+    const result = Array.from(grouped.values())
+      .filter(({ year, month }) => !companySkippedSet.has(`${year}-${month}`))
+      .map(({ year, month, booksMap }) => {
       // For bundle subscriptions ALL months in a bundle ship together at the bundle's own
       // renewal date, not each month's individual calendar date — resolve to the bundle's
       // start month first so every constituent month reports the same, correct renewal date.
@@ -4437,8 +4450,18 @@ export class SubscriptionsService {
       return new Date(Date.UTC(ry, rm - 1, renewalDay));
     };
 
+    // A company-wide skip isn't a personal choice — a stale/racing client request must not be
+    // able to create an orphaned personal UserSkipRecord for a month that no longer conceptually
+    // exists (e.g. an admin marked it skipped while this request was in flight).
+    const manageSkipsCompanySkips = await this.prisma.subscriptionMonthSkip.findMany({
+      where: { subscriptionId: { in: monthsSubscriptionIds }, undoneAt: null },
+      select: { year: true, month: true },
+    });
+    const manageSkipsCompanySkippedSet = new Set(manageSkipsCompanySkips.map((s) => `${s.year}-${s.month}`));
+
     // ── Apply new skips ───────────────────────────────────────────────────────
     for (const { year, month } of dto.toSkip) {
+      if (manageSkipsCompanySkippedSet.has(`${year}-${month}`)) continue;
       const subMonth = await this.prisma.subscriptionMonth.findFirst({
         where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
       });
