@@ -2963,13 +2963,26 @@ export class SubscriptionsService {
   }): Promise<void> {
     const existing = await this.prisma.userBookEntry.findFirst({
       where: { userId: opts.userId, editionId: opts.editionId, subscriptionEntryId: opts.subscriptionEntryId },
-      select: { id: true },
+      select: { id: true, ownershipStatus: true },
     });
     if (existing) {
+      // PREORDER is a provisional placeholder (e.g. auto-created by recordFirstMonthAsPreorder
+      // at join time, before the admin has picked a real status via backfill/unskip) — safe to
+      // correct once a real status is chosen. Anything else already set (OWNED, SOLD, BORROWED,
+      // ...) reflects a deliberate later action and must not be silently overwritten here.
+      const shouldUpdateStatus = !!opts.ownershipStatus && existing.ownershipStatus === 'PREORDER' && opts.ownershipStatus !== existing.ownershipStatus;
       await this.prisma.userBookEntry.update({
         where: { id: existing.id },
-        data: { purchaseGroupId: opts.purchaseGroupId },
+        data: {
+          purchaseGroupId: opts.purchaseGroupId,
+          ...(shouldUpdateStatus && { ownershipStatus: opts.ownershipStatus }),
+        },
       });
+      if (shouldUpdateStatus) {
+        await this.prisma.ownershipStatusHistory.create({
+          data: { userBookEntryId: existing.id, status: opts.ownershipStatus!, changedAt: opts.changedAt },
+        }).catch(() => {});
+      }
       return;
     }
     const status = opts.ownershipStatus ?? 'OWNED';
