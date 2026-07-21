@@ -23,6 +23,8 @@ interface PastMonth {
     book: { id: string; title: string; slug: string }
     edition?: { id: string; slug: string; additionalImages?: string[] | null } | null
   }[]
+  // Set on synthetic entries for a company-wide skip that has no SubscriptionMonth row at all.
+  skipped?: { reason: string | null } | null
 }
 
 interface PaginatedMonths {
@@ -31,6 +33,15 @@ interface PaginatedMonths {
   page: number
   pageSize: number
   totalPages: number
+}
+
+// A company-wide "this month doesn't happen" skip — see SubscriptionMonthSkip. A skipped month
+// with no content row never appears in `PaginatedMonths.data` at all, so it's fetched separately
+// and merged in for display.
+interface MonthSkip {
+  year: number
+  month: number
+  reason: string | null
 }
 
 function getMainBook(m: PastMonth) {
@@ -118,6 +129,16 @@ function PreviousBoxesList({
     staleTime: 1000 * 60 * 5,
   })
 
+  // Company-wide skips for the same date window — small, unpaginated, fetched once. A skipped
+  // month with no content row never appears in `data.data` above, however many pages load, so
+  // it's merged in separately as a synthetic entry.
+  const skipQuery = [fromParams, untilParams].join('').replace(/^&/, '?')
+  const { data: skips = [] } = useQuery<MonthSkip[]>({
+    queryKey: ['subscription-month-skips', subscriptionSlug, fromYear, fromMonth, untilYear, untilMonth],
+    queryFn: () => apiFetch<MonthSkip[]>(`/subscriptions/${subscriptionSlug}/months/skips${skipQuery}`),
+    staleTime: 1000 * 60 * 5,
+  })
+
   useEffect(() => {
     if (!data) return
     setTotalPages(data.totalPages)
@@ -130,12 +151,18 @@ function PreviousBoxesList({
 
   const hasMore = page < totalPages
 
+  const skipOnlyEntries: PastMonth[] = skips
+    .filter((s) => !allMonths.some((m) => m.year === s.year && m.month === s.month))
+    .map((s) => ({ id: `skip-${s.year}-${s.month}`, year: s.year, month: s.month, isSpoiler: false, skipped: { reason: s.reason } }))
+
+  const displayMonths = [...allMonths, ...skipOnlyEntries].sort((a, b) => (b.year !== a.year ? b.year - a.year : b.month - a.month))
+
   // Group by bundle when applicable
   const bundleGroups: { key: string; label: string; months: PastMonth[] }[] | null =
     isBundleSubscription && intervalMonths > 1
       ? (() => {
           const map = new Map<string, PastMonth[]>()
-          for (const m of allMonths) {
+          for (const m of displayMonths) {
             const key = getBundleKey(m.year, m.month, intervalMonths, startingMonth)
             if (!map.has(key)) map.set(key, [])
             map.get(key)!.push(m)
@@ -162,6 +189,7 @@ function PreviousBoxesList({
           cardArtist={m.cardArtist ?? null}
           accentColors={accentColors}
           editionSlug={getEditionSlug(m)}
+          skipped={m.skipped ?? null}
         />
       ))}
     </div>
@@ -211,7 +239,7 @@ function PreviousBoxesList({
         </>
       ) : (
         <>
-          <MonthGrid months={allMonths} />
+          <MonthGrid months={displayMonths} />
           {hasMore && (
             <div className="mt-8 text-center">
               <button

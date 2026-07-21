@@ -34,6 +34,9 @@ interface MonthCardProps {
   cardArtist?: CardArtist | null
   accentColors?: string[] | null
   editionSlug?: string | null
+  // Company-wide skip (SubscriptionMonthSkip) — when set, short-circuits to a "Skipped: reason"
+  // card instead of the normal cover/theme layout; there's no book to preview on hover.
+  skipped?: { reason: string | null } | null
 }
 
 export default function MonthCard({
@@ -47,9 +50,34 @@ export default function MonthCard({
   cardArtist,
   accentColors,
   editionSlug,
+  skipped,
 }: MonthCardProps) {
   const [hovered, setHovered] = useState(false)
   const router = useRouter()
+
+  if (skipped) {
+    return (
+      <div className="relative rounded-xl overflow-hidden bg-stone-900 border border-amber-800/40 select-none flex flex-col h-full">
+        <div className="aspect-[2/3] overflow-hidden bg-amber-950/20 relative flex flex-col items-center justify-center gap-1.5 px-3">
+          <span className="text-amber-400 font-serif text-xl">⏭</span>
+          <span className="text-amber-400 font-serif text-xs tracking-widest uppercase text-center">Skipped</span>
+          <div className="card-ribbon absolute bottom-0 left-0 right-0 px-2 py-2">
+            <p
+              className="card-ribbon-text text-center font-serif uppercase tracking-widest leading-none font-semibold text-white"
+              style={{ fontSize: '10px', letterSpacing: '0.12em' }}
+            >
+              {monthName} {year}
+            </p>
+          </div>
+        </div>
+        <div className="p-3 pt-2 flex flex-col justify-start flex-1 min-h-[3.5rem]">
+          <p className="text-amber-500/90 text-xs italic leading-snug">
+            {skipped.reason || 'This month is skipped — no box this cycle.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   // Lazy-load community images only when hovered
   const { data: communityImages } = useQuery<CommunityImage[]>({
