@@ -184,7 +184,7 @@ export function BooksByMonthClient() {
   return (
     <div>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center mb-4">
-        <MonthPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m) }} maxAheadMonths={1} />
+        <MonthPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m) }} maxAheadMonths={2} />
         <input
           type="text"
           value={searchQuery}

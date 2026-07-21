@@ -1148,8 +1148,8 @@ export class SubscriptionsService {
     const now = new Date();
     const nowAbs = now.getFullYear() * 12 + now.getMonth();
     const reqAbs = year * 12 + (month - 1);
-    if (reqAbs > nowAbs + 1) {
-      throw new BadRequestException('Cannot view more than 1 month into the future');
+    if (reqAbs > nowAbs + 2) {
+      throw new BadRequestException('Cannot view more than 2 months into the future');
     }
 
     const version = await this.getCatalogBooksCacheVersion();
