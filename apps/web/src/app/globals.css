@@ -306,6 +306,35 @@ input[type=number] {
 [data-theme="light"] .edition-glow-red:hover {
   box-shadow: 0 0 0 2px rgba(190,30,30,0.9), 0 10px 26px rgba(190,30,30,0.28) !important;
 }
+/* "Coming" bucket (preorder/shipping) on the company editions grid — distinct from gold
+   (owned) and red (skipped) so it doesn't read as either positive or negative. */
+.edition-glow-amber {
+  box-shadow: 0 0 0 1px rgba(217,119,6,0.32), 0 8px 32px rgba(217,119,6,0.13);
+}
+.edition-glow-amber:hover {
+  box-shadow: 0 0 0 1px rgba(217,119,6,0.55), 0 16px 44px rgba(217,119,6,0.22) !important;
+  border-color: rgba(217,119,6,0.7) !important;
+}
+[data-theme="light"] .edition-glow-amber {
+  box-shadow: 0 0 0 2px rgba(180,90,10,0.75), 0 6px 18px rgba(180,90,10,0.18);
+}
+[data-theme="light"] .edition-glow-amber:hover {
+  box-shadow: 0 0 0 2px rgba(180,90,10,0.9), 0 10px 26px rgba(180,90,10,0.28) !important;
+}
+/* "Gone" bucket (sold/gifted/lended) — neutral slate, deliberately not warm or alarming. */
+.edition-glow-slate {
+  box-shadow: 0 0 0 1px rgba(120,113,108,0.35), 0 8px 32px rgba(120,113,108,0.1);
+}
+.edition-glow-slate:hover {
+  box-shadow: 0 0 0 1px rgba(120,113,108,0.55), 0 16px 44px rgba(120,113,108,0.18) !important;
+  border-color: rgba(120,113,108,0.6) !important;
+}
+[data-theme="light"] .edition-glow-slate {
+  box-shadow: 0 0 0 2px rgba(87,83,78,0.6), 0 6px 18px rgba(87,83,78,0.15);
+}
+[data-theme="light"] .edition-glow-slate:hover {
+  box-shadow: 0 0 0 2px rgba(87,83,78,0.8), 0 10px 26px rgba(87,83,78,0.24) !important;
+}
 
 /* Bottom "ribbon" overlay on card cover art (company/subscription/month name) — reused across
    EditionCarousel, MonthCard, HomeAnnouncementsSection, HomeTrendingSales, sale-announcements,
