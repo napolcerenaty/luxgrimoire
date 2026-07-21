@@ -150,7 +150,7 @@ export class AnnouncementsService {
     return { OR: activeSaleCondition };
   }
 
-  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; pastOnly?: boolean; search?: string; sort?: 'date' | 'recent'; companyId?: string; dateFrom?: string; dateTo?: string; saleType?: SaleType }) {
+  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; pastOnly?: boolean; search?: string; sort?: 'date' | 'date-desc' | 'recent'; companyId?: string; dateFrom?: string; dateTo?: string; saleType?: SaleType }) {
     const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
 
     const now = new Date();
@@ -208,7 +208,9 @@ export class AnnouncementsService {
         where,
         skip,
         take: pageSize,
-        orderBy: query.sort === 'date' ? { generalSaleDate: 'asc' } : { createdAt: 'desc' },
+        orderBy: query.sort === 'date' ? { generalSaleDate: 'asc' }
+          : query.sort === 'date-desc' ? { generalSaleDate: 'desc' }
+          : { createdAt: 'desc' },
         select: {
           id: true,
           title: true,

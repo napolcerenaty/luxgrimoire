@@ -26,7 +26,7 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
       const params = new URLSearchParams({
         companyId,
         pageSize: String(PAGE_SIZE),
-        sort: 'date',
+        sort: 'date-desc',
         page: String(pageParam),
       })
       if (tab === 'live') params.set('upcoming', 'true')

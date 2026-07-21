@@ -38,7 +38,7 @@ export class AnnouncementsController {
       upcoming: upcoming === 'true',
       pastOnly: pastOnly === 'true',
       search,
-      sort: sort === 'date' ? 'date' : 'recent',
+      sort: sort === 'date' ? 'date' : sort === 'date-desc' ? 'date-desc' : 'recent',
       companyId,
       dateFrom,
       dateTo,
