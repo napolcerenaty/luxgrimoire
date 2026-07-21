@@ -156,20 +156,23 @@ export default async function CompanyPage({ params }: Props) {
       />
 
 
-      {/* Company header: logo+links left, info right */}
-      <div className="flex flex-col sm:flex-row gap-8 items-start mb-12">
+      {/* Company header: logo+links left, info right. Logo spans full width on mobile (its
+          own banner row) and settles into a fixed-size box beside the info column at sm+;
+          social links are icon-only circular buttons at every breakpoint — compact and
+          consistent rather than forking into a different control per device. */}
+      <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 items-start mb-12">
         {/* Left column: logo + social links */}
-        <div className="shrink-0 flex flex-col items-start gap-4">
+        <div className="w-full sm:w-44 sm:shrink-0 flex flex-col items-start gap-3">
           {logoUrl && (
-            <div className="w-44 h-24 rounded-xl bg-white/5 border border-stone-700/40 flex items-center justify-center overflow-hidden p-2">
+            <div className="w-full h-28 sm:w-44 sm:h-24 rounded-xl bg-white/5 border border-stone-700/40 flex items-center justify-center overflow-hidden p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logoUrl} alt={company.name} className="w-full h-full object-contain" />
             </div>
           )}
 
-          {/* Social links as a column */}
+          {/* Social links — icon-only circular buttons in a single row */}
           {socials.length > 0 && (
-            <div className="flex flex-col gap-1.5 w-44">
+            <div className="flex flex-row flex-wrap gap-2">
               {socials.map((s) => (
                 <a
                   key={s.icon}
@@ -177,21 +180,21 @@ export default async function CompanyPage({ params }: Props) {
                   target="_blank"
                   rel="noopener noreferrer"
                   title={s.label}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-amber-600/50 text-stone-300 hover:text-amber-400 transition-colors text-xs font-medium"
+                  aria-label={s.label}
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-amber-600/50 text-stone-300 hover:text-amber-400 transition-colors"
                 >
-                  {s.icon === 'instagram' && <InstagramIcon className="w-3.5 h-3.5 shrink-0" />}
-                  {s.icon === 'facebook' && <FacebookIcon className="w-3.5 h-3.5 shrink-0" />}
-                  {s.icon === 'x' && <XIcon className="w-3.5 h-3.5 shrink-0" />}
-                  {s.icon === 'tiktok' && <TikTokIcon className="w-3.5 h-3.5 shrink-0" />}
-                  {s.icon === 'threads' && <ThreadsIcon className="w-3.5 h-3.5 shrink-0" />}
-                  {s.icon === 'bluesky' && <BlueskyIcon className="w-3.5 h-3.5 shrink-0" />}
+                  {s.icon === 'instagram' && <InstagramIcon className="w-4 h-4 shrink-0" />}
+                  {s.icon === 'facebook' && <FacebookIcon className="w-4 h-4 shrink-0" />}
+                  {s.icon === 'x' && <XIcon className="w-4 h-4 shrink-0" />}
+                  {s.icon === 'tiktok' && <TikTokIcon className="w-4 h-4 shrink-0" />}
+                  {s.icon === 'threads' && <ThreadsIcon className="w-4 h-4 shrink-0" />}
+                  {s.icon === 'bluesky' && <BlueskyIcon className="w-4 h-4 shrink-0" />}
                   {s.icon === 'website' && (
-                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                       <circle cx="12" cy="12" r="10" />
                       <path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" />
                     </svg>
                   )}
-                  {s.label}
                 </a>
               ))}
             </div>
