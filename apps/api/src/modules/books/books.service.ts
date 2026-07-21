@@ -173,6 +173,7 @@ export class BooksService {
           language: true,
           volumeNumbers: true,
           isOmnibus: true,
+          componentCount: true,
           seriesName: true,
           series: { select: SERIES_SELECT },
           createdAt: true,
