@@ -313,6 +313,7 @@ input[type=number] {
    own near-black cards, but is a jarring flat-black rectangle against the light theme's pale
    cards — swap it for a navy that matches the light theme's own accent color family instead. */
 .card-ribbon {
+  z-index: 20;
   background: rgba(5,10,18,0.88);
   border-top: 1px solid rgba(200,180,140,0.2);
 }
