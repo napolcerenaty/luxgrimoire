@@ -381,19 +381,18 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
               <button
                 key={group.label}
                 onClick={() => handleChipClick(idx)}
-                className={`shrink-0 snap-start flex items-center gap-1 max-w-[11rem] rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
+                className={`shrink-0 snap-start whitespace-nowrap flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
                   activeTab === idx
                     ? 'bg-amber-900/30 border-amber-600 text-amber-400'
                     : 'bg-stone-800 border-stone-700 text-stone-400'
                 }`}
-                title={group.label}
               >
-                {/* min-w-0 lets this flex child actually shrink/truncate instead of forcing
-                    the button wider — same fix as the flexbox image sizing bug elsewhere.
-                    shrink-0 on the count keeps it always visible instead of getting
-                    swallowed into the label's truncation. */}
-                <span className="min-w-0 truncate">{group.label}</span>
-                {totals[idx] !== undefined && <span className="shrink-0 text-stone-500">({totals[idx]})</span>}
+                {/* No truncation — several groups can share a long common prefix (e.g.
+                    "Signing Edition: X"), and truncating right where they diverge made chips
+                    indistinguishable from each other. The strip already scrolls/drags, so a
+                    wider chip costs nothing. */}
+                <span>{group.label}</span>
+                {totals[idx] !== undefined && <span className="text-stone-500">({totals[idx]})</span>}
               </button>
             )
           })}
