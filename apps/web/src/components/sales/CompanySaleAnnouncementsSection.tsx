@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
 import { SaleCountdownCounter } from './SaleCountdownCounter'
-import { CompanySaleAnnouncementsBrowser } from './CompanySaleAnnouncementsBrowser'
 
 interface NextSale {
   date: string | null
@@ -26,10 +25,11 @@ interface LatestItem {
 
 interface Props {
   companyId: string
+  companySlug: string
 }
 
-export function CompanySaleAnnouncementsSection({ companyId }: Props) {
-  const [browserOpen, setBrowserOpen] = useState(false)
+export function CompanySaleAnnouncementsSection({ companyId, companySlug }: Props) {
+  const seeAllHref = `/companies/${companySlug}/sale-announcements`
 
   const { data: nextSale } = useQuery({
     queryKey: ['company-next-sale', companyId],
@@ -61,20 +61,17 @@ export function CompanySaleAnnouncementsSection({ companyId }: Props) {
         <div className="rounded-2xl border border-stone-800 bg-stone-900/60 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-serif font-semibold text-stone-200">Latest Announcements</h3>
-            <button
-              onClick={() => setBrowserOpen(true)}
-              className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
-            >
+            <Link href={seeAllHref} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
               See all →
-            </button>
+            </Link>
           </div>
           <div className="flex flex-col gap-2.5">
             {latestItems.map((a) => {
               const cover = a.imageUrl ? cloudinaryUrl(a.imageUrl, 'w_80,h_120,c_fill,q_auto,f_auto') : null
               return (
-                <button
+                <Link
                   key={a.id}
-                  onClick={() => setBrowserOpen(true)}
+                  href={seeAllHref}
                   className="flex items-center gap-2.5 text-left hover:bg-stone-800/60 transition-colors rounded-lg p-1.5 -m-1.5"
                 >
                   <div className="w-8 h-12 shrink-0 rounded bg-stone-950 overflow-hidden">
@@ -84,7 +81,7 @@ export function CompanySaleAnnouncementsSection({ companyId }: Props) {
                     )}
                   </div>
                   <p className="text-xs text-stone-300 line-clamp-2 leading-snug">{a.title}</p>
-                </button>
+                </Link>
               )
             })}
           </div>
@@ -92,16 +89,9 @@ export function CompanySaleAnnouncementsSection({ companyId }: Props) {
       )}
 
       {latestItems.length === 0 && nextSale?.date && (
-        <button
-          onClick={() => setBrowserOpen(true)}
-          className="text-xs text-amber-500 hover:text-amber-400 transition-colors self-start"
-        >
+        <Link href={seeAllHref} className="text-xs text-amber-500 hover:text-amber-400 transition-colors self-start">
           See all sale announcements →
-        </button>
-      )}
-
-      {browserOpen && (
-        <CompanySaleAnnouncementsBrowser companyId={companyId} onClose={() => setBrowserOpen(false)} />
+        </Link>
       )}
     </section>
   )

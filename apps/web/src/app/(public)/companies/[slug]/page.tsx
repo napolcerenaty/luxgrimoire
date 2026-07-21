@@ -295,7 +295,7 @@ export default async function CompanyPage({ params }: Props) {
           fetches independently on mount, so it never blocks the header/subscriptions render
           above, and (unlike the public, shared-cache company payload) can be personalized. */}
       <div className="w-full lg:w-80 shrink-0 order-1 lg:order-2 lg:sticky lg:top-6">
-        <CompanySaleAnnouncementsSection companyId={company.id} />
+        <CompanySaleAnnouncementsSection companyId={company.id} companySlug={slug} />
       </div>
 
       </div>
