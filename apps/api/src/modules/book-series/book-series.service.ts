@@ -20,15 +20,18 @@ function compareVolumeNumbers(a: number[], b: number[]): number {
 }
 
 /** Normalizes a series name for duplicate-detection only (never stored/displayed) — collapses
- * the various apostrophe/quote glyphs different data sources use for the same character (e.g.
- * straight ' vs curly ’) so two names differing only by that are recognised as the same series
- * instead of silently creating a duplicate. A real instance of this split one series' books
- * across two rows — see migration 20260721100000_merge_duplicate_dragons_gift_trilogy_series. */
+ * the various apostrophe/quote/dash glyphs different data sources use for the same character
+ * (e.g. straight ' vs curly ’, hyphen - vs en dash – vs em dash —) plus repeated whitespace, so
+ * two names differing only by that are recognised as the same series instead of silently
+ * creating a duplicate. A real instance of this (apostrophes) split one series' books across
+ * two rows — see migration 20260721100000_merge_duplicate_dragons_gift_trilogy_series. */
 function normalizeSeriesName(name: string): string {
   return name
     .normalize('NFKC')
     .replace(/[‘’‛ʼ`´]/g, "'")
     .replace(/[“”]/g, '"')
+    .replace(/[‐‑‒–—―−]/g, '-')
+    .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
 }
@@ -59,11 +62,16 @@ export class BookSeriesService {
           // or secondary — the list's "Books" column and the delete guard both need the total,
           // not just primary, or a series that's still a secondary entry looks deletable.
           _count: { select: { books: true, entries: true } },
-          books: {
+          // Sourced from `entries`, not `books` — after a switch-primary, a book stays attached
+          // here as a secondary entry even though it's no longer in the primary-only `books`
+          // relation, which used to leave a series with a nonzero bookCount but no authors shown.
+          entries: {
             take: 5,
             select: {
-              authors: {
-                select: { author: { select: { name: true } } },
+              book: {
+                select: {
+                  authors: { select: { author: { select: { name: true } } } },
+                },
               },
             },
           },
@@ -75,7 +83,7 @@ export class BookSeriesService {
     return {
       data: data.map(s => {
         const authorNames = Array.from(
-          new Set(s.books.flatMap(b => b.authors.map(a => a.author.name)))
+          new Set(s.entries.flatMap(e => e.book.authors.map(a => a.author.name)))
         );
         return { id: s.id, slug: s.slug, name: s.name, bookCount: s._count.entries, primaryBookCount: s._count.books, authors: authorNames };
       }),
