@@ -137,9 +137,12 @@ export class BooksService {
       const series = await this.prisma.bookSeries.findUnique({ where: { slug: query.seriesSlug }, select: { id: true } });
       if (series) where.seriesId = series.id;
     } else if (query.seriesName) {
-      // Backward-compat: exact-match by name (case-insensitive) via seriesId
-      const series = await this.prisma.bookSeries.findFirst({ where: { name: { equals: query.seriesName, mode: 'insensitive' } }, select: { id: true } });
-      if (series) where.seriesId = series.id;
+      // Backward-compat: partial, case-insensitive match by name — a series name can match
+      // more than one BookSeries row (e.g. a duplicate), so filter by every match, not just
+      // the first one found. No matches -> filter to nothing, rather than silently ignoring
+      // the filter and returning every book.
+      const series = await this.prisma.bookSeries.findMany({ where: { name: { contains: query.seriesName, mode: 'insensitive' } }, select: { id: true } });
+      where.seriesId = { in: series.map((s) => s.id) };
     }
     if (query.authorId) {
       where.authors = { some: { authorId: query.authorId } };
