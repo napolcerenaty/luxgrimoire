@@ -10,6 +10,7 @@ const LINKS = {
     { href: '/companies',          label: 'Book Box Companies' },
     { href: '/sale-announcements', label: 'Sale Announcements' },
     { href: '/search',             label: 'Search' },
+    { href: '/blog',               label: 'Blog' },
   ],
   community: [
     { href: '/feature-requests',            label: 'Feature Requests' },
