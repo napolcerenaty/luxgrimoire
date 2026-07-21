@@ -55,13 +55,20 @@ export class BookSeriesController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
+  @Get(':slug/primary-books')
+  getPrimaryBooksForSwitch(@Param('slug') slug: string, @Query('toSlug') toSlug?: string) {
+    return this.bookSeriesService.getPrimaryBooksForSwitch(slug, toSlug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
   @Post(':slug/switch-primary')
   async switchPrimary(
     @Param('slug') slug: string,
     @Body() dto: SwitchPrimarySeriesDto,
     @CurrentUser() user: { id: string; username: string },
   ) {
-    const result = await this.bookSeriesService.switchPrimarySeries(slug, dto.toSeriesSlug);
+    const result = await this.bookSeriesService.switchPrimarySeries(slug, dto.toSeriesSlug, dto.volumeNumbers);
     void this.auditService.log({
       userId: user.id,
       username: user.username,

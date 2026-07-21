@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { INPUT_CLASS, LABEL_CLASS } from '@/lib/adminFormStyles'
+import { formatVolumeNumbers, parseVolumeNumbers } from '@/lib/volumeNumbers'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
 import DataTable from '@/components/admin/DataTable'
 import FormModal from '@/components/admin/FormModal'
@@ -16,7 +17,16 @@ interface ApiSeries {
   slug: string
   name: string
   bookCount: number
+  primaryBookCount: number
   authors: string[]
+}
+
+interface PrimaryBookForSwitch {
+  bookId: string
+  slug: string
+  title: string
+  currentVolumeNumbers: number[]
+  targetVolumeNumbers: number[]
 }
 
 export default function AdminSeriesPage() {
@@ -28,6 +38,7 @@ export default function AdminSeriesPage() {
   const [switchTarget, setSwitchTarget] = useState<{ slug: string; name: string } | null>(null)
   const [switchQuery, setSwitchQuery] = useState('')
   const [switchResult, setSwitchResult] = useState<number | null>(null)
+  const [switchVolumeInputs, setSwitchVolumeInputs] = useState<Record<string, string>>({})
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [newName, setNewName] = useState('')
@@ -40,10 +51,26 @@ export default function AdminSeriesPage() {
     select: (res) => res.data.filter((s) => s.slug !== switchSeries?.slug),
   })
 
+  // Once a target is picked, list the books this switch would move so their new volume
+  // numbers can be set right here — otherwise a book with no prior entry in the target
+  // series ends up with none, needing a manual per-book fix afterward.
+  const { data: primaryBooks } = useQuery({
+    queryKey: ['admin', 'series-primary-books', switchSeries?.slug, switchTarget?.slug],
+    queryFn: () => authFetch<PrimaryBookForSwitch[]>(
+      `/book-series/${switchSeries!.slug}/primary-books?toSlug=${encodeURIComponent(switchTarget!.slug)}`
+    ),
+    enabled: switchSeries !== null && switchTarget !== null,
+  })
+
+  useEffect(() => {
+    if (!primaryBooks) return
+    setSwitchVolumeInputs(Object.fromEntries(primaryBooks.map((b) => [b.bookId, formatVolumeNumbers(b.targetVolumeNumbers)])))
+  }, [primaryBooks])
+
   const switchMutation = useMutation({
-    mutationFn: ({ fromSlug, toSeriesSlug }: { fromSlug: string; toSeriesSlug: string }) =>
+    mutationFn: ({ fromSlug, toSeriesSlug, volumeNumbers }: { fromSlug: string; toSeriesSlug: string; volumeNumbers: Record<string, number[]> }) =>
       authFetch<{ switchedCount: number }>(`/book-series/${fromSlug}/switch-primary`, {
-        method: 'POST', body: JSON.stringify({ toSeriesSlug }),
+        method: 'POST', body: JSON.stringify({ toSeriesSlug, volumeNumbers }),
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'series'] })
@@ -56,6 +83,7 @@ export default function AdminSeriesPage() {
   const closeSwitchModal = () => {
     setSwitchSeries(null)
     setSwitchTarget(null)
+    setSwitchVolumeInputs({})
     setSwitchQuery('')
     setSwitchResult(null)
   }
@@ -145,7 +173,7 @@ export default function AdminSeriesPage() {
           >
             Edit
           </button>
-          {row.bookCount > 0 && (
+          {row.primaryBookCount > 0 && (
             <button
               onClick={() => setSwitchSeries(row)}
               className="bg-stone-700 text-stone-300 px-3 py-1 rounded text-xs font-medium hover:bg-stone-600 transition-colors"
@@ -289,7 +317,7 @@ export default function AdminSeriesPage() {
           ) : (
             <div className="flex flex-col gap-4">
               <p className="text-sm text-stone-300">
-                Every book whose primary series is currently <strong>{switchSeries.name}</strong> ({switchSeries.bookCount} book{switchSeries.bookCount !== 1 ? 's' : ''})
+                Every book whose primary series is currently <strong>{switchSeries.name}</strong> ({switchSeries.primaryBookCount} book{switchSeries.primaryBookCount !== 1 ? 's' : ''})
                 will get the series below as its new primary. <strong>{switchSeries.name}</strong> stays attached to those books as a secondary series — nothing is removed.
               </p>
               <div>
@@ -325,8 +353,43 @@ export default function AdminSeriesPage() {
                   </div>
                 )}
               </div>
+
+              {switchTarget && (
+                <div>
+                  <label className={LABEL_CLASS}>
+                    Volume numbers in <strong>{switchTarget.name}</strong>
+                  </label>
+                  <p className="text-xs text-stone-500 mb-2">
+                    Set each book's number now instead of editing it afterward — e.g. "1" or "1-3, 5" for an omnibus. Leave blank for none.
+                  </p>
+                  {!primaryBooks ? (
+                    <p className="text-xs text-stone-500">Loading books…</p>
+                  ) : (
+                    <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
+                      {primaryBooks.map((b) => (
+                        <div key={b.bookId} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm text-stone-300 truncate" title={b.title}>{b.title}</span>
+                          <input
+                            className={`${INPUT_CLASS} w-28 shrink-0`}
+                            placeholder="e.g. 1-3, 5"
+                            value={switchVolumeInputs[b.bookId] ?? ''}
+                            onChange={(e) => setSwitchVolumeInputs((prev) => ({ ...prev, [b.bookId]: e.target.value }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <button
-                onClick={() => switchTarget && switchMutation.mutate({ fromSlug: switchSeries.slug, toSeriesSlug: switchTarget.slug })}
+                onClick={() => switchTarget && switchMutation.mutate({
+                  fromSlug: switchSeries.slug,
+                  toSeriesSlug: switchTarget.slug,
+                  volumeNumbers: Object.fromEntries(
+                    Object.entries(switchVolumeInputs).map(([bookId, input]) => [bookId, parseVolumeNumbers(input)]),
+                  ),
+                })}
                 disabled={!switchTarget || switchMutation.isPending}
                 className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
               >
