@@ -26,6 +26,7 @@
 - New migration directory naming: `YYYYMMDDHHMMSS_description`
 - **Column names in migrations must use camelCase with double-quotes** (e.g. `ALTER TABLE users ADD COLUMN "statsSettings" JSONB`) — the project uses camelCase column names throughout, never snake_case
 - Never add DROP TABLE or DROP COLUMN without explicit user confirmation
+- **Never remove columns/tables in the same migration/release as the additive changes that replace them** — if a deployment fails or needs rollback, the old columns/tables must still be there to fall back to. Land the additive schema + backfill in one release; ship the DROP TABLE/DROP COLUMN cleanup in a separate, later migration once that release is confirmed stable in production
 
 ## Design & spec files
 - Before implementing any feature, read the relevant spec file from the user's Desktop (e.g. `luxgrimoire-feature-categories-v2.md`, `backfill-subskrypcji-pseudokod.md`, etc.)
