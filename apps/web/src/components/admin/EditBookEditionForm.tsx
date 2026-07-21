@@ -162,7 +162,6 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [allImages, setAllImages] = useState<string[]>(() => {
     return edition.additionalImages?.length ? [...edition.additionalImages] : []
   })
-  const [isOmnibus, setIsOmnibus] = useState(edition.isOmnibus ?? false)
 
   // Artists state — initialized from existing contributions
   const [artists, setArtists] = useState<ArtistEntry[]>(() =>
@@ -259,7 +258,6 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           earlyAccessDate: earlyAccessDate || undefined,
           generalSaleDate: generalSaleDate || undefined,
           additionalImages: allImages.filter(Boolean),
-          isOmnibus,
         }),
       })
       // 2. Remove deleted artists
@@ -364,8 +362,6 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         featureTags={edition.featureTags}
         pendingFeatureTags={pendingFeatureTags}
         featurePreviewRef={featurePreviewRef}
-        isOmnibus={isOmnibus}
-        onIsOmnibusChange={setIsOmnibus}
         editionSlug={edition.slug}
         companies={companies}
         collections={collections}

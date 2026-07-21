@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api'
 import { BackButton } from '@/components/ui/BackButton'
 import { EditionCard } from '@/components/books/EditionCard'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +27,8 @@ interface RawBook {
   id: string
   slug: string
   title: string
-  volumeNumber: number | null
+  volumeNumbers: number[]
+  isPrimarySeries: boolean
   authors: { author: { id: string; name: string; slug: string } }[]
   editions?: RawEdition[]
 }
@@ -57,7 +59,8 @@ export default async function SeriesPage({ params }: Props) {
   const series = await apiFetch<SeriesDetail>(`/book-series/${slug}`).catch(() => null)
   if (!series || series.books.length === 0) notFound()
 
-  const sorted = [...series.books].sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0))
+  // Already sorted by the API (book_series_entries.volumeNumbers, element-by-element)
+  const sorted = series.books
 
   const seriesAuthors = Array.from(
     new Map(
@@ -103,7 +106,7 @@ export default async function SeriesPage({ params }: Props) {
 
 function SeriesBookSection({ book }: { book: RawBook }) {
   const editions = book.editions ?? []
-  const volumeLabel = book.volumeNumber != null ? `Vol. ${book.volumeNumber}` : null
+  const volumeLabel = book.volumeNumbers.length > 0 ? `Vol. ${formatVolumeNumbers(book.volumeNumbers)}` : null
 
   return (
     <div>

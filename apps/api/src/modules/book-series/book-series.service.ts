@@ -4,6 +4,21 @@ import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { BookSeriesQueryDto, CreateBookSeriesDto, UpdateBookSeriesDto } from './book-series.dto';
 
+/** Postgres compares Float[] columns element-by-element (lexicographic); Prisma can't
+ * express `orderBy` on a scalar list field, so the same comparison is replicated here
+ * for in-memory sorting. Series are small enough that this is cheap. */
+function compareVolumeNumbers(a: number[], b: number[]): number {
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const av = a[i];
+    const bv = b[i];
+    if (av === undefined) return -1;
+    if (bv === undefined) return 1;
+    if (av !== bv) return av - bv;
+  }
+  return 0;
+}
+
 @Injectable()
 export class BookSeriesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -50,20 +65,25 @@ export class BookSeriesService {
     };
   }
 
+  /** A book can belong to many series; this lists every book with an entry in this
+   * series (primary or not) — not just the ones where it's currently the primary. */
   async findBySlug(slug: string) {
     const series = await this.prisma.bookSeries.findUnique({
       where: { slug },
+      select: { id: true, slug: true, name: true },
+    });
+    if (!series) throw new NotFoundException(`Series '${slug}' not found`);
+
+    const entries = await this.prisma.bookSeriesEntry.findMany({
+      where: { seriesId: series.id, book: { status: 'approved' } },
       select: {
-        id: true,
-        slug: true,
-        name: true,
-        books: {
-          where: { status: 'approved' },
+        volumeNumbers: true,
+        isPrimary: true,
+        book: {
           select: {
             id: true,
             slug: true,
             title: true,
-            volumeNumber: true,
             authors: {
               select: {
                 author: { select: { id: true, name: true, slug: true } },
@@ -88,16 +108,15 @@ export class BookSeriesService {
               orderBy: { createdAt: 'asc' },
             },
           },
-          orderBy: [{ volumeNumber: 'asc' }, { title: 'asc' }],
         },
       },
     });
-    if (!series) throw new NotFoundException(`Series '${slug}' not found`);
 
-    return {
-      ...series,
-      books: series.books.map(book => ({
+    const books = entries
+      .map(({ book, volumeNumbers, isPrimary }) => ({
         ...book,
+        volumeNumbers,
+        isPrimarySeries: isPrimary,
         editions: (book.editions as Array<{ id: string; slug: string; additionalImages: string[]; verifiedAt: Date | null; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null; communityImages?: Array<{ url: string }> }>).map((e) => {
           const { communityImages, ...rest } = e;
           return {
@@ -107,8 +126,58 @@ export class BookSeriesService {
               : null,
           };
         }),
-      })),
-    };
+      }))
+      .sort((a, b) => compareVolumeNumbers(a.volumeNumbers, b.volumeNumbers) || a.title.localeCompare(b.title));
+
+    return { id: series.id, slug: series.slug, name: series.name, books };
+  }
+
+  /** Bulk-reassign the primary series for every book whose primary series is
+   * currently `fromSeriesSlug`, switching it to `toSeriesSlug`. The old series stays
+   * attached to each affected book as a non-primary entry — nothing is removed. */
+  async switchPrimarySeries(fromSeriesSlug: string, toSeriesSlug: string): Promise<{ switchedCount: number }> {
+    const [fromSeries, toSeries] = await Promise.all([
+      this.prisma.bookSeries.findUnique({ where: { slug: fromSeriesSlug }, select: { id: true } }),
+      this.prisma.bookSeries.findUnique({ where: { slug: toSeriesSlug }, select: { id: true, name: true } }),
+    ]);
+    if (!fromSeries) throw new NotFoundException(`Series '${fromSeriesSlug}' not found`);
+    if (!toSeries) throw new NotFoundException(`Series '${toSeriesSlug}' not found`);
+    if (fromSeries.id === toSeries.id) throw new BadRequestException('Source and target series must differ');
+
+    return this.prisma.$transaction(async (tx) => {
+      const affected = await tx.bookSeriesEntry.findMany({
+        where: { seriesId: fromSeries.id, isPrimary: true },
+        select: { bookId: true },
+      });
+      if (affected.length === 0) return { switchedCount: 0 };
+      const bookIds = affected.map((a) => a.bookId);
+
+      await tx.bookSeriesEntry.updateMany({
+        where: { seriesId: fromSeries.id, bookId: { in: bookIds } },
+        data: { isPrimary: false },
+      });
+
+      for (const bookId of bookIds) {
+        await tx.bookSeriesEntry.upsert({
+          where: { bookId_seriesId: { bookId, seriesId: toSeries.id } },
+          create: { bookId, seriesId: toSeries.id, isPrimary: true, volumeNumbers: [] },
+          update: { isPrimary: true },
+        });
+      }
+
+      const toEntries = await tx.bookSeriesEntry.findMany({
+        where: { bookId: { in: bookIds }, seriesId: toSeries.id },
+        select: { bookId: true, volumeNumbers: true },
+      });
+      for (const entry of toEntries) {
+        await tx.book.update({
+          where: { id: entry.bookId },
+          data: { seriesId: toSeries.id, seriesName: toSeries.name, volumeNumbers: entry.volumeNumbers },
+        });
+      }
+
+      return { switchedCount: bookIds.length };
+    });
   }
 
   /** Find or create a series by name. Used by BooksService when creating/updating books. */

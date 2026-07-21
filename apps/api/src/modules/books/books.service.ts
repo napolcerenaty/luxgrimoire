@@ -4,7 +4,14 @@ import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { BookSeriesService } from '../book-series/book-series.service';
-import { CreateBookDto, UpdateBookDto, BookQueryDto } from './books.dto';
+import {
+  CreateBookDto,
+  UpdateBookDto,
+  BookQueryDto,
+  BookSeriesEntryInputDto,
+  CreateBookComponentDto,
+  UpdateBookComponentDto,
+} from './books.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 
@@ -25,41 +32,92 @@ export class BooksService {
   ) {}
 
   async create(dto: CreateBookDto) {
-    const slug = generateSlug(dto.title);
-    const series = dto.seriesName ? await this.bookSeriesService.findOrCreate(dto.seriesName) : null;
     const book = await this.prisma.book.create({
       data: {
-        slug,
+        slug: generateSlug(dto.title),
         title: dto.title,
         description: dto.description,
         language: dto.language ?? 'en',
-        seriesName: dto.seriesName ?? null,
-        seriesId: series?.id ?? null,
-        volumeNumber: dto.volumeNumber,
         genres: dto.genres ?? [],
         status: dto.status ?? 'approved',
       },
     });
+    if (dto.seriesEntries?.length) {
+      await this.syncSeriesEntries(book.id, dto.seriesEntries);
+    }
     await this.indexBook(book.id);
-    return book;
+    return this.prisma.book.findUniqueOrThrow({ where: { id: book.id } });
   }
 
   async suggest(dto: CreateBookDto, _userId: string) {
-    const slug = generateSlug(dto.title);
-    const series = dto.seriesName ? await this.bookSeriesService.findOrCreate(dto.seriesName) : null;
-    return this.prisma.book.create({
+    const book = await this.prisma.book.create({
       data: {
-        slug,
+        slug: generateSlug(dto.title),
         title: dto.title,
         description: dto.description,
         language: dto.language ?? 'en',
-        seriesName: dto.seriesName ?? null,
-        seriesId: series?.id ?? null,
-        volumeNumber: dto.volumeNumber,
         genres: dto.genres ?? [],
         status: 'pending',
       },
     });
+    if (dto.seriesEntries?.length) {
+      await this.syncSeriesEntries(book.id, dto.seriesEntries);
+    }
+    return this.prisma.book.findUniqueOrThrow({ where: { id: book.id } });
+  }
+
+  /** Replaces every series membership for a book with the given list — full replace,
+   * not incremental add/remove. Exactly one entry ends up isPrimary (the first one
+   * marked isPrimary, or the first entry if none was marked), and Book's denormalized
+   * seriesId/seriesName/volumeNumbers cache (read by every list/card endpoint) is kept
+   * in sync with whichever entry is primary. */
+  private async syncSeriesEntries(bookId: string, entries: BookSeriesEntryInputDto[]) {
+    const resolved = await Promise.all(
+      entries.map(async (e) => {
+        const series = await this.bookSeriesService.findOrCreate(e.seriesName);
+        return {
+          seriesId: series.id,
+          seriesName: series.name,
+          volumeNumbers: e.volumeNumbers ?? [],
+          isPrimary: e.isPrimary ?? false,
+        };
+      }),
+    );
+
+    let primarySeen = false;
+    for (const r of resolved) {
+      if (r.isPrimary) {
+        if (primarySeen) r.isPrimary = false;
+        primarySeen = true;
+      }
+    }
+    if (resolved.length > 0 && !primarySeen) resolved[0].isPrimary = true;
+
+    const primary = resolved.find((r) => r.isPrimary) ?? null;
+
+    await this.prisma.$transaction([
+      this.prisma.bookSeriesEntry.deleteMany({ where: { bookId } }),
+      ...(resolved.length > 0
+        ? [
+            this.prisma.bookSeriesEntry.createMany({
+              data: resolved.map((r) => ({
+                bookId,
+                seriesId: r.seriesId,
+                volumeNumbers: r.volumeNumbers,
+                isPrimary: r.isPrimary,
+              })),
+            }),
+          ]
+        : []),
+      this.prisma.book.update({
+        where: { id: bookId },
+        data: {
+          seriesId: primary?.seriesId ?? null,
+          seriesName: primary?.seriesName ?? null,
+          volumeNumbers: primary?.volumeNumbers ?? [],
+        },
+      }),
+    ]);
   }
 
   async findAll(query: BookQueryDto) {
@@ -89,6 +147,9 @@ export class BooksService {
     if (query.genre) {
       where.genres = { has: query.genre };
     }
+    if (query.isOmnibus !== undefined) {
+      where.isOmnibus = query.isOmnibus;
+    }
     if (query.search) {
       where.OR = [
         { title: { contains: query.search, mode: 'insensitive' } },
@@ -110,7 +171,8 @@ export class BooksService {
           status: true,
           genres: true,
           language: true,
-          volumeNumber: true,
+          volumeNumbers: true,
+          isOmnibus: true,
           seriesName: true,
           series: { select: SERIES_SELECT },
           createdAt: true,
@@ -220,11 +282,22 @@ export class BooksService {
         slug: true,
         title: true,
         description: true,
-        seriesName: true,
-        series: { select: SERIES_SELECT },
-        volumeNumber: true,
+        volumeNumbers: true,
+        isOmnibus: true,
+        componentCount: true,
         genres: true,
         status: true,
+        seriesEntries: {
+          select: { seriesId: true, volumeNumbers: true, isPrimary: true, series: { select: SERIES_SELECT } },
+          orderBy: { isPrimary: 'desc' },
+        },
+        omnibusComponents: {
+          select: {
+            id: true, bookId: true, volumeNumber: true, order: true,
+            book: { select: { id: true, slug: true, title: true } },
+          },
+          orderBy: { order: 'asc' },
+        },
         authors: {
           select: {
             author: { select: { id: true, name: true, slug: true } },
@@ -236,7 +309,8 @@ export class BooksService {
     return book;
   }
 
-  async findBySlug(slug: string) {    const book = await this.prisma.book.findUnique({
+  async findBySlug(slug: string) {
+    const book = await this.prisma.book.findUnique({
       where: { slug },
       select: {
         id: true,
@@ -246,7 +320,9 @@ export class BooksService {
         language: true,
         seriesName: true,
         series: { select: SERIES_SELECT },
-        volumeNumber: true,
+        volumeNumbers: true,
+        isOmnibus: true,
+        componentCount: true,
         genres: true,
         status: true,
         createdAt: true,
@@ -258,19 +334,32 @@ export class BooksService {
             },
           },
         },
-        editionComponents: {
+        seriesEntries: {
+          select: { seriesId: true, volumeNumbers: true, isPrimary: true, series: { select: SERIES_SELECT } },
+          orderBy: { isPrimary: 'desc' },
+        },
+        omnibusComponents: {
+          select: {
+            id: true, volumeNumber: true, order: true,
+            book: { select: { id: true, slug: true, title: true } },
+          },
+          orderBy: { order: 'asc' },
+        },
+        componentOf: {
           select: {
             id: true,
             volumeNumber: true,
-            customTitle: true,
-            edition: {
+            omnibusBook: {
               select: {
-                id: true,
-                slug: true,
-                additionalImages: true,
-                isOmnibus: true,
-                book: { select: { id: true, slug: true, title: true } },
-                bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
+                id: true, slug: true, title: true,
+                editions: {
+                  select: {
+                    additionalImages: true,
+                    bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
+                  },
+                  orderBy: { createdAt: 'asc' },
+                  take: 1,
+                },
               },
             },
           },
@@ -278,10 +367,23 @@ export class BooksService {
       },
     });
     if (!book) throw new NotFoundException(`Book '${slug}' not found`);
+    const { componentOf, ...rest } = book;
     return {
-      ...book,
+      ...rest,
       authors: book.authors.map(ba => ba.author),
-      appearsInOmnibus: book.editionComponents,
+      appearsInOmnibus: componentOf.map((c) => {
+        const firstEdition = c.omnibusBook.editions[0];
+        return {
+          id: c.id,
+          volumeNumber: c.volumeNumber,
+          omnibusBookSlug: c.omnibusBook.slug,
+          omnibusBookTitle: c.omnibusBook.title,
+          coverImage: firstEdition?.additionalImages?.[0] ?? null,
+          companyName: firstEdition?.bookBoxCompany?.name ?? null,
+          companySlug: firstEdition?.bookBoxCompany?.slug ?? null,
+          companyBrandColors: firstEdition?.bookBoxCompany?.brandColors ?? null,
+        };
+      }),
     };
   }
 
@@ -322,19 +424,16 @@ export class BooksService {
   }
 
   async update(slug: string, dto: UpdateBookDto) {
-    await this.findBySlug(slug);
-    const data: Record<string, unknown> = { ...dto };
-    if (dto.seriesName !== undefined) {
-      if (dto.seriesName === null) {
-        data.seriesId = null;
-      } else {
-        const series = await this.bookSeriesService.findOrCreate(dto.seriesName);
-        data.seriesId = series.id;
-      }
+    const existing = await this.prisma.book.findUnique({ where: { slug }, select: { id: true } });
+    if (!existing) throw new NotFoundException(`Book '${slug}' not found`);
+
+    const { seriesEntries, ...rest } = dto;
+    const book = await this.prisma.book.update({ where: { slug }, data: rest });
+    if (seriesEntries !== undefined) {
+      await this.syncSeriesEntries(book.id, seriesEntries);
     }
-    const book = await this.prisma.book.update({ where: { slug }, data });
     await this.indexBook(book.id);
-    return book;
+    return this.prisma.book.findUniqueOrThrow({ where: { id: book.id } });
   }
 
   async delete(slug: string) {
@@ -370,6 +469,81 @@ export class BooksService {
     });
     await this.indexBook(book.id);
     return result;
+  }
+
+  // ── Omnibus components (a Book's own bundled contents) ────────────────────────
+
+  async getComponents(slug: string) {
+    const book = await this.prisma.book.findUnique({ where: { slug }, select: { id: true } });
+    if (!book) throw new NotFoundException(`Book '${slug}' not found`);
+    return this.prisma.bookComponent.findMany({
+      where: { omnibusBookId: book.id },
+      select: {
+        id: true, bookId: true, volumeNumber: true, order: true,
+        book: { select: { id: true, slug: true, title: true } },
+      },
+      orderBy: { order: 'asc' },
+    });
+  }
+
+  async addComponent(slug: string, dto: CreateBookComponentDto) {
+    const book = await this.prisma.book.findUnique({ where: { slug }, select: { id: true } });
+    if (!book) throw new NotFoundException(`Book '${slug}' not found`);
+    if (dto.bookId === book.id) {
+      throw new ConflictException('A book cannot be a component of itself');
+    }
+    const [component] = await this.prisma.$transaction([
+      this.prisma.bookComponent.create({
+        data: {
+          omnibusBookId: book.id,
+          bookId: dto.bookId,
+          volumeNumber: dto.volumeNumber ?? null,
+          order: dto.order ?? 0,
+        },
+        select: {
+          id: true, bookId: true, volumeNumber: true, order: true,
+          book: { select: { id: true, slug: true, title: true } },
+        },
+      }),
+      this.prisma.book.update({
+        where: { id: book.id },
+        data: { isOmnibus: true, componentCount: { increment: 1 } },
+      }),
+    ]);
+    return component;
+  }
+
+  async updateComponent(slug: string, componentId: string, dto: UpdateBookComponentDto) {
+    const book = await this.prisma.book.findUnique({ where: { slug }, select: { id: true } });
+    if (!book) throw new NotFoundException(`Book '${slug}' not found`);
+    return this.prisma.bookComponent.update({
+      where: { id: componentId, omnibusBookId: book.id },
+      data: {
+        volumeNumber: dto.volumeNumber,
+        order: dto.order,
+      },
+      select: {
+        id: true, bookId: true, volumeNumber: true, order: true,
+        book: { select: { id: true, slug: true, title: true } },
+      },
+    });
+  }
+
+  async removeComponent(slug: string, componentId: string) {
+    const book = await this.prisma.book.findUnique({ where: { slug }, select: { id: true } });
+    if (!book) throw new NotFoundException(`Book '${slug}' not found`);
+    const [deleted] = await this.prisma.$transaction([
+      this.prisma.bookComponent.delete({ where: { id: componentId, omnibusBookId: book.id } }),
+      this.prisma.book.update({
+        where: { id: book.id },
+        data: { componentCount: { decrement: 1 } },
+      }),
+    ]);
+    const updated = await this.prisma.book.findUnique({ where: { id: book.id }, select: { componentCount: true } });
+    if (updated && updated.componentCount <= 0) {
+      await this.prisma.book.update({ where: { id: book.id }, data: { isOmnibus: false, componentCount: 0 } });
+    }
+    return deleted;
   }
 
   private async indexBook(bookId: string): Promise<void> {

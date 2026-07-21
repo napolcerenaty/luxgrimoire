@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { API_BASE } from '@/lib/authFetch'
 import { apiFetch } from '@/lib/api'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 import { EditionCarousel, type CarouselCard } from '@/components/ui/EditionCarousel'
 import { HomeAnnouncementsSection } from '@/components/sales/HomeAnnouncementsSection'
 import { HomeStatsBar } from '@/components/home/HomeStatsBar'
@@ -64,7 +65,7 @@ export default async function HomePage() {
       coverImage: resolveEditionCoverRaw(e),
       title: e.book?.title ?? 'Unknown',
       subtitle: e.book?.seriesName
-        ? `${e.book.seriesName}${e.book.volumeNumber != null ? ` #${e.book.volumeNumber}` : ''}`
+        ? `${e.book.seriesName}${e.book.volumeNumbers?.length ? ` #${formatVolumeNumbers(e.book.volumeNumbers)}` : ''}`
         : null,
       author: authors,
       ribbon: e.bookBoxCompanyCustomName ?? e.bookBoxCompany?.name ?? null,

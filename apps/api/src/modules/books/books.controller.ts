@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { BooksService } from './books.service';
-import { CreateBookDto, UpdateBookDto, BookQueryDto } from './books.dto';
+import { CreateBookDto, UpdateBookDto, BookQueryDto, CreateBookComponentDto, UpdateBookComponentDto } from './books.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
@@ -116,5 +116,37 @@ export class BooksController {
   @Delete(':slug/authors/:authorId')
   removeAuthor(@Param('slug') slug: string, @Param('authorId') authorId: string) {
     return this.booksService.removeAuthor(slug, authorId);
+  }
+
+  // Omnibus components
+  @Public()
+  @Get(':slug/components')
+  getComponents(@Param('slug') slug: string) {
+    return this.booksService.getComponents(slug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/components')
+  addComponent(@Param('slug') slug: string, @Body() dto: CreateBookComponentDto) {
+    return this.booksService.addComponent(slug, dto);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Patch(':slug/components/:componentId')
+  updateComponent(
+    @Param('slug') slug: string,
+    @Param('componentId') componentId: string,
+    @Body() dto: UpdateBookComponentDto,
+  ) {
+    return this.booksService.updateComponent(slug, componentId, dto);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete(':slug/components/:componentId')
+  removeComponent(@Param('slug') slug: string, @Param('componentId') componentId: string) {
+    return this.booksService.removeComponent(slug, componentId);
   }
 }

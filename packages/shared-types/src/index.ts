@@ -57,6 +57,23 @@ export interface ApiBookSeries {
   name: string;
 }
 
+/** A book's membership in one series — a book can belong to many, with exactly one
+ * marked isPrimary (shown on cards). volumeNumbers is usually one value; an omnibus
+ * spanning several (possibly non-contiguous) volumes of the series lists them all. */
+export interface ApiBookSeriesEntry {
+  seriesId: string;
+  volumeNumbers: number[];
+  isPrimary: boolean;
+  series: ApiBookSeries;
+}
+
+export interface ApiBookComponent {
+  id: string;
+  volumeNumber: number | null;
+  order: number;
+  book: { id: string; slug: string; title: string };
+}
+
 export interface ApiBook {
   id: string;
   slug: string;
@@ -65,22 +82,26 @@ export interface ApiBook {
   language: string;
   seriesName: string | null;
   series?: ApiBookSeries | null;
-  volumeNumber: number | null;
+  volumeNumbers: number[];
+  isOmnibus?: boolean;
+  componentCount?: number;
   genres: string[];
   authors: ApiAuthor[];
   editions?: ApiBookEdition[];
+  /** Every series this book belongs to (primary first) — for "also in series" display. */
+  seriesEntries?: ApiBookSeriesEntry[];
+  /** If this book is itself an omnibus, the books it bundles. */
+  omnibusComponents?: ApiBookComponent[];
+  /** Other omnibus books this book is bundled inside. */
   appearsInOmnibus?: Array<{
     id: string;
     volumeNumber: number | null;
-    customTitle: string | null;
-    edition: {
-      id: string;
-      slug: string;
-      isOmnibus: boolean;
-      additionalImages: string[];
-      book: { id: string; slug: string; title: string };
-      bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null;
-    };
+    omnibusBookSlug: string;
+    omnibusBookTitle: string;
+    coverImage: string | null;
+    companyName: string | null;
+    companySlug: string | null;
+    companyBrandColors: string[] | null;
   }>;
 }
 
@@ -119,7 +140,6 @@ export interface ApiBookEdition {
   publisher: string | null;
   additionalImages: string[];
   isSpecial: boolean;
-  isOmnibus?: boolean;
   notes: string | null;
   bookBoxCompanyCustomName: string | null;
   bookBoxCompanyId?: string | null;
@@ -145,7 +165,7 @@ export interface ApiBookEdition {
   firstAccessDate?: string | null;
   earlyAccessDate?: string | null;
   generalSaleDate?: string | null;
-  book?: Pick<ApiBook, 'id' | 'slug' | 'title' | 'seriesName' | 'volumeNumber'> & {
+  book?: Pick<ApiBook, 'id' | 'slug' | 'title' | 'seriesName' | 'series' | 'volumeNumbers' | 'isOmnibus' | 'componentCount' | 'seriesEntries' | 'omnibusComponents'> & {
     authors?: ApiAuthor[];
   };
   previousEdition?: {
@@ -191,7 +211,7 @@ export interface ApiCompanyEdition {
     slug: string;
     title: string;
     seriesName: string | null;
-    volumeNumber: number | null;
+    volumeNumbers: number[];
     authors: { author: { id: string; name: string; slug: string } }[];
   };
 }
@@ -362,7 +382,7 @@ export interface ApiSearchBook {
   slug: string;
   title: string;
   seriesName: string | null;
-  volumeNumber: number | null;
+  volumeNumbers: number[];
   authors: { author: { id: string; name: string; slug: string } }[];
   editions: {
     bookBoxCompany: { slug: string; name: string; logoUrl: string | null } | null;
@@ -417,7 +437,7 @@ export interface ApiSearchEdition {
     slug: string;
     title: string;
     seriesName: string | null;
-    volumeNumber: number | null;
+    volumeNumbers: number[];
     authors: Array<{ author: { name: string } }>;
   };
 }
@@ -680,7 +700,7 @@ export interface ApiTrendingEdition {
   id: string;
   slug: string;
   additionalImages: string[];
-  book: (Pick<ApiBook, 'title' | 'seriesName' | 'volumeNumber'> & {
+  book: (Pick<ApiBook, 'title' | 'seriesName' | 'volumeNumbers'> & {
     authors: ApiAuthor[];
   }) | null;
   bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null;

@@ -1,24 +1,45 @@
 'use client'
 
 import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PersonPicker, type PersonEntry } from '@/components/admin/pickers/PersonPicker'
 import { SeriesPicker } from '@/components/admin/pickers/SeriesPicker'
 import { GenreTagsPicker } from '@/components/admin/pickers/GenreTagsPicker'
 import { authFetch } from '@/lib/authFetch'
 import { INP, LBL } from '@/lib/adminFormStyles'
+import { formatVolumeNumbers, parseVolumeNumbers } from '@/lib/volumeNumbers'
+
+const BTN_SM = 'px-2 py-1 rounded-lg text-xs font-medium transition-colors'
+
+export interface SeriesEntryFormState {
+  seriesName: string
+  /** Comma-separated, e.g. "0.5, 2" for an omnibus spanning non-contiguous volumes. */
+  volumeNumbers: string
+  isPrimary: boolean
+}
 
 export interface BookFormState {
   title: string
   description: string
-  seriesName: string
-  volumeNumber: string
+  seriesEntries: SeriesEntryFormState[]
   genres: string[]
   authors: PersonEntry[]
 }
 
 export const EMPTY_BOOK_FORM: BookFormState = {
-  title: '', description: '', seriesName: '', volumeNumber: '',
+  title: '', description: '', seriesEntries: [],
   genres: [], authors: [],
+}
+
+/** Converts BookFormState.seriesEntries into the API's CreateBookDto/UpdateBookDto shape. */
+export function seriesEntriesToPayload(entries: SeriesEntryFormState[]) {
+  return entries
+    .filter((e) => e.seriesName.trim())
+    .map((e) => ({
+      seriesName: e.seriesName.trim(),
+      volumeNumbers: parseVolumeNumbers(e.volumeNumbers),
+      isPrimary: e.isPrimary,
+    }))
 }
 
 interface Props {
@@ -27,6 +48,8 @@ interface Props {
   submitting: boolean
   submitLabel: string
   onCancel?: () => void
+  /** When provided (editing an existing book), shows the omnibus components panel below the form. */
+  bookSlug?: string
 }
 
 export interface AiBookResult {
@@ -142,19 +165,201 @@ export function GoodreadsParser({ onResult }: { onResult: (data: AiBookResult) =
   )
 }
 
-export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel }: Props) {
+// ─── Omnibus components (book-level: shared by every edition of this book) ────
+type BookComponent = {
+  id: string
+  order: number
+  volumeNumber: number | null
+  book: { id: string; slug: string; title: string }
+}
+
+function BookComponentsPanel({ bookSlug }: { bookSlug: string }) {
+  const qc = useQueryClient()
+  const [bookSearch, setBookSearch] = useState('')
+  const [selectedBook, setSelectedBook] = useState<{ id: string; title: string } | null>(null)
+  const [volumeNumber, setVolumeNumber] = useState('')
+  const [order, setOrder] = useState('')
+  const [addError, setAddError] = useState('')
+
+  const { data: components = [], isLoading } = useQuery<BookComponent[]>({
+    queryKey: ['book-components', bookSlug],
+    queryFn: () => authFetch<BookComponent[]>(`/books/${bookSlug}/components`),
+  })
+
+  const { data: bookResults = [] } = useQuery<{ id: string; title: string; slug: string; seriesName: string | null }[]>({
+    queryKey: ['book-search', bookSearch],
+    queryFn: async () => {
+      const res = await authFetch<{ data: { id: string; title: string; slug: string; seriesName: string | null }[] }>(
+        `/books?search=${encodeURIComponent(bookSearch)}&pageSize=8`
+      )
+      return res.data ?? []
+    },
+    enabled: bookSearch.length >= 2,
+  })
+
+  const addMutation = useMutation({
+    mutationFn: (payload: { bookId: string; volumeNumber?: number; order?: number }) =>
+      authFetch(`/books/${bookSlug}/components`, { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['book-components', bookSlug] })
+      setSelectedBook(null)
+      setBookSearch('')
+      setVolumeNumber('')
+      setOrder('')
+      setAddError('')
+    },
+    onError: (e: unknown) => setAddError(e instanceof Error ? e.message : String(e)),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (componentId: string) =>
+      authFetch(`/books/${bookSlug}/components/${componentId}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['book-components', bookSlug] }),
+  })
+
+  const handleAdd = () => {
+    if (!selectedBook) {
+      setAddError('Select a book — every component must be a cataloged book')
+      return
+    }
+    addMutation.mutate({
+      bookId: selectedBook.id,
+      volumeNumber: volumeNumber ? parseFloat(volumeNumber) : undefined,
+      order: order ? parseInt(order, 10) : undefined,
+    })
+  }
+
+  return (
+    <div className="border border-stone-700 rounded-xl p-4 space-y-4 bg-stone-900/50">
+      <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Omnibus components</p>
+      <p className="text-xs text-stone-500">Shared across every edition of this book (hardcover, paperback, ebook…).</p>
+      {isLoading ? (
+        <p className="text-stone-500 text-xs">Loading…</p>
+      ) : components.length === 0 ? (
+        <p className="text-stone-500 text-xs">Not an omnibus — no components yet.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {components.map(c => (
+            <div key={c.id} className="flex items-center gap-2 text-sm text-stone-300">
+              {c.volumeNumber != null && (
+                <span className="text-xs text-amber-600/80 font-semibold w-14 shrink-0">Vol. {c.volumeNumber}</span>
+              )}
+              <span className="flex-1">{c.book.title}</span>
+              <button
+                type="button"
+                onClick={() => deleteMutation.mutate(c.id)}
+                className={`${BTN_SM} bg-red-900/30 text-red-400 hover:bg-red-900/50`}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="border-t border-stone-700 pt-3 space-y-2">
+        <p className="text-xs text-stone-500">Add component (must be an existing cataloged book)</p>
+        {!selectedBook ? (
+          <div className="relative">
+            <input
+              value={bookSearch}
+              onChange={e => setBookSearch(e.target.value)}
+              placeholder="Search book (2+ chars)…"
+              className={INP}
+            />
+            {bookSearch.length >= 2 && bookResults.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-stone-800 border border-stone-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                {bookResults.map(b => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => { setSelectedBook({ id: b.id, title: b.title }); setBookSearch('') }}
+                    className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors"
+                  >
+                    {b.title}
+                    {b.seriesName && (
+                      <span className="text-stone-400 ml-1">({b.seriesName})</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
+            <span className="flex-1">{selectedBook.title}</span>
+            <button type="button" onClick={() => setSelectedBook(null)} className="text-stone-500 hover:text-red-400">×</button>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className={LBL}>Volume number</label>
+            <input
+              value={volumeNumber}
+              onChange={e => setVolumeNumber(e.target.value)}
+              placeholder="e.g. 1.5"
+              type="number"
+              step="0.5"
+              className={INP}
+            />
+          </div>
+          <div>
+            <label className={LBL}>Order (sort)</label>
+            <input
+              value={order}
+              onChange={e => setOrder(e.target.value)}
+              placeholder="0"
+              type="number"
+              min="0"
+              className={INP}
+            />
+          </div>
+        </div>
+        {addError && <p className="text-xs text-red-400">{addError}</p>}
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={addMutation.isPending}
+          className="w-full bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors text-sm"
+        >
+          {addMutation.isPending ? 'Adding…' : '+ Add component'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel, bookSlug }: Props) {
   const [form, setForm] = useState<BookFormState>(initial)
 
   function applyParserResult(data: AiBookResult) {
     const patch: Partial<BookFormState> = {}
     if (data.title) patch.title = data.title
     if (data.description) patch.description = data.description
-    if (data.seriesName) patch.seriesName = data.seriesName
-    if (data.volumeNumber != null) patch.volumeNumber = String(data.volumeNumber)
+    if (data.seriesName) {
+      patch.seriesEntries = [{
+        seriesName: data.seriesName,
+        volumeNumbers: data.volumeNumber != null ? String(data.volumeNumber) : '',
+        isPrimary: true,
+      }]
+    }
     if (Array.isArray(data.genres) && data.genres.length) patch.genres = data.genres.slice(0, 5)
     if (Array.isArray(data.authors) && data.authors.length) patch.authors = data.authors.map(a => ({ name: a.name }))
     setForm(f => ({ ...f, ...patch }))
   }
+
+  const updateEntry = (i: number, patch: Partial<SeriesEntryFormState>) =>
+    setForm(f => ({ ...f, seriesEntries: f.seriesEntries.map((e, j) => j === i ? { ...e, ...patch } : e) }))
+
+  const addEntry = () =>
+    setForm(f => ({ ...f, seriesEntries: [...f.seriesEntries, { seriesName: '', volumeNumbers: '', isPrimary: f.seriesEntries.length === 0 }] }))
+
+  const removeEntry = (i: number) =>
+    setForm(f => {
+      const wasPrimary = f.seriesEntries[i]?.isPrimary
+      const rest = f.seriesEntries.filter((_, j) => j !== i)
+      if (wasPrimary && rest.length > 0 && !rest.some(e => e.isPrimary)) rest[0].isPrimary = true
+      return { ...f, seriesEntries: rest }
+    })
 
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(form) }} className="flex flex-col gap-4">
@@ -194,15 +399,37 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel 
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={LBL}>Series</label>
-          <SeriesPicker value={form.seriesName} onChange={v => setForm(f => ({ ...f, seriesName: v }))} />
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className={LBL}>Series <span className="text-stone-600 font-normal normal-case tracking-normal">(the one marked Primary shows on cards)</span></label>
+          <button type="button" onClick={addEntry} className={`${BTN_SM} bg-stone-700 text-stone-400 hover:bg-stone-600`}>+ Add series</button>
         </div>
-        <div>
-          <label className={LBL}>Volume / position</label>
-          <input type="number" className={INP} value={form.volumeNumber} min={0} step={0.5}
-            onChange={e => setForm(f => ({ ...f, volumeNumber: e.target.value }))} />
+        {form.seriesEntries.length === 0 && <p className="text-xs text-stone-600 italic">Not part of any series.</p>}
+        <div className="space-y-2">
+          {form.seriesEntries.map((entry, i) => (
+            <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <div className="flex-1">
+                <SeriesPicker value={entry.seriesName} onChange={v => updateEntry(i, { seriesName: v })} />
+              </div>
+              <input
+                value={entry.volumeNumbers}
+                onChange={e => updateEntry(i, { volumeNumbers: e.target.value })}
+                placeholder="Vol # (e.g. 0.5, 2)"
+                className={`${INP} sm:w-40`}
+              />
+              <label className="flex items-center gap-1.5 text-xs text-stone-400 whitespace-nowrap shrink-0">
+                <input
+                  type="radio"
+                  name="primary-series"
+                  checked={entry.isPrimary}
+                  onChange={() => setForm(f => ({ ...f, seriesEntries: f.seriesEntries.map((e, j) => ({ ...e, isPrimary: j === i })) }))}
+                  className="accent-amber-400"
+                />
+                Primary
+              </label>
+              <button type="button" onClick={() => removeEntry(i)} className="text-stone-500 hover:text-red-400 text-sm shrink-0">✕</button>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -223,6 +450,11 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel 
           </button>
         )}
       </div>
+
+      {bookSlug && <BookComponentsPanel bookSlug={bookSlug} />}
     </form>
   )
 }
+
+// Re-exported so callers (e.g. admin books list) can render "Series" cells consistently.
+export { formatVolumeNumbers }

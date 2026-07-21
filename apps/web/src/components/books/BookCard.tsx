@@ -1,11 +1,12 @@
 import Link from 'next/link'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 
 interface BookCardProps {
   book: {
     slug: string
     title: string
     seriesName?: string | null
-    volumeNumber?: number | null
+    volumeNumbers?: number[] | null
     authors?: Array<{ name: string; slug: string }>
   }
 }
@@ -35,10 +36,10 @@ export function BookCard({ book }: BookCardProps) {
         )}
       </div>
       <div>
-        {(book.seriesName || book.volumeNumber) && (
+        {(book.seriesName || book.volumeNumbers?.length) && (
           <p className="text-xs text-amber-600 mb-0.5 truncate">
             {book.seriesName}
-            {book.volumeNumber ? ` #${book.volumeNumber}` : ''}
+            {book.volumeNumbers?.length ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
           </p>
         )}
         <h3 className="text-sm font-semibold font-serif text-stone-100 leading-snug line-clamp-2">

@@ -63,7 +63,7 @@ export interface CatalogMonthBookItem {
   bookSlug: string | null;
   bookTitle: string | null;
   seriesName: string | null;
-  volumeNumber: number | null;
+  volumeNumbers: number[];
   authors: string[];
   editionId: string | null;
   editionSlug: string | null;
@@ -1208,7 +1208,7 @@ export class SubscriptionsService {
           select: {
             bookId: true,
             editionId: true,
-            book: { select: { slug: true, title: true, seriesName: true, volumeNumber: true, authors: { select: { author: { select: { name: true } } } } } },
+            book: { select: { slug: true, title: true, seriesName: true, volumeNumbers: true, authors: { select: { author: { select: { name: true } } } } } },
             edition: {
               select: {
                 slug: true,
@@ -1248,7 +1248,7 @@ export class SubscriptionsService {
           bookSlug: null,
           bookTitle: null,
           seriesName: null,
-          volumeNumber: null,
+          volumeNumbers: [],
           authors: [],
           editionId: null,
           editionSlug: null,
@@ -1264,8 +1264,8 @@ export class SubscriptionsService {
           bookSlug: mb.book.slug,
           bookTitle: mb.book.title,
           seriesName: mb.book.seriesName,
-          volumeNumber: mb.book.volumeNumber,
-          authors: mb.book.authors.map((a) => a.author.name),
+          volumeNumbers: mb.book.volumeNumbers,
+          authors: mb.book.authors.map((a: { author: { name: string } }) => a.author.name),
           editionId: mb.editionId,
           editionSlug: mb.edition?.slug ?? null,
           coverImage: mb.edition?.additionalImages?.[0] ?? mb.edition?.communityImages?.[0]?.url ?? null,

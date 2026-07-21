@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { authFetch } from '@/lib/authFetch'
 import { INPUT_CLASS, LABEL_CLASS } from '@/lib/adminFormStyles'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookEdition, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import dynamic from 'next/dynamic'
@@ -248,7 +249,7 @@ export default function AdminEditionsPage() {
           }
           {row.book?.seriesName && (
             <div className="text-stone-500 text-xs">
-              {row.book.seriesName}{row.book.volumeNumber != null ? ` #${row.book.volumeNumber}` : ''}
+              {row.book.seriesName}{row.book.volumeNumbers?.length ? ` #${formatVolumeNumbers(row.book.volumeNumbers)}` : ''}
             </div>
           )}
         </div>

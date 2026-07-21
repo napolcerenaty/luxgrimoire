@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 
 interface EditionCardProps {
   href: string
@@ -11,7 +12,7 @@ interface EditionCardProps {
   companySlug?: string | null
   companyBrandColors?: string[] | null
   seriesName?: string | null
-  volumeNumber?: number | null
+  volumeNumbers?: number[] | null
   title?: string
   authors?: Array<{ name: string }>
   unverified?: boolean
@@ -40,7 +41,7 @@ export function EditionCard({
   companySlug,
   companyBrandColors,
   seriesName,
-  volumeNumber,
+  volumeNumbers,
   title,
   authors,
   unverified,
@@ -98,7 +99,7 @@ export function EditionCard({
             <>
               {/* Always reserve series line height so title aligns across cards */}
               <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate min-h-[1em]">
-                {seriesName ? `${seriesName}${volumeNumber != null ? ` #${volumeNumber}` : ''}` : '\u00A0'}
+                {seriesName ? `${seriesName}${volumeNumbers?.length ? ` #${formatVolumeNumbers(volumeNumbers)}` : ''}` : '\u00A0'}
               </p>
               <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
                 {title}

@@ -111,7 +111,7 @@ export class AdminService {
               slug: true,
               title: true,
               seriesName: true,
-              volumeNumber: true,
+              volumeNumbers: true,
               ...bookAuthorsInclude,
             },
           },

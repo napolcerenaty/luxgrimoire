@@ -376,7 +376,7 @@ export class CompaniesService {
             slug: true,
             title: true,
             seriesName: true,
-            volumeNumber: true,
+            volumeNumbers: true,
             authors: {
               select: {
                 author: { select: { id: true, name: true, slug: true } },

@@ -94,10 +94,6 @@ export class UpdateEditionDto extends BasePriceCurrencyDto {
   isSpecial?: boolean;
 
   @IsOptional()
-  @IsBoolean()
-  isOmnibus?: boolean;
-
-  @IsOptional()
   @IsString()
   firstAccessDate?: string;
 
@@ -221,45 +217,7 @@ export class EditionQueryDto {
   hasOfficialPhoto?: boolean; // additionalImages not empty
 }
 
-export class CreateComponentDto {
-  @IsOptional()
-  @IsString()
-  bookId?: string;
-
-  @IsOptional()
-  @IsString()
-  customTitle?: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  volumeNumber?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  order?: number;
-}
-
 export class UpdateArtistRoleDto {
   @IsString()
   newRole!: string;
-}
-
-export class UpdateComponentDto {
-  @IsOptional()
-  @IsString()
-  customTitle?: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  volumeNumber?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  order?: number;
 }

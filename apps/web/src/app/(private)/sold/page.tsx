@@ -17,6 +17,7 @@ import { SaleFormFields, SALE_PLATFORMS, CURRENCIES } from '@/components/sale/Sa
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 
 interface CollectionEntry {
   id: string
@@ -43,7 +44,7 @@ interface CollectionEntry {
       title: string
       slug: string
       seriesName: string | null
-      volumeNumber: number | null
+      volumeNumbers: number[]
       authors: Array<{ id: string; name: string; slug: string }>
     }
   }
@@ -736,7 +737,7 @@ export default function SoldPage() {
                         companySlug={entry.edition.bookBoxCompany?.slug}
                         companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                         seriesName={entry.edition.book.seriesName}
-                        volumeNumber={entry.edition.book.volumeNumber}
+                        volumeNumbers={entry.edition.book.volumeNumbers}
                         footer={
                           <div className="mt-1 flex flex-col gap-1">
                             <div className="flex flex-wrap gap-1 items-center">
@@ -774,7 +775,7 @@ export default function SoldPage() {
                           <p className="text-xs text-stone-400 truncate">{(entry.edition.book.authors as any[]).map(a => (a.author ?? a).name).join(', ')}</p>
                           {(entry.edition.book.seriesName || entry.edition.bookBoxCompany) && (
                             <p className="text-[10px] text-stone-500 truncate">
-                              {entry.edition.book.seriesName && <span>{entry.edition.book.seriesName}{entry.edition.book.volumeNumber != null ? ` #${entry.edition.book.volumeNumber}` : ''}</span>}
+                              {entry.edition.book.seriesName && <span>{entry.edition.book.seriesName}{entry.edition.book.volumeNumbers?.length ? ` #${formatVolumeNumbers(entry.edition.book.volumeNumbers)}` : ''}</span>}
                               {entry.edition.book.seriesName && entry.edition.bookBoxCompany && <span className="mx-1">·</span>}
                               {entry.edition.bookBoxCompany && <span>{entry.edition.bookBoxCompany.name}</span>}
                             </p>
@@ -845,7 +846,7 @@ export default function SoldPage() {
                         companySlug={entry.edition.bookBoxCompany?.slug}
                         companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                         seriesName={entry.edition.book.seriesName}
-                        volumeNumber={entry.edition.book.volumeNumber}
+                        volumeNumbers={entry.edition.book.volumeNumbers}
                         footer={
                           <div className="mt-1">
                             <Badge variant="default">GIFTED</Badge>

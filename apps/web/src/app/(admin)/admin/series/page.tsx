@@ -24,10 +24,41 @@ export default function AdminSeriesPage() {
   const createModal = useModalState()
   const [editSeries, setEditSeries] = useState<ApiSeries | null>(null)
   const [deleteSeries, setDeleteSeries] = useState<ApiSeries | null>(null)
+  const [switchSeries, setSwitchSeries] = useState<ApiSeries | null>(null)
+  const [switchTarget, setSwitchTarget] = useState<{ slug: string; name: string } | null>(null)
+  const [switchQuery, setSwitchQuery] = useState('')
+  const [switchResult, setSwitchResult] = useState<number | null>(null)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [newName, setNewName] = useState('')
   const [editName, setEditName] = useState('')
+
+  const { data: switchCandidates } = useQuery({
+    queryKey: ['admin', 'series-search', switchQuery],
+    queryFn: () => authFetch<PaginatedResponse<ApiSeries>>(`/book-series?search=${encodeURIComponent(switchQuery)}&pageSize=10`),
+    enabled: switchQuery.length >= 1,
+    select: (res) => res.data.filter((s) => s.slug !== switchSeries?.slug),
+  })
+
+  const switchMutation = useMutation({
+    mutationFn: ({ fromSlug, toSeriesSlug }: { fromSlug: string; toSeriesSlug: string }) =>
+      authFetch<{ switchedCount: number }>(`/book-series/${fromSlug}/switch-primary`, {
+        method: 'POST', body: JSON.stringify({ toSeriesSlug }),
+      }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'series'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'books'] })
+      setSwitchResult(res.switchedCount)
+    },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const closeSwitchModal = () => {
+    setSwitchSeries(null)
+    setSwitchTarget(null)
+    setSwitchQuery('')
+    setSwitchResult(null)
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'series', page, search],
@@ -114,6 +145,15 @@ export default function AdminSeriesPage() {
           >
             Edit
           </button>
+          {row.bookCount > 0 && (
+            <button
+              onClick={() => setSwitchSeries(row)}
+              className="bg-stone-700 text-stone-300 px-3 py-1 rounded text-xs font-medium hover:bg-stone-600 transition-colors"
+              title="Switch this series's books to a different primary series"
+            >
+              Switch primary…
+            </button>
+          )}
           {row.bookCount === 0 ? (
             <button
               onClick={() => setDeleteSeries(row)}
@@ -228,6 +268,74 @@ export default function AdminSeriesPage() {
         onConfirm={() => deleteSeries && deleteMutation.mutate(deleteSeries.slug)}
         onCancel={() => setDeleteSeries(null)}
       />
+
+      {/* Switch primary series modal */}
+      <FormModal open={switchSeries !== null} title="Switch primary series" onClose={closeSwitchModal}>
+        {switchSeries && (
+          switchResult !== null ? (
+            <div className="flex flex-col gap-4">
+              <p className="text-sm text-stone-300">
+                Switched {switchResult} book{switchResult !== 1 ? 's' : ''} from{' '}
+                <strong>{switchSeries.name}</strong> to <strong>{switchTarget?.name}</strong>.
+                {' '}<span className="text-stone-500">"{switchSeries.name}" stays attached as a secondary series.</span>
+              </p>
+              <button
+                onClick={closeSwitchModal}
+                className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <p className="text-sm text-stone-300">
+                Every book whose primary series is currently <strong>{switchSeries.name}</strong> ({switchSeries.bookCount} book{switchSeries.bookCount !== 1 ? 's' : ''})
+                will get the series below as its new primary. <strong>{switchSeries.name}</strong> stays attached to those books as a secondary series — nothing is removed.
+              </p>
+              <div>
+                <label className={LABEL_CLASS}>New primary series *</label>
+                {switchTarget ? (
+                  <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
+                    <span className="flex-1">{switchTarget.name}</span>
+                    <button type="button" onClick={() => setSwitchTarget(null)} className="text-stone-500 hover:text-red-400">×</button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      autoFocus
+                      className={INPUT_CLASS}
+                      placeholder="Search series…"
+                      value={switchQuery}
+                      onChange={(e) => setSwitchQuery(e.target.value)}
+                    />
+                    {switchQuery.length >= 1 && (switchCandidates ?? []).length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-stone-800 border border-stone-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                        {(switchCandidates ?? []).map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => { setSwitchTarget({ slug: s.slug, name: s.name }); setSwitchQuery('') }}
+                            className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors"
+                          >
+                            {s.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => switchTarget && switchMutation.mutate({ fromSlug: switchSeries.slug, toSeriesSlug: switchTarget.slug })}
+                disabled={!switchTarget || switchMutation.isPending}
+                className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
+              >
+                {switchMutation.isPending ? 'Switching…' : 'Switch primary series'}
+              </button>
+            </div>
+          )
+        )}
+      </FormModal>
     </div>
   )
 }

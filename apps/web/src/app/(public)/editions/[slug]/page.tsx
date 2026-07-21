@@ -5,6 +5,7 @@ import { Fragment, cache } from 'react'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 import { Badge } from '@/components/ui/Badge'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import { EditionActionButtons } from '@/components/books/EditionActionButtons'
@@ -77,7 +78,6 @@ interface EditionDetail {
   bookBoxCompanyId?: string | null
   publisher: string | null
   isSpecial: boolean
-  isOmnibus?: boolean
   additionalImages: string[]
   language?: string | null
   basePrice?: string | null
@@ -102,20 +102,26 @@ interface EditionDetail {
   saleEditions?: EditionSaleEdition[]
   bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null } | null
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
-  components?: Array<{
-    id: string
-    bookId: string | null
-    customTitle: string | null
-    volumeNumber: number | null
-    order: number
-    book: { id: string; slug: string; title: string } | null
-  }>
   previousEdition?: { id: string; slug: string; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   nextEdition?: { id: string; slug: string; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   book?: {
     id: string; slug: string; title: string
-    seriesName: string | null; volumeNumber: number | null
+    seriesName: string | null; volumeNumbers: number[]
     series?: { id: string; slug: string; name: string } | null
+    isOmnibus?: boolean
+    componentCount?: number
+    seriesEntries?: Array<{
+      seriesId: string
+      volumeNumbers: number[]
+      isPrimary: boolean
+      series: { id: string; slug: string; name: string }
+    }>
+    omnibusComponents?: Array<{
+      id: string
+      volumeNumber: number | null
+      order: number
+      book: { id: string; slug: string; title: string }
+    }>
     description: string | null; language: string; genres: string[]
     authors: ApiAuthor[]
   } | null
@@ -304,8 +310,21 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   href={`/series/${book.series?.slug ?? encodeURIComponent(book.seriesName)}`}
                   className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
                 >
-                  {book.seriesName}{book.volumeNumber != null ? ` #${book.volumeNumber}` : ''}
+                  {book.seriesName}{book.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
                 </Link>
+              )}
+              {book?.seriesEntries && book.seriesEntries.filter(e => !e.isPrimary).length > 0 && (
+                <p className="text-xs text-stone-500 mb-2">
+                  Also in{' '}
+                  {book.seriesEntries.filter(e => !e.isPrimary).map((entry, i, arr) => (
+                    <span key={entry.seriesId}>
+                      <Link href={`/series/${entry.series.slug}`} className="text-stone-400 hover:text-amber-400 transition-colors hover:underline">
+                        {entry.series.name}{entry.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(entry.volumeNumbers)}` : ''}
+                      </Link>
+                      {i < arr.length - 1 && ', '}
+                    </span>
+                  ))}
+                </p>
               )}
 
               {/* Title */}
@@ -587,22 +606,18 @@ export default async function EditionPage({ params, searchParams }: Props) {
         )}
 
         {/* ── Contains (omnibus) ───────────────────────────────────────────── */}
-        {edition.components && edition.components.length > 0 && (
+        {book?.isOmnibus && book.omnibusComponents && book.omnibusComponents.length > 0 && (
           <section>
             <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Contains</h2>
             <div className="space-y-1">
-              {edition.components.map(c => (
+              {book.omnibusComponents.map(c => (
                 <div key={c.id} className="flex items-center gap-2 text-sm text-stone-300">
                   {c.volumeNumber != null && (
                     <span className="text-xs text-amber-600/80 font-semibold w-12 shrink-0">Vol. {c.volumeNumber}</span>
                   )}
-                  {c.book ? (
-                    <Link href={`/books/${c.book.slug}`} className="hover:text-amber-400 transition-colors">
-                      {c.book.title}
-                    </Link>
-                  ) : (
-                    <span>{c.customTitle ?? '—'}</span>
-                  )}
+                  <Link href={`/books/${c.book.slug}`} className="hover:text-amber-400 transition-colors">
+                    {c.book.title}
+                  </Link>
                 </div>
               ))}
             </div>

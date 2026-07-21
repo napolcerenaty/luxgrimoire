@@ -34,7 +34,7 @@ interface CollectionEntry {
       title: string
       slug: string
       seriesName: string | null
-      volumeNumber: number | null
+      volumeNumbers: number[]
       authors: Array<{ id: string; name: string; slug: string }>
     }
   }
@@ -332,7 +332,7 @@ export default function WishlistPage() {
                 coverImage={resolveEditionCoverRaw(entry.edition)}
                 companyName={entry.edition.bookBoxCompany?.name}
                 companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
-                volumeNumber={entry.edition.book.volumeNumber}
+                volumeNumbers={entry.edition.book.volumeNumbers}
                 title={entry.edition.book.title}
                 authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                 imageActions={

@@ -30,3 +30,8 @@ export class UpdateBookSeriesDto {
   @IsString()
   name?: string;
 }
+
+export class SwitchPrimarySeriesDto {
+  @IsString()
+  toSeriesSlug!: string;
+}
