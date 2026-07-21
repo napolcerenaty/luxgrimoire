@@ -14,6 +14,7 @@ import { type PersonEntry } from '@/components/admin/pickers/PersonPicker'
 import { BookForm, seriesEntriesToPayload, type BookFormState } from '@/components/admin/BookForm'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
 import { formatVolumeNumbers } from '@/lib/volumeNumbers'
+import { Check } from 'lucide-react'
 
 const BTN_SM = 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors'
 
@@ -153,7 +154,11 @@ export default function AdminBooksPage() {
     },
     {
       key: 'isOmnibus', label: 'Omnibus',
-      render: (row: RawBook) => row.isOmnibus ? `Yes (${row.componentCount ?? 0})` : '—',
+      render: (row: RawBook) => row.isOmnibus ? (
+        <span className="inline-flex items-center gap-1 text-green-400">
+          <Check size={14} /> {row.componentCount ?? 0}
+        </span>
+      ) : '—',
     },
     {
       key: 'authors', label: 'Authors',
