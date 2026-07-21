@@ -6,6 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
+import { useAuth } from '@/components/AuthProvider'
 import { SaleCountdownCounter } from './SaleCountdownCounter'
 
 interface NextSale {
@@ -30,9 +31,12 @@ interface Props {
 
 export function CompanySaleAnnouncementsSection({ companyId, companySlug }: Props) {
   const seeAllHref = `/companies/${companySlug}/sale-announcements`
+  const { user } = useAuth()
 
   const { data: nextSale } = useQuery({
-    queryKey: ['company-next-sale', companyId],
+    // user?.id in the key (not just companyId) — otherwise login/logout keeps serving the
+    // other identity's cached personalized/aggregate response back for up to staleTime.
+    queryKey: ['company-next-sale', companyId, user?.id ?? null],
     queryFn: () => authFetch<NextSale>(`/announcements/next-sale?companyId=${companyId}`),
     staleTime: 60_000,
   })
