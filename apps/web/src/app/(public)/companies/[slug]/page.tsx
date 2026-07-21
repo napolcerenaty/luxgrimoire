@@ -265,7 +265,7 @@ export default async function CompanyPage({ params }: Props) {
               <p className="text-xs text-stone-500 mb-2">Discontinued</p>
               <div className="flex flex-wrap gap-x-3 gap-y-2">
                 {discontinuedSubscriptions.map((sub) => {
-                  const logo = cloudinaryUrl(sub.logoUrl, 'w_64,h_64,c_fit,q_auto,f_auto')
+                  const logo = cloudinaryUrl(sub.logoUrl ?? sub.coverImage, 'w_64,h_64,c_fit,q_auto,f_auto')
                   return (
                     <Link
                       key={sub.id}
