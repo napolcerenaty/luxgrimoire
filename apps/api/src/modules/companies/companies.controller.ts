@@ -7,13 +7,14 @@ import {
   Param,
   Body,
   Query,
+  Request,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto, UpdateCompanyDto, CompanyQueryDto } from './companies.dto';
-import { Public, Roles } from '../../common/decorators/auth.decorators';
+import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
 import { AnalyticsService } from '../analytics/analytics.service';
@@ -62,6 +63,18 @@ export class CompaniesController {
       take: take ? parseInt(take, 10) : 20,
     };
     return this.companiesService.getEditions(slug, { subscriptionId, collectionId, noCollection: noCollection === 'true', search }, pagination);
+  }
+
+  // Deliberately NOT @Public() bare-cached like the endpoints above — ownership/skip status is
+  // per-user, so it's fetched separately (uncached) and merged onto the grid client-side. See
+  // CompaniesService.getMyEditionStatuses.
+  @OptionalAuth()
+  @Get(':slug/editions/my-status')
+  getMyEditionStatuses(@Query('editionIds') editionIds: string | undefined, @Request() req: any) {
+    const userId = req.user?.id ?? null;
+    if (!userId) return { ownership: {}, skipped: [] };
+    const ids = [...new Set((editionIds ?? '').split(',').map((id) => id.trim()).filter(Boolean))].slice(0, 100);
+    return this.companiesService.getMyEditionStatuses(userId, ids);
   }
 
   @Public()

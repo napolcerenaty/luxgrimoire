@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Patch, Delete, Query, Param, Body, UseInterceptors, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Query, Param, Body, Request, UseInterceptors, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AnnouncementsService } from './announcements.service';
 import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto, AssignEditionToItemDto } from './announcements.dto';
-import { Public, Roles } from '../../common/decorators/auth.decorators';
+import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CacheControlInterceptor } from '../../common/interceptors/cache-control.interceptor';
 
 const TRENDING_TTL = 60 * 60 * 1000;
@@ -24,6 +24,7 @@ export class AnnouncementsController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('upcoming') upcoming?: string,
+    @Query('pastOnly') pastOnly?: string,
     @Query('search') search?: string,
     @Query('sort') sort?: string,
     @Query('companyId') companyId?: string,
@@ -35,6 +36,7 @@ export class AnnouncementsController {
       page: page ? parseInt(page, 10) : undefined,
       pageSize: pageSize ? parseInt(pageSize, 10) : undefined,
       upcoming: upcoming === 'true',
+      pastOnly: pastOnly === 'true',
       search,
       sort: sort === 'date' ? 'date' : 'recent',
       companyId,
@@ -42,6 +44,14 @@ export class AnnouncementsController {
       dateTo,
       saleType: saleType as any,
     });
+  }
+
+  // Countdown target for a company page's "next sale" hero: soonest upcoming tier across all of
+  // the company's live/upcoming sales, or the user's own tier if they've marked an interest in one.
+  @OptionalAuth()
+  @Get('next-sale')
+  getNextSale(@Query('companyId') companyId: string, @Request() req: any) {
+    return this.announcementsService.getNextSale(companyId, req.user?.id ?? null);
   }
 
   // Admin routes must come before :id to avoid route conflicts

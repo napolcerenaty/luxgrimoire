@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge'
 import type { ApiBookBoxCompany } from '@luxgrimoire/shared-types'
 import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
 import { CompanyEditionsSection } from './CompanyEditionsSection'
+import { CompanySaleAnnouncementsSection } from '@/components/sales/CompanySaleAnnouncementsSection'
 
 // Minimal inline SVG icons for social platforms
 function InstagramIcon({ className }: { className?: string }) {
@@ -107,6 +108,11 @@ export default async function CompanyPage({ params }: Props) {
   const logoUrl = cloudinaryUrl(company.logoUrl, 'w_400,h_200,c_fit,q_auto,f_auto')
   const subscriptions = company.subscriptions ?? []
   const displaySubscriptions = subscriptions.filter((s) => !s.isContentStream)
+  // Backend already returns these sorted active→upcoming→discontinued, but partition explicitly
+  // here rather than relying on that order — the three sections render very differently.
+  const activeSubscriptions = displaySubscriptions.filter((s) => !s.isDiscontinued && !s.isUpcoming)
+  const upcomingSubscriptions = displaySubscriptions.filter((s) => !s.isDiscontinued && s.isUpcoming)
+  const discontinuedSubscriptions = displaySubscriptions.filter((s) => s.isDiscontinued)
 
   const socials = [
     company.website
@@ -143,7 +149,7 @@ export default async function CompanyPage({ params }: Props) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-10 max-w-5xl">
+    <div className="container mx-auto px-4 py-10 max-w-6xl">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -210,12 +216,22 @@ export default async function CompanyPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Subscriptions — compact cards, denser grid */}
+      {/* Below the header: main column (subscriptions, editions) + a sticky rail on desktop
+          (next-sale countdown, latest announcements) so browsing content and glanceable content
+          don't have to compete for the same single scrolling column. Collapses to one column
+          on mobile, where a sticky rail wouldn't make sense anyway. */}
+      <div className="flex flex-col lg:flex-row gap-8 items-start mt-12">
+      <div className="flex-1 min-w-0 order-2 lg:order-1">
+
+      {/* Subscriptions — grouped active/upcoming/discontinued instead of one mixed grid */}
       {displaySubscriptions.length > 0 && (
-        <section className="mt-12">
+        <section>
           <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">Subscriptions</h2>
+          {activeSubscriptions.length === 0 && upcomingSubscriptions.length === 0 && (
+            <p className="text-stone-500 text-sm mb-4">No active subscriptions right now.</p>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {displaySubscriptions.map((sub) => {
+            {[...activeSubscriptions, ...upcomingSubscriptions].map((sub) => {
               const cover = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_600,q_auto,f_auto')
               const subGenres = [
                 ...(Array.isArray((sub as any).genres) ? (sub as any).genres : []),
@@ -225,7 +241,7 @@ export default async function CompanyPage({ params }: Props) {
                 <Link
                   key={sub.id}
                   href={`/subscriptions/${sub.slug}`}
-                  className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
+                  className={`group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors ${sub.isUpcoming ? 'edition-glow-amber' : ''}`}
                 >
                   <SubCoverImage coverUrl={cover} name={sub.name} brandColors={company.brandColors} />
                   <div className="p-3">
@@ -235,13 +251,31 @@ export default async function CompanyPage({ params }: Props) {
                     <div className="flex items-center gap-1 flex-wrap">
                       {subGenres.slice(0, 2).map((g: string) => <Badge key={g} variant="outline">{g}</Badge>)}
                       {sub.isUpcoming && <Badge variant="outline">🔔 Upcoming</Badge>}
-                      {sub.isDiscontinued && <Badge variant="destructive">Discontinued</Badge>}
                     </div>
                   </div>
                 </Link>
               )
             })}
           </div>
+
+          {/* Discontinued — a much smaller secondary line, not full cards, since it's not
+              actionable for someone deciding what to follow. */}
+          {discontinuedSubscriptions.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-stone-800/60">
+              <p className="text-xs text-stone-500 mb-2">Discontinued</p>
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                {discontinuedSubscriptions.map((sub) => (
+                  <Link
+                    key={sub.id}
+                    href={`/subscriptions/${sub.slug}`}
+                    className="text-xs text-stone-500 hover:text-stone-300 underline decoration-stone-700 underline-offset-2 transition-colors"
+                  >
+                    {sub.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -254,6 +288,17 @@ export default async function CompanyPage({ params }: Props) {
           brandColors={company.brandColors}
         />
       </Suspense>
+
+      </div>
+
+      {/* Sticky rail — next-sale countdown + latest announcements. A client component that
+          fetches independently on mount, so it never blocks the header/subscriptions render
+          above, and (unlike the public, shared-cache company payload) can be personalized. */}
+      <div className="w-full lg:w-80 shrink-0 order-1 lg:order-2 lg:sticky lg:top-6">
+        <CompanySaleAnnouncementsSection companyId={company.id} />
+      </div>
+
+      </div>
     </div>
   )
 }

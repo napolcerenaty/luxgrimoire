@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
-import { API_BASE } from '@/lib/authFetch'
+import { API_BASE, authFetch } from '@/lib/authFetch'
+import { useAuth } from '@/components/AuthProvider'
 
 export interface EditionGroup {
   label: string
@@ -15,12 +16,23 @@ export interface EditionGroup {
 }
 
 interface Props {
+  companySlug: string
   groups: EditionGroup[]
   brandColors?: string[] | null
 }
 
 const PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
+
+type OwnershipBucket = 'have-it' | 'coming' | 'gone'
+type StatusFilter = OwnershipBucket | 'skipped'
+
+const STATUS_FILTER_META: { value: StatusFilter; label: string; dotClass: string }[] = [
+  { value: 'have-it', label: 'Have it', dotClass: 'bg-amber-400' },
+  { value: 'coming', label: 'Coming', dotClass: 'bg-orange-500' },
+  { value: 'gone', label: 'Gone', dotClass: 'bg-stone-500' },
+  { value: 'skipped', label: 'Skipped', dotClass: 'bg-red-500' },
+]
 
 function SearchIcon() {
   return (
@@ -31,10 +43,19 @@ function SearchIcon() {
   )
 }
 
-export function CompanyBooksSection({ groups, brandColors }: Props) {
+export function CompanyBooksSection({ companySlug, groups, brandColors }: Props) {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState(0)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  // Per-user ownership/skip overlay — deliberately fetched separately from the public,
+  // shared-cache edition list above (see CompaniesService.getMyEditionStatuses), merged
+  // onto cards by editionId once it resolves so it never blocks the public grid's render.
+  const [ownership, setOwnership] = useState<Record<string, OwnershipBucket>>({})
+  const [skipped, setSkipped] = useState<Set<string>>(new Set())
+  const [fetchedIds, setFetchedIds] = useState<Set<string>>(new Set())
+  const [statusFilters, setStatusFilters] = useState<Set<StatusFilter>>(new Set())
   // Accumulated editions per tab index (unfiltered browsing, not search)
   const [loadedEditions, setLoadedEditions] = useState<Record<number, ApiCompanyEdition[]>>({})
   // Server-reported total per tab (used for hasMore)
@@ -170,6 +191,51 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
   const serverTotal = isSearching ? searchTotal : (totals[activeTab] ?? 0)
   const hasMore = displayed.length < serverTotal
 
+  // Fetch ownership/skip status for any newly-visible editions (new page load, tab switch, or
+  // search results) — one bulk call per batch of new ids, capped the same way the API caps it.
+  useEffect(() => {
+    if (!user) return
+    const newIds = displayed.map((e) => e.id).filter((id) => !fetchedIds.has(id))
+    if (newIds.length === 0) return
+    setFetchedIds((prev) => new Set([...prev, ...newIds]))
+    authFetch<{ ownership: Record<string, OwnershipBucket>; skipped: string[] }>(
+      `/companies/${companySlug}/editions/my-status?editionIds=${newIds.slice(0, 100).join(',')}`,
+    ).then(({ ownership: newOwnership, skipped: newSkipped }) => {
+      setOwnership((prev) => ({ ...prev, ...newOwnership }))
+      setSkipped((prev) => new Set([...prev, ...newSkipped]))
+    }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayed, user?.id])
+
+  // Ownership takes priority over "skipped" — if the user has the book some other way, that's
+  // the fact worth showing, not that this particular box's copy was skipped.
+  const highlightFor = useCallback((editionId: string): StatusFilter | null => {
+    if (ownership[editionId]) return ownership[editionId]
+    if (skipped.has(editionId)) return 'skipped'
+    return null
+  }, [ownership, skipped])
+
+  const hasAnyStatus = useMemo(
+    () => displayed.some((e) => highlightFor(e.id) != null),
+    [displayed, highlightFor],
+  )
+
+  const filteredDisplayed = statusFilters.size === 0
+    ? displayed
+    : displayed.filter((e) => {
+        const h = highlightFor(e.id)
+        return h != null && statusFilters.has(h)
+      })
+
+  const toggleStatusFilter = (value: StatusFilter) => {
+    setStatusFilters((prev) => {
+      const next = new Set(prev)
+      if (next.has(value)) next.delete(value)
+      else next.add(value)
+      return next
+    })
+  }
+
   const handleTabChange = (idx: number) => {
     setActiveTab(idx)
     setSearch('')
@@ -233,15 +299,38 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
         </div>
       </div>
 
+      {/* Ownership/skip filter chips — only appears once we know the logged-in user has at
+          least one status to filter by, on the currently visible batch of editions. */}
+      {hasAnyStatus && (
+        <div className="inline-flex items-center gap-1 rounded-lg border border-stone-700 bg-stone-900/60 p-1 mb-5" aria-label="Filter by your status — select any combination">
+          <button
+            onClick={() => setStatusFilters(new Set())}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${statusFilters.size === 0 ? 'bg-stone-700 text-stone-100' : 'text-stone-400 hover:text-stone-200'}`}
+          >
+            All
+          </button>
+          {STATUS_FILTER_META.map(({ value, label, dotClass }) => (
+            <button
+              key={value}
+              onClick={() => toggleStatusFilter(value)}
+              aria-pressed={statusFilters.has(value)}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${statusFilters.has(value) ? 'bg-stone-700 text-stone-100' : 'text-stone-400 hover:text-stone-200'}`}
+            >
+              <span className={`h-2 w-2 rounded-full ${dotClass}`} /> {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Grid */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16 text-stone-500 text-sm">
           Loading…
         </div>
-      ) : displayed.length > 0 ? (
+      ) : filteredDisplayed.length > 0 ? (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {displayed.map((edition) => (
+            {filteredDisplayed.map((edition) => (
               <EditionCard
                 key={edition.id}
                 href={`/editions/${edition.slug}`}
@@ -251,6 +340,7 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
                 volumeNumber={edition.book.volumeNumber}
                 authors={edition.book.authors.map((a) => ({ name: a.author.name }))}
                 companyBrandColors={brandColors}
+                highlight={highlightFor(edition.id)}
               />
             ))}
           </div>
@@ -269,7 +359,11 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
         </>
       ) : (
         <p className="text-stone-500 text-sm py-10 text-center">
-          {isSearching ? 'No books match your search.' : 'No books in this group yet.'}
+          {isSearching
+            ? 'No books match your search.'
+            : statusFilters.size > 0
+              ? 'No books match your status filter.'
+              : 'No books in this group yet.'}
         </p>
       )}
     </section>
