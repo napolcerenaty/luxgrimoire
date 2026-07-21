@@ -251,11 +251,8 @@ BEGIN
 END;
 $$;
 
--- ── 6. Drop superseded structures ───────────────────────────────────────────────
-
-DROP TABLE IF EXISTS "book_edition_components";
-
-ALTER TABLE "book_editions" DROP COLUMN IF EXISTS "isOmnibus";
-ALTER TABLE "book_editions" DROP COLUMN IF EXISTS "componentCount";
-
-ALTER TABLE "books" DROP COLUMN IF EXISTS "volumeNumber";
+-- Superseded structures (book_edition_components, book_editions.isOmnibus/componentCount,
+-- books.volumeNumber) are intentionally NOT dropped here — see CLAUDE.md's migration
+-- policy: removals ship in a separate, later migration once this release is confirmed
+-- stable in production, so a rollback of this deploy still has the old columns/table
+-- to fall back to. New application code no longer reads them.
