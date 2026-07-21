@@ -405,6 +405,11 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel,
           <button type="button" onClick={addEntry} className={`${BTN_SM} bg-stone-700 text-stone-400 hover:bg-stone-600`}>+ Add series</button>
         </div>
         {form.seriesEntries.length === 0 && <p className="text-xs text-stone-600 italic">Not part of any series.</p>}
+        {form.seriesEntries.length > 0 && (
+          <p className="text-xs text-stone-600 mb-2">
+            Vol #: comma-separated (<code>0.5, 2</code>) or a range for an omnibus (<code>1-3</code> → 1, 2, 3).
+          </p>
+        )}
         <div className="space-y-2">
           {form.seriesEntries.map((entry, i) => (
             <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -414,7 +419,8 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel,
               <input
                 value={entry.volumeNumbers}
                 onChange={e => updateEntry(i, { volumeNumbers: e.target.value })}
-                placeholder="Vol # (e.g. 0.5, 2)"
+                placeholder="e.g. 1, 2 or 1-3"
+                title="Comma-separated volume numbers, e.g. &quot;0.5, 2&quot;. For an omnibus spanning consecutive volumes, use a range like &quot;1-3&quot; — it expands to 1, 2, 3."
                 className={`${INP} sm:w-40`}
               />
               <label className="flex items-center gap-1.5 text-xs text-stone-400 whitespace-nowrap shrink-0">
