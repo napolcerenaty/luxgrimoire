@@ -365,12 +365,12 @@ export default function AdminSeriesPage() {
                   {!primaryBooks ? (
                     <p className="text-xs text-stone-500">Loading books…</p>
                   ) : (
-                    <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
+                    <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-1">
                       {primaryBooks.map((b) => (
-                        <div key={b.bookId} className="flex items-center gap-2">
-                          <span className="flex-1 text-sm text-stone-300 truncate" title={b.title}>{b.title}</span>
+                        <div key={b.bookId} className="flex flex-col gap-1 pb-3 border-b border-stone-800 last:border-0 last:pb-0">
+                          <span className="text-sm text-stone-200 leading-snug">{b.title}</span>
                           <input
-                            className={`${INPUT_CLASS} w-28 shrink-0`}
+                            className={INPUT_CLASS}
                             placeholder="e.g. 1-3, 5"
                             value={switchVolumeInputs[b.bookId] ?? ''}
                             onChange={(e) => setSwitchVolumeInputs((prev) => ({ ...prev, [b.bookId]: e.target.value }))}
