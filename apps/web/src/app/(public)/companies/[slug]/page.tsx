@@ -223,7 +223,12 @@ export default async function CompanyPage({ params }: Props) {
           (next-sale countdown, latest announcements) so browsing content and glanceable content
           don't have to compete for the same single scrolling column. Collapses to one column
           on mobile, where a sticky rail wouldn't make sense anyway. */}
-      <div className="flex flex-col lg:flex-row gap-8 items-start mt-12">
+      {/* items-start only at lg: (row layout) so the rail doesn't vertically stretch to match
+          the main column's height — unprefixed, it also applied to the flex-col mobile layout
+          and overrode the default align-items:stretch there, so the main column (and its grid
+          inside) sized to its own unconstrained max-content width instead of the viewport,
+          causing severe horizontal overflow on mobile. */}
+      <div className="flex flex-col lg:flex-row gap-8 lg:items-start mt-12">
       <div className="flex-1 min-w-0 order-2 lg:order-1">
 
       {/* Subscriptions — grouped active/upcoming/discontinued instead of one mixed grid */}
