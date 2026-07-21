@@ -161,12 +161,12 @@ export class SubscriptionsController {
     return this.subscriptionsService.getMonths(slug, query.page ?? 1, query.pageSize ?? 12, query.all ?? false, query.ownOnly ?? false, query.fromYear, query.fromMonth, query.untilYear, query.untilMonth);
   }
 
-  @ApiBearerAuth()
-  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  // Public — a skip's reason is meant to be shown to subscribers, and both the admin months
+  // editor and the public past-months archive need this same data (see listMonthSkips).
+  @Public()
   @Get(':slug/months/skips')
-  async listMonthSkips(@Param('slug') slug: string, @CurrentUser() user: CurrentUserType) {
-    if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
-    return this.subscriptionsService.listMonthSkips(slug);
+  listMonthSkips(@Param('slug') slug: string, @Query() query: MonthQueryDto) {
+    return this.subscriptionsService.listMonthSkips(slug, query.fromYear, query.fromMonth, query.untilYear, query.untilMonth);
   }
 
   @ApiBearerAuth()

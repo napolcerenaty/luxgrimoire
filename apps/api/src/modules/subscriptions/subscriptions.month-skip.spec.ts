@@ -250,11 +250,36 @@ describe('SubscriptionsService — listMonthSkips', () => {
     expect(result).toEqual([{ year: 2026, month: 9, reason: 'shipping delay' }]);
   });
 
-  it('rejects a variant slug, matching getMonths/addMonth\'s existing convention', async () => {
+  it('resolves a variant slug transparently to its content-stream parent\'s skips, same as getMonths', async () => {
     (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(
       makeSub({ id: VARIANT_1_ID, slug: VARIANT_1_SLUG, parentSubscriptionId: PARENT_ID }),
     );
+    (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValueOnce([]);
 
-    await expect(service.listMonthSkips(VARIANT_1_SLUG)).rejects.toThrow(BadRequestException);
+    await service.listMonthSkips(VARIANT_1_SLUG);
+
+    expect(prisma.subscriptionMonthSkip.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { subscriptionId: PARENT_ID, undoneAt: null } }),
+    );
+  });
+
+  it('applies optional date bounds, for a paginated caller matching its own page window', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(makeSub());
+    (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await service.listMonthSkips(PARENT_SLUG, 2025, 6, 2025, 12);
+
+    expect(prisma.subscriptionMonthSkip.findMany).toHaveBeenCalledWith({
+      where: {
+        subscriptionId: PARENT_ID,
+        undoneAt: null,
+        AND: [
+          { OR: [{ year: { gt: 2025 } }, { year: 2025, month: { gte: 6 } }] },
+          { OR: [{ year: { lt: 2025 } }, { year: 2025, month: { lte: 12 } }] },
+        ],
+      },
+      select: { year: true, month: true, reason: true },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
   });
 });

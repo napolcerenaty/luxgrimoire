@@ -737,6 +737,27 @@ export class SubscriptionsService {
     );
 
     const sentinelRecord = priceChanges.find((pc) => pc.effectiveYear === 1900 && pc.effectiveMonth === 1 && pc.currency === rest.currency);
+
+    // Company-wide month skips, same date window as `months` above (current-month-onward, or
+    // bundle-window-adjusted). A skipped month with no SubscriptionMonth row never appears in
+    // `months` at all, so this is returned separately for the page to render an explicit
+    // "Skipped" card in the right chronological slot rather than a silent gap. Variants resolve
+    // to the content-stream (parent) id, same as `months` does above — skips are always written
+    // at that level (see SubscriptionMonthSkip).
+    const skipContentStreamId = subscription.parentSubscriptionId ?? subscription.id;
+    const skippedMonths = await this.prisma.subscriptionMonthSkip.findMany({
+      where: {
+        subscriptionId: skipContentStreamId,
+        undoneAt: null,
+        OR: [
+          { year: { gt: monthsFromYear } },
+          { year: monthsFromYear, month: { gte: monthsFromMonth } },
+        ],
+      },
+      select: { year: true, month: true, reason: true },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+    });
+
     return {
       ...this.mapSubscriptionAssets(rest),
       price: this.computeCurrentPrice(priceChanges, rest.currency),
@@ -747,6 +768,7 @@ export class SubscriptionsService {
         ? parseFloat(sentinelRecord.newBasePrice.toString()).toFixed(2)
         : this.computeCurrentPrice(priceChanges, rest.currency),
       months: months.map((month: any) => this.mapMonthAssets(month)),
+      skippedMonths,
       componentIds: comboComponents.map((c) => c.componentId),
       components: processedComboComponents.map((c) => ({
         componentId: c.componentId,
@@ -1586,14 +1608,38 @@ export class SubscriptionsService {
     return { subscriptionId: (sub as any).id, year, month, ...recompute };
   }
 
-  /** Lists currently-active company-wide month skips for a subscription — feeds the admin months
-   *  editor UI (both to show existing SubscriptionMonth rows as "Skipped" and to show skipped
-   *  months that have no content row at all). Reuses getSubscriptionMonths's variant-blocking
-   *  guard: this is scoped to the page an admin actually lands on, same as getMonths/addMonth. */
-  async listMonthSkips(slug: string) {
-    const subscription = await this.getSubscriptionMonths(slug);
+  /** Lists currently-active company-wide month skips for a subscription — a reason is meant to
+   *  be shown to subscribers (see the admin skip form's copy), so this is public, not admin-only.
+   *  Feeds both the admin months editor (existing SubscriptionMonth rows shown as "Skipped", plus
+   *  skip-only entries with no content row at all) and the public subscription page / past-months
+   *  archive. A variant subscription's slug resolves transparently to its content-stream parent —
+   *  same as getMonths/_fetchSubscriptionBySlug — rather than being rejected, since a variant's
+   *  own public page needs this data too. Optional date bounds let a paginated caller (the
+   *  past-months archive) match its own page window; omitted, every active skip is returned. */
+  async listMonthSkips(slug: string, fromYear?: number, fromMonth?: number, untilYear?: number, untilMonth?: number) {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { slug },
+      select: { id: true, parentSubscriptionId: true },
+    });
+    if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
+    const effectiveId = sub.parentSubscriptionId ?? sub.id;
+
+    const andConditions: Record<string, unknown>[] = [];
+    if (fromYear != null) {
+      const fy = fromYear;
+      const fm = fromMonth ?? 1;
+      andConditions.push({ OR: [{ year: { gt: fy } }, { year: fy, month: { gte: fm } }] });
+    }
+    if (untilYear != null) {
+      const uy = untilYear;
+      const um = untilMonth ?? 12;
+      andConditions.push({ OR: [{ year: { lt: uy } }, { year: uy, month: { lte: um } }] });
+    }
+
     return this.prisma.subscriptionMonthSkip.findMany({
-      where: { subscriptionId: subscription.id, undoneAt: null },
+      where: andConditions.length > 0
+        ? { subscriptionId: effectiveId, undoneAt: null, AND: andConditions }
+        : { subscriptionId: effectiveId, undoneAt: null },
       select: { year: true, month: true, reason: true },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
     });
