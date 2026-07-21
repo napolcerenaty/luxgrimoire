@@ -184,6 +184,11 @@ function makePrismaForRecordSkip(opts: {
       findUnique: jest.fn().mockResolvedValue(refreshEntry), // for refreshNextRenewalDate
       update: jest.fn().mockResolvedValue({}),
     },
+    subscriptionMonthSkip: {
+      // No company-wide skips in these fixtures — refreshNextRenewalDate merges this in
+      // alongside the per-user skip records above.
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   } as unknown as PrismaService;
 }
 
@@ -218,6 +223,9 @@ function makePrismaForGetStatus(opts: {
           opts.upcomingBundleMonths.find((m) => m.year === key.year && m.month === key.month) ?? null,
         );
       }),
+    },
+    subscriptionMonthSkip: {
+      findMany: jest.fn().mockResolvedValue([]),
     },
   } as unknown as PrismaService;
 }
@@ -765,6 +773,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
       jest.setSystemTime(FIXED_NOW);
       prisma = mockDeep<PrismaService>();
       engine = new SkipPolicyEngine(prisma);
+      (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValue([]);
     });
     afterEach(() => {
       jest.useRealTimers();
