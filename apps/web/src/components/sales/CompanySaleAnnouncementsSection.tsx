@@ -68,7 +68,7 @@ export function CompanySaleAnnouncementsSection({ companyId, companySlug }: Prop
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-serif font-semibold text-stone-200">Latest Announcements</h3>
             <Link href={seeAllHref} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
-              See all →
+              View all →
             </Link>
           </div>
           <div className="flex flex-col gap-2.5">
@@ -96,7 +96,7 @@ export function CompanySaleAnnouncementsSection({ companyId, companySlug }: Prop
 
       {latestItems.length === 0 && nextSale?.date && (
         <Link href={seeAllHref} className="text-xs text-amber-500 hover:text-amber-400 transition-colors self-start">
-          See all sale announcements →
+          View all sale announcements →
         </Link>
       )}
     </section>
