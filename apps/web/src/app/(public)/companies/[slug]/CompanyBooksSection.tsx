@@ -290,9 +290,9 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
       {/* Tabs — few groups render as a plain tab row (fits on one line at any width). Beyond
           that, wrapping ate a huge amount of vertical space (companies with many collections/
           subscriptions could wrap 3+ lines before showing a single book). Past the threshold,
-          mobile gets a horizontally-scrollable chip strip (swipe is a native mobile gesture,
-          same pattern as App Store/Spotify category rows), desktop gets a dropdown instead
-          (a scrollable row of buttons has no discoverable affordance with a mouse). */}
+          every breakpoint gets the same horizontal-scroll chip strip — one interaction pattern
+          instead of forking per device (see CLAUDE.md's responsive-design guidance): swipe is
+          the native mobile gesture, and desktop users can still scroll/shift+scroll it. */}
       {visibleGroupCount <= FEW_GROUPS_THRESHOLD ? (
         <div className="border-b border-stone-800 mb-6">
           <div className="flex flex-wrap gap-0">
@@ -318,51 +318,30 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
           </div>
         </div>
       ) : (
-        <>
-          {/* Mobile: horizontal-scroll chip strip */}
-          <div className="md:hidden mb-6 -mx-4 px-4 flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory">
-            {groups.map((group, idx) => {
-              if (hiddenTabs.has(idx)) return null
-              return (
-                <button
-                  key={group.label}
-                  onClick={() => handleTabChange(idx)}
-                  className={`shrink-0 snap-start flex items-center gap-1 max-w-[11rem] rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
-                    activeTab === idx
-                      ? 'bg-amber-900/30 border-amber-600 text-amber-400'
-                      : 'bg-stone-800 border-stone-700 text-stone-400'
-                  }`}
-                  title={group.label}
-                >
-                  {/* min-w-0 lets this flex child actually shrink/truncate instead of forcing
-                      the button wider — same fix as the flexbox image sizing bug elsewhere.
-                      shrink-0 on the count keeps it always visible instead of getting
-                      swallowed into the label's truncation. */}
-                  <span className="min-w-0 truncate">{group.label}</span>
-                  {totals[idx] !== undefined && <span className="shrink-0 text-stone-500">({totals[idx]})</span>}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Desktop: dropdown */}
-          <div className="hidden md:block mb-6">
-            <select
-              value={activeTab}
-              onChange={(e) => handleTabChange(Number(e.target.value))}
-              className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-amber-600/60 max-w-xs"
-            >
-              {groups.map((group, idx) => {
-                if (hiddenTabs.has(idx)) return null
-                return (
-                  <option key={group.label} value={idx}>
-                    {group.label}{totals[idx] !== undefined ? ` (${totals[idx]})` : ''}
-                  </option>
-                )
-              })}
-            </select>
-          </div>
-        </>
+        <div className="mb-6 -mx-4 px-4 flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory">
+          {groups.map((group, idx) => {
+            if (hiddenTabs.has(idx)) return null
+            return (
+              <button
+                key={group.label}
+                onClick={() => handleTabChange(idx)}
+                className={`shrink-0 snap-start flex items-center gap-1 max-w-[11rem] rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
+                  activeTab === idx
+                    ? 'bg-amber-900/30 border-amber-600 text-amber-400'
+                    : 'bg-stone-800 border-stone-700 text-stone-400'
+                }`}
+                title={group.label}
+              >
+                {/* min-w-0 lets this flex child actually shrink/truncate instead of forcing
+                    the button wider — same fix as the flexbox image sizing bug elsewhere.
+                    shrink-0 on the count keeps it always visible instead of getting
+                    swallowed into the label's truncation. */}
+                <span className="min-w-0 truncate">{group.label}</span>
+                {totals[idx] !== undefined && <span className="shrink-0 text-stone-500">({totals[idx]})</span>}
+              </button>
+            )
+          })}
+        </div>
       )}
 
       {/* Ownership/skip filter chips — only appears once we know the logged-in user has at
