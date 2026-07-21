@@ -327,15 +327,19 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
                 <button
                   key={group.label}
                   onClick={() => handleTabChange(idx)}
-                  className={`shrink-0 snap-start max-w-[10rem] truncate rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
+                  className={`shrink-0 snap-start flex items-center gap-1 max-w-[11rem] rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
                     activeTab === idx
                       ? 'bg-amber-900/30 border-amber-600 text-amber-400'
                       : 'bg-stone-800 border-stone-700 text-stone-400'
                   }`}
                   title={group.label}
                 >
-                  {group.label}
-                  {totals[idx] !== undefined && <span className="ml-1 text-stone-500">({totals[idx]})</span>}
+                  {/* min-w-0 lets this flex child actually shrink/truncate instead of forcing
+                      the button wider — same fix as the flexbox image sizing bug elsewhere.
+                      shrink-0 on the count keeps it always visible instead of getting
+                      swallowed into the label's truncation. */}
+                  <span className="min-w-0 truncate">{group.label}</span>
+                  {totals[idx] !== undefined && <span className="shrink-0 text-stone-500">({totals[idx]})</span>}
                 </button>
               )
             })}
