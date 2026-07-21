@@ -37,7 +37,8 @@ interface SeriesDetail {
   id: string
   slug: string
   name: string
-  books: RawBook[]
+  volumes: RawBook[]
+  omnibuses: RawBook[]
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -57,14 +58,12 @@ export default async function SeriesPage({ params }: Props) {
   const { slug } = await params
 
   const series = await apiFetch<SeriesDetail>(`/book-series/${slug}`).catch(() => null)
-  if (!series || series.books.length === 0) notFound()
-
-  // Already sorted by the API (book_series_entries.volumeNumbers, element-by-element)
-  const sorted = series.books
+  const totalCount = (series?.volumes.length ?? 0) + (series?.omnibuses.length ?? 0)
+  if (!series || totalCount === 0) notFound()
 
   const seriesAuthors = Array.from(
     new Map(
-      sorted.flatMap((b) => b.authors.map((ba) => [ba.author.id, ba.author])),
+      [...series.volumes, ...series.omnibuses].flatMap((b) => b.authors.map((ba) => [ba.author.id, ba.author])),
     ).values(),
   )
 
@@ -89,15 +88,31 @@ export default async function SeriesPage({ params }: Props) {
             ))}
           </p>
         )}
-        <p className="text-stone-500 text-xs mt-1">{sorted.length} book{sorted.length !== 1 ? 's' : ''}</p>
+        <p className="text-stone-500 text-xs mt-1">{totalCount} book{totalCount !== 1 ? 's' : ''}</p>
       </div>
 
-      {/* Books grouped with edition cards */}
+      {/* Individual volumes */}
       <div className="flex flex-col gap-10">
-        {sorted.map((book) => (
+        {series.volumes.map((book) => (
           <SeriesBookSection key={book.id} book={book} />
         ))}
       </div>
+
+      {/* Omnibus / bind-up editions — kept separate rather than interleaved by volume number:
+          an omnibus spanning e.g. volumes 1-3 has no single numeric position that wouldn't be
+          surprising sitting in a strictly-numbered list of individual volumes. */}
+      {series.omnibuses.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-xs uppercase tracking-widest text-stone-500 font-medium mb-4 border-b border-stone-800 pb-2">
+            Also available as a bind-up edition
+          </h2>
+          <div className="flex flex-col gap-10">
+            {series.omnibuses.map((book) => (
+              <SeriesBookSection key={book.id} book={book} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

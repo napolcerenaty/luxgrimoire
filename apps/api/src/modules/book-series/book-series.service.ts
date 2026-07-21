@@ -84,7 +84,14 @@ export class BookSeriesService {
   }
 
   /** A book can belong to many series; this lists every book with an entry in this
-   * series (primary or not) — not just the ones where it's currently the primary. */
+   * series (primary or not) — not just the ones where it's currently the primary.
+   *
+   * Split into `volumes` (single volumeNumber) and `omnibuses` (spans more than one) rather
+   * than one flat sorted list: an omnibus's volumeNumbers (e.g. [1,2,3]) sorts lexicographically
+   * right after its first single volume and before the rest ([1] < [1,2,3] < [2]), which reads
+   * as "Vol 1, Omnibus 1-3, Vol 2, Vol 3" — there's no flat numeric position that represents a
+   * multi-volume span without that kind of surprise. Keeping the two lists separate sidesteps it
+   * entirely instead of picking a different (still arbitrary) tiebreak. */
   async findBySlug(slug: string) {
     const series = await this.prisma.bookSeries.findUnique({
       where: { slug },
@@ -130,7 +137,7 @@ export class BookSeriesService {
       },
     });
 
-    const books = entries
+    const mapped = entries
       .map(({ book, volumeNumbers, isPrimary }) => ({
         ...book,
         volumeNumbers,
@@ -144,10 +151,15 @@ export class BookSeriesService {
               : null,
           };
         }),
-      }))
-      .sort((a, b) => compareVolumeNumbers(a.volumeNumbers, b.volumeNumbers) || a.title.localeCompare(b.title));
+      }));
 
-    return { id: series.id, slug: series.slug, name: series.name, books };
+    const byVolumeThenTitle = (a: typeof mapped[number], b: typeof mapped[number]) =>
+      compareVolumeNumbers(a.volumeNumbers, b.volumeNumbers) || a.title.localeCompare(b.title);
+
+    const volumes = mapped.filter((b) => b.volumeNumbers.length <= 1).sort(byVolumeThenTitle);
+    const omnibuses = mapped.filter((b) => b.volumeNumbers.length > 1).sort(byVolumeThenTitle);
+
+    return { id: series.id, slug: series.slug, name: series.name, volumes, omnibuses };
   }
 
   /** The books a switch-primary from `fromSlug` would move — i.e. everything whose primary

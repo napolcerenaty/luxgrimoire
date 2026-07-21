@@ -1,8 +1,14 @@
 /** A book's volume number(s) within a series — usually one value, but an omnibus can
- * span several (possibly non-contiguous) volumes, e.g. [0.5, 2]. Formats as "0.5, 2". */
+ * span several (possibly non-contiguous) volumes, e.g. [0.5, 2]. A consecutive whole-number
+ * run collapses to a range ("1, 2, 3" -> "1-3"); anything else joins as a plain list. */
 export function formatVolumeNumbers(numbers?: number[] | null): string {
   if (!numbers || numbers.length === 0) return ''
-  return numbers.join(', ')
+  if (numbers.length === 1) return String(numbers[0])
+
+  const sorted = [...numbers].sort((a, b) => a - b)
+  const isConsecutiveRun = sorted.every((n, i) => i === 0 || (Number.isInteger(n) && n === sorted[i - 1] + 1))
+  if (isConsecutiveRun) return `${sorted[0]}-${sorted[sorted.length - 1]}`
+  return sorted.join(', ')
 }
 
 /** Parses a comma-separated admin input into a volumeNumbers array, e.g. for omnibuses.
