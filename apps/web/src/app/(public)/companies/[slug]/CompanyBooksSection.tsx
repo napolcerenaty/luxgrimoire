@@ -56,6 +56,14 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
   const [skipped, setSkipped] = useState<Set<string>>(new Set())
   const [fetchedIds, setFetchedIds] = useState<Set<string>>(new Set())
   const [statusFilters, setStatusFilters] = useState<Set<StatusFilter>>(new Set())
+
+  // Clear the overlay on sign-out (or account switch) — otherwise the previous user's glow
+  // stays on screen since it was fetched into local state, not derived from the auth context.
+  useEffect(() => {
+    setOwnership({})
+    setSkipped(new Set())
+    setFetchedIds(new Set())
+  }, [user?.id])
   // Accumulated editions per tab index (unfiltered browsing, not search)
   const [loadedEditions, setLoadedEditions] = useState<Record<number, ApiCompanyEdition[]>>({})
   // Server-reported total per tab (used for hasMore)

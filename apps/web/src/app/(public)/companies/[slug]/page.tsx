@@ -263,16 +263,23 @@ export default async function CompanyPage({ params }: Props) {
           {discontinuedSubscriptions.length > 0 && (
             <div className="mt-5 pt-4 border-t border-stone-800/60">
               <p className="text-xs text-stone-500 mb-2">Discontinued</p>
-              <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-                {discontinuedSubscriptions.map((sub) => (
-                  <Link
-                    key={sub.id}
-                    href={`/subscriptions/${sub.slug}`}
-                    className="text-xs text-stone-500 hover:text-stone-300 underline decoration-stone-700 underline-offset-2 transition-colors"
-                  >
-                    {sub.name}
-                  </Link>
-                ))}
+              <div className="flex flex-wrap gap-x-3 gap-y-2">
+                {discontinuedSubscriptions.map((sub) => {
+                  const logo = cloudinaryUrl(sub.logoUrl, 'w_64,h_64,c_fit,q_auto,f_auto')
+                  return (
+                    <Link
+                      key={sub.id}
+                      href={`/subscriptions/${sub.slug}`}
+                      className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-300 transition-colors"
+                    >
+                      {logo && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={logo} alt="" className="w-4 h-4 rounded object-contain bg-stone-900" />
+                      )}
+                      <span className="underline decoration-stone-700 underline-offset-2">{sub.name}</span>
+                    </Link>
+                  )
+                })}
               </div>
             </div>
           )}

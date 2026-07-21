@@ -39,7 +39,9 @@ export function CompanySaleAnnouncementsSection({ companyId, companySlug }: Prop
 
   const { data: latest } = useQuery({
     queryKey: ['company-latest-announcements', companyId],
-    queryFn: () => apiFetch<PaginatedResponse<LatestItem>>(`/announcements?companyId=${companyId}&pageSize=3&sort=recent`),
+    // Future (live/upcoming) only — past announcements belong on the "See all" page's Past tab,
+    // not in this preview, which is meant to give people a reason to come back.
+    queryFn: () => apiFetch<PaginatedResponse<LatestItem>>(`/announcements?companyId=${companyId}&pageSize=3&sort=recent&upcoming=true`),
     staleTime: 60_000,
   })
 
