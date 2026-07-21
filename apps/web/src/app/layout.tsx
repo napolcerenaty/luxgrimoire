@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next'
-import { cookies } from 'next/headers'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { ConditionalFooter } from '@/components/layout/ConditionalFooter'
@@ -49,18 +48,24 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RootLayout({
+// Runs before first paint. Reading the theme cookie server-side (via next/headers `cookies()`)
+// would force this layout — and every page under it, including statically generated /blog
+// routes — into dynamic per-request rendering. This reads the same cookie client-side,
+// synchronously, before React hydrates, so there's no flash and no forced-dynamic routes.
+const THEME_INIT_SCRIPT = `(function(){try{var m=document.cookie.match(/(?:^|;\\s*)lx-theme=([^;]+)/);if(m&&m[1]==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();`
+
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const cookieStore = await cookies()
-  const theme = cookieStore.get('lx-theme')?.value === 'light' ? 'light' : 'dark'
-
   return (
-    <html lang="en" data-theme={theme} suppressHydrationWarning>
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="bg-stone-950 text-stone-200 min-h-screen font-sans antialiased [overflow-x:clip]">
-        <Providers initialTheme={theme}>
+        <Providers>
           <DevBanner />
           <Navbar />
           <main className="flex-1">{children}</main>

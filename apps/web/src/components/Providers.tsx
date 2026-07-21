@@ -8,14 +8,12 @@ import { DateInputYearGuard } from '@/components/layout/DateInputYearGuard'
 
 export function Providers({
   children,
-  initialTheme,
 }: {
   children: React.ReactNode
-  initialTheme?: 'dark' | 'light'
 }) {
   return (
     <QueryProvider>
-      <ThemeProvider initialTheme={initialTheme}>
+      <ThemeProvider>
         <AuthProvider>
           <NumberInputScrollGuard />
           <DateInputYearGuard />
