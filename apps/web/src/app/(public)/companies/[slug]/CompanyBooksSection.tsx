@@ -318,7 +318,11 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
           </div>
         </div>
       ) : (
-        <div className="mb-6 -mx-4 px-4 flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory">
+        // -mx-4/px-4 bleed to the true screen edge, which only makes sense in the single-column
+        // mobile layout — at lg: the two-column layout makes this the narrower main column
+        // (sharing width with the 320px sticky rail), so the bleed math was cutting chips off
+        // at the main column's edge instead of the real viewport edge. Reset to 0 at lg:.
+        <div className="mb-6 -mx-4 px-4 lg:mx-0 lg:px-0 flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory">
           {groups.map((group, idx) => {
             if (hiddenTabs.has(idx)) return null
             return (
