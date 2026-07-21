@@ -23,6 +23,9 @@ interface Props {
 
 const PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
+// Above this many groups, a plain tab row wraps into several lines before showing a single
+// book — past it, switch to a mobile scroll strip / desktop dropdown instead.
+const FEW_GROUPS_THRESHOLD = 3
 
 type OwnershipBucket = 'have-it' | 'coming' | 'gone'
 type StatusFilter = OwnershipBucket | 'skipped'
@@ -244,6 +247,8 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
     })
   }
 
+  const visibleGroupCount = groups.length - hiddenTabs.size
+
   const handleTabChange = (idx: number) => {
     setActiveTab(idx)
     setSearch('')
@@ -282,30 +287,79 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-stone-800 mb-6">
-        <div className="flex flex-wrap gap-0">
-          {groups.map((group, idx) => {
-            if (hiddenTabs.has(idx)) return null
-            return (
-              <button
-                key={group.label}
-                onClick={() => handleTabChange(idx)}
-                className={`px-4 py-2.5 text-sm font-medium font-serif whitespace-nowrap transition-colors border-b-2 -mb-px ${
-                  activeTab === idx
-                    ? 'border-amber-600 text-amber-400'
-                    : 'border-transparent text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                {group.label}
-                {totals[idx] !== undefined && (
-                  <span className="ml-1.5 text-xs text-stone-500">({totals[idx]})</span>
-                )}
-              </button>
-            )
-          })}
+      {/* Tabs — few groups render as a plain tab row (fits on one line at any width). Beyond
+          that, wrapping ate a huge amount of vertical space (companies with many collections/
+          subscriptions could wrap 3+ lines before showing a single book). Past the threshold,
+          mobile gets a horizontally-scrollable chip strip (swipe is a native mobile gesture,
+          same pattern as App Store/Spotify category rows), desktop gets a dropdown instead
+          (a scrollable row of buttons has no discoverable affordance with a mouse). */}
+      {visibleGroupCount <= FEW_GROUPS_THRESHOLD ? (
+        <div className="border-b border-stone-800 mb-6">
+          <div className="flex flex-wrap gap-0">
+            {groups.map((group, idx) => {
+              if (hiddenTabs.has(idx)) return null
+              return (
+                <button
+                  key={group.label}
+                  onClick={() => handleTabChange(idx)}
+                  className={`px-4 py-2.5 text-sm font-medium font-serif whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                    activeTab === idx
+                      ? 'border-amber-600 text-amber-400'
+                      : 'border-transparent text-stone-400 hover:text-stone-200'
+                  }`}
+                >
+                  {group.label}
+                  {totals[idx] !== undefined && (
+                    <span className="ml-1.5 text-xs text-stone-500">({totals[idx]})</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Mobile: horizontal-scroll chip strip */}
+          <div className="md:hidden mb-6 -mx-4 px-4 flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory">
+            {groups.map((group, idx) => {
+              if (hiddenTabs.has(idx)) return null
+              return (
+                <button
+                  key={group.label}
+                  onClick={() => handleTabChange(idx)}
+                  className={`shrink-0 snap-start max-w-[10rem] truncate rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
+                    activeTab === idx
+                      ? 'bg-amber-900/30 border-amber-600 text-amber-400'
+                      : 'bg-stone-800 border-stone-700 text-stone-400'
+                  }`}
+                  title={group.label}
+                >
+                  {group.label}
+                  {totals[idx] !== undefined && <span className="ml-1 text-stone-500">({totals[idx]})</span>}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Desktop: dropdown */}
+          <div className="hidden md:block mb-6">
+            <select
+              value={activeTab}
+              onChange={(e) => handleTabChange(Number(e.target.value))}
+              className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-amber-600/60 max-w-xs"
+            >
+              {groups.map((group, idx) => {
+                if (hiddenTabs.has(idx)) return null
+                return (
+                  <option key={group.label} value={idx}>
+                    {group.label}{totals[idx] !== undefined ? ` (${totals[idx]})` : ''}
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+        </>
+      )}
 
       {/* Ownership/skip filter chips — only appears once we know the logged-in user has at
           least one status to filter by, on the currently visible batch of editions. */}
