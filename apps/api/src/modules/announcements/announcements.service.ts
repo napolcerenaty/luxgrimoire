@@ -150,6 +150,51 @@ export class AnnouncementsService {
     return { OR: activeSaleCondition };
   }
 
+  /** The logical negation of buildActiveSaleCondition, written as direct positive terms rather
+   *  than `NOT: buildActiveSaleCondition(...)`. Confirmed against real data that wrapping the
+   *  whole nested AND/OR/relation-filter structure in `NOT:` crashes the Prisma query engine
+   *  for some rows ("Response from the Engine was empty"), silently excluding them from BOTH
+   *  the active and NOT-active queries — e.g. one company's pastOnly list was missing 219 of
+   *  230 announcements this way. Keep this in sync by hand if buildActiveSaleCondition changes. */
+  private buildPastSaleCondition(now: Date, today: Date, typeFilter?: SaleType | null): Prisma.SaleAnnouncementWhereInput {
+    const pastCondition: Prisma.SaleAnnouncementWhereInput[] = [];
+
+    // None of the three date fields is today-or-later (null counts as "not blocking past"),
+    // and no region override is today-or-later either.
+    const noFutureDates: Prisma.SaleAnnouncementWhereInput = {
+      AND: [
+        { OR: [{ generalSaleDate: null }, { generalSaleDate: { lt: today } }] },
+        { OR: [{ earlyAccessDate: null }, { earlyAccessDate: { lt: today } }] },
+        { OR: [{ firstAccessDate: null }, { firstAccessDate: { lt: today } }] },
+        { regions: { none: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
+      ],
+    };
+
+    const lpOrOsPast: Prisma.SaleAnnouncementWhereInput = {
+      AND: [noFutureDates, { OR: [{ endsAt: null }, { endsAt: { lte: now } }] }],
+    };
+
+    if (!typeFilter || typeFilter === 'LIMITED_PREORDER') {
+      pastCondition.push({ AND: [{ saleType: 'LIMITED_PREORDER' }, lpOrOsPast] });
+    }
+
+    if (!typeFilter || typeFilter === 'OPEN_PREORDER') {
+      // Negation of "endsAt is null (runs forever) or endsAt is in the future" — endsAt must
+      // be set AND already past.
+      pastCondition.push({ AND: [{ saleType: 'OPEN_PREORDER' }, { endsAt: { lte: now } }] });
+    }
+
+    if (!typeFilter || typeFilter === 'OVERSTOCK') {
+      pastCondition.push({ AND: [{ saleType: 'OVERSTOCK' }, { OR: [{ endsAt: { lte: now } }, { AND: [{ endsAt: null }, noFutureDates] }] }] });
+    }
+
+    if (!typeFilter || typeFilter === 'SALE') {
+      pastCondition.push({ AND: [{ saleType: 'SALE' }, { OR: [{ endsAt: { lte: now } }, { AND: [{ endsAt: null }, noFutureDates] }] }] });
+    }
+
+    return { OR: pastCondition };
+  }
+
   async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; pastOnly?: boolean; search?: string; sort?: 'date' | 'date-desc' | 'recent'; companyId?: string; dateFrom?: string; dateTo?: string; saleType?: SaleType }) {
     const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
 
@@ -189,8 +234,9 @@ export class AnnouncementsService {
       // "upcoming" == "live or upcoming" — when no saleType filter, all types currently active.
       andConditions.push(this.buildActiveSaleCondition(now, today, query.saleType ?? null));
     } else if (query.pastOnly) {
-      // Exact negation of "live or upcoming" — a sale with no live/upcoming tier left.
-      andConditions.push({ NOT: this.buildActiveSaleCondition(now, today, query.saleType ?? null) });
+      // Built as direct positive terms (buildPastSaleCondition), not `NOT: buildActiveSaleCondition(...)`
+      // — see that method's comment for why the NOT: form silently drops rows.
+      andConditions.push(this.buildPastSaleCondition(now, today, query.saleType ?? null));
     }
 
     if (query.search) {
