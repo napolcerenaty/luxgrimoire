@@ -528,6 +528,9 @@ input[type=number] {
   padding-left: 1.5em;
   margin: 0 0 1.2em;
 }
+.blog-post-content ul { list-style: disc; }
+.blog-post-content ol { list-style: decimal; }
+.blog-post-content ul ul { list-style: circle; }
 .blog-post-content li { margin-bottom: 0.4em; }
 .blog-post-content hr {
   border: none;

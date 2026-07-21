@@ -202,9 +202,9 @@ export default async function BlogPostPage({
               )}
             </div>
 
-            {(post.custom_excerpt ?? post.excerpt) && (
+            {post.custom_excerpt && (
               <p className="text-lg leading-relaxed mb-8 font-medium" style={{ color: 'var(--text-dim)' }}>
-                {post.custom_excerpt ?? post.excerpt}
+                {post.custom_excerpt}
               </p>
             )}
 
