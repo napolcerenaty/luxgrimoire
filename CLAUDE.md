@@ -47,6 +47,12 @@
 - Auth on the endpoint determines whether `userId` can be populated at all: `@Public()` endpoints never see `req.user` (view events like `edition_view`/`book_view`/`subscription_view` only get `entityType`/`entityId`/`entityName`); `@OptionalAuth()` endpoints get `req.user?.id ?? null` (use this when a view/action should record identity when present without requiring login); fully authenticated endpoints use `@CurrentUser()`.
 - `AuditService` (`apps/api/src/modules/audit/audit.service.ts`) is a **different, unrelated** system — admin/moderator mutation audit trail only (`CREATE_SUBSCRIPTION`, `DELETE_SUBSCRIPTION`, etc.), always paired with `Roles(...)`-gated endpoints and an authenticated actor. Never use it for page views or anonymous-friendly events.
 
+## Responsive design
+- This is a PWA, not a native app — mobile and desktop are both first-class, but the user base is mostly mobile, so default to mobile-first when a tradeoff has to be made.
+- Every new screen/component must work at both a phone width (~375px) and desktop width — check the Tailwind classes cover both, not just whichever viewport was top of mind while building.
+- Prefer one responsive component that adapts via CSS breakpoints over forking markup/behavior per device — per-breakpoint branching (e.g. different interaction patterns on mobile vs desktop for the same control) adds a jarring transition right at the breakpoint and doubles the surface to maintain. Only fork when the interaction genuinely can't be unified (rare).
+- Common mobile-list-density pattern in this codebase: horizontal-scroll chip/tab strips (`overflow-x-auto`, `shrink-0` items, `scrollbar-none` utility class in `globals.css`) instead of wrapping tabs once there are more than a handful of options — wrapping eats vertical space and buries content below the fold.
+
 ## Verification
 - Do not verify UI changes in the browser (Browser pane/preview tools) — this environment's browser tooling is unreliable (navigation, screenshots, and clicks frequently hang or fail). Verify instead via type-check (`tsc --noEmit`), relevant test suites, and careful code review.
 
