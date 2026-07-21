@@ -311,9 +311,10 @@ export default async function CompanyPage({ params }: Props) {
       {/* Sticky rail — next-sale countdown + latest announcements. A client component that
           fetches independently on mount, so it never blocks the header/subscriptions render
           above, and (unlike the public, shared-cache company payload) can be personalized. */}
-      {/* top-20 (not top-6) clears the site navbar, which is itself `sticky top-0` and ~65px
-          tall — otherwise this rail sticks too high and scrolls in partially hidden behind it. */}
-      <div className="w-full lg:w-80 shrink-0 order-1 lg:order-2 lg:sticky lg:top-20">
+      {/* top-[126px]: the site navbar is `sticky top-0` and measures 110px tall (confirmed via
+          getBoundingClientRect) — top-20 (80px) wasn't enough and let this rail scroll in
+          partially hidden behind it. 126px = 110px navbar + 16px breathing room. */}
+      <div className="w-full lg:w-80 shrink-0 order-1 lg:order-2 lg:sticky lg:top-[126px]">
         <CompanySaleAnnouncementsSection companyId={company.id} companySlug={slug} />
       </div>
 
