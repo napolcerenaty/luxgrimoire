@@ -245,7 +245,9 @@ export default async function CompanyPage({ params }: Props) {
                 >
                   <SubCoverImage coverUrl={cover} name={sub.name} brandColors={company.brandColors} />
                   <div className="p-3">
-                    <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight mb-1">
+                    {/* line-clamp + min-h so a long name (2 lines) and a short one (1 line) don't
+                        leave cards in the same row at wildly different heights on mobile. */}
+                    <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight mb-1 line-clamp-2 min-h-[2.4em]">
                       {sub.name}
                     </h3>
                     <div className="flex items-center gap-1 flex-wrap">
