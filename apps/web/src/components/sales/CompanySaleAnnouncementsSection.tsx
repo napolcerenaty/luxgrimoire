@@ -78,6 +78,7 @@ export function CompanySaleAnnouncementsSection({ companyId, companySlug }: Prop
                 <Link
                   key={a.id}
                   href={seeAllHref}
+                  title={a.title}
                   className="flex items-center gap-2.5 text-left hover:bg-stone-800/60 transition-colors rounded-lg p-1.5 -m-1.5"
                 >
                   <div className="w-8 h-12 shrink-0 rounded bg-stone-950 overflow-hidden">

@@ -41,6 +41,7 @@ export function HomeTrendingSales({ announcements }: Props) {
             <Link
               key={sale.id}
               href={`/sale-announcements/${sale.id}`}
+              title={sale.title}
               className="group w-44 flex-shrink-0 overflow-hidden rounded-lg border border-stone-700 text-left transition-all duration-250 hover:border-amber-600/60"
               style={{ background: 'var(--bg-raised)' }}
             >

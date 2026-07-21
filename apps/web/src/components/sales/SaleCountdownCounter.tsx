@@ -50,7 +50,7 @@ export function SaleCountdownCounter({ date, tier, title, personalized }: Props)
       <p className="text-xs uppercase tracking-widest text-amber-600 font-medium mb-1">
         {personalized ? `Your ${TIER_LABEL[tier]} countdown` : `Next sale — ${TIER_LABEL[tier]}`}
       </p>
-      {title && <p className="text-sm text-stone-300 font-serif mb-3 line-clamp-1">{title}</p>}
+      {title && <p title={title} className="text-sm text-stone-300 font-serif mb-3 line-clamp-1">{title}</p>}
       {countdown.done ? (
         <p className="text-lg font-serif text-amber-400">It&apos;s here!</p>
       ) : (

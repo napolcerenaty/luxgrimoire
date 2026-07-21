@@ -59,7 +59,7 @@ export function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const isLive = isSaleLive(a)
 
   return (
-    <div className="relative group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10">
+    <div title={a.title} className="relative group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10">
       {/* Image — same 2/3 portrait ratio as EditionCard */}
       <div className="relative aspect-[2/3] bg-stone-950 overflow-hidden rounded-t-2xl">
         {imgUrl ? (
@@ -149,6 +149,7 @@ export function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
   return (
     <Link
       href={`/sale-announcements/${a.id}`}
+      title={a.title}
       className="group flex items-center gap-4 py-3 hover:bg-stone-900/50 px-2 -mx-2 rounded-lg transition-colors"
     >
       {/* Thumbnail */}
