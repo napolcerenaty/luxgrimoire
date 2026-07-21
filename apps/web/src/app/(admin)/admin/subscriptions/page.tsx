@@ -717,6 +717,12 @@ function SubscriptionForm({
             {(parseInt(form.intervalMonths, 10) > 1 || form.intervalMonths === 'custom') && (
               <div>
                 <label className={LABEL_CLASS}>Starting month of cycle</label>
+                <p className="text-xs text-stone-500 mb-1">
+                  The first <strong>box/content month</strong> of the cycle — NOT the payment month.
+                  E.g. bi-monthly with offset=1: if boxes ship Jun/Aug/Oct/…, set this to <strong>June</strong>,
+                  even though payment is charged in May/Jul/Sep/… . Use the offset field above to shift billing
+                  relative to this month.
+                </p>
                 <select className={SELECT_CLASS} value={form.startingMonth} onChange={setStr('startingMonth')}>
                   <option value="">— Select month —</option>
                   {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (

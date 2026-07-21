@@ -18,7 +18,9 @@ function shiftMonth(year: number, month: number, offset: number): [number, numbe
 }
 
 function getRenewalAlignmentBaseMonth(startingMonth: number, renewalMonthOffset: number): number {
-  const adjustedStartingMonth = startingMonth - Math.min(renewalMonthOffset, 0);
+  // startingMonth is always the box (content) month; renewal month = box month - offset,
+  // for both positive and negative offsets (see renewalMonthFromBoxMonth).
+  const adjustedStartingMonth = startingMonth - renewalMonthOffset;
   return ((adjustedStartingMonth - 1 + 1200) % 12) + 1;
 }
 
@@ -260,6 +262,13 @@ function findCurrentBundleRenewal(
  *
  *   signupIncludesCurrentMonth=true  → firstBox = current bundle start
  *   signupIncludesCurrentMonth=false → firstBox = next bundle start (current + intervalMonths)
+ *
+ * @param subscriptionStartDate - When provided and `joinDate` is before it, the entry predates
+ *   the subscription's own launch (allowed for standalone subs, for historical data entry — see
+ *   joinSubscription). There's no earlier cycle for such a joiner to be "mid-way through", and the
+ *   normal cycle math has no notion of "this cycle didn't exist yet": depending on phase alignment
+ *   it can land before, at, or after the true launch box. So this case is special-cased directly to
+ *   the box month containing subscriptionStartDate, bypassing signupIncludesCurrentMonth entirely.
  */
 export function computeFirstEligibleBoxMonth(
   joinDate: Date,
@@ -268,7 +277,24 @@ export function computeFirstEligibleBoxMonth(
   signupIncludesCurrentMonth: boolean,
   intervalMonths = 1,
   startingMonth = 1,
+  subscriptionStartDate: Date | null = null,
 ): { year: number; month: number } {
+  if (subscriptionStartDate) {
+    // Defensive: callers may pass a value that's typed as Date but is actually a string at
+    // runtime (e.g. subscriptions fetched through a cache layer that JSON-serializes results,
+    // turning Date fields into ISO strings) — coerce so the comparison below can't silently
+    // become `number < NaN` (always false) and skip this branch.
+    const subStart = subscriptionStartDate instanceof Date ? subscriptionStartDate : new Date(subscriptionStartDate);
+    if (joinDate < subStart) {
+      return getBundleBoxStart(
+        subStart.getUTCFullYear(),
+        subStart.getUTCMonth() + 1,
+        startingMonth,
+        intervalMonths,
+      );
+    }
+  }
+
   if (intervalMonths > 1) {
     const { year: rYear, month: rMonth } = findCurrentBundleRenewal(
       joinDate, renewalDay, renewalMonthOffset, startingMonth, intervalMonths,
@@ -694,6 +720,7 @@ export async function refreshNextRenewalDate(
       effectiveSettings.signupIncludesCurrentMonth,
       sub.intervalMonths ?? 1,
       sub.startingMonth ?? 1,
+      subStartDate,
     );
     const firstSubMonth = await prisma.subscriptionMonth.findFirst({
       where: {

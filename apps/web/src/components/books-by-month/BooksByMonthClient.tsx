@@ -33,7 +33,7 @@ interface BooksByMonthResponse {
 }
 
 type ViewMode = 'flat' | 'by-book' | 'by-company'
-type HighlightFilter = 'mine' | 'skipped' | 'other' | null
+type HighlightFilterValue = 'mine' | 'skipped' | 'other'
 interface BookGroup {
   key: string
   label: string
@@ -120,8 +120,22 @@ export function BooksByMonthClient() {
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [viewMode, setViewMode] = useState<ViewMode>('flat')
-  const [highlightFilter, setHighlightFilter] = useState<HighlightFilter>(null)
+  // Multi-select, not single-select: an empty set means "no filter" (show everything), and any
+  // combination of mine/skipped/other can be active at once — e.g. "mine OR skipped" to see
+  // everything that's ever been yours, active or not, without also pulling in the rest of the
+  // catalog. Standard faceted-filter-chip pattern (independent toggles + a clear-all action),
+  // not the earlier single-select segmented control this replaced.
+  const [highlightFilters, setHighlightFilters] = useState<Set<HighlightFilterValue>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
+
+  const toggleHighlightFilter = (value: HighlightFilterValue) => {
+    setHighlightFilters((prev) => {
+      const next = new Set(prev)
+      if (next.has(value)) next.delete(value)
+      else next.add(value)
+      return next
+    })
+  }
 
   // user?.id in the key (not just year/month) so logging in/out — a client-side navigation that
   // reuses the same React Query cache — gets its own cache entry instead of serving back the
@@ -136,14 +150,12 @@ export function BooksByMonthClient() {
 
   const filteredItems = useMemo(() => {
     let result = items
-    if (highlightFilter) {
-      result = highlightFilter === 'other'
-        ? result.filter((i) => i.highlight == null)
-        : result.filter((i) => i.highlight === highlightFilter)
+    if (highlightFilters.size > 0) {
+      result = result.filter((i) => highlightFilters.has(i.highlight ?? 'other'))
     }
     if (searchQuery.trim()) result = result.filter((i) => matchesSearch(i, searchQuery))
     return result
-  }, [items, highlightFilter, searchQuery])
+  }, [items, highlightFilters, searchQuery])
 
   const groups = useMemo((): BookGroup[] | null => {
     if (viewMode === 'flat') return null
@@ -195,28 +207,31 @@ export function BooksByMonthClient() {
       </div>
 
       {hasAnyHighlight && (
-        <div className={`${SEGMENT_WRAP} mb-6`} aria-label="Highlight filter">
+        <div className={`${SEGMENT_WRAP} mb-6`} aria-label="Highlight filter — select any combination">
           <button
-            onClick={() => setHighlightFilter(null)}
-            className={`${SEGMENT_BTN} ${highlightFilter === null ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
+            onClick={() => setHighlightFilters(new Set())}
+            className={`${SEGMENT_BTN} ${highlightFilters.size === 0 ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
           >
             All
           </button>
           <button
-            onClick={() => setHighlightFilter((f) => (f === 'mine' ? null : 'mine'))}
-            className={`${SEGMENT_BTN} ${highlightFilter === 'mine' ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
+            onClick={() => toggleHighlightFilter('mine')}
+            aria-pressed={highlightFilters.has('mine')}
+            className={`${SEGMENT_BTN} ${highlightFilters.has('mine') ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
           >
             <span className="h-2 w-2 rounded-full" style={{ background: '#d4af37' }} /> Mine
           </button>
           <button
-            onClick={() => setHighlightFilter((f) => (f === 'skipped' ? null : 'skipped'))}
-            className={`${SEGMENT_BTN} ${highlightFilter === 'skipped' ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
+            onClick={() => toggleHighlightFilter('skipped')}
+            aria-pressed={highlightFilters.has('skipped')}
+            className={`${SEGMENT_BTN} ${highlightFilters.has('skipped') ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
           >
             <span className="h-2 w-2 rounded-full bg-red-500" /> Skipped
           </button>
           <button
-            onClick={() => setHighlightFilter((f) => (f === 'other' ? null : 'other'))}
-            className={`${SEGMENT_BTN} ${highlightFilter === 'other' ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
+            onClick={() => toggleHighlightFilter('other')}
+            aria-pressed={highlightFilters.has('other')}
+            className={`${SEGMENT_BTN} ${highlightFilters.has('other') ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
           >
             <span className="h-2 w-2 rounded-full bg-stone-600" /> Other
           </button>
@@ -231,7 +246,7 @@ export function BooksByMonthClient() {
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="text-stone-500 text-center py-12 bg-stone-900/50 rounded-2xl border border-stone-800">
-          No matches for your search{highlightFilter ? ' and filters' : ''}.
+          No matches for your search{highlightFilters.size > 0 ? ' and filters' : ''}.
         </div>
       ) : viewMode === 'flat' ? (
         <div className={CARD_GRID}>

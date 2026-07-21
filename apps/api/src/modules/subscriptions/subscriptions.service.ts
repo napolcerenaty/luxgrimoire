@@ -167,38 +167,41 @@ export class SubscriptionsService {
     return (await this.cache.get<number>(this.catalogBooksBustKey())) ?? 0;
   }
 
-  // Earliest-year floor for the month pickers on the admin gaps / books-by-month pages — derived
-  // from data instead of a guessed constant, since a subscription could predate (or postdate) any
-  // fixed year we hardcode. Changes rarely (only on subscription create/edit), so a long TTL is
-  // safe — same bust trigger as the catalog caches below.
-  private readonly CATALOG_EARLIEST_YEAR_TTL = 7 * 24 * 60 * 60 * 1000;
-  private readonly catalogEarliestYearBustKey = () => 'subscriptions:catalog-earliest-year-bust';
-  private readonly catalogEarliestYearKey = (version: number) => `subscriptions:catalog-earliest-year:v${version}`;
+  // Earliest year+month floor for the month pickers on the admin gaps / books-by-month pages —
+  // derived from data instead of a guessed constant, since a subscription could predate (or
+  // postdate) any fixed year we hardcode, and truncating to year-only would still let the picker
+  // offer months before the earliest subscription actually started within its first year (e.g.
+  // startDate 2015-03 would wrongly allow Jan/Feb 2015). Changes rarely (only on subscription
+  // create/edit), so a long TTL is safe — same bust trigger as the catalog caches below.
+  private readonly CATALOG_EARLIEST_MONTH_TTL = 7 * 24 * 60 * 60 * 1000;
+  private readonly catalogEarliestMonthBustKey = () => 'subscriptions:catalog-earliest-month-bust';
+  private readonly catalogEarliestMonthKey = (version: number) => `subscriptions:catalog-earliest-month:v${version}`;
 
-  private async getCatalogEarliestYearCacheVersion(): Promise<number> {
-    return (await this.cache.get<number>(this.catalogEarliestYearBustKey())) ?? 0;
+  private async getCatalogEarliestMonthCacheVersion(): Promise<number> {
+    return (await this.cache.get<number>(this.catalogEarliestMonthBustKey())) ?? 0;
   }
 
   /** Bumps all catalog-wide caches — called whenever a month/book/subscription mutation
-   *  could change gap status, the books-by-month catalog, or the earliest-year floor. */
+   *  could change gap status, the books-by-month catalog, or the earliest-month floor. */
   private async invalidateCatalogMonthCaches(): Promise<void> {
     const now = Date.now();
     await Promise.all([
       this.cache.set(this.catalogGapsBustKey(), now, this.CATALOG_GAPS_TTL),
       this.cache.set(this.catalogBooksBustKey(), now, this.CATALOG_BOOKS_TTL),
-      this.cache.set(this.catalogEarliestYearBustKey(), now, this.CATALOG_EARLIEST_YEAR_TTL),
+      this.cache.set(this.catalogEarliestMonthBustKey(), now, this.CATALOG_EARLIEST_MONTH_TTL),
     ]);
   }
 
-  /** Earliest year any (non-hidden) subscription could plausibly need a month for — used as the
-   *  month pickers' lower bound instead of a hardcoded guess. Subscriptions with no startDate at
-   *  all can't contribute a floor (nothing to derive one from) — that's a data-completeness gap
-   *  to close by backfilling startDate, not something this query can compensate for. */
-  async getCatalogEarliestYear(): Promise<{ year: number }> {
-    const FALLBACK_YEAR = 2015;
-    const version = await this.getCatalogEarliestYearCacheVersion();
-    const cacheKey = this.catalogEarliestYearKey(version);
-    const cached = await this.cache.get<{ year: number }>(cacheKey);
+  /** Earliest (year, month) any (non-hidden) subscription could plausibly need a month for —
+   *  used as the month pickers' lower bound instead of a hardcoded guess. Subscriptions with no
+   *  startDate at all can't contribute a floor (nothing to derive one from) — that's a
+   *  data-completeness gap to close by backfilling startDate, not something this query can
+   *  compensate for. */
+  async getCatalogEarliestMonth(): Promise<{ year: number; month: number }> {
+    const FALLBACK = { year: 2015, month: 1 };
+    const version = await this.getCatalogEarliestMonthCacheVersion();
+    const cacheKey = this.catalogEarliestMonthKey(version);
+    const cached = await this.cache.get<{ year: number; month: number }>(cacheKey);
     if (cached) return cached;
 
     const earliest = await this.prisma.subscription.findFirst({
@@ -206,8 +209,10 @@ export class SubscriptionsService {
       orderBy: { startDate: 'asc' },
       select: { startDate: true },
     });
-    const result = { year: earliest?.startDate ? earliest.startDate.getUTCFullYear() : FALLBACK_YEAR };
-    await this.cache.set(cacheKey, result, this.CATALOG_EARLIEST_YEAR_TTL);
+    const result = earliest?.startDate
+      ? { year: earliest.startDate.getUTCFullYear(), month: earliest.startDate.getUTCMonth() + 1 }
+      : FALLBACK;
+    await this.cache.set(cacheKey, result, this.CATALOG_EARLIEST_MONTH_TTL);
     return result;
   }
 
@@ -433,6 +438,7 @@ export class SubscriptionsService {
               name: true,
               logoUrl: true,
               logoAsset: { select: { id: true, publicId: true } },
+              country: true,
               brandColors: true,
             },
           },
@@ -1203,7 +1209,21 @@ export class SubscriptionsService {
             bookId: true,
             editionId: true,
             book: { select: { slug: true, title: true, seriesName: true, volumeNumber: true, authors: { select: { author: { select: { name: true } } } } } },
-            edition: { select: { slug: true, additionalImages: true } },
+            edition: {
+              select: {
+                slug: true,
+                additionalImages: true,
+                // Same official-cover-first, community-photo-fallback precedence used
+                // everywhere else covers are shown (editions/books/collection/search/etc.) —
+                // APPROVED only, never PENDING/REMOVED, in a public-facing catalog.
+                communityImages: {
+                  where: { status: 'APPROVED' },
+                  orderBy: { sortOrder: 'asc' },
+                  take: 1,
+                  select: { url: true },
+                },
+              },
+            },
           },
         },
       },
@@ -1248,7 +1268,7 @@ export class SubscriptionsService {
           authors: mb.book.authors.map((a) => a.author.name),
           editionId: mb.editionId,
           editionSlug: mb.edition?.slug ?? null,
-          coverImage: mb.edition?.additionalImages?.[0] ?? null,
+          coverImage: mb.edition?.additionalImages?.[0] ?? mb.edition?.communityImages?.[0]?.url ?? null,
           isPlaceholder: false,
         });
       }
@@ -2531,10 +2551,13 @@ export class SubscriptionsService {
         effectiveStartDateObj = variantDbStartDate;
         effectiveSignupIncludes = true;
       }
+      // Standalone subs may have an entry startDate before the sub's own startDate (historical data
+      // entry) — computeFirstEligibleBoxMonth handles that case directly via subscriptionStartDate.
+      const eligibilitySubStartDate = parentSubscriptionId ? null : variantDbStartDate;
       const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
       const eligibleMonths = isCombo
-        ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1)
-        : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1);
+        ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1, eligibilitySubStartDate)
+        : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1, eligibilitySubStartDate);
       const mockEntry = {
         id: '__preview__',
         startDate: startDateStr,
@@ -2620,17 +2643,20 @@ export class SubscriptionsService {
         effectiveSignupIncludes = true; // subscription's first month is always eligible for pre-launch joiners
       }
     }
+    // Standalone subs may have an entry startDate before the sub's own startDate (historical data
+    // entry) — computeFirstEligibleBoxMonth handles that case directly via subscriptionStartDate.
+    const eligibilitySubStartDate = parentSubscriptionId ? null : variantDbStartDate;
     const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
 
     const eligibleMonths = isCombo
-      ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1)
-      : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1);
+      ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1, eligibilitySubStartDate)
+      : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1, eligibilitySubStartDate);
 
     // If paymentOnStartup and NOT already cancelled: register the first upcoming month's books as preorders
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
     if (paymentOnStartup && startDateObj && !isCombo && !dto.alreadyCancelled) {
-      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth, renewalDay, renewalMonthOffset, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1);
+      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth, renewalDay, renewalMonthOffset, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1, eligibilitySubStartDate);
     }
 
     // Persist nextRenewalDate (will be null for cancelled entries)
@@ -2647,7 +2673,7 @@ export class SubscriptionsService {
     return { entry, eligibleMonths };
   }
 
-  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null, intervalMonths = 1, startingMonth = 1) {
+  private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null, intervalMonths = 1, startingMonth = 1, subscriptionStartDate: Date | null = null) {
     if (!startDateObj) return [];
 
     const now = new Date();
@@ -2658,7 +2684,7 @@ export class SubscriptionsService {
       : computeLastProcessedBoxMonth(now, effectiveRenewalDay, renewalMonthOffset, intervalMonths, startingMonth);
 
     const { year: startYear, month: startMonth } = computeFirstEligibleBoxMonth(
-      startDateObj, effectiveRenewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth,
+      startDateObj, effectiveRenewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth, subscriptionStartDate,
     );
 
     // If startDate is at or after limit month → nothing to backfill
@@ -2723,7 +2749,7 @@ export class SubscriptionsService {
     return subs.map((s) => s.parentSubscriptionId ?? s.id);
   }
 
-  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null, intervalMonths = 1, startingMonth = 1) {
+  private async getComboEligibleMonths(componentIds: string[], startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null, intervalMonths = 1, startingMonth = 1, subscriptionStartDate: Date | null = null) {
     if (!startDateObj || componentIds.length === 0) return [];
 
     const now = new Date();
@@ -2734,7 +2760,7 @@ export class SubscriptionsService {
       : computeLastProcessedBoxMonth(now, effectiveRenewalDay, renewalMonthOffset, intervalMonths, startingMonth);
 
     const { year: startYear, month: startMonth } = computeFirstEligibleBoxMonth(
-      startDateObj, effectiveRenewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth,
+      startDateObj, effectiveRenewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth, subscriptionStartDate,
     );
 
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
@@ -2820,6 +2846,7 @@ export class SubscriptionsService {
     renewalMonthOffset = 0,
     intervalMonths = 1,
     startingMonth = 1,
+    subscriptionStartDate: Date | null = null,
   ) {
     const renewalDay = subRenewalDay ?? entry.renewalDay ?? 1;
     const { year: firstEligibleYear, month: firstEligibleMonth } = computeFirstEligibleBoxMonth(
@@ -2829,6 +2856,7 @@ export class SubscriptionsService {
       signupIncludesCurrentMonth,
       intervalMonths,
       startingMonth,
+      subscriptionStartDate,
     );
 
     // Find the first subscription month at or after the first eligible month
@@ -2935,13 +2963,26 @@ export class SubscriptionsService {
   }): Promise<void> {
     const existing = await this.prisma.userBookEntry.findFirst({
       where: { userId: opts.userId, editionId: opts.editionId, subscriptionEntryId: opts.subscriptionEntryId },
-      select: { id: true },
+      select: { id: true, ownershipStatus: true },
     });
     if (existing) {
+      // PREORDER is a provisional placeholder (e.g. auto-created by recordFirstMonthAsPreorder
+      // at join time, before the admin has picked a real status via backfill/unskip) — safe to
+      // correct once a real status is chosen. Anything else already set (OWNED, SOLD, BORROWED,
+      // ...) reflects a deliberate later action and must not be silently overwritten here.
+      const shouldUpdateStatus = !!opts.ownershipStatus && existing.ownershipStatus === 'PREORDER' && opts.ownershipStatus !== existing.ownershipStatus;
       await this.prisma.userBookEntry.update({
         where: { id: existing.id },
-        data: { purchaseGroupId: opts.purchaseGroupId },
+        data: {
+          purchaseGroupId: opts.purchaseGroupId,
+          ...(shouldUpdateStatus && { ownershipStatus: opts.ownershipStatus }),
+        },
       });
+      if (shouldUpdateStatus) {
+        await this.prisma.ownershipStatusHistory.create({
+          data: { userBookEntryId: existing.id, status: opts.ownershipStatus!, changedAt: opts.changedAt },
+        }).catch(() => {});
+      }
       return;
     }
     const status = opts.ownershipStatus ?? 'OWNED';

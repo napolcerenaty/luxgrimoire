@@ -316,10 +316,11 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
     });
 
     it('bundle with offset=1: target is May (first box of Q2) when now=Feb 15', async () => {
-      // offset=1: renewal Jan → first box Feb; renewal Apr → first box May
+      // startingMonth=2 (Feb) is the BOX month anchor; offset=1 shifts renewal back by 1:
+      // box Feb → renewal Jan; box May → renewal Apr; etc.
       // nextCalendarMonth=Mar; candidateMonth = Mar+1=Apr; subscriptionMonths start at May
-      // Note: offset shifts the subscriptionMonth records to box months: Feb, May, Aug, Nov
-      const sub = makeQuarterlyBundleSubscription({ renewalMonthOffset: 1 });
+      // Note: box months (from startingMonth=2) are: Feb, May, Aug, Nov
+      const sub = makeQuarterlyBundleSubscription({ renewalMonthOffset: 1, startingMonth: 2 });
       const prisma = makePrismaForGetStatus({
         subscription: sub,
         state: null,
@@ -467,8 +468,8 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
 
   // =========================================================================
   // Bundle skip with renewalMonthOffset
-  // offset=1: first box month = renewal month + 1
-  // Quarterly bundle: Q2 renewal = April → first box = May
+  // startingMonth=2 (Feb) is the BOX month anchor; offset=1 shifts renewal back by 1.
+  // Quarterly bundle: box May (Q2 first box) → renewal April
   // Skip record stored on May (box month) → converted to April (renewal) by refreshNextRenewalDate
   // =========================================================================
 
@@ -496,7 +497,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
       // computeNextRenewalDate(1, 3, 1, '2025-01-01', [{year:2025,month:4}]) → July 1 2025
       jest.setSystemTime(new Date('2025-02-15T12:00:00Z'));
 
-      const sub = makeQuarterlyBundleSubscription({ renewalMonthOffset: 1 });
+      const sub = makeQuarterlyBundleSubscription({ renewalMonthOffset: 1, startingMonth: 2 });
       const prisma = makePrismaForRecordSkip({
         subscription: sub,
         state: null,

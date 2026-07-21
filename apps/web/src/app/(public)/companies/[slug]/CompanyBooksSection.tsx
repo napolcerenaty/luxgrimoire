@@ -20,6 +20,7 @@ interface Props {
 }
 
 const PAGE_SIZE = 20
+const SEARCH_DEBOUNCE_MS = 300
 
 function SearchIcon() {
   return (
@@ -33,7 +34,8 @@ function SearchIcon() {
 export function CompanyBooksSection({ groups, brandColors }: Props) {
   const [activeTab, setActiveTab] = useState(0)
   const [search, setSearch] = useState('')
-  // Accumulated editions per tab index
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  // Accumulated editions per tab index (unfiltered browsing, not search)
   const [loadedEditions, setLoadedEditions] = useState<Record<number, ApiCompanyEdition[]>>({})
   // Server-reported total per tab (used for hasMore)
   const [totals, setTotals] = useState<Record<number, number>>({})
@@ -41,7 +43,19 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
   // Tabs hidden after loading with 0 results (hideIfEmpty groups)
   const [hiddenTabs, setHiddenTabs] = useState<Set<number>>(new Set())
 
+  // Server-side search results for the active tab — kept separate from loadedEditions
+  // so clearing the search restores the previously-loaded browsing list instantly.
+  const [searchResults, setSearchResults] = useState<ApiCompanyEdition[]>([])
+  const [searchTotal, setSearchTotal] = useState(0)
+  const [searchLoading, setSearchLoading] = useState(false)
+
   if (groups.length === 0) return null
+
+  // Debounce the raw input before it drives a server request
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(t)
+  }, [search])
 
   const loadPage = useCallback(async (idx: number, skip: number) => {
     setLoadingTab(idx)
@@ -66,11 +80,45 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groups])
 
+  // Runs the search server-side against the active tab's endpoint. `append` controls
+  // whether this is a fresh search (replace results) or a "load more" continuation.
+  const loadSearchPage = useCallback(async (idx: number, term: string, skip: number, append: boolean) => {
+    setSearchLoading(true)
+    try {
+      const sep = groups[idx].fetchPath.includes('?') ? '&' : '?'
+      const url = `${API_BASE}${groups[idx].fetchPath}${sep}search=${encodeURIComponent(term)}&skip=${skip}&take=${PAGE_SIZE}`
+      const res = await fetch(url, { credentials: 'include' })
+      const { data, total }: { data: ApiCompanyEdition[]; total: number } = await res.json()
+      setSearchTotal(total)
+      setSearchResults((prev) => {
+        if (!append) return data
+        const existingIds = new Set(prev.map((e) => e.id))
+        return [...prev, ...data.filter((e) => !existingIds.has(e.id))]
+      })
+    } catch {
+      if (!append) setSearchResults([])
+    } finally {
+      setSearchLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups])
+
   // Load first tab on mount
   useEffect(() => {
     loadPage(0, 0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Fire a fresh server-side search whenever the debounced term or active tab changes
+  useEffect(() => {
+    if (!debouncedSearch) {
+      setSearchResults([])
+      setSearchTotal(0)
+      return
+    }
+    loadSearchPage(activeTab, debouncedSearch, 0, false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, activeTab])
 
   // Hide tabs marked hideIfEmpty once we know they're empty, then switch away
   useEffect(() => {
@@ -101,6 +149,7 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
     if (nextVisible !== -1) {
       setActiveTab(nextVisible)
       setSearch('')
+      setDebouncedSearch('')
       if (loadedEditions[nextVisible] === undefined) {
         loadPage(nextVisible, 0)
       }
@@ -109,31 +158,33 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
   }, [hiddenTabs])
 
   const activeEditions = loadedEditions[activeTab] ?? []
-  const isLoading = loadingTab === activeTab && activeEditions.length === 0
-  const isFetchingMore = loadingTab === activeTab && activeEditions.length > 0
+  const isSearching = debouncedSearch.length > 0
+  const displayed = isSearching ? searchResults : activeEditions
+  const isLoading = isSearching
+    ? searchLoading && searchResults.length === 0
+    : loadingTab === activeTab && activeEditions.length === 0
+  const isFetchingMore = isSearching
+    ? searchLoading && searchResults.length > 0
+    : loadingTab === activeTab && activeEditions.length > 0
 
-  const filtered = (() => {
-    const q = search.toLowerCase().trim()
-    if (!q) return activeEditions
-    return activeEditions.filter(
-      (e) =>
-        e.book.title.toLowerCase().includes(q) ||
-        e.book.authors.some((a) => a.author.name.toLowerCase().includes(q)),
-    )
-  })()
-
-  const serverTotal = totals[activeTab] ?? 0
-  const hasMore = activeEditions.length < serverTotal
+  const serverTotal = isSearching ? searchTotal : (totals[activeTab] ?? 0)
+  const hasMore = displayed.length < serverTotal
 
   const handleTabChange = (idx: number) => {
     setActiveTab(idx)
     setSearch('')
+    setDebouncedSearch('')
     if (loadedEditions[idx] === undefined) {
       loadPage(idx, 0)
     }
   }
 
   const loadMore = () => {
+    if (isSearching) {
+      if (searchLoading) return
+      loadSearchPage(activeTab, debouncedSearch, searchResults.length, true)
+      return
+    }
     if (loadingTab !== null) return
     loadPage(activeTab, activeEditions.length)
   }
@@ -187,10 +238,10 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
         <div className="flex items-center justify-center py-16 text-stone-500 text-sm">
           Loading…
         </div>
-      ) : filtered.length > 0 ? (
+      ) : displayed.length > 0 ? (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {filtered.map((edition) => (
+            {displayed.map((edition) => (
               <EditionCard
                 key={edition.id}
                 href={`/editions/${edition.slug}`}
@@ -211,14 +262,14 @@ export function CompanyBooksSection({ groups, brandColors }: Props) {
                 disabled={isFetchingMore}
                 className="px-5 py-2 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-300 hover:bg-stone-700 hover:text-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isFetchingMore ? 'Loading…' : `Load more (${serverTotal - activeEditions.length} remaining)`}
+                {isFetchingMore ? 'Loading…' : `Load more (${serverTotal - displayed.length} remaining)`}
               </button>
             )}
           </div>
         </>
       ) : (
         <p className="text-stone-500 text-sm py-10 text-center">
-          {search ? 'No books match your search.' : 'No books in this group yet.'}
+          {isSearching ? 'No books match your search.' : 'No books in this group yet.'}
         </p>
       )}
     </section>

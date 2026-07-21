@@ -46,6 +46,9 @@
 - Auth on the endpoint determines whether `userId` can be populated at all: `@Public()` endpoints never see `req.user` (view events like `edition_view`/`book_view`/`subscription_view` only get `entityType`/`entityId`/`entityName`); `@OptionalAuth()` endpoints get `req.user?.id ?? null` (use this when a view/action should record identity when present without requiring login); fully authenticated endpoints use `@CurrentUser()`.
 - `AuditService` (`apps/api/src/modules/audit/audit.service.ts`) is a **different, unrelated** system — admin/moderator mutation audit trail only (`CREATE_SUBSCRIPTION`, `DELETE_SUBSCRIPTION`, etc.), always paired with `Roles(...)`-gated endpoints and an authenticated actor. Never use it for page views or anonymous-friendly events.
 
+## Verification
+- Do not verify UI changes in the browser (Browser pane/preview tools) — this environment's browser tooling is unreliable (navigation, screenshots, and clicks frequently hang or fail). Verify instead via type-check (`tsc --noEmit`), relevant test suites, and careful code review.
+
 ## Code conventions
 - All DB sentinel/initial records use `effectiveFrom = new Date(0)` (epoch) to cover all historical months — same pattern as `upsertSentinelPrice` and `subscription_settings_history`
 - Windows EPERM symlink errors during Next.js standalone build are pre-existing and not blocking

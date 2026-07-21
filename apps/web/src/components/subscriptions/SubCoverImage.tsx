@@ -6,9 +6,11 @@ interface Props {
   brandColors?: string[] | null
   aspectClass?: string
   hoverScale?: boolean
+  /** Rendered inside the image area (e.g. bottom ribbon) */
+  imageActions?: React.ReactNode
 }
 
-export function SubCoverImage({ coverUrl, name, brandColors, aspectClass = 'aspect-square', hoverScale = true }: Props) {
+export function SubCoverImage({ coverUrl, name, brandColors, aspectClass = 'aspect-square', hoverScale = true, imageActions }: Props) {
   const tc = brandTextClasses(brandColors)
   return (
     <div className={`${aspectClass} relative overflow-hidden bg-stone-950 flex items-center justify-center`}>
@@ -24,6 +26,7 @@ export function SubCoverImage({ coverUrl, name, brandColors, aspectClass = 'aspe
           <span className={`font-serif text-lg text-center leading-snug ${tc.primary}`}>{name.toUpperCase()}</span>
         </div>
       )}
+      {imageActions}
     </div>
   )
 }
