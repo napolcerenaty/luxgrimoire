@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, type WheelEvent } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, type WheelEvent, type PointerEvent } from 'react'
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
@@ -258,6 +258,34 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
     e.currentTarget.scrollLeft += e.deltaY
   }
 
+  // Click-and-drag scrolling (Pointer Events unify mouse/touch/pen). `moved` tracks whether
+  // the pointer travelled far enough to count as a drag rather than a click, so a drag that
+  // ends on top of a chip doesn't also fire that chip's onClick and change the active tab.
+  const dragState = useRef({ dragging: false, startX: 0, startScrollLeft: 0, moved: false })
+
+  const handleChipStripPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    dragState.current = { dragging: true, startX: e.clientX, startScrollLeft: el.scrollLeft, moved: false }
+    el.setPointerCapture(e.pointerId)
+  }
+
+  const handleChipStripPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!dragState.current.dragging) return
+    const dx = e.clientX - dragState.current.startX
+    if (Math.abs(dx) > 3) dragState.current.moved = true
+    e.currentTarget.scrollLeft = dragState.current.startScrollLeft - dx
+  }
+
+  const handleChipStripPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    dragState.current.dragging = false
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+
+  const handleChipClick = (idx: number) => {
+    if (dragState.current.moved) return
+    handleTabChange(idx)
+  }
+
   const handleTabChange = (idx: number) => {
     setActiveTab(idx)
     setSearch('')
@@ -333,14 +361,18 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
         // at the main column's edge instead of the real viewport edge. Reset to 0 at lg:.
         <div
           onWheel={handleChipStripWheel}
-          className="mb-6 -mx-4 px-4 lg:mx-0 lg:px-0 flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory"
+          onPointerDown={handleChipStripPointerDown}
+          onPointerMove={handleChipStripPointerMove}
+          onPointerUp={handleChipStripPointerUp}
+          onPointerCancel={handleChipStripPointerUp}
+          className="mb-6 -mx-4 px-4 lg:mx-0 lg:px-0 flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
         >
           {groups.map((group, idx) => {
             if (hiddenTabs.has(idx)) return null
             return (
               <button
                 key={group.label}
-                onClick={() => handleTabChange(idx)}
+                onClick={() => handleChipClick(idx)}
                 className={`shrink-0 snap-start flex items-center gap-1 max-w-[11rem] rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
                   activeTab === idx
                     ? 'bg-amber-900/30 border-amber-600 text-amber-400'
