@@ -266,14 +266,22 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
   const handleChipStripPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     const el = e.currentTarget
     dragState.current = { dragging: true, startX: e.clientX, startScrollLeft: el.scrollLeft, moved: false }
-    el.setPointerCapture(e.pointerId)
+    // Deliberately NOT capturing the pointer here yet — capturing on every press (even a
+    // stationary click) retargets the subsequent native `click` event to this container
+    // instead of the chip button underneath, silently breaking normal clicks. Only capture
+    // once movement confirms this is an actual drag, in handlePointerMove below.
   }
 
   const handleChipStripPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (!dragState.current.dragging) return
     const dx = e.clientX - dragState.current.startX
-    if (Math.abs(dx) > 3) dragState.current.moved = true
-    e.currentTarget.scrollLeft = dragState.current.startScrollLeft - dx
+    if (!dragState.current.moved && Math.abs(dx) > 3) {
+      dragState.current.moved = true
+      e.currentTarget.setPointerCapture(e.pointerId)
+    }
+    if (dragState.current.moved) {
+      e.currentTarget.scrollLeft = dragState.current.startScrollLeft - dx
+    }
   }
 
   const handleChipStripPointerUp = (e: PointerEvent<HTMLDivElement>) => {
