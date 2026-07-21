@@ -90,7 +90,7 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {Array.from({ length: PAGE_SIZE }).map((_, i) => (
             <div key={i} className="rounded-2xl border border-stone-800 bg-stone-900 animate-pulse aspect-[2/3]" />
           ))}
@@ -103,7 +103,7 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
       ) : (
         <>
           {view === 'grid' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {announcements.map((a) => <AnnouncementCard key={a.id} a={a} />)}
             </div>
           ) : (
