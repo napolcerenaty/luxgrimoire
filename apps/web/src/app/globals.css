@@ -336,6 +336,25 @@ input[type=number] {
   box-shadow: 0 0 0 2px rgba(87,83,78,0.8), 0 10px 26px rgba(87,83,78,0.24) !important;
 }
 
+/* Filter-chip status dots for the 4 ownership buckets above — hardcoded to the exact same RGB
+   as the matching .edition-glow-* box-shadow, deliberately NOT using Tailwind bg-amber-*/bg-stone-*
+   utilities. Those palettes are remapped to this site's blue/navy brand accent (see @theme block
+   at the top of this file), so a class like "bg-amber-400" renders blue here, not amber/gold —
+   that mismatch previously showed a blue "have it" dot where gold was intended. Keeping dot and
+   glow colors defined once, in the same place, means they can't drift apart again. */
+.status-dot-gold {
+  background-color: rgb(212,175,55);
+}
+.status-dot-amber {
+  background-color: rgb(217,119,6);
+}
+.status-dot-slate {
+  background-color: rgb(120,113,108);
+}
+.status-dot-red {
+  background-color: rgb(220,38,38);
+}
+
 /* Bottom "ribbon" overlay on card cover art (company/subscription/month name) — reused across
    EditionCarousel, MonthCard, HomeAnnouncementsSection, HomeTrendingSales, sale-announcements,
    ArtistTabs and BooksByMonthClient. The near-black background reads fine on the dark theme's
