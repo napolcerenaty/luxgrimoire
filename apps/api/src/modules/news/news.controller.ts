@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Query, Body, Request, HttpCode, HttpStatus,
+  Controller, Get, Post, Patch, Delete, Param, Query, Body, Headers, Request, HttpCode, HttpStatus, UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -7,7 +7,7 @@ import { NewsItemStatus } from '@prisma/client';
 import { NewsService } from './news.service';
 import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { CreateNewsDraftDto, UpdateNewsDraftDto, IngestScreenshotDto } from './news.dto';
+import { CreateNewsDraftDto, UpdateNewsDraftDto, IngestScreenshotDto, IngestEmailDto } from './news.dto';
 
 @ApiTags('news')
 @Controller('news')
@@ -51,6 +51,20 @@ export class NewsController {
     return this.newsService.markSeenForUser(user.id);
   }
 
+  // Cloudflare Worker webhook (spec 2.2) — not a logged-in caller, so it's gated
+  // by a shared secret header instead of JWT/roles. Actual Cloudflare Email
+  // Routing + Worker deployment is a separate, later step (not built here).
+  @Public()
+  @Post('ingest-email')
+  @HttpCode(HttpStatus.OK)
+  ingestEmail(@Body() dto: IngestEmailDto, @Headers('x-news-webhook-secret') secret?: string) {
+    const expected = process.env.NEWS_EMAIL_WEBHOOK_SECRET;
+    if (!expected || secret !== expected) {
+      throw new UnauthorizedException('Invalid or missing webhook secret');
+    }
+    return this.newsService.ingestEmail(dto);
+  }
+
   // ─── Admin ──────────────────────────────────────────────────────────────────
 
   @Get('admin/drafts')
@@ -70,6 +84,30 @@ export class NewsController {
   @Roles('ADMIN', 'MODERATOR')
   listPossibleDuplicates() {
     return this.newsService.listPossibleDuplicates();
+  }
+
+  // Subscription-confirmation emails awaiting a manual click (spec 2.2.1).
+  @Get('admin/action-required')
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  listActionRequired() {
+    return this.newsService.listActionRequired();
+  }
+
+  @Post('admin/action-required/:id/resolve')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  resolveActionRequired(@Param('id') id: string) {
+    return this.newsService.resolveActionRequired(id);
+  }
+
+  // Silent ESP drop-off monitor (spec 2.2).
+  @Get('admin/stale-newsletters')
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  staleNewsletters(@Query('days') days?: string) {
+    return this.newsService.findStaleNewsletterCompanies(days ? Number(days) : undefined);
   }
 
   @Get('admin/:id')

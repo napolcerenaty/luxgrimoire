@@ -216,6 +216,8 @@ describe('NewsService.ingestScreenshot — Phase 2 (spec section 2.3/4.1)', () =
             create: {
               sourceType: 'INSTAGRAM_SCREENSHOT',
               rawContentRef: 'https://res.cloudinary.com/x/abc.jpg',
+              externalRef: undefined,
+              companyName: 'Illumicrate',
               mergeStatus: 'CONFIRMED',
             },
           },
@@ -301,6 +303,7 @@ describe('NewsService.ingestFromRssEntry — Phase 3 (spec 2.1)', () => {
               sourceType: 'RSS',
               rawContentRef: "This month's theme is...",
               externalRef: 'https://illumicrate.com/blogs/news/august-2026-theme',
+              companyName: 'Illumicrate',
               mergeStatus: 'CONFIRMED',
             },
           },
@@ -394,5 +397,130 @@ describe('NewsService — dedup (Phase 4, spec section 5)', () => {
     await service.declineDuplicate('n1');
 
     expect(prisma.newsItem.update).toHaveBeenCalledWith({ where: { id: 'n1' }, data: { possibleDuplicateOfId: null } });
+  });
+});
+
+describe('NewsService.ingestEmail — Phase 5 (spec 2.2/2.2.1)', () => {
+  let service: NewsService;
+  let prisma: DeepMockProxy<PrismaService>;
+  let aiService: { parseNewsAnnouncement: jest.Mock; checkForDuplicate: jest.Mock };
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    aiService = { parseNewsAnnouncement: jest.fn(), checkForDuplicate: jest.fn() };
+    (prisma.newsSourceRecord.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.newsItem.findMany as jest.Mock).mockResolvedValue([]);
+    service = new NewsService(prisma, aiService as unknown as AiService, {} as UploadService);
+    // Never actually hit the network for tracking pixels in tests.
+    (global as any).fetch = jest.fn().mockResolvedValue({ ok: true });
+  });
+
+  it('routes a confirmation email to the "needs action" queue, never through news classification', async () => {
+    const html = '<p>Please confirm your subscription</p><a href="https://list.example.com/confirm?id=1">Confirm</a>';
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'Illumicrate' });
+
+    await service.ingestEmail({ subject: 'Confirm your subscription', html, messageId: 'msg-1' });
+
+    expect(prisma.newsSourceRecord.create).toHaveBeenCalledWith({
+      data: {
+        sourceType: 'EMAIL_ACTION_REQUIRED',
+        rawContentRef: html,
+        externalRef: 'msg-1',
+        companyName: 'Illumicrate',
+        actionUrl: 'https://list.example.com/confirm?id=1',
+        mergeStatus: 'PENDING_REVIEW',
+      },
+    });
+    expect(prisma.newsItem.create).not.toHaveBeenCalled();
+  });
+
+  it('classifies a genuine newsletter as a normal draft, tagged with sourceType EMAIL', async () => {
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'Illumicrate', title: 'August theme' });
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n1' });
+
+    await service.ingestEmail({ subject: 'August 2026 Theme Reveal', html: '<p>This month...</p>', messageId: 'msg-2' });
+
+    expect(prisma.newsItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sources: expect.objectContaining({
+            create: expect.objectContaining({ sourceType: 'EMAIL', externalRef: 'msg-2' }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('fires a GET at any open-tracking pixel found in a genuine newsletter (simulate open, spec 2.2)', async () => {
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'Illumicrate', title: 'August theme' });
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n1' });
+    const html = '<p>News</p><img src="https://track.example.com/open/abc" width="1" height="1"/>';
+
+    await service.ingestEmail({ subject: 'August theme', html });
+    await new Promise((r) => setImmediate(r)); // let the fire-and-forget pixel GET settle
+
+    expect(global.fetch).toHaveBeenCalledWith('https://track.example.com/open/abc', expect.anything());
+  });
+
+  it('skips (no-op) an email whose messageId was already ingested', async () => {
+    (prisma.newsSourceRecord.findUnique as jest.Mock).mockResolvedValue({ id: 'existing' });
+
+    const result = await service.ingestEmail({ subject: 'x', html: 'y', messageId: 'already-seen' });
+
+    expect(result).toBeNull();
+    expect(aiService.parseNewsAnnouncement).not.toHaveBeenCalled();
+  });
+});
+
+describe('NewsService — action-required queue (Phase 5, spec 2.2.1)', () => {
+  let service: NewsService;
+  let prisma: DeepMockProxy<PrismaService>;
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    service = new NewsService(prisma, {} as AiService, {} as UploadService);
+  });
+
+  it('resolveActionRequired() deletes the record once the admin has handled it', async () => {
+    (prisma.newsSourceRecord.findUnique as jest.Mock).mockResolvedValue({ id: 'a1', sourceType: 'EMAIL_ACTION_REQUIRED' });
+    (prisma.newsSourceRecord.delete as jest.Mock).mockResolvedValue({ id: 'a1' });
+
+    await service.resolveActionRequired('a1');
+
+    expect(prisma.newsSourceRecord.delete).toHaveBeenCalledWith({ where: { id: 'a1' } });
+  });
+
+  it('resolveActionRequired() refuses to touch a normal (non-action-required) source record', async () => {
+    (prisma.newsSourceRecord.findUnique as jest.Mock).mockResolvedValue({ id: 'a1', sourceType: 'EMAIL' });
+    await expect(service.resolveActionRequired('a1')).rejects.toThrow(NotFoundException);
+  });
+});
+
+describe('NewsService.findStaleNewsletterCompanies — Phase 5 (spec 2.2)', () => {
+  let service: NewsService;
+  let prisma: DeepMockProxy<PrismaService>;
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    service = new NewsService(prisma, {} as AiService, {} as UploadService);
+  });
+
+  it('flags a newsletter-subscribed company with no recent EMAIL source as stale', async () => {
+    (prisma.bookBoxCompany.findMany as jest.Mock).mockResolvedValue([
+      { id: 'c1', name: 'Illumicrate' },
+      { id: 'c2', name: 'OwlCrate' },
+    ]);
+    (prisma.newsSourceRecord.findMany as jest.Mock).mockResolvedValue([{ companyName: 'Illumicrate' }]);
+
+    const stale = await service.findStaleNewsletterCompanies(60);
+
+    expect(stale).toEqual([{ id: 'c2', name: 'OwlCrate' }]);
+  });
+
+  it('is case-insensitive when matching company names', async () => {
+    (prisma.bookBoxCompany.findMany as jest.Mock).mockResolvedValue([{ id: 'c1', name: 'Illumicrate' }]);
+    (prisma.newsSourceRecord.findMany as jest.Mock).mockResolvedValue([{ companyName: 'ILLUMICRATE' }]);
+
+    expect(await service.findStaleNewsletterCompanies(60)).toEqual([]);
   });
 });

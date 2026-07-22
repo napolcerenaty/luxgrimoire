@@ -6,8 +6,12 @@ import { CreateNewsDraftDto, UpdateNewsDraftDto } from './news.dto';
 import { AiService } from '../ai/ai.service';
 import { AiNewsParseResult } from '../ai/ai.service';
 import { UploadService } from '../upload/upload.service';
+import { extractTextFromHtml } from '../../common/utils/html-to-text.util';
+import { assertPublicHttpsUrl } from '../../common/utils/ssrf-guard.util';
+import { looksLikeConfirmationEmail, extractActionLink, extractTrackingPixelUrls } from './email-parse.util';
 
 const SCREENSHOT_FOLDER = 'luxgrimoire/news-sources';
+const STALE_NEWSLETTER_DEFAULT_DAYS = 60;
 
 @Injectable()
 export class NewsService {
@@ -63,6 +67,105 @@ export class NewsService {
     });
   }
 
+  // ─── Ingestion (Phase 5 — newsletter e-mail) ───────────────────────────────
+
+  /**
+   * Raw email (already MIME-parsed by the Cloudflare Worker, spec 2.2) -> either
+   * (a) a "needs action" queue entry if it looks like a subscription-confirmation
+   * email (spec 2.2.1 — never auto-clicked, an admin does that manually), or
+   * (b) a normal draft NewsItem via the same classification path as RSS/screenshot.
+   */
+  async ingestEmail(input: { subject: string; html: string; messageId?: string }) {
+    if (input.messageId) {
+      const already = await this.prisma.newsSourceRecord.findUnique({ where: { externalRef: input.messageId } });
+      if (already) return null;
+    }
+
+    if (looksLikeConfirmationEmail(input.subject, input.html)) {
+      const parsed = await this.aiService.parseNewsAnnouncement({ text: extractTextFromHtml(input.html) }).catch(() => null);
+      return this.prisma.newsSourceRecord.create({
+        data: {
+          sourceType: 'EMAIL_ACTION_REQUIRED',
+          rawContentRef: input.html,
+          externalRef: input.messageId,
+          companyName: parsed?.companyName,
+          actionUrl: extractActionLink(input.html) ?? undefined,
+          mergeStatus: 'PENDING_REVIEW',
+        },
+      });
+    }
+
+    const textContent = extractTextFromHtml(input.html);
+    const parsed = await this.aiService.parseNewsAnnouncement({ text: `${input.subject}\n\n${textContent}` });
+
+    const created = await this.createDraftFromParsed(parsed, {
+      sourceType: 'EMAIL',
+      rawContentRef: input.html,
+      externalRef: input.messageId,
+    });
+
+    // Best-effort "simulate open" (spec 2.2) — fire-and-forget, never blocks/fails ingestion.
+    void this.simulateOpen(input.html);
+
+    return created;
+  }
+
+  /** GETs any open-tracking pixel found in the mail, so our address doesn't look chronically unengaged to the ESP. */
+  private async simulateOpen(html: string): Promise<void> {
+    const pixels = extractTrackingPixelUrls(html);
+    await Promise.allSettled(
+      pixels.map(async (url) => {
+        try {
+          assertPublicHttpsUrl(url);
+          await fetch(url, { signal: AbortSignal.timeout(10_000) });
+        } catch (err) {
+          this.logger.warn(`Failed to simulate "open" for tracking pixel ${url}: ${err}`);
+        }
+      }),
+    );
+  }
+
+  /** The "needs action" queue (spec 2.2.1) — subscription-confirmation emails awaiting a manual click. */
+  async listActionRequired() {
+    return this.prisma.newsSourceRecord.findMany({
+      where: { sourceType: 'EMAIL_ACTION_REQUIRED' },
+      orderBy: { ingestedAt: 'desc' },
+    });
+  }
+
+  /** Admin clicked the link (or dismissed it) — removes it from the queue. Nothing else references this row. */
+  async resolveActionRequired(id: string) {
+    const record = await this.prisma.newsSourceRecord.findUnique({ where: { id } });
+    if (!record || record.sourceType !== 'EMAIL_ACTION_REQUIRED') {
+      throw new NotFoundException('Action-required item not found');
+    }
+    await this.prisma.newsSourceRecord.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  /**
+   * Silent-drop-off monitor (spec 2.2): companies marked as newsletter-subscribed
+   * with no EMAIL-sourced ingestion in the last `thresholdDays` — either they
+   * stopped sending, or our address quietly fell off their list.
+   */
+  async findStaleNewsletterCompanies(thresholdDays = STALE_NEWSLETTER_DEFAULT_DAYS) {
+    const cutoff = new Date(Date.now() - thresholdDays * 24 * 60 * 60 * 1000);
+    const subscribed = await this.prisma.bookBoxCompany.findMany({
+      where: { newsletterSubscribed: true },
+      select: { id: true, name: true },
+    });
+
+    // companyName lives on the source row itself (not just the NewsItem it currently
+    // points to) precisely so this survives dedup-merges and hard-deletes of the item.
+    const recentSenders = await this.prisma.newsSourceRecord.findMany({
+      where: { sourceType: 'EMAIL', ingestedAt: { gte: cutoff } },
+      select: { companyName: true },
+    });
+    const recentNames = new Set(recentSenders.map((r) => r.companyName?.toLowerCase()).filter(Boolean));
+
+    return subscribed.filter((c) => !recentNames.has(c.name.toLowerCase()));
+  }
+
   private async createDraftFromParsed(
     parsed: AiNewsParseResult,
     source: { sourceType: NewsSourceType; rawContentRef?: string; externalRef?: string; fallbackOriginalSourceUrl?: string },
@@ -89,6 +192,10 @@ export class NewsService {
             sourceType: source.sourceType,
             rawContentRef: source.rawContentRef,
             externalRef: source.externalRef,
+            // Denormalized onto the source row too (not just the NewsItem) so the
+            // stale-newsletter monitor (findStaleNewsletterCompanies) still sees
+            // "we did receive an email" even if this NewsItem later gets hard-deleted.
+            companyName,
             mergeStatus: 'CONFIRMED',
           },
         },

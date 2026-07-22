@@ -1704,6 +1704,7 @@ enum NewsSourceType {
   RSS
   EMAIL
   INSTAGRAM_SCREENSHOT
+  EMAIL_ACTION_REQUIRED
 }
 
 enum NewsSourceMergeStatus {
@@ -1744,11 +1745,14 @@ model NewsSourceRecord {
   sourceType    NewsSourceType
   rawContentRef String?
   externalRef   String?               @unique
+  actionUrl     String?
+  companyName   String?
   ingestedAt    DateTime              @default(now())
   mergeStatus   NewsSourceMergeStatus @default(PENDING_REVIEW)
   newsItem      NewsItem?             @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
 
   @@index([newsItemId])
   @@index([mergeStatus])
+  @@index([sourceType])
   @@map("news_source_records")
 }

@@ -12,6 +12,21 @@ export class IngestScreenshotDto {
   caption?: string;
 }
 
+export class IngestEmailDto {
+  @IsString()
+  @MaxLength(998) // RFC 5322 max header line length
+  subject!: string;
+
+  @IsString()
+  @MaxLength(500_000)
+  html!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(998)
+  messageId?: string;
+}
+
 export class CreateNewsDraftDto {
   @IsString()
   @MaxLength(200)
