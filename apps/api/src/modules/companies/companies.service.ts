@@ -20,6 +20,17 @@ const companyEditionsSubCountKey = (slug: string, subscriptionId: string) => `co
 const companyEditionsColCountKey = (slug: string, collectionId: string) => `companies:slug:${slug}:editions:col:${collectionId}:count`;
 const companyEditionsNoCollectionCountKey = (slug: string) => `companies:slug:${slug}:editions:nocol:count`;
 
+// Postgres's default collation for text ordering depends on how the server/image was
+// initialized (e.g. locale-aware "en_US.utf8" locally vs byte-order "C" in some prod
+// containers) — under "C", ORDER BY sorts all-uppercase names before any lowercase-starting
+// one, which pushed "smut&sip" to the very end of the list instead of its alphabetical spot
+// between "Romance Cartel" and "The Arcane Society". `orderBy: { name: 'asc' }` is left in
+// the Prisma query as a reasonable DB-side default, but the final sort is redone here with
+// Node's locale-aware, case-insensitive comparator so the visible order is correct regardless
+// of the underlying DB collation.
+const byNameAsc = <T extends { name: string }>(a: T, b: T) =>
+  a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+
 function formatInterval(n: number): string {
   if (n === 1) return 'Monthly';
   if (n === 2) return 'Bimonthly';
@@ -106,10 +117,11 @@ export class CompaniesService {
   }
 
   async findNames(): Promise<{ id: string; name: string }[]> {
-    return this.prisma.bookBoxCompany.findMany({
+    const rows = await this.prisma.bookBoxCompany.findMany({
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });
+    return rows.sort(byNameAsc);
   }
 
   async findAllBrandColors(): Promise<{ slug: string; brandColors: string[] }[]> {
@@ -166,7 +178,7 @@ export class CompaniesService {
       this.prisma.bookBoxCompany.count({ where }),
     ]);
 
-    return { data: data.map((company: any) => this.mapCompanyAssets(company)), ...buildPageMeta(total, page, pageSize) };
+    return { data: data.sort(byNameAsc).map((company: any) => this.mapCompanyAssets(company)), ...buildPageMeta(total, page, pageSize) };
   }
 
   async findBySlug(slug: string) {
