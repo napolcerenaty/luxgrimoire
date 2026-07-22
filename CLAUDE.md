@@ -27,6 +27,7 @@
 - **Column names in migrations must use camelCase with double-quotes** (e.g. `ALTER TABLE users ADD COLUMN "statsSettings" JSONB`) — the project uses camelCase column names throughout, never snake_case
 - Never add DROP TABLE or DROP COLUMN without explicit user confirmation
 - **Never remove columns/tables in the same migration/release as the additive changes that replace them** — if a deployment fails or needs rollback, the old columns/tables must still be there to fall back to. Land the additive schema + backfill in one release; ship the DROP TABLE/DROP COLUMN cleanup in a separate, later migration once that release is confirmed stable in production
+- **For a feature built on its own dedicated feature branch (not directly on `development`)**: write the migration file, but do NOT apply it against the local database (no `prisma db execute` / `prisma migrate resolve`) while still on that branch. Only run those commands after the branch is merged into `development` — keeps local DB state matching whatever branch is actually checked out and avoids drift/mismatch when switching branches mid-feature.
 
 ## Design & spec files
 - Before implementing any feature, read the relevant spec file from the user's Desktop (e.g. `luxgrimoire-feature-categories-v2.md`, `backfill-subskrypcji-pseudokod.md`, etc.)
