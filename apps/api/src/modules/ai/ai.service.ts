@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException, InternalServerErrorException }
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { FeatureTaggerService } from '../feature-categories/feature-tagger.service';
+import { extractTextFromHtml } from '../../common/utils/html-to-text.util';
 
 export interface AiSaleRegion {
   name: string;
@@ -684,38 +685,6 @@ export class AiService {
     return url;
   }
 
-  private extractTextFromHtml(html: string): string {
-    // Remove script/style blocks and their content
-    let text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
-      .replace(/<header[\s\S]*?<\/header>/gi, ' ')
-      .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
-      // Replace block-level tags with newlines
-      .replace(/<\/(p|div|section|article|li|h[1-6]|br|tr|td|th|blockquote)>/gi, '\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      // Strip all remaining tags
-      .replace(/<[^>]+>/g, ' ')
-      // Decode common HTML entities
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;|&apos;/g, "'")
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-      // Collapse whitespace
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    // Truncate to 15k chars to stay within token limits
-    if (text.length > 15_000) {
-      text = text.slice(0, 15_000) + '\n[content truncated]';
-    }
-    return text;
-  }
-
   async parseSaleAnnouncementFromUrl(rawUrl: string): Promise<AiSaleAnnouncementResult> {
     this.guardSsrf(rawUrl);
 
@@ -741,7 +710,7 @@ export class AiService {
       throw new BadRequestException(`Could not fetch URL: ${(e as Error).message}`);
     }
 
-    const text = this.extractTextFromHtml(html);
+    const text = extractTextFromHtml(html);
     if (!text) {
       throw new BadRequestException('Could not extract text content from URL');
     }

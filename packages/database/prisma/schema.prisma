@@ -1739,6 +1739,7 @@ model NewsSourceRecord {
   newsItemId    String?
   sourceType    NewsSourceType
   rawContentRef String?
+  externalRef   String?               @unique
   ingestedAt    DateTime              @default(now())
   mergeStatus   NewsSourceMergeStatus @default(PENDING_REVIEW)
   newsItem      NewsItem?             @relation(fields: [newsItemId], references: [id], onDelete: Cascade)

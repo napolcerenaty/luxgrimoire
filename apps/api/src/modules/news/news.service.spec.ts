@@ -242,3 +242,67 @@ describe('NewsService.ingestScreenshot — Phase 2 (spec section 2.3/4.1)', () =
     expect(prisma.newsItem.create).not.toHaveBeenCalled();
   });
 });
+
+describe('NewsService.ingestFromRssEntry — Phase 3 (spec 2.1)', () => {
+  let service: NewsService;
+  let prisma: DeepMockProxy<PrismaService>;
+  let aiService: { parseNewsAnnouncement: jest.Mock };
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    aiService = { parseNewsAnnouncement: jest.fn() };
+    service = new NewsService(prisma, aiService as unknown as AiService, {} as UploadService);
+  });
+
+  it('skips (no-op) an entry whose link was already ingested — avoids re-drafting the same feed item every poll', async () => {
+    (prisma.newsSourceRecord.findUnique as jest.Mock).mockResolvedValue({ id: 'existing' });
+
+    const result = await service.ingestFromRssEntry({
+      link: 'https://example.com/already-seen',
+      title: 'x',
+      textContent: 'y',
+    });
+
+    expect(result).toBeNull();
+    expect(aiService.parseNewsAnnouncement).not.toHaveBeenCalled();
+    expect(prisma.newsItem.create).not.toHaveBeenCalled();
+  });
+
+  it('ingests a genuinely new entry, storing its link as externalRef and as the source-url fallback', async () => {
+    (prisma.newsSourceRecord.findUnique as jest.Mock).mockResolvedValue(null);
+    aiService.parseNewsAnnouncement.mockResolvedValue({
+      companyName: 'Illumicrate',
+      type: 'MONTH_THEME',
+      title: 'August 2026 Theme Reveal',
+      summary: 'Illumicrate revealed August.',
+      // no originalSourceUrl from the AI this time — should fall back to the entry link
+    });
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n1' });
+
+    await service.ingestFromRssEntry({
+      link: 'https://illumicrate.com/blogs/news/august-2026-theme',
+      title: 'August 2026 Theme Reveal',
+      textContent: "This month's theme is...",
+    });
+
+    expect(aiService.parseNewsAnnouncement).toHaveBeenCalledWith({
+      text: "August 2026 Theme Reveal\n\nThis month's theme is...",
+      sourceUrl: 'https://illumicrate.com/blogs/news/august-2026-theme',
+    });
+    expect(prisma.newsItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          originalSourceUrl: 'https://illumicrate.com/blogs/news/august-2026-theme',
+          sources: {
+            create: {
+              sourceType: 'RSS',
+              rawContentRef: "This month's theme is...",
+              externalRef: 'https://illumicrate.com/blogs/news/august-2026-theme',
+              mergeStatus: 'CONFIRMED',
+            },
+          },
+        }),
+      }),
+    );
+  });
+});

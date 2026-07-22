@@ -1,9 +1,10 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
-import { NewsItemStatus, NewsItemType } from '@prisma/client';
+import { NewsItemStatus, NewsItemType, NewsSourceType } from '@prisma/client';
 import { CreateNewsDraftDto, UpdateNewsDraftDto } from './news.dto';
 import { AiService } from '../ai/ai.service';
+import { AiNewsParseResult } from '../ai/ai.service';
 import { UploadService } from '../upload/upload.service';
 
 const SCREENSHOT_FOLDER = 'luxgrimoire/news-sources';
@@ -31,8 +32,42 @@ export class NewsService {
       this.uploadService.uploadImageBase64(this.toDataUri(imageBase64), SCREENSHOT_FOLDER),
     ]);
 
+    return this.createDraftFromParsed(parsed, {
+      sourceType: 'INSTAGRAM_SCREENSHOT',
+      rawContentRef: uploaded.url,
+    });
+  }
+
+  // ─── Ingestion (Phase 3 — RSS/blog) ─────────────────────────────────────────
+
+  /**
+   * One already-fetched feed entry -> AI classification -> draft NewsItem.
+   * `externalRef` (the entry's own link) is how the poller avoids re-ingesting the
+   * same feed item on every cron tick — returns null (no-op) if already seen.
+   */
+  async ingestFromRssEntry(entry: { link: string; title: string; textContent: string }) {
+    const already = await this.prisma.newsSourceRecord.findUnique({ where: { externalRef: entry.link } });
+    if (already) return null;
+
+    const parsed = await this.aiService.parseNewsAnnouncement({
+      text: `${entry.title}\n\n${entry.textContent}`,
+      sourceUrl: entry.link,
+    });
+
+    return this.createDraftFromParsed(parsed, {
+      sourceType: 'RSS',
+      rawContentRef: entry.textContent,
+      externalRef: entry.link,
+      fallbackOriginalSourceUrl: entry.link,
+    });
+  }
+
+  private async createDraftFromParsed(
+    parsed: AiNewsParseResult,
+    source: { sourceType: NewsSourceType; rawContentRef?: string; externalRef?: string; fallbackOriginalSourceUrl?: string },
+  ) {
     if (!parsed.companyName && !parsed.title) {
-      throw new BadRequestException('Could not extract any usable news information from this screenshot');
+      throw new BadRequestException('Could not extract any usable news information from this source');
     }
 
     return this.prisma.newsItem.create({
@@ -41,11 +76,12 @@ export class NewsService {
         title: parsed.title ?? `${parsed.companyName ?? 'Untitled'} — news`,
         type: this.mapAiType(parsed.type),
         summary: parsed.summary,
-        originalSourceUrl: parsed.originalSourceUrl,
+        originalSourceUrl: parsed.originalSourceUrl ?? source.fallbackOriginalSourceUrl,
         sources: {
           create: {
-            sourceType: 'INSTAGRAM_SCREENSHOT',
-            rawContentRef: uploaded.url,
+            sourceType: source.sourceType,
+            rawContentRef: source.rawContentRef,
+            externalRef: source.externalRef,
             mergeStatus: 'CONFIRMED',
           },
         },
