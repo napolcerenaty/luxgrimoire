@@ -35,14 +35,13 @@ export function CookieBanner() {
 
         <p className="flex-1 text-xs leading-relaxed text-stone-400">
           <span className="font-medium text-stone-300">
-            We use browser storage to keep you signed in and remember your theme preference.
+            We use a secure cookie to keep you signed in, plus browser storage to remember your theme preference and which News updates you&apos;ve already seen.
           </span>{' '}
           We do{' '}
           <strong className="font-semibold text-stone-200">
             not
           </strong>{' '}
           use tracking, analytics or advertising cookies.{' '}
-          {/* Update when Faza 4 httpOnly session cookie is added */}
           All stored data stays on your device and is used solely to make the app work.
         </p>
 

@@ -7,13 +7,14 @@ export const metadata: Metadata = {
 }
 
 const EFFECTIVE_DATE = 'May 1, 2025'
+const LAST_UPDATED = 'July 22, 2026'
 const CONTACT_EMAIL = 'contact@luxgrimoire.com'
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16">
       <h1 className="text-4xl font-serif font-bold text-amber-400 mb-3 tracking-wide">Privacy Policy</h1>
-      <p className="text-stone-500 text-sm mb-12">Effective date: {EFFECTIVE_DATE}</p>
+      <p className="text-stone-500 text-sm mb-12">Effective date: {EFFECTIVE_DATE} · Last updated: {LAST_UPDATED}</p>
 
       <div className="prose prose-invert prose-stone max-w-none space-y-10 text-stone-300 leading-relaxed">
 
@@ -163,9 +164,11 @@ export default function PrivacyPolicyPage() {
 
         <section>
           <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">9. Cookies & Local Storage</h2>
-          <p>LuxGrimoire uses minimal browser storage:</p>
+          <p>LuxGrimoire uses minimal, strictly functional browser storage — no tracking or advertising cookies:</p>
           <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
-            <li><strong className="text-stone-300">Authentication token:</strong> stored in browser local storage to keep you logged in. Expires after 7 days of inactivity.</li>
+            <li><strong className="text-stone-300">Session cookie:</strong> a secure httpOnly cookie that keeps you logged in. Expires after 7 days of inactivity.</li>
+            <li><strong className="text-stone-300">news_last_seen_at cookie:</strong> remembers which News items you&apos;ve already seen (only set for visitors who aren&apos;t logged in — logged-in accounts store this server-side instead). Expires after 13 months.</li>
+            <li><strong className="text-stone-300">Theme preference:</strong> stored in browser local storage.</li>
             <li>We do <strong className="text-stone-300">not</strong> use advertising cookies or third-party tracking scripts.</li>
           </ul>
         </section>
