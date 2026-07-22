@@ -214,7 +214,7 @@ export default async function CompanyPage({ params }: Props) {
             <span className="text-sm text-stone-400 mb-3 block">{company.country}</span>
           )}
           {company.description && (
-            <p className="text-stone-300 leading-relaxed max-w-2xl">{company.description}</p>
+            <p className="text-stone-300 leading-relaxed max-w-2xl whitespace-pre-line">{company.description}</p>
           )}
         </div>
       </div>
