@@ -710,13 +710,19 @@ function SubscriptionForm({
               </div>
             )}
             <div>
-              <label className={LABEL_CLASS}>Renewal month offset (0 = same month, 1 = charged 1 month before box)</label>
-              <input type="number" min={0} max={11} className={INPUT_CLASS}
+              <label className={LABEL_CLASS}>Renewal month offset (0 = same month, 1 = charged 1 month before box, -2 = renewal is 2 months after box start)</label>
+              <input type="number" min={-11} max={11} className={INPUT_CLASS}
                 value={form.renewalMonthOffset} onChange={setStr('renewalMonthOffset')} placeholder="0" />
             </div>
             {(parseInt(form.intervalMonths, 10) > 1 || form.intervalMonths === 'custom') && (
               <div>
                 <label className={LABEL_CLASS}>Starting month of cycle</label>
+                <p className="text-xs text-stone-500 mb-1">
+                  The first <strong>box/content month</strong> of the cycle — NOT the payment month.
+                  E.g. bi-monthly with offset=1: if boxes ship Jun/Aug/Oct/…, set this to <strong>June</strong>,
+                  even though payment is charged in May/Jul/Sep/… . Use the offset field above to shift billing
+                  relative to this month.
+                </p>
                 <select className={SELECT_CLASS} value={form.startingMonth} onChange={setStr('startingMonth')}>
                   <option value="">— Select month —</option>
                   {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
@@ -1124,8 +1130,8 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                           <span className="text-stone-500">Offset (months)</span>
                           <input
                             type="number"
-                            min={0}
-                            max={3}
+                            min={-11}
+                            max={11}
                             value={editState.renewalMonthOffset}
                             onChange={e => setField('renewalMonthOffset', e.target.value)}
                             className="bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-xs w-20"
@@ -1431,6 +1437,7 @@ export default function AdminSubscriptionsPage() {
   const { user } = useAuth()
   const createModal = useModalState()
   const [editSub, setEditSub] = useState<ApiSubscription | null>(null)
+  const [editSubLoading, setEditSubLoading] = useState(false)
   const [deleteSub, setDeleteSub] = useState<ApiSubscription | null>(null)
   const PAGE_SIZE = 15
 
@@ -1681,6 +1688,11 @@ export default function AdminSubscriptionsPage() {
       )}
 
       {/* Inline Edit panel */}
+      {editSubLoading && (
+        <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 text-center text-stone-400 text-sm">
+          Loading subscription…
+        </div>
+      )}
       {editSub && (
         <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
@@ -1737,7 +1749,17 @@ export default function AdminSubscriptionsPage() {
           <DataTable
             columns={columns}
             data={subs}
-            onEdit={(row) => { setEditSub(row); createModal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+            onEdit={async (row) => {
+              createModal.close()
+              setEditSubLoading(true)
+              try {
+                const full = await authFetch<ApiSubscription>(`/subscriptions/${row.slug}`)
+                setEditSub(full)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              } finally {
+                setEditSubLoading(false)
+              }
+            }}
             onDelete={isManager ? undefined : (row) => setDeleteSub(row)}
           />
           <Pagination page={page} totalPages={subsData?.totalPages ?? 1} onPageChange={setPage} total={subsData?.total} />

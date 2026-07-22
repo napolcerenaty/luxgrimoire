@@ -30,6 +30,7 @@ model User {
   privacyAcceptedAt        DateTime?
   privacyVersion           String?
   onboardingCompletedAt    DateTime?
+  lastLoginAt              DateTime?
   statsSettings            Json?                       // { spending, sales, reading, features } booleans; null = all true
   accounts                 Account[]
   auditLogs                AuditLog[]

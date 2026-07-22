@@ -18,7 +18,9 @@ import { SearchDropdown } from '@/components/search/SearchDropdown'
 const NAV_LINKS = [
   { href: '/companies', label: 'Book Boxes' },
   { href: '/subscriptions', label: 'Subscriptions' },
+  { href: '/books-by-month', label: 'Boxes by Month' },
   { href: '/sale-announcements', label: 'Sale Announcements' },
+  { href: '/blog', label: 'Blog' },
 ]
 
 const USER_NAV_LINKS = [
@@ -59,6 +61,10 @@ export function Navbar() {
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href)
+
+  const isBlog = pathname.startsWith('/blog')
+
+  if (isBlog) return null
 
   return (
     <header className="sticky top-0 z-50 w-full">

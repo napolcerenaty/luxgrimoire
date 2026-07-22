@@ -20,6 +20,8 @@ interface EditionCardProps {
   imageActions?: React.ReactNode
   /** Rendered below authors */
   footer?: React.ReactNode
+  /** 'mine' = gold glow (user's active subscription), 'skipped' = red glow (skipped month) */
+  highlight?: 'mine' | 'skipped' | null
 }
 
 export function EditionCard({
@@ -36,15 +38,17 @@ export function EditionCard({
   generalSaleDate,
   imageActions,
   footer,
+  highlight,
 }: EditionCardProps) {
   const cover = cloudinaryUrl(coverImage, 'w_400,h_600,c_fill,q_auto,f_auto')
   const altText = title ?? companyName ?? 'Edition'
   const isUpcoming = generalSaleDate ? new Date(generalSaleDate) > new Date() : false
+  const highlightClass = highlight === 'mine' ? 'edition-glow-gold' : highlight === 'skipped' ? 'edition-glow-red' : ''
 
   return (
     <Link
       href={href}
-      className={`group flex flex-col h-full rounded-2xl bg-stone-900 border hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10 ${
+      className={`group flex flex-col h-full rounded-2xl bg-stone-900 border hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10 ${highlightClass} ${
         unverified ? 'border-amber-800/50' : 'border-stone-800'
       }`}
     >

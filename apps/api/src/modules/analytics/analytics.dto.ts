@@ -16,12 +16,17 @@ export const SUPPORTED_EVENT_TYPES = [
   { id: 'subscription_join',     label: 'Subscription Joins',             defaultGroupBy: 'entity' },
   { id: 'subscription_cancel',   label: 'Subscription Cancellations',     defaultGroupBy: 'entity' },
   { id: 'subscription_delete',   label: 'Subscription Deletions',         defaultGroupBy: 'entity' },
-  { id: 'subscription_backfill', label: 'Subscription Backfills',         defaultGroupBy: 'entity' },
+  { id: 'subscription_backfill',          label: 'Subscription Backfills',         defaultGroupBy: 'entity' },
+  { id: 'books_by_month_view',            label: 'Books by Month Views',           defaultGroupBy: 'value'  },
+  { id: 'manage_skips_saved',             label: 'Manage Skips — Saved',            defaultGroupBy: 'entity' },
+  { id: 'manage_skips_saved_collection',  label: 'Manage Skips — With Collection',  defaultGroupBy: 'entity' },
   { id: 'waitlist_join',         label: 'Waitlist Joins',                 defaultGroupBy: 'entity' },
   { id: 'waitlist_leave',        label: 'Waitlist Leaves',                defaultGroupBy: 'entity' },
   { id: 'mark_as_sold',          label: 'Marked as Sold',                 defaultGroupBy: 'value'  },
   { id: 'tracking_add',          label: 'Tracking Numbers Added',         defaultGroupBy: 'entity' },
   { id: 'tracking_click',        label: 'Package Tracking Clicks',        defaultGroupBy: 'entity' },
+  { id: 'blog_view',             label: 'Blog Page Views',                defaultGroupBy: 'day'    },
+  { id: 'blog_post_view',        label: 'Blog Post Views',                defaultGroupBy: 'entity' },
 ] as const;
 
 export type SupportedGroupBy = 'entity' | 'value' | 'user' | 'day' | 'month';

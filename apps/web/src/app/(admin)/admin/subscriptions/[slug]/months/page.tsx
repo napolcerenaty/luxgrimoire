@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import ImageUpload from '@/components/admin/ImageUpload'
@@ -236,9 +237,10 @@ interface MonthCardProps {
   renewalMonthOffset?: number | null
   defaultLanguage?: string | null
   onRefresh?: () => void
+  highlighted?: boolean
 }
 
-function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage, onRefresh }: MonthCardProps) {
+function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage, onRefresh, highlighted }: MonthCardProps) {
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'months']
 
@@ -291,7 +293,10 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   })
 
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl">
+    <div
+      id={`month-${month.year}-${month.month}`}
+      className={`bg-stone-900 border rounded-2xl transition-shadow ${highlighted ? 'border-amber-400 ring-2 ring-amber-400' : 'border-stone-800'}`}
+    >
       {/* Header row */}
       <div className="flex items-start gap-3 p-4">
         <Cover id={month.coverImage} size={64} />
@@ -464,7 +469,15 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
 }
 
 // ─── Add month form ───────────────────────────────────────────────────────────
-function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSuccess: () => void; open: boolean; onClose: () => void }) {
+function AddMonthForm({ slug, onSuccess, open, onClose, initialYear, initialMonth, deepLinkBanner }: {
+  slug: string
+  onSuccess: () => void
+  open: boolean
+  onClose: () => void
+  initialYear?: number
+  initialMonth?: number
+  deepLinkBanner?: string
+}) {
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [month, setMonth] = useState(String(new Date().getMonth() + 1))
   const [theme, setTheme] = useState('')
@@ -472,6 +485,14 @@ function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSucc
   const [signatureType, setSignatureType] = useState('')
   const [cardArtistId, setCardArtistId] = useState<string | null>(null)
   const [cardArtistName, setCardArtistName] = useState('')
+
+  // This form stays mounted while hidden (open just toggles rendering below), so the lazy
+  // useState initializer above only runs once — sync year/month explicitly when a deep-link
+  // target arrives instead.
+  useEffect(() => {
+    if (initialYear != null) setYear(String(initialYear))
+    if (initialMonth != null) setMonth(String(initialMonth))
+  }, [initialYear, initialMonth])
 
   const mutation = useMutation({
     mutationFn: () => authFetch(`/subscriptions/${slug}/months`, {
@@ -492,6 +513,11 @@ function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSucc
   return (
     <div className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-3">
       <div className="text-stone-100 font-semibold text-sm">New Month</div>
+      {deepLinkBanner && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-amber-400 text-xs">
+          {deepLinkBanner}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LABEL}>Year *</label>
@@ -548,7 +574,7 @@ function AddMonthForm({ slug, onSuccess, open, onClose }: { slug: string; onSucc
     </div>
   )
 }
-
+
 // ─── CSV Import Panel ─────────────────────────────────────────────────────────
 type CsvRow = {
   year: string; month: string; theme: string; signatureType: string
@@ -1089,12 +1115,20 @@ function resolveEffectivePrice(
 export default function SubscriptionMonthsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
   const [addMonthOpen, setAddMonthOpen] = useState(false)
   const [filterEmpty, setFilterEmpty] = useState(false)
   const [loadedPages, setLoadedPages] = useState<Month[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loadingMore, setLoadingMore] = useState(false)
+
+  // ── Deep-link support: ?year=&month= from the admin month-gaps page ──────────
+  const deepLinkYear = searchParams.get('year') ? Number(searchParams.get('year')) : null
+  const deepLinkMonth = searchParams.get('month') ? Number(searchParams.get('month')) : null
+  const [highlightKey, setHighlightKey] = useState<string | null>(null)
+  const [deepLinkAddMonth, setDeepLinkAddMonth] = useState<{ year: number; month: number } | null>(null)
+  const deepLinkResolvedRef = useRef(false)
 
   const PAGE_SIZE = 12
 
@@ -1146,6 +1180,38 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
       setLoadingMore(false)
     }
   }
+
+  // Resolve the deep-link target once months are loaded: scroll+highlight if found, page
+  // forward through loadMore() if more pages remain, or pre-fill+open AddMonthForm if the
+  // month genuinely doesn't exist yet.
+  useEffect(() => {
+    if (deepLinkYear == null || deepLinkMonth == null) return
+    if (deepLinkResolvedRef.current) return
+    if (isLoading || months.length === 0) return
+
+    const target = months.find(m => m.year === deepLinkYear && m.month === deepLinkMonth)
+    if (target) {
+      deepLinkResolvedRef.current = true
+      const key = `${deepLinkYear}-${deepLinkMonth}`
+      setHighlightKey(key)
+      requestAnimationFrame(() => {
+        document.getElementById(`month-${deepLinkYear}-${deepLinkMonth}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
+      setTimeout(() => setHighlightKey(null), 2500)
+      return
+    }
+
+    if (currentPage < totalPages) {
+      void loadMore()
+      return
+    }
+
+    // Exhausted every page — the month truly doesn't exist yet.
+    deepLinkResolvedRef.current = true
+    setDeepLinkAddMonth({ year: deepLinkYear, month: deepLinkMonth })
+    setAddMonthOpen(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [months, isLoading, currentPage, totalPages, deepLinkYear, deepLinkMonth])
 
   const invalidateMonths = async () => {
     // Re-fetch all currently loaded pages so the user doesn't lose their scroll position
@@ -1239,7 +1305,15 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
         </div>
 
         {/* Add month form panel */}
-        <AddMonthForm slug={slug} onSuccess={invalidateMonths} open={addMonthOpen} onClose={() => setAddMonthOpen(false)} />
+        <AddMonthForm
+          slug={slug}
+          onSuccess={invalidateMonths}
+          open={addMonthOpen}
+          onClose={() => { setAddMonthOpen(false); setDeepLinkAddMonth(null) }}
+          initialYear={deepLinkAddMonth?.year}
+          initialMonth={deepLinkAddMonth?.month}
+          deepLinkBanner={deepLinkAddMonth ? `No month exists yet for ${MONTH_NAMES[deepLinkAddMonth.month - 1]} ${deepLinkAddMonth.year} — add it below.` : undefined}
+        />
 
         {/* Month list */}
         {isLoading ? (
@@ -1265,6 +1339,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 renewalMonthOffset={subscription?.renewalMonthOffset}
                 defaultLanguage={subscription?.language}
                 onRefresh={invalidateMonths}
+                highlighted={highlightKey === `${m.year}-${m.month}`}
               />
             ))}
             {currentPage < totalPages && (

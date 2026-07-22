@@ -1,4 +1,4 @@
-import { computeNextRenewalDate, computeNextRenewalDatePrepaid, computePastRenewalDates } from './renewal-date.util';
+import { computeNextRenewalDate, computeNextRenewalDatePrepaid, computePastRenewalDates, computeFirstEligibleBoxMonth, isSubscriptionDueInMonth, entryCoversMonth } from './renewal-date.util';
 
 const FIXED_NOW = new Date('2025-03-15T12:00:00Z');
 
@@ -106,7 +106,11 @@ describe('computeNextRenewalDate', () => {
 
     it('renewalMonthOffset=1: subscriptionEarliestDate shifted back by 1 month → returns Oct renewal', () => {
       // Sub's first BOX is Nov 2026, renewalMonthOffset=1 → first RENEWAL is Oct 2026.
-      // DB stores startingMonth in renewal-month space: box Nov, offset=1 → startingMonth=10.
+      // This test exercises the low-level fn directly with offset=0 (not passed) and a
+      // startingMonth arg pre-shifted into renewal-month space by the caller (mirroring what
+      // getRenewalAlignmentBaseMonth would compute internally) — sub.startingMonth in the DB is
+      // always the BOX month (10 here stands in for that already-shifted alignment base, not
+      // for how the field is actually stored — see getRenewalAlignmentBaseMonth).
       // refreshNextRenewalDate shifts sub.startDate back by offset before passing here:
       //   Nov 2026 - 1 month = Oct 2026 → subscriptionEarliestDate = Oct 1 2026.
       // Aligned 4-monthly renewal months from Oct: Oct, Feb, Jun, Oct...
@@ -245,4 +249,282 @@ describe('computeNextRenewalDatePrepaid', () => {
     const result = computeNextRenewalDatePrepaid(1, 3, startDate, false, null, []);
     expect(result).toEqual(new Date(Date.UTC(2025, 5, 1))); // Jun 1 2025
   });
+});
+
+// ---------------------------------------------------------------------------
+// isSubscriptionDueInMonth
+// ---------------------------------------------------------------------------
+
+describe('isSubscriptionDueInMonth', () => {
+  const NOW = new Date(Date.UTC(2025, 2, 15)); // March 15 2025
+
+  it('active subscription with no bounds is due in any month', () => {
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false };
+    expect(isSubscriptionDueInMonth(sub, 2025, 3, NOW)).toBe(true);
+    expect(isSubscriptionDueInMonth(sub, 2020, 1, NOW)).toBe(true);
+    expect(isSubscriptionDueInMonth(sub, 2030, 12, NOW)).toBe(true);
+  });
+
+  it('isHidden=true is excluded unconditionally, past or future', () => {
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: true };
+    expect(isSubscriptionDueInMonth(sub, 2024, 1, NOW)).toBe(false);
+    expect(isSubscriptionDueInMonth(sub, 2025, 3, NOW)).toBe(false);
+    expect(isSubscriptionDueInMonth(sub, 2026, 1, NOW)).toBe(false);
+  });
+
+  it('isDiscontinued=true stays visible for PAST months', () => {
+    const sub = { startDate: null, endDate: null, isDiscontinued: true, isHidden: false };
+    expect(isSubscriptionDueInMonth(sub, 2025, 2, NOW)).toBe(true); // February, before current month
+    expect(isSubscriptionDueInMonth(sub, 2020, 6, NOW)).toBe(true);
+  });
+
+  it('isDiscontinued=true is excluded for the current month and future months', () => {
+    const sub = { startDate: null, endDate: null, isDiscontinued: true, isHidden: false };
+    expect(isSubscriptionDueInMonth(sub, 2025, 3, NOW)).toBe(false); // current month
+    expect(isSubscriptionDueInMonth(sub, 2025, 4, NOW)).toBe(false); // future
+    expect(isSubscriptionDueInMonth(sub, 2030, 1, NOW)).toBe(false);
+  });
+
+  it('startDate in the future excludes months before it', () => {
+    const sub = { startDate: new Date(Date.UTC(2025, 5, 1)), endDate: null, isDiscontinued: false, isHidden: false };
+    expect(isSubscriptionDueInMonth(sub, 2025, 5, NOW)).toBe(false); // May, before June start
+    expect(isSubscriptionDueInMonth(sub, 2025, 6, NOW)).toBe(true); // June, start month itself
+    expect(isSubscriptionDueInMonth(sub, 2025, 7, NOW)).toBe(true);
+  });
+
+  it('endDate in the past excludes months after it', () => {
+    const sub = { startDate: null, endDate: new Date(Date.UTC(2025, 0, 31)), isDiscontinued: false, isHidden: false };
+    expect(isSubscriptionDueInMonth(sub, 2025, 1, NOW)).toBe(true); // January, endDate falls within it
+    expect(isSubscriptionDueInMonth(sub, 2025, 2, NOW)).toBe(false); // February, after endDate
+  });
+
+  it('startDate and endDate together bound an active window', () => {
+    const sub = {
+      startDate: new Date(Date.UTC(2024, 5, 1)),
+      endDate: new Date(Date.UTC(2024, 11, 31)),
+      isDiscontinued: false,
+      isHidden: false,
+    };
+    expect(isSubscriptionDueInMonth(sub, 2024, 5, NOW)).toBe(false); // before start
+    expect(isSubscriptionDueInMonth(sub, 2024, 6, NOW)).toBe(true); // start month
+    expect(isSubscriptionDueInMonth(sub, 2024, 12, NOW)).toBe(true); // end month
+    expect(isSubscriptionDueInMonth(sub, 2025, 1, NOW)).toBe(false); // after end
+  });
+
+  it('isUpcoming=true is excluded unconditionally, even with no startDate at all', () => {
+    // Real data case: "Eclipse" / "Wicked Pages" — isUpcoming=true, startDate: null.
+    // Without an isUpcoming check these have no lower bound at all and are wrongly "due" every month.
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false, isUpcoming: true };
+    expect(isSubscriptionDueInMonth(sub, 2025, 3, NOW)).toBe(false); // current month
+    expect(isSubscriptionDueInMonth(sub, 2020, 1, NOW)).toBe(false); // past
+    expect(isSubscriptionDueInMonth(sub, 2030, 1, NOW)).toBe(false); // future
+  });
+
+  it('isUpcoming=true is excluded even with a startDate that has already passed', () => {
+    const sub = { startDate: new Date(Date.UTC(2024, 0, 1)), endDate: null, isDiscontinued: false, isHidden: false, isUpcoming: true };
+    expect(isSubscriptionDueInMonth(sub, 2025, 3, NOW)).toBe(false);
+  });
+
+  it('non-bundle quarterly (intervalMonths=3, isBundleSubscription=false) is only due on cadence-aligned months', () => {
+    // Real data case: "Romance Quarterly Subscription", startingMonth=3, intervalMonths=3
+    // → only has SubscriptionMonth rows in Mar/Jun/Sep/Dec, never Jan/Feb/Apr/May/...
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false, intervalMonths: 3, startingMonth: 3, isBundleSubscription: false };
+    expect(isSubscriptionDueInMonth(sub, 2026, 3, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 6, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 9, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 4, NOW)).toBe(false)
+    expect(isSubscriptionDueInMonth(sub, 2026, 5, NOW)).toBe(false)
+    expect(isSubscriptionDueInMonth(sub, 2026, 7, NOW)).toBe(false)
+    expect(isSubscriptionDueInMonth(sub, 2026, 8, NOW)).toBe(false)
+  })
+
+  it('bundle subscription (isBundleSubscription=true) is due EVERY calendar month regardless of intervalMonths', () => {
+    // Bundles ship N months packaged together but still carry one SubscriptionMonth row per
+    // real calendar month — content is monthly, only the shipping cadence is multi-month.
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false, intervalMonths: 3, startingMonth: 1, isBundleSubscription: true };
+    for (let m = 1; m <= 12; m++) {
+      expect(isSubscriptionDueInMonth(sub, 2026, m, NOW)).toBe(true)
+    }
+  })
+
+  it('intervalMonths omitted or 1 behaves as monthly regardless of startingMonth', () => {
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false, intervalMonths: 1, startingMonth: 7 };
+    expect(isSubscriptionDueInMonth(sub, 2026, 1, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 7, NOW)).toBe(true)
+  })
+
+  it('startingMonth null on a non-bundle multi-month sub defaults to 1', () => {
+    // Real data case: "Dystopian Romance Quarterly Subscription" has startingMonth: null
+    const sub = { startDate: null, endDate: null, isDiscontinued: false, isHidden: false, intervalMonths: 3, startingMonth: null, isBundleSubscription: false };
+    expect(isSubscriptionDueInMonth(sub, 2026, 1, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 4, NOW)).toBe(true)
+    expect(isSubscriptionDueInMonth(sub, 2026, 2, NOW)).toBe(false)
+  })
+});
+
+// ---------------------------------------------------------------------------
+// Regression: startingMonth must consistently mean the BOX month everywhere,
+// including when renewalMonthOffset is positive and NOT a multiple of
+// intervalMonths (the one combination that exposes any drift between
+// isSubscriptionDueInMonth's box-month reading and computeNextRenewalDate's
+// renewal-month reading of the same field).
+//
+// Real bug: "Fantasy & Romance Bi-Monthly Subscription" — intervalMonths=2,
+// renewalMonthOffset=1, actual box months Jun/Aug/Oct/Dec, actual renewal
+// months May/Jul/Sep/Nov. Admin had startingMonth set to 7 (the renewal
+// month) to work around a bug in the old renewal-date math, which broke the
+// admin month-gaps view (it flagged Jul as a missing box). With
+// startingMonth correctly set to 6 (the box month), both views must agree.
+// ---------------------------------------------------------------------------
+
+describe('regression: startingMonth consistency across box-month and renewal-month reads (offset=1, interval=2)', () => {
+  const REGRESSION_NOW = new Date(Date.UTC(2026, 6, 19)); // Jul 19 2026
+  const sub = {
+    startDate: null, endDate: null, isDiscontinued: false, isHidden: false,
+    intervalMonths: 2, startingMonth: 6, isBundleSubscription: false,
+  };
+
+  it('isSubscriptionDueInMonth: box months are Jun/Aug/Oct/Dec, not May/Jul/Sep/Nov', () => {
+    expect(isSubscriptionDueInMonth(sub, 2026, 6, REGRESSION_NOW)).toBe(true)  // Jun
+    expect(isSubscriptionDueInMonth(sub, 2026, 8, REGRESSION_NOW)).toBe(true)  // Aug
+    expect(isSubscriptionDueInMonth(sub, 2026, 10, REGRESSION_NOW)).toBe(true) // Oct
+    expect(isSubscriptionDueInMonth(sub, 2026, 5, REGRESSION_NOW)).toBe(false) // May
+    expect(isSubscriptionDueInMonth(sub, 2026, 7, REGRESSION_NOW)).toBe(false) // Jul
+    expect(isSubscriptionDueInMonth(sub, 2026, 9, REGRESSION_NOW)).toBe(false) // Sep
+  })
+
+  it('computeNextRenewalDate: renewal months are May/Jul/Sep/Nov, matching box - offset', () => {
+    // subscriptionEarliestDate is in renewal-month space (as refreshNextRenewalDate's
+    // buildSubscriptionEarliestDate produces: box start Jun 2026 - offset 1 = May 2026).
+    const subscriptionEarliestDate = new Date(Date.UTC(2026, 4, 1)); // May 1 2026
+    jest.useFakeTimers({ now: new Date('2026-04-01T00:00:00Z') });
+    // First aligned renewal on/after now, with startingMonth=6 (box) and offset=1:
+    // renewal months are box - 1 = May, Jul, Sep, Nov...
+    const result = computeNextRenewalDate(1, 2, 6, null, [], null, subscriptionEarliestDate, 1);
+    expect(result).toEqual(new Date(Date.UTC(2026, 4, 1))); // May 1 2026
+    jest.useRealTimers();
+  })
+});
+
+// ---------------------------------------------------------------------------
+// computeFirstEligibleBoxMonth — subscriptionStartDate (pre-launch entries)
+// ---------------------------------------------------------------------------
+//
+// Standalone subs may have an entry startDate before the subscription's own startDate
+// (allowed for historical data entry — see joinSubscription). signupIncludesCurrentMonth
+// decides whether a mid-cycle joiner gets the box about to ship or waits for the next one,
+// but that question only makes sense once a prior cycle exists to be "mid-way through" — a
+// pre-launch joiner has no earlier cycle to skip.
+//
+// An earlier fix attempted this by forcing signupIncludesCurrentMonth=true whenever
+// entryStart < subscriptionStart, but that's not equivalent: the normal cycle math has no
+// concept of "this cycle didn't exist yet" and, depending on offset/interval/startingMonth
+// phase alignment, can land before, at, or after the true launch box even with
+// signupIncludesCurrentMonth forced true (verified against 7 real pre-launch entries in the
+// database — forcing true gave the wrong box, before the subscription even existed, for 3 of
+// them). The correct fix bypasses the cycle math entirely for this case and returns the box
+// month containing subscriptionStartDate directly (via getBundleBoxStart).
+
+describe('computeFirstEligibleBoxMonth — subscriptionStartDate override', () => {
+  it('real case: Fantasy & Romance Bi-Monthly (interval=2, offset=1) — pre-launch entry gets the first box (Jun), not the second (Aug)', () => {
+    const entryStart = new Date(Date.UTC(2026, 3, 15)); // Apr 15 2026
+    const subStart = new Date(Date.UTC(2026, 5, 1)); // Jun 1 2026
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6, subStart)
+    expect(result).toEqual({ year: 2026, month: 6 })
+  })
+
+  it('real case: Phoenix Fantasy (interval=4, startingMonth=11) — subscriptionStartDate itself is already the aligned box start', () => {
+    const entryStart = new Date(Date.UTC(2026, 3, 15)); // Apr 15 2026
+    const subStart = new Date(Date.UTC(2026, 10, 1)); // Nov 1 2026
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 0, false, 4, 11, subStart)
+    expect(result).toEqual({ year: 2026, month: 11 })
+  })
+
+  it('real case: Cosy Fantasy Book-Only (interval=3) — matches the actually-recorded first purchase month', () => {
+    const entryStart = new Date(Date.UTC(2025, 11, 3)); // Dec 3 2025
+    const subStart = new Date(Date.UTC(2026, 0, 1)); // Jan 1 2026
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 0, false, 3, 1, subStart)
+    expect(result).toEqual({ year: 2026, month: 1 })
+  })
+
+  it('real case: monthly interval (interval=1) — box is simply the subscription\'s own start month', () => {
+    const entryStart = new Date(Date.UTC(2024, 8, 11)); // Sep 11 2024
+    const subStart = new Date(Date.UTC(2024, 9, 1)); // Oct 1 2024
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 0, false, 1, 1, subStart)
+    expect(result).toEqual({ year: 2024, month: 10 })
+  })
+
+  it('still overrides correctly when subscriptionStartDate arrives as a string typed as Date (cache round-trip)', () => {
+    // subscriptions.service.ts#findBySlug caches results; a cache-manager round-trip (Redis or
+    // any JSON-serializing store) turns Date fields into ISO strings on retrieval, even though
+    // the TS type still says Date. Without defensive coercion, `joinDate < subscriptionStartDate`
+    // silently becomes `number < NaN` (always false) and this whole branch is skipped.
+    const entryStart = new Date(Date.UTC(2026, 3, 15)); // Apr 15 2026
+    const subStartAsStringFromCache = '2026-06-01T00:00:00.000Z' as unknown as Date;
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6, subStartAsStringFromCache)
+    expect(result).toEqual({ year: 2026, month: 6 })
+  })
+
+  it('does not override when entryStart is on/after subscriptionStartDate — normal cycle math applies', () => {
+    const entryStart = new Date(Date.UTC(2026, 5, 1)); // Jun 1 2026, exactly at launch
+    const subStart = new Date(Date.UTC(2026, 5, 1));
+    const withOverride = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6, subStart)
+    const withoutOverride = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6, null)
+    expect(withOverride).toEqual(withoutOverride)
+  })
+
+  it('is a no-op (defers to normal computation) when subscriptionStartDate is not provided', () => {
+    const entryStart = new Date(Date.UTC(2026, 3, 15));
+    const result = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6)
+    expect(result).not.toEqual({ year: 2026, month: 6 }) // the un-overridden (buggy-looking) result
+  })
+});
+
+// ---------------------------------------------------------------------------
+// entryCoversMonth
+// ---------------------------------------------------------------------------
+
+describe('entryCoversMonth', () => {
+  it('active entry with a past startDate covers the current month and every month after', () => {
+    const entry = { startDate: '2024-01-15', cancellationDate: null, active: true };
+    expect(entryCoversMonth(entry, 2024, 1)).toBe(true)
+    expect(entryCoversMonth(entry, 2026, 7)).toBe(true)
+  })
+
+  it('active entry does not cover months before its startDate', () => {
+    const entry = { startDate: '2024-06-01', cancellationDate: null, active: true };
+    expect(entryCoversMonth(entry, 2024, 5)).toBe(false)
+    expect(entryCoversMonth(entry, 2024, 6)).toBe(true)
+  })
+
+  it('cancelled entry still covers months up to and including the cancellation month', () => {
+    // User cancelled mid-July 2026 — was still subscribed for part of July.
+    const entry = { startDate: '2025-01-01', cancellationDate: '2026-07-15', active: false };
+    expect(entryCoversMonth(entry, 2026, 6)).toBe(true) // before cancellation
+    expect(entryCoversMonth(entry, 2026, 7)).toBe(true) // cancellation month itself
+    expect(entryCoversMonth(entry, 2026, 8)).toBe(false) // after cancellation
+  })
+
+  it('cancelled entry with no cancellationDate (defensive/malformed data) covers nothing', () => {
+    const entry = { startDate: '2025-01-01', cancellationDate: null, active: false };
+    expect(entryCoversMonth(entry, 2025, 6)).toBe(false)
+  })
+
+  it('cancelled entry does not cover months before its original startDate', () => {
+    const entry = { startDate: '2026-03-01', cancellationDate: '2026-07-01', active: false };
+    expect(entryCoversMonth(entry, 2026, 1)).toBe(false)
+    expect(entryCoversMonth(entry, 2026, 4)).toBe(true)
+  })
+
+  it('entry with no startDate at all has no lower bound', () => {
+    const entry = { startDate: null, cancellationDate: null, active: true };
+    expect(entryCoversMonth(entry, 2015, 1)).toBe(true)
+  })
+
+  it('tolerates YYYY-MM (no day) format defensively', () => {
+    const entry = { startDate: '2026-03', cancellationDate: '2026-07', active: false };
+    expect(entryCoversMonth(entry, 2026, 3)).toBe(true)
+    expect(entryCoversMonth(entry, 2026, 7)).toBe(true)
+    expect(entryCoversMonth(entry, 2026, 8)).toBe(false)
+  })
 });

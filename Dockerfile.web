@@ -16,7 +16,8 @@ COPY packages/shared-types/package.json ./packages/shared-types/
 RUN pnpm install --frozen-lockfile
 
 # Limit memory and webpack parallelism to avoid saturating build servers
-ENV NODE_OPTIONS="--max-old-space-size=1024"
+# Server has 3.7GB total RAM shared with Ghost/Postgres/Redis/API — must leave headroom
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 ENV NEXT_WEBPACK_PARALLELISM="1"
 ENV NEXT_TELEMETRY_DISABLED="1"
 ENV GENERATE_SOURCEMAP="false"
@@ -29,6 +30,24 @@ COPY apps/web             ./apps/web
 # Build Next.js (standalone output)
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+ARG GHOST_API_URL
+ENV GHOST_API_URL=${GHOST_API_URL}
+
+ARG GHOST_CONTENT_API_KEY
+ENV GHOST_CONTENT_API_KEY=${GHOST_CONTENT_API_KEY}
+
+ARG NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+ENV NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=${NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}
+
+ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
+ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+
+ARG NEXT_PUBLIC_SENTRY_DSN
+ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
+
+ARG SENTRY_DSN
+ENV SENTRY_DSN=${SENTRY_DSN}
 
 RUN nice -n 19 pnpm --filter @luxgrimoire/web build
 

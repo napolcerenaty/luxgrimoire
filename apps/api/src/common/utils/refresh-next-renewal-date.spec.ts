@@ -298,3 +298,221 @@ describe('refreshNextRenewalDate — renewalDay resolution', () => {
     expect(prisma.userSubscriptionEntry.update).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// paymentOnStartup — paidUpFrontDate first-eligible month computation
+//
+// Bug: the old code used `renewalPassedThisMonth = !signupIncludesCurrentMonth && renewalDay < joinDay`
+// which is always false when signupIncludesCurrentMonth=true, causing firstEligibleMonth=joinMonth.
+// For a bimonthly sub (odd months) this found July instead of May as the "already paid" box,
+// making computeNextRenewalDate skip July → returned September instead of July 15.
+//
+// Fix: mirror getEligibleMonths — renewalAlreadyHappened = joinDay >= renewalDay.
+// If not happened: lastBillingMonth = joinMonth - 1.
+// If signupIncludesCurrentMonth=false: firstEligibleMonth = lastBillingMonth + 1.
+// ---------------------------------------------------------------------------
+
+describe('refreshNextRenewalDate — paymentOnStartup paidUpFrontDate regression', () => {
+  let prisma: DeepMockProxy<PrismaService>;
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    (prisma.userSubscriptionEntry.update as jest.Mock).mockResolvedValue({});
+  });
+
+  // ── Exact Enchantasy regression ────────────────────────────────────────────
+  // bimonthly, renewalDay=15, signupIncludesCurrentMonth=true, paymentOnStartup=true
+  // startDate=01.06.2026, now=13.07.2026
+  // joinDay=1 < renewalDay=15 → renewal NOT happened → lastBillingMonth=May
+  // firstEligibleMonth=May → DB finds May → paidUpFrontDate=May 15
+  // computeNextRenewalDate skips May (already in past), July 15 > now(Jul 13) → returns Jul 15 ✓
+  // (buggy code: firstEligibleMonth=June → DB finds July → paidUpFrontDate=Jul 15 → skips July → Sep 15 ✗)
+
+  it('bimonthly regression: joinDay=1 < renewalDay=15, includes=true → next renewal is Jul 15, not Sep 15', async () => {
+    jest.setSystemTime(new Date('2026-07-13T10:00:00Z'));
+
+    (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue(
+      makeEntry({
+        startDate: '2026-06-01',
+        renewalDay: null,  // null because sub has fixed renewalDay (not user-set)
+        subscription: {
+          ...makeSub({
+            renewalDay: 15,
+            renewalDayUserSet: false,
+            intervalMonths: 2,
+            startingMonth: 7,   // bimonthly aligned to odd months (Jul, Sep, Nov...)
+            paymentOnStartup: true,
+            signupIncludesCurrentMonth: true,
+            renewalMonthOffset: 0,
+          }),
+          id: 'sub-enchantasy',
+          startDate: '2024-07-01',
+        },
+      }),
+    );
+    // DB returns May 2026 (the correct first box month for joinDay=1, renewalDay=15)
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ year: 2026, month: 5 });
+
+    await refreshNextRenewalDate(prisma, 'entry-1');
+
+    expect(prisma.userSubscriptionEntry.update).toHaveBeenCalledWith({
+      where: { id: 'entry-1' },
+      data: { nextRenewalDate: new Date(Date.UTC(2026, 6, 15)) }, // Jul 15 ✓
+    });
+  });
+
+  // ── Monthly, joinDay < renewalDay, signupIncludesCurrentMonth=true ─────────
+  // startDate=01.07.2025, renewalDay=15, now=13.07.2025
+  // joinDay=1 < 15 → lastBillingMonth=June → firstEligibleMonth=June
+  // DB returns June → paidUpFrontDate=Jun 15 → computeNextRenewalDate skips June
+  // July 15 > now(Jul 13) → returns Jul 15
+
+  it('monthly: joinDay=1 < renewalDay=15, includes=true → next renewal is Jul 15', async () => {
+    jest.setSystemTime(new Date('2025-07-13T10:00:00Z'));
+
+    (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue(
+      makeEntry({
+        startDate: '2025-07-01',
+        renewalDay: null,
+        subscription: {
+          ...makeSub({
+            renewalDay: 15,
+            renewalDayUserSet: false,
+            intervalMonths: 1,
+            startingMonth: null,
+            paymentOnStartup: true,
+            signupIncludesCurrentMonth: true,
+            renewalMonthOffset: 0,
+          }),
+          id: 'sub-1',
+          startDate: null,
+        },
+      }),
+    );
+    // DB returns June 2025 — the correct first eligible box month (May billing → June as first = no, wait:
+    // joinDay=1 < 15 → lastBillingMonth=June (Jul-1). firstEligibleMonth=June. DB returns June.
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ year: 2025, month: 6 });
+
+    await refreshNextRenewalDate(prisma, 'entry-1');
+
+    expect(prisma.userSubscriptionEntry.update).toHaveBeenCalledWith({
+      where: { id: 'entry-1' },
+      data: { nextRenewalDate: new Date(Date.UTC(2025, 6, 15)) }, // Jul 15
+    });
+  });
+
+  // ── Monthly, joinDay > renewalDay, signupIncludesCurrentMonth=true ─────────
+  // startDate=20.07.2025, renewalDay=15, now=21.07.2025
+  // joinDay=20 >= 15 → renewalAlreadyHappened → lastBillingMonth=July → firstEligibleMonth=July
+  // DB returns July → paidUpFrontDate=Jul 15 → skip July → next renewal = Aug 15
+
+  it('monthly: joinDay=20 >= renewalDay=15, includes=true → next renewal is Aug 15', async () => {
+    jest.setSystemTime(new Date('2025-07-21T10:00:00Z'));
+
+    (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue(
+      makeEntry({
+        startDate: '2025-07-20',
+        renewalDay: null,
+        subscription: {
+          ...makeSub({
+            renewalDay: 15,
+            renewalDayUserSet: false,
+            intervalMonths: 1,
+            startingMonth: null,
+            paymentOnStartup: true,
+            signupIncludesCurrentMonth: true,
+            renewalMonthOffset: 0,
+          }),
+          id: 'sub-1',
+          startDate: null,
+        },
+      }),
+    );
+    // DB returns July 2025 (joinDay=20 >= 15 → lastBillingMonth=July)
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ year: 2025, month: 7 });
+
+    await refreshNextRenewalDate(prisma, 'entry-1');
+
+    expect(prisma.userSubscriptionEntry.update).toHaveBeenCalledWith({
+      where: { id: 'entry-1' },
+      data: { nextRenewalDate: new Date(Date.UTC(2025, 7, 15)) }, // Aug 15
+    });
+  });
+
+  // ── Monthly, joinDay < renewalDay, signupIncludesCurrentMonth=false ────────
+  // startDate=01.07.2025, renewalDay=15, now=13.07.2025
+  // joinDay=1 < 15 → lastBillingMonth=June. !includes → firstEligibleMonth=July
+  // DB returns July → paidUpFrontDate=Jul 15 → skip July → next renewal = Aug 15
+
+  it('monthly: joinDay=1 < renewalDay=15, includes=false → next renewal is Aug 15', async () => {
+    jest.setSystemTime(new Date('2025-07-13T10:00:00Z'));
+
+    (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue(
+      makeEntry({
+        startDate: '2025-07-01',
+        renewalDay: null,
+        subscription: {
+          ...makeSub({
+            renewalDay: 15,
+            renewalDayUserSet: false,
+            intervalMonths: 1,
+            startingMonth: null,
+            paymentOnStartup: true,
+            signupIncludesCurrentMonth: false,
+            renewalMonthOffset: 0,
+          }),
+          id: 'sub-1',
+          startDate: null,
+        },
+      }),
+    );
+    // DB returns July 2025 (lastBillingMonth=June, !includes → +1 = July)
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ year: 2025, month: 7 });
+
+    await refreshNextRenewalDate(prisma, 'entry-1');
+
+    expect(prisma.userSubscriptionEntry.update).toHaveBeenCalledWith({
+      where: { id: 'entry-1' },
+      data: { nextRenewalDate: new Date(Date.UTC(2025, 7, 15)) }, // Aug 15
+    });
+  });
+
+  // ── Year boundary: joinDay < renewalDay, join Jan 1 ───────────────────────
+  // startDate=01.01.2026, renewalDay=15, now=13.01.2026
+  // joinDay=1 < 15 → lastBillingMonth=Dec 2025 → firstEligibleMonth=Dec 2025
+  // DB returns Dec 2025 → paidUpFrontDate=Dec 15, 2025 (past) → skip Dec
+  // Jan 15 2026 > now(Jan 13) → next renewal = Jan 15 2026
+
+  it('year boundary: joinDay=1 < renewalDay=15, join Jan 1, includes=true → next renewal is Jan 15', async () => {
+    jest.setSystemTime(new Date('2026-01-13T10:00:00Z'));
+
+    (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue(
+      makeEntry({
+        startDate: '2026-01-01',
+        renewalDay: null,
+        subscription: {
+          ...makeSub({
+            renewalDay: 15,
+            renewalDayUserSet: false,
+            intervalMonths: 1,
+            startingMonth: null,
+            paymentOnStartup: true,
+            signupIncludesCurrentMonth: true,
+            renewalMonthOffset: 0,
+          }),
+          id: 'sub-1',
+          startDate: null,
+        },
+      }),
+    );
+    // DB returns Dec 2025 (year wraps back: Jan-1 = Dec 2025)
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ year: 2025, month: 12 });
+
+    await refreshNextRenewalDate(prisma, 'entry-1');
+
+    expect(prisma.userSubscriptionEntry.update).toHaveBeenCalledWith({
+      where: { id: 'entry-1' },
+      data: { nextRenewalDate: new Date(Date.UTC(2026, 0, 15)) }, // Jan 15 2026
+    });
+  });
+});

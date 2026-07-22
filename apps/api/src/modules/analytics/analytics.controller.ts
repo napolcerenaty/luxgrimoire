@@ -2,20 +2,41 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryDto, SUPPORTED_EVENT_TYPES } from './analytics.dto';
-import { Roles } from '../../common/decorators/auth.decorators';
+import { Roles, Public } from '../../common/decorators/auth.decorators';
 
 @ApiTags('analytics')
 @ApiBearerAuth()
-@Roles('ADMIN', 'MODERATOR')
 @Controller('analytics')
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
+  @Public()
+  @Get('public/blog-view')
+  blogView() {
+    this.analyticsService.track({ eventType: 'blog_view' });
+    return { ok: true };
+  }
+
+  @Public()
+  @Get('public/blog-post-view')
+  blogPostView(@Query('slug') slug: string, @Query('title') title: string) {
+    if (!slug) return { ok: false };
+    this.analyticsService.track({
+      eventType: 'blog_post_view',
+      entityType: 'blog_post',
+      entityId: slug,
+      entityName: title ?? slug,
+    });
+    return { ok: true };
+  }
+
+  @Roles('ADMIN', 'MODERATOR')
   @Get('admin/event-types')
   getEventTypes() {
     return SUPPORTED_EVENT_TYPES;
   }
 
+  @Roles('ADMIN', 'MODERATOR')
   @Get('admin/query')
   async adminQuery(@Query() dto: AnalyticsQueryDto) {
     const periodDays = dto.period !== 'all' ? Number(dto.period) : undefined;

@@ -24,7 +24,9 @@ const METRICS = [
   { id: 'subscription_join',     label: 'Subscription Joins',             defaultGroupBy: 'entity' },
   { id: 'subscription_cancel',   label: 'Subscription Cancellations',     defaultGroupBy: 'entity' },
   { id: 'subscription_delete',   label: 'Subscription Deletions',         defaultGroupBy: 'entity' },
-  { id: 'subscription_backfill', label: 'Subscription Backfills',         defaultGroupBy: 'entity' },
+  { id: 'subscription_backfill',          label: 'Subscription Backfills',         defaultGroupBy: 'entity' },
+  { id: 'manage_skips_saved',             label: 'Manage Skips — Saved',            defaultGroupBy: 'entity' },
+  { id: 'manage_skips_saved_collection',  label: 'Manage Skips — With Collection',  defaultGroupBy: 'entity' },
   { id: 'waitlist_join',         label: 'Waitlist Joins',                 defaultGroupBy: 'entity' },
   { id: 'waitlist_leave',        label: 'Waitlist Leaves',                defaultGroupBy: 'entity' },
   { id: 'mark_as_sold',          label: 'Marked as Sold',                 defaultGroupBy: 'value'  },
@@ -33,6 +35,8 @@ const METRICS = [
   { id: 'search',                label: 'Searches',                       defaultGroupBy: 'value'  },
   { id: 'search_no_results',     label: 'Searches — No Results',          defaultGroupBy: 'value'  },
   { id: 'account_delete',        label: 'Account Deletions',              defaultGroupBy: 'user'   },
+  { id: 'blog_view',             label: 'Blog Page Views',                defaultGroupBy: 'day'    },
+  { id: 'blog_post_view',        label: 'Blog Post Views',                defaultGroupBy: 'entity' },
 ]
 
 const GROUP_BY_OPTIONS = [

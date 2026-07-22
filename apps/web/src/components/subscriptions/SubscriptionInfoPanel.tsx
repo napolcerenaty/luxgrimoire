@@ -22,6 +22,8 @@ interface Props {
   originalBasePrice?: string | null
   currency: string
   intervalMonths: number
+  isBundleSubscription?: boolean
+  startingMonth?: number
   shipsInternationally: boolean
   country: string | null
   renewalDay?: number | null
@@ -101,6 +103,8 @@ export default function SubscriptionInfoPanel({
   originalBasePrice,
   currency,
   intervalMonths,
+  isBundleSubscription,
+  startingMonth,
   shipsInternationally,
   country,
   renewalDay,
@@ -554,6 +558,7 @@ export default function SubscriptionInfoPanel({
         {isSubscriber ? (
           <SkipStatusPanel
             subscriptionSlug={subscriptionSlug}
+            subscriptionName={name}
             months={months}
             onSkipSuccess={refreshEntry}
           />
@@ -578,6 +583,9 @@ export default function SubscriptionInfoPanel({
           isDiscontinued={isDiscontinued}
           subscriptionEndDate={subscriptionEndDate}
           signupIncludesCurrentMonth={signupIncludesCurrentMonth}
+          isBundleSubscription={isBundleSubscription}
+          intervalMonths={intervalMonths}
+          startingMonth={startingMonth}
           onJoined={() => {
             closeJoinModal()
             refreshEntry()
@@ -641,7 +649,7 @@ function EditEntryCostsModal({
     entry.feeTemplates.map(f => ({
       templateId: f.feeTemplate.id,
       name: f.feeTemplate.name,
-      customAmount: f.customAmount ?? f.feeTemplate.defaultAmount ?? '',
+      customAmount: f.customAmount ?? '',
       customCurrency: f.customCurrency ?? f.feeTemplate.defaultCurrency,
     }))
   )

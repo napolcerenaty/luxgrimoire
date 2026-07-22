@@ -59,12 +59,19 @@ function HeroShell({
                 <Link
                   key={s.announcementId}
                   href={`/sale-announcements/${s.announcement.id}`}
-                  className="flex items-center justify-between rounded-lg border border-stone-700/60 bg-stone-900/60 px-3 py-2 text-left transition-colors hover:border-stone-600 hover:bg-stone-800/60"
+                  className="flex flex-col gap-1 rounded-lg border border-stone-700/60 bg-stone-900/60 px-3 py-2 text-left transition-colors hover:border-stone-600 hover:bg-stone-800/60"
                 >
-                  <span className="truncate text-sm font-medium text-stone-100">{s.announcement.title}</span>
-                  {s.announcement.generalSaleDate && (
-                    <SaleRowCountdown dateStr={s.announcement.generalSaleDate} isFirst={i === 0} />
-                  )}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-[11px] font-medium uppercase tracking-wide text-stone-400">
+                      {s.announcement.company?.name ?? ''}
+                    </span>
+                    {s.announcement.generalSaleDate && (
+                      <SaleRowCountdown dateStr={s.announcement.generalSaleDate} />
+                    )}
+                  </div>
+                  <span className="line-clamp-2 text-sm font-medium leading-snug text-stone-100">
+                    {s.announcement.title}
+                  </span>
                 </Link>
               ))}
             </div>
@@ -118,4 +125,5 @@ export function PersonalizedHero({ user, upcomingSales }: Props) {
     />
   )
 }
+
 

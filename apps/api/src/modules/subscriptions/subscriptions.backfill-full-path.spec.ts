@@ -620,7 +620,7 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       }
     });
 
-    it('does NOT split batch fee when fee currency differs from batch currency', async () => {
+    it('splits batch fee by monthsCovered even when fee currency differs from batch currency', async () => {
       const sub = makeSub();
       jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
 
@@ -641,17 +641,17 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
           monthsCovered: 2,
           currency: 'USD',
           monthIds: ['m-1', 'm-2'],
-          fees: [{ name: 'EU VAT', amount: 20, currency: 'EUR' }], // different currency
+          fees: [{ name: 'EU VAT', amount: 20, currency: 'EUR' }], // different currency, still split
         }],
       } as any);
 
       const feeCalls = (prisma.userPurchaseFee.createMany as jest.Mock).mock.calls;
       expect(feeCalls).toHaveLength(1);
       const feeData = feeCalls[0][0].data as Array<{ amount: number }>;
-      // 2 records, each with full 20 (not 20/2=10) because currencies differ
+      // 2 records (one per month), each = 20/2 = 10 — always split regardless of currency
       expect(feeData).toHaveLength(2);
       for (const fd of feeData) {
-        expect(fd.amount).toBeCloseTo(20);
+        expect(fd.amount).toBeCloseTo(10);
       }
     });
   });
@@ -1338,6 +1338,69 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
           data: expect.objectContaining({ editionId: 'ed-reg-1', bookId: 'bk-reg-1' }),
         }),
       );
+    });
+  });
+
+  // ── upsertSubscriptionBookEntry — ownership status correction on existing rows ──
+  //
+  // Real bug: recordFirstMonthAsPreorder auto-creates the first paymentOnStartup box as
+  // PREORDER at join time. Backfilling that same month afterward with a different chosen
+  // ownershipStatus (e.g. OWNED) hit the "already exists" branch, which only ever updated
+  // purchaseGroupId — the admin's chosen status was silently discarded and the book stayed
+  // PREORDER forever.
+
+  describe('upsertSubscriptionBookEntry — correcting an existing PREORDER placeholder', () => {
+    it('updates ownershipStatus (and records history) when the existing row is PREORDER and a different status is requested', async () => {
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'be-1', ownershipStatus: 'PREORDER' });
+      (prisma.userBookEntry.update as jest.Mock).mockResolvedValueOnce({});
+      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
+
+      await (service as any).upsertSubscriptionBookEntry({
+        userId: USER_ID, bookId: 'bk-1', editionId: 'ed-1', subscriptionEntryId: ENTRY_ID,
+        purchaseGroupId: 'pg-1', signatureType: null, changedAt: new Date('2026-06-01'),
+        ownershipStatus: 'OWNED',
+      });
+
+      expect(prisma.userBookEntry.update).toHaveBeenCalledWith({
+        where: { id: 'be-1' },
+        data: { purchaseGroupId: 'pg-1', ownershipStatus: 'OWNED' },
+      });
+      expect(prisma.ownershipStatusHistory.create).toHaveBeenCalledWith({
+        data: { userBookEntryId: 'be-1', status: 'OWNED', changedAt: new Date('2026-06-01') },
+      });
+    });
+
+    it('does not touch ownershipStatus (or write history) when the existing row is already something other than PREORDER', async () => {
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'be-2', ownershipStatus: 'SOLD' });
+      (prisma.userBookEntry.update as jest.Mock).mockResolvedValueOnce({});
+
+      await (service as any).upsertSubscriptionBookEntry({
+        userId: USER_ID, bookId: 'bk-1', editionId: 'ed-1', subscriptionEntryId: ENTRY_ID,
+        purchaseGroupId: 'pg-2', signatureType: null, changedAt: new Date('2026-06-01'),
+        ownershipStatus: 'OWNED',
+      });
+
+      expect(prisma.userBookEntry.update).toHaveBeenCalledWith({
+        where: { id: 'be-2' },
+        data: { purchaseGroupId: 'pg-2' },
+      });
+      expect(prisma.ownershipStatusHistory.create).not.toHaveBeenCalled();
+    });
+
+    it('does not touch ownershipStatus when no ownershipStatus is passed at all', async () => {
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'be-3', ownershipStatus: 'PREORDER' });
+      (prisma.userBookEntry.update as jest.Mock).mockResolvedValueOnce({});
+
+      await (service as any).upsertSubscriptionBookEntry({
+        userId: USER_ID, bookId: 'bk-1', editionId: 'ed-1', subscriptionEntryId: ENTRY_ID,
+        purchaseGroupId: 'pg-3', signatureType: null, changedAt: new Date('2026-06-01'),
+      });
+
+      expect(prisma.userBookEntry.update).toHaveBeenCalledWith({
+        where: { id: 'be-3' },
+        data: { purchaseGroupId: 'pg-3' },
+      });
+      expect(prisma.ownershipStatusHistory.create).not.toHaveBeenCalled();
     });
   });
 });

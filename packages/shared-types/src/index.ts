@@ -262,6 +262,14 @@ export interface ApiSkipStatus {
   isUnskipPastDeadline: boolean;
   /** The next month the user can skip, or null if none available */
   targetMonth: { year: number; month: number } | null;
+  /** ISO date string (YYYY-MM-DD) of when the current skip window resets, or null */
+  windowResetDate: string | null;
+  /** Whether this subscription ships multiple months as one bundle package */
+  isBundleSubscription: boolean;
+  /** Number of calendar months covered by one bundle package (1 for non-bundle subscriptions) */
+  intervalMonths: number;
+  /** The calendar month bundle cycles are aligned to */
+  startingMonth: number;
 }
 
 export interface ApiSubscription {

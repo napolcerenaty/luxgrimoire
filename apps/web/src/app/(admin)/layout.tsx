@@ -27,6 +27,7 @@ import {
   Tags,
   BookMarked,
   Star,
+  AlertTriangle,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -65,6 +66,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
       { href: '/admin/companies', label: 'Companies', icon: Building2 },
       { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
       { href: '/admin/book-box-collections', label: 'Collections', icon: LibraryBig },
+      { href: '/admin/subscription-month-gaps', label: 'Month Gaps', icon: AlertTriangle },
     ],
   },
   {

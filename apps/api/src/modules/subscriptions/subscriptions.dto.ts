@@ -144,7 +144,7 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsInt()
-  @Min(0)
+  @Min(-11)
   @Max(11)
   @Type(() => Number)
   renewalMonthOffset?: number;
@@ -278,7 +278,7 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsInt()
-  @Min(0)
+  @Min(-11)
   @Max(11)
   @Type(() => Number)
   renewalMonthOffset?: number;
@@ -343,6 +343,20 @@ export class UpdatePrepayOptionDto {
   @IsOptional()
   @IsDateString()
   validUntil?: string | null;
+}
+
+export class YearMonthQueryDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  year!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  month!: number;
 }
 
 export class CreateMonthDto {
@@ -908,4 +922,36 @@ export class UpdateSettingsHistoryEffectiveFromDto {
 export class MigrateMonthsDto {
   @IsString()
   targetSubscriptionId!: string;
+}
+
+export class ManageSkipsMonthDto {
+  @IsInt()
+  year!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  month!: number;
+}
+
+export class ManageSkipsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ManageSkipsMonthDto)
+  toSkip!: ManageSkipsMonthDto[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ManageSkipsMonthDto)
+  toUnskip!: ManageSkipsMonthDto[];
+
+  @IsBoolean()
+  addBooksForUnskipped!: boolean;
+
+  @IsBoolean()
+  removeBooksForSkipped!: boolean;
+
+  @IsOptional()
+  @IsIn(['OWNED', 'PREORDER'])
+  ownershipStatusForUnskipped?: 'OWNED' | 'PREORDER';
 }

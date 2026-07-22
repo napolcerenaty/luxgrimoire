@@ -166,6 +166,102 @@ describe('SubscriptionsService — query methods', () => {
       const result = await service.getMySubscriptions(USER_ID);
       expect(parseFloat(result[0].nextRenewalAmount ?? '0')).toBe(25);
     });
+
+    it('exposes isBundleSubscription on the subscription so the frontend can render bundle UI', async () => {
+      const entry = makeEntryRow({
+        subscription: makeSub({ isBundleSubscription: true, intervalMonths: 3, startingMonth: 1 }),
+      });
+      (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
+
+      const result = await service.getMySubscriptions(USER_ID);
+      expect(result[0].subscription.isBundleSubscription).toBe(true);
+      expect(result[0].subscription.intervalMonths).toBe(3);
+    });
+  });
+
+  describe('getNextBoxPreview', () => {
+    function monthRecord(year: number, month: number, opts: {
+      theme?: string | null; isSpoiler?: boolean; bookTitle?: string;
+    } = {}) {
+      return {
+        year, month,
+        theme: opts.theme ?? null,
+        isSpoiler: opts.isSpoiler ?? false,
+        books: [{
+          isMainBook: true,
+          book: { title: opts.bookTitle ?? `Book ${year}-${month}`, authors: [{ author: { name: 'Author X' } }] },
+          edition: { additionalImages: ['img.jpg'] },
+        }],
+      };
+    }
+
+    it('non-bundle: returns just the requested month, unchanged', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(makeSub() as any);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([
+        monthRecord(2026, 4, { bookTitle: 'April Book' }),
+      ]);
+
+      const result = await service.getNextBoxPreview(USER_ID, SUB_SLUG, 2026, 4);
+
+      expect(result).toMatchObject({ year: 2026, month: 4, endYear: 2026, endMonth: 4, isBundleSubscription: false });
+      expect(result!.books).toHaveLength(1);
+      expect(result!.books[0].title).toBe('April Book');
+    });
+
+    it('bundle: merges books from all 3 months of the bundle, not just the requested one', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(
+        makeSub({ isBundleSubscription: true, intervalMonths: 3, startingMonth: 1 }) as any,
+      );
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([
+        monthRecord(2026, 4, { bookTitle: 'April Book' }),
+        monthRecord(2026, 5, { bookTitle: 'May Book' }),
+        monthRecord(2026, 6, { bookTitle: 'June Book' }),
+      ]);
+
+      const result = await service.getNextBoxPreview(USER_ID, SUB_SLUG, 2026, 4);
+
+      expect(result).toMatchObject({ year: 2026, month: 4, endYear: 2026, endMonth: 6, isBundleSubscription: true, intervalMonths: 3 });
+      expect(result!.books.map((b) => b.title)).toEqual(['April Book', 'May Book', 'June Book']);
+    });
+
+    it('bundle: resolves the whole bundle even when called with a non-first month', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(
+        makeSub({ isBundleSubscription: true, intervalMonths: 3, startingMonth: 1 }) as any,
+      );
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([
+        monthRecord(2026, 4, { bookTitle: 'April Book' }),
+        monthRecord(2026, 5, { bookTitle: 'May Book' }),
+        monthRecord(2026, 6, { bookTitle: 'June Book' }),
+      ]);
+
+      // Called with June (the last month of the Apr-Jun bundle) — must still resolve to the whole bundle.
+      const result = await service.getNextBoxPreview(USER_ID, SUB_SLUG, 2026, 6);
+
+      expect(result).toMatchObject({ year: 2026, month: 4, endYear: 2026, endMonth: 6 });
+      expect(result!.books).toHaveLength(3);
+    });
+
+    it('bundle: isSpoiler is true if ANY covered month is marked as spoiler', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(
+        makeSub({ isBundleSubscription: true, intervalMonths: 3, startingMonth: 1 }) as any,
+      );
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([
+        monthRecord(2026, 4, { isSpoiler: false }),
+        monthRecord(2026, 5, { isSpoiler: true }),
+        monthRecord(2026, 6, { isSpoiler: false }),
+      ]);
+
+      const result = await service.getNextBoxPreview(USER_ID, SUB_SLUG, 2026, 4);
+      expect(result!.isSpoiler).toBe(true);
+    });
+
+    it('returns null when no months exist in range', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(makeSub() as any);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      const result = await service.getNextBoxPreview(USER_ID, SUB_SLUG, 2026, 4);
+      expect(result).toBeNull();
+    });
   });
 
   describe('getOrphanedMembershipHistory', () => {
