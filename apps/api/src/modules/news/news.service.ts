@@ -23,8 +23,9 @@ export class NewsService {
 
   /**
    * Screenshot -> AI classification/extraction -> stored image -> draft NewsItem.
-   * No dedup yet (Phase 4) — every screenshot becomes its own new draft, its single
-   * source already CONFIRMED since there's nothing ambiguous to review-merge against.
+   * Its source is always CONFIRMED (it genuinely is real content) — dedup (Phase 4)
+   * instead flags the resulting NewsItem itself via possibleDuplicateOfId when it
+   * looks like the same event as a recent item from the same company.
    */
   async ingestScreenshot(imageBase64: string, caption?: string) {
     const [parsed, uploaded] = await Promise.all([
@@ -70,13 +71,19 @@ export class NewsService {
       throw new BadRequestException('Could not extract any usable news information from this source');
     }
 
+    const companyName = parsed.companyName ?? 'Unknown';
+    const title = parsed.title ?? `${companyName} — news`;
+
+    const possibleDuplicateOfId = await this.findDuplicateCandidate(companyName, title, parsed.summary);
+
     return this.prisma.newsItem.create({
       data: {
-        companyName: parsed.companyName ?? 'Unknown',
-        title: parsed.title ?? `${parsed.companyName ?? 'Untitled'} — news`,
+        companyName,
+        title,
         type: this.mapAiType(parsed.type),
         summary: parsed.summary,
         originalSourceUrl: parsed.originalSourceUrl ?? source.fallbackOriginalSourceUrl,
+        possibleDuplicateOfId,
         sources: {
           create: {
             sourceType: source.sourceType,
@@ -88,6 +95,74 @@ export class NewsService {
       },
       include: { sources: true },
     });
+  }
+
+  // ─── Dedup (Phase 4, spec section 5) ───────────────────────────────────────
+
+  private static readonly DEDUP_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+  /**
+   * Cheap filter (same company, 48h window) first — only the survivors are worth
+   * an LLM call. Returns the matching existing item's id, or null.
+   */
+  private async findDuplicateCandidate(companyName: string, title: string, summary?: string): Promise<string | null> {
+    const cutoff = new Date(Date.now() - NewsService.DEDUP_WINDOW_MS);
+    const candidates = await this.prisma.newsItem.findMany({
+      where: {
+        companyName: { equals: companyName, mode: 'insensitive' },
+        OR: [
+          { status: NewsItemStatus.DRAFT, createdAt: { gte: cutoff } },
+          { status: NewsItemStatus.PUBLISHED, publishedAt: { gte: cutoff } },
+        ],
+      },
+      select: { id: true, title: true, summary: true },
+      take: 10,
+    });
+    if (candidates.length === 0) return null;
+
+    const { duplicateOfId } = await this.aiService.checkForDuplicate({ title, summary }, candidates);
+    return duplicateOfId;
+  }
+
+  /** Items flagged as a possible duplicate of another, awaiting admin review (spec 5a/5b). */
+  async listPossibleDuplicates() {
+    return this.prisma.newsItem.findMany({
+      where: { possibleDuplicateOfId: { not: null } },
+      include: { sources: true, possibleDuplicateOf: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Confirm the dedup match: this item's source(s) move onto the candidate, this
+   * (now-empty) duplicate is discarded. If the candidate is already PUBLISHED,
+   * this is the "confirm as update" path (spec 5b) — bumps lastUpdatedAt instead
+   * of creating a second visible card.
+   */
+  async confirmDuplicate(id: string) {
+    const item = await this.getOne(id);
+    if (!item.possibleDuplicateOfId) {
+      throw new BadRequestException('This item is not flagged as a possible duplicate');
+    }
+    const candidateId = item.possibleDuplicateOfId;
+    const candidate = await this.getOne(candidateId);
+
+    await this.prisma.newsSourceRecord.updateMany({ where: { newsItemId: id }, data: { newsItemId: candidateId } });
+    await this.prisma.newsItem.delete({ where: { id } });
+
+    if (candidate.status === NewsItemStatus.PUBLISHED) {
+      return this.prisma.newsItem.update({ where: { id: candidateId }, data: { lastUpdatedAt: new Date() } });
+    }
+    return this.getOne(candidateId);
+  }
+
+  /** The match was wrong — un-flag it, it proceeds through normal moderation as its own item (spec 5a/5b). */
+  async declineDuplicate(id: string) {
+    const item = await this.getOne(id);
+    if (!item.possibleDuplicateOfId) {
+      throw new BadRequestException('This item is not flagged as a possible duplicate');
+    }
+    return this.prisma.newsItem.update({ where: { id }, data: { possibleDuplicateOfId: null } });
   }
 
   // ─── Public ─────────────────────────────────────────────────────────────────

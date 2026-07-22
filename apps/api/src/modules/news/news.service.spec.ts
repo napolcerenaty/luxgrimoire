@@ -181,13 +181,15 @@ describe('NewsService — unread count cursor (spec 8.1/8.2)', () => {
 describe('NewsService.ingestScreenshot — Phase 2 (spec section 2.3/4.1)', () => {
   let service: NewsService;
   let prisma: DeepMockProxy<PrismaService>;
-  let aiService: { parseNewsAnnouncement: jest.Mock };
+  let aiService: { parseNewsAnnouncement: jest.Mock; checkForDuplicate: jest.Mock };
   let uploadService: { uploadImageBase64: jest.Mock };
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    aiService = { parseNewsAnnouncement: jest.fn() };
+    aiService = { parseNewsAnnouncement: jest.fn(), checkForDuplicate: jest.fn() };
     uploadService = { uploadImageBase64: jest.fn() };
+    // No dedup candidates by default (Phase 4) — individual tests override this if they need to exercise it.
+    (prisma.newsItem.findMany as jest.Mock).mockResolvedValue([]);
     service = new NewsService(prisma, aiService as unknown as AiService, uploadService as unknown as UploadService);
   });
 
@@ -246,11 +248,12 @@ describe('NewsService.ingestScreenshot — Phase 2 (spec section 2.3/4.1)', () =
 describe('NewsService.ingestFromRssEntry — Phase 3 (spec 2.1)', () => {
   let service: NewsService;
   let prisma: DeepMockProxy<PrismaService>;
-  let aiService: { parseNewsAnnouncement: jest.Mock };
+  let aiService: { parseNewsAnnouncement: jest.Mock; checkForDuplicate: jest.Mock };
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    aiService = { parseNewsAnnouncement: jest.fn() };
+    aiService = { parseNewsAnnouncement: jest.fn(), checkForDuplicate: jest.fn() };
+    (prisma.newsItem.findMany as jest.Mock).mockResolvedValue([]);
     service = new NewsService(prisma, aiService as unknown as AiService, {} as UploadService);
   });
 
@@ -304,5 +307,92 @@ describe('NewsService.ingestFromRssEntry — Phase 3 (spec 2.1)', () => {
         }),
       }),
     );
+  });
+});
+
+describe('NewsService — dedup (Phase 4, spec section 5)', () => {
+  let service: NewsService;
+  let prisma: DeepMockProxy<PrismaService>;
+  let aiService: { parseNewsAnnouncement: jest.Mock; checkForDuplicate: jest.Mock };
+  let uploadService: { uploadImageBase64: jest.Mock };
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    aiService = { parseNewsAnnouncement: jest.fn(), checkForDuplicate: jest.fn() };
+    uploadService = { uploadImageBase64: jest.fn() };
+    service = new NewsService(prisma, aiService as unknown as AiService, uploadService as unknown as UploadService);
+  });
+
+  it('skips the LLM call entirely when the cheap company+48h filter finds no candidates', async () => {
+    (prisma.newsItem.findMany as jest.Mock).mockResolvedValue([]);
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'Illumicrate', title: 'New thing' });
+    uploadService.uploadImageBase64.mockResolvedValue({ publicId: 'p', url: 'https://x/y.jpg' });
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n1' });
+
+    await service.ingestScreenshot('base64data');
+
+    expect(aiService.checkForDuplicate).not.toHaveBeenCalled();
+    expect(prisma.newsItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ possibleDuplicateOfId: null }) }),
+    );
+  });
+
+  it('flags possibleDuplicateOfId on the NEW item when the LLM confirms a match — never auto-attaches (spec: no source merges without admin review)', async () => {
+    (prisma.newsItem.findMany as jest.Mock).mockResolvedValue([
+      { id: 'existing-1', title: 'August theme reveal', summary: 'x' },
+    ]);
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'Illumicrate', title: 'August theme reveal (again)' });
+    aiService.checkForDuplicate.mockResolvedValue({ duplicateOfId: 'existing-1' });
+    uploadService.uploadImageBase64.mockResolvedValue({ publicId: 'p', url: 'https://x/y.jpg' });
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n2' });
+
+    await service.ingestScreenshot('base64data');
+
+    expect(prisma.newsItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ possibleDuplicateOfId: 'existing-1' }) }),
+    );
+  });
+
+  it('confirmDuplicate() moves the source onto the candidate, deletes the duplicate, and bumps lastUpdatedAt only if the candidate is already PUBLISHED', async () => {
+    (prisma.newsItem.findUnique as jest.Mock)
+      .mockResolvedValueOnce({ id: 'dup-1', possibleDuplicateOfId: 'orig-1' }) // getOne(id)
+      .mockResolvedValueOnce({ id: 'orig-1', status: NewsItemStatus.PUBLISHED }) // getOne(candidateId)
+      .mockResolvedValueOnce({ id: 'orig-1', status: NewsItemStatus.PUBLISHED }); // final getOne/refetch after update
+    (prisma.newsSourceRecord.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    (prisma.newsItem.delete as jest.Mock).mockResolvedValue({ id: 'dup-1' });
+    (prisma.newsItem.update as jest.Mock).mockResolvedValue({ id: 'orig-1', lastUpdatedAt: new Date() });
+
+    await service.confirmDuplicate('dup-1');
+
+    expect(prisma.newsSourceRecord.updateMany).toHaveBeenCalledWith({ where: { newsItemId: 'dup-1' }, data: { newsItemId: 'orig-1' } });
+    expect(prisma.newsItem.delete).toHaveBeenCalledWith({ where: { id: 'dup-1' } });
+    expect(prisma.newsItem.update).toHaveBeenCalledWith({ where: { id: 'orig-1' }, data: { lastUpdatedAt: expect.any(Date) } });
+  });
+
+  it('confirmDuplicate() does NOT bump lastUpdatedAt when the candidate is still just a DRAFT', async () => {
+    (prisma.newsItem.findUnique as jest.Mock)
+      .mockResolvedValueOnce({ id: 'dup-1', possibleDuplicateOfId: 'orig-1' })
+      .mockResolvedValueOnce({ id: 'orig-1', status: NewsItemStatus.DRAFT })
+      .mockResolvedValueOnce({ id: 'orig-1', status: NewsItemStatus.DRAFT });
+    (prisma.newsSourceRecord.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    (prisma.newsItem.delete as jest.Mock).mockResolvedValue({ id: 'dup-1' });
+
+    await service.confirmDuplicate('dup-1');
+
+    expect(prisma.newsItem.update).not.toHaveBeenCalled();
+  });
+
+  it('confirmDuplicate() rejects an item that was never flagged as a duplicate', async () => {
+    (prisma.newsItem.findUnique as jest.Mock).mockResolvedValue({ id: 'n1', possibleDuplicateOfId: null });
+    await expect(service.confirmDuplicate('n1')).rejects.toThrow(BadRequestException);
+  });
+
+  it('declineDuplicate() just clears the flag — the item is untouched otherwise, proceeds through normal moderation', async () => {
+    (prisma.newsItem.findUnique as jest.Mock).mockResolvedValue({ id: 'n1', possibleDuplicateOfId: 'orig-1' });
+    (prisma.newsItem.update as jest.Mock).mockResolvedValue({ id: 'n1', possibleDuplicateOfId: null });
+
+    await service.declineDuplicate('n1');
+
+    expect(prisma.newsItem.update).toHaveBeenCalledWith({ where: { id: 'n1' }, data: { possibleDuplicateOfId: null } });
   });
 });

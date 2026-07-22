@@ -1713,24 +1713,28 @@ enum NewsSourceMergeStatus {
 }
 
 model NewsItem {
-  id                 String           @id @default(uuid())
-  companyName        String
-  title              String
-  type               NewsItemType     @default(OTHER)
-  summary            String?
-  appEntityLink      String?
-  originalSourceUrl  String?
-  status             NewsItemStatus   @default(DRAFT)
-  publishedAt        DateTime?
-  lastUpdatedAt      DateTime?
-  linkedDraftPayload Json?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  sources            NewsSourceRecord[]
+  id                   String             @id @default(uuid())
+  companyName          String
+  title                String
+  type                 NewsItemType       @default(OTHER)
+  summary              String?
+  appEntityLink        String?
+  originalSourceUrl    String?
+  status               NewsItemStatus     @default(DRAFT)
+  publishedAt          DateTime?
+  lastUpdatedAt        DateTime?
+  linkedDraftPayload   Json?
+  possibleDuplicateOfId String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  sources              NewsSourceRecord[]
+  possibleDuplicateOf  NewsItem?          @relation("NewsItemDuplicates", fields: [possibleDuplicateOfId], references: [id], onDelete: SetNull)
+  duplicateCandidates  NewsItem[]         @relation("NewsItemDuplicates")
 
   @@index([status])
   @@index([publishedAt])
   @@index([companyName])
+  @@index([possibleDuplicateOfId])
   @@map("news_items")
 }
 

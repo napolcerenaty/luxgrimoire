@@ -53,6 +53,16 @@ export interface AiNewsParseResult {
   originalSourceUrl?: string;
 }
 
+export interface AiDuplicateCandidate {
+  id: string;
+  title: string;
+  summary?: string | null;
+}
+
+export interface AiDuplicateCheckResult {
+  duplicateOfId: string | null;
+}
+
 export interface AiParseResult {
   book?: {
     title?: string;
@@ -378,6 +388,13 @@ TYPE RULES:
 - OTHER: anything else relevant to the industry that doesn't clearly fit the above — never force a fit
 
 Do not invent information not present in the source. If the source is unrelated to the book subscription box industry entirely, still return your best-effort classification as "OTHER" with a short summary — do not refuse.`;
+
+const DUPLICATE_CHECK_PROMPT = `You are a duplicate-detection assistant for a news feed about the book subscription box industry.
+You are given ONE new news item and a list of EXISTING candidate items from the same company, all posted within the last 48 hours. Decide whether the new item describes the SAME real-world event/announcement as one of the candidates — not just the same company or a similar topic, but literally the same announcement (e.g. reported via a newsletter AND a social media post on the same day).
+
+Return ONLY valid JSON: { "duplicateOfId": "the id of the matching candidate, or null if none of them describe the same event" }
+
+Be conservative: if you are not reasonably confident it's the same event, return null rather than guessing. Two different books/editions/announcements from the same company on the same day are NOT duplicates of each other.`;
 
 /**
  * Resolve ambiguous US timezone abbreviations (ET, PT, CT, MT) to their
@@ -792,6 +809,46 @@ export class AiService {
       return JSON.parse(content) as AiNewsParseResult;
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
+    }
+  }
+
+  /**
+   * Dedup step 2 (spec section 5) — run only against the small set of candidates
+   * that already passed the cheap same-company/48h filter. Conservative by design:
+   * a false-positive merge loses information, a missed duplicate is just a
+   * cosmetically redundant card the admin can decline.
+   */
+  async checkForDuplicate(newItem: { title: string; summary?: string }, candidates: AiDuplicateCandidate[]): Promise<AiDuplicateCheckResult> {
+    if (!this.client || candidates.length === 0) {
+      return { duplicateOfId: null };
+    }
+
+    const userContent = JSON.stringify({
+      newItem: { title: newItem.title, summary: newItem.summary ?? null },
+      candidates: candidates.map((c) => ({ id: c.id, title: c.title, summary: c.summary ?? null })),
+    });
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: DUPLICATE_CHECK_PROMPT },
+      { role: 'user', content: userContent },
+    ];
+
+    const content = await this.callOpenAi({
+      model: 'gpt-4o-mini',
+      messages,
+      response_format: { type: 'json_object' },
+      max_tokens: 200,
+    });
+
+    try {
+      const result = JSON.parse(content) as AiDuplicateCheckResult;
+      // Guard against the model hallucinating an id that wasn't actually offered.
+      if (result.duplicateOfId && !candidates.some((c) => c.id === result.duplicateOfId)) {
+        return { duplicateOfId: null };
+      }
+      return result;
+    } catch {
+      return { duplicateOfId: null };
     }
   }
 

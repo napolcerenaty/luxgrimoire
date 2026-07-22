@@ -64,6 +64,14 @@ export class NewsController {
     return this.newsService.listDrafts(status, page ? Number(page) : 1, pageSize ? Number(pageSize) : 20);
   }
 
+  // Dedup review queue (spec 5a/5b) — must stay ahead of admin/:id below.
+  @Get('admin/possible-duplicates')
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  listPossibleDuplicates() {
+    return this.newsService.listPossibleDuplicates();
+  }
+
   @Get('admin/:id')
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
@@ -117,6 +125,22 @@ export class NewsController {
   @Roles('ADMIN', 'MODERATOR')
   retract(@Param('id') id: string) {
     return this.newsService.retract(id);
+  }
+
+  @Post('admin/:id/confirm-duplicate')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  confirmDuplicate(@Param('id') id: string) {
+    return this.newsService.confirmDuplicate(id);
+  }
+
+  @Post('admin/:id/decline-duplicate')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  declineDuplicate(@Param('id') id: string) {
+    return this.newsService.declineDuplicate(id);
   }
 
   @Delete('admin/:id')
