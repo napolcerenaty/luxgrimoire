@@ -13,6 +13,7 @@ import {
   Heart, BookMarked, Banknote, Library, Bell,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { NewsBell } from '@/components/news/NewsBell'
 import { SearchDropdown } from '@/components/search/SearchDropdown'
 
 const NAV_LINKS = [
@@ -20,6 +21,7 @@ const NAV_LINKS = [
   { href: '/subscriptions', label: 'Subscriptions' },
   { href: '/books-by-month', label: 'Boxes by Month' },
   { href: '/sale-announcements', label: 'Sale Announcements' },
+  { href: '/news', label: 'News' },
   { href: '/blog', label: 'Blog' },
 ]
 
@@ -127,6 +129,9 @@ export function Navbar() {
 
           {/* Separator */}
           <div className="w-px h-5 bg-stone-700 mx-1 hidden sm:block" />
+
+          {/* News — visible to everyone, not just logged-in users (spec section 9) */}
+          <NewsBell />
 
           {/* Notification bell */}
           {user && <NotificationBell />}

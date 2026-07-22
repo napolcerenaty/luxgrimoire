@@ -107,6 +107,10 @@ export class CompaniesService {
         bluesky: dto.bluesky,
         iossImplemented: dto.iossImplemented ?? false,
         hasOfficialImagePermission: dto.hasOfficialImagePermission ?? false,
+        newsletterSubscribed: dto.newsletterSubscribed ?? false,
+        blogUrl: dto.blogUrl,
+        rssUrlOverride: dto.rssUrlOverride,
+        blogCheckFrequency: dto.blogCheckFrequency,
       },
     });
     await this.indexCompany(company);
@@ -210,6 +214,12 @@ export class CompaniesService {
         bluesky: true,
         iossImplemented: true,
         hasOfficialImagePermission: true,
+        newsletterSubscribed: true,
+        blogUrl: true,
+        rssUrlOverride: true,
+        blogCheckFrequency: true,
+        blogLastCheckedAt: true,
+        blogFeedType: true,
         brandColors: true,
         createdAt: true,
         updatedAt: true,

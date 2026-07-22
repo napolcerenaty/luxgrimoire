@@ -233,6 +233,12 @@ export interface ApiBookBoxCompany {
   bluesky: string | null;
   iossImplemented: boolean;
   hasOfficialImagePermission: boolean;
+  newsletterSubscribed?: boolean;
+  blogUrl?: string | null;
+  rssUrlOverride?: string | null;
+  blogCheckFrequency?: 'HOURLY' | 'EVERY_6H' | 'DAILY' | 'WEEKLY';
+  blogLastCheckedAt?: string | null;
+  blogFeedType?: 'SHOPIFY_ATOM' | 'WORDPRESS' | 'HTML_SCRAPE' | null;
   brandColors: string[];
   subscriptions?: ApiSubscription[];
   collections?: ApiBookBoxCollection[];

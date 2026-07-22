@@ -28,6 +28,7 @@ import {
   BookMarked,
   Star,
   AlertTriangle,
+  Newspaper,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -88,6 +89,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
       { href: '/admin/community-images', label: 'Community Images', icon: Image },
       { href: '/admin/data-requests', label: 'Data Requests', icon: Database },
       { href: '/admin/sale-announcement-requests', label: 'Sale Requests', icon: Megaphone },
+      { href: '/admin/news', label: 'News Moderation', icon: Newspaper },
     ],
   },
 ]

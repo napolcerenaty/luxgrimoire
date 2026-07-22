@@ -1,5 +1,5 @@
 import type { ApiFeeTemplate, ApiPurchaseFee, FeeCategory } from '@luxgrimoire/shared-types';
-import { API_BASE as API_URL } from './authFetch';
+import { API_BASE as API_URL, authFetch } from './authFetch';
 
 export async function apiFetch<T>(
   path: string,
@@ -942,4 +942,123 @@ export async function deleteSubscriptionPriceChange(slug: string, id: string): P
     method: 'DELETE',
   });
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}
+
+// ─────────────────────────────────────────────
+// News (spec: Desktop:luxgrimoire-feature-news-aggregator.md)
+// ─────────────────────────────────────────────
+
+export type NewsItemType = 'NEW_SUBSCRIPTION' | 'CONTINUATION' | 'TEASER' | 'SALE_ANNOUNCEMENT' | 'MONTH_THEME' | 'OTHER';
+export type NewsItemStatus = 'DRAFT' | 'PUBLISHED' | 'REJECTED' | 'RETRACTED';
+export type NewsSourceType = 'RSS' | 'EMAIL' | 'INSTAGRAM_SCREENSHOT' | 'EMAIL_ACTION_REQUIRED';
+
+export interface ApiNewsSource {
+  id: string;
+  sourceType: NewsSourceType;
+  rawContentRef: string | null;
+  externalRef: string | null;
+  actionUrl: string | null;
+  companyName: string | null;
+  ingestedAt: string;
+  mergeStatus: 'PENDING_REVIEW' | 'CONFIRMED' | 'DECLINED';
+}
+
+export interface ApiNewsItem {
+  id: string;
+  companyName: string;
+  title: string;
+  type: NewsItemType;
+  summary: string | null;
+  appEntityLink: string | null;
+  originalSourceUrl: string | null;
+  status: NewsItemStatus;
+  publishedAt: string | null;
+  lastUpdatedAt: string | null;
+  linkedDraftPayload: Record<string, unknown> | null;
+  possibleDuplicateOfId: string | null;
+  createdAt: string;
+  sources?: ApiNewsSource[];
+  possibleDuplicateOf?: ApiNewsItem;
+}
+
+// ── Public ──────────────────────────────────────────────────────────────────
+
+export async function getPublicNews(params?: { page?: number; pageSize?: number; date?: string }): Promise<{ data: ApiNewsItem[]; meta: { total: number; page: number; pageSize: number; totalPages: number } }> {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
+  if (params?.date) qs.set('date', params.date);
+  return apiFetch(`/news?${qs}`);
+}
+
+export async function getNewsUnreadCount(sinceForAnonymous?: string): Promise<{ count: number }> {
+  const qs = sinceForAnonymous ? `?since=${encodeURIComponent(sinceForAnonymous)}` : '';
+  return apiFetch(`/news/unread-count${qs}`);
+}
+
+export async function markNewsSeen(): Promise<{ seenAt: string }> {
+  return authFetch('/news/mark-seen', { method: 'POST' });
+}
+
+// ── Admin ───────────────────────────────────────────────────────────────────
+
+export async function adminListNewsDrafts(params?: { status?: NewsItemStatus; page?: number; pageSize?: number }): Promise<{ data: ApiNewsItem[]; meta: { total: number; page: number; pageSize: number; totalPages: number } }> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.pageSize) qs.set('pageSize', String(params.pageSize));
+  return authFetch(`/news/admin/drafts?${qs}`);
+}
+
+export async function adminGetNewsItem(id: string): Promise<ApiNewsItem> {
+  return authFetch(`/news/admin/${id}`);
+}
+
+export async function adminIngestScreenshot(imageBase64: string, caption?: string): Promise<ApiNewsItem> {
+  return authFetch('/news/admin/ingest-screenshot', { method: 'POST', body: JSON.stringify({ imageBase64, caption }) });
+}
+
+export async function adminUpdateNewsDraft(id: string, data: Partial<Pick<ApiNewsItem, 'companyName' | 'title' | 'type' | 'summary' | 'appEntityLink' | 'originalSourceUrl'>>): Promise<ApiNewsItem> {
+  return authFetch(`/news/admin/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+}
+
+export async function adminApproveNews(id: string): Promise<ApiNewsItem> {
+  return authFetch(`/news/admin/${id}/approve`, { method: 'POST' });
+}
+
+export async function adminRejectNews(id: string): Promise<ApiNewsItem> {
+  return authFetch(`/news/admin/${id}/reject`, { method: 'POST' });
+}
+
+export async function adminRetractNews(id: string): Promise<ApiNewsItem> {
+  return authFetch(`/news/admin/${id}/retract`, { method: 'POST' });
+}
+
+export async function adminDeleteNews(id: string): Promise<void> {
+  await authFetch(`/news/admin/${id}`, { method: 'DELETE' });
+}
+
+export async function adminListPossibleDuplicates(): Promise<ApiNewsItem[]> {
+  return authFetch('/news/admin/possible-duplicates');
+}
+
+export async function adminConfirmDuplicate(id: string): Promise<ApiNewsItem> {
+  return authFetch(`/news/admin/${id}/confirm-duplicate`, { method: 'POST' });
+}
+
+export async function adminDeclineDuplicate(id: string): Promise<ApiNewsItem> {
+  return authFetch(`/news/admin/${id}/decline-duplicate`, { method: 'POST' });
+}
+
+export async function adminListActionRequired(): Promise<ApiNewsSource[]> {
+  return authFetch('/news/admin/action-required');
+}
+
+export async function adminResolveActionRequired(id: string): Promise<void> {
+  await authFetch(`/news/admin/action-required/${id}/resolve`, { method: 'POST' });
+}
+
+export async function adminGetStaleNewsletters(days?: number): Promise<{ id: string; name: string }[]> {
+  const qs = days ? `?days=${days}` : '';
+  return authFetch(`/news/admin/stale-newsletters${qs}`);
 }

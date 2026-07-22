@@ -145,6 +145,10 @@ interface CompanyFormData {
   bluesky: string
   iossImplemented: boolean
   hasOfficialImagePermission: boolean
+  newsletterSubscribed: boolean
+  blogUrl: string
+  rssUrlOverride: string
+  blogCheckFrequency: 'HOURLY' | 'EVERY_6H' | 'DAILY' | 'WEEKLY'
 }
 
 const EMPTY_FORM: CompanyFormData = {
@@ -153,6 +157,10 @@ const EMPTY_FORM: CompanyFormData = {
   instagram: '', threads: '', tiktok: '', facebook: '', x: '', bluesky: '',
   iossImplemented: false,
   hasOfficialImagePermission: false,
+  newsletterSubscribed: false,
+  blogUrl: '',
+  rssUrlOverride: '',
+  blogCheckFrequency: 'DAILY',
 }
 
 function companyToForm(c: ApiBookBoxCompany): CompanyFormData {
@@ -171,6 +179,10 @@ function companyToForm(c: ApiBookBoxCompany): CompanyFormData {
     bluesky: c.bluesky ?? '',
     iossImplemented: c.iossImplemented ?? false,
     hasOfficialImagePermission: c.hasOfficialImagePermission ?? false,
+    newsletterSubscribed: c.newsletterSubscribed ?? false,
+    blogUrl: c.blogUrl ?? '',
+    rssUrlOverride: c.rssUrlOverride ?? '',
+    blogCheckFrequency: c.blogCheckFrequency ?? 'DAILY',
   }
 }
 
@@ -196,6 +208,10 @@ function formToPayload(form: CompanyFormData) {
     bluesky: nullIfEmpty(form.bluesky),
     iossImplemented: form.iossImplemented,
     hasOfficialImagePermission: form.hasOfficialImagePermission,
+    newsletterSubscribed: form.newsletterSubscribed,
+    blogUrl: nullIfEmpty(form.blogUrl),
+    rssUrlOverride: nullIfEmpty(form.rssUrlOverride),
+    blogCheckFrequency: form.blogCheckFrequency,
   }
 }
 
@@ -355,6 +371,58 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
         />
         Permission to use brand images
       </label>
+
+      {/* News source configurator (spec section 10.1) */}
+      <div className="border-t border-stone-700 pt-4 mt-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">News source</p>
+
+        <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer mb-3">
+          <input
+            type="checkbox"
+            checked={form.newsletterSubscribed}
+            onChange={(e) => setForm((f) => ({ ...f, newsletterSubscribed: e.target.checked }))}
+            className="accent-amber-400 w-4 h-4"
+          />
+          Subscribed to newsletter (news@ address)
+        </label>
+
+        <div className="mb-3">
+          <label className={LABEL_CLASS}>Blog URL</label>
+          <input
+            type="text"
+            className={INPUT_CLASS}
+            placeholder="e.g. https://illumicrate.com/blogs/news"
+            value={form.blogUrl}
+            onChange={(e) => setForm((f) => ({ ...f, blogUrl: e.target.value }))}
+          />
+          <p className="text-[11px] text-stone-500 mt-1">Feed auto-detected (.atom / /feed/) — just the plain blog page URL.</p>
+        </div>
+
+        <div className="mb-3">
+          <label className={LABEL_CLASS}>RSS override (rare — only if auto-detection can&apos;t find a feed)</label>
+          <input
+            type="text"
+            className={INPUT_CLASS}
+            placeholder="direct feed URL"
+            value={form.rssUrlOverride}
+            onChange={(e) => setForm((f) => ({ ...f, rssUrlOverride: e.target.value }))}
+          />
+        </div>
+
+        <div>
+          <label className={LABEL_CLASS}>Blog check frequency</label>
+          <select
+            className={INPUT_CLASS}
+            value={form.blogCheckFrequency}
+            onChange={(e) => setForm((f) => ({ ...f, blogCheckFrequency: e.target.value as CompanyFormData['blogCheckFrequency'] }))}
+          >
+            <option value="HOURLY">Hourly</option>
+            <option value="EVERY_6H">Every 6 hours</option>
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly</option>
+          </select>
+        </div>
+      </div>
 
       <button
         type="submit"

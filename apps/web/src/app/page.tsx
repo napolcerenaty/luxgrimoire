@@ -11,6 +11,8 @@ import { HomeTrendingEditions } from '@/components/home/HomeTrendingEditions'
 import { HomeTrendingSales } from '@/components/home/HomeTrendingSales'
 import { SaleCountdownBanner } from '@/components/home/SaleCountdownBanner'
 import { HomeAuthSection, HomeGuestFeatures } from '@/components/home/HomeAuthSection'
+import { NewsTeaser } from '@/components/news/NewsTeaser'
+import { getPublicNews } from '@/lib/api'
 import type {
   ApiBookEdition,
   ApiPlatformStats,
@@ -37,12 +39,13 @@ async function fetchCachedPublic<T>(path: string): Promise<T> {
 }
 
 async function getHomeData() {
-  const [announcementsRes, editionsRes, platformStats, trendingEditions, trendingSales] = await Promise.all([
+  const [announcementsRes, editionsRes, platformStats, trendingEditions, trendingSales, newsRes] = await Promise.all([
     apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?upcoming=true&pageSize=20').catch(() => null),
     apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch(() => null),
     fetchCachedPublic<ApiPlatformStats>('/platform/stats').catch(() => null),
     fetchCachedPublic<ApiTrendingEdition[]>('/editions/trending?limit=8').catch(() => null),
     fetchCachedPublic<ApiTrendingSaleAnnouncement[]>('/announcements/trending?limit=6').catch(() => null),
+    getPublicNews({ pageSize: 3 }).catch(() => null),
   ])
 
   return {
@@ -51,11 +54,12 @@ async function getHomeData() {
     platformStats,
     trendingEditions: trendingEditions ?? [],
     trendingSales: trendingSales ?? [],
+    news: newsRes?.data ?? [],
   }
 }
 
 export default async function HomePage() {
-  const { announcements, recentEditions, platformStats, trendingEditions, trendingSales } = await getHomeData()
+  const { announcements, recentEditions, platformStats, trendingEditions, trendingSales, news } = await getHomeData()
 
   const recentEditionCards: CarouselCard[] = recentEditions.map((e) => {
     const authors = e.book?.authors?.map((a) => a.name).join(', ') ?? null
@@ -77,6 +81,9 @@ export default async function HomePage() {
     <div>
       {/* Hero + HomeFeaturesSection — client-side auth via useAuth() */}
       <HomeAuthSection />
+
+      {/* News teaser — zero-click visibility on desktop (spec section 9) */}
+      <NewsTeaser items={news} />
 
       {platformStats && <HomeStatsBar {...platformStats} />}
 

@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsBoolean, IsInt, Min, Max, ValidateIf } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, Min, Max, ValidateIf, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { BlogCheckFrequency } from '@prisma/client';
 
 export class CreateCompanyDto {
   @IsString()
@@ -56,6 +57,23 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsBoolean()
   hasOfficialImagePermission?: boolean;
+
+  // News-source configurator (spec section 10.1)
+  @IsOptional()
+  @IsBoolean()
+  newsletterSubscribed?: boolean;
+
+  @IsOptional()
+  @IsString()
+  blogUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  rssUrlOverride?: string;
+
+  @IsOptional()
+  @IsEnum(BlogCheckFrequency)
+  blogCheckFrequency?: BlogCheckFrequency;
 }
 
 export class UpdateCompanyDto {
@@ -125,6 +143,25 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsBoolean()
   hasOfficialImagePermission?: boolean;
+
+  // News-source configurator (spec section 10.1)
+  @IsOptional()
+  @IsBoolean()
+  newsletterSubscribed?: boolean;
+
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @IsString()
+  blogUrl?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @IsString()
+  rssUrlOverride?: string | null;
+
+  @IsOptional()
+  @IsEnum(BlogCheckFrequency)
+  blogCheckFrequency?: BlogCheckFrequency;
 }
 
 export class CompanyQueryDto {
