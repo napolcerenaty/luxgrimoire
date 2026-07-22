@@ -138,5 +138,8 @@ export async function getTags(limit = 20): Promise<GhostTag[]> {
     include: 'count.posts',
     order: 'count.posts DESC',
   })
-  return (data?.tags ?? []).filter(t => (t.count?.posts ?? 0) > 0)
+  // Internal tags (name "#hero-1" etc, slug "hash-hero-1") are metadata used to pick hero-slot
+  // posts and sponsorship labels (see hasInternalTag/SPONSORED_LABELS above) — never a real
+  // content category, so they must never surface as a public nav/filter pill.
+  return (data?.tags ?? []).filter(t => (t.count?.posts ?? 0) > 0 && !t.slug.startsWith('hash-'))
 }

@@ -408,6 +408,11 @@ input[type=number] {
   backdrop-filter: blur(4px);
 }
 .blog-tag {
+  /* Inline style sets border-color: var(--border), which sits only ~1 shade off
+     var(--bg-raised) — the pill outline was nearly invisible against the header
+     background. Override with a border tied to the (already-legible) text-dim
+     color instead, at enough opacity to read as a distinct pill in both themes. */
+  border-color: color-mix(in srgb, var(--text-dim) 40%, transparent) !important;
   background: var(--bg-raised);
   color: var(--text-dim);
   cursor: pointer;

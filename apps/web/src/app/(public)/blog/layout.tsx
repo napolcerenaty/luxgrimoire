@@ -43,8 +43,7 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
             <nav className="flex gap-1 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Blog categories">
               <Link
                 href="/blog"
-                className="shrink-0 inline-flex items-center h-7 px-3 rounded-full border text-xs font-serif uppercase tracking-wide transition-colors whitespace-nowrap hover:text-amber-400"
-                style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+                className="blog-tag shrink-0 inline-flex items-center h-7 px-3 rounded-full border text-xs font-serif uppercase tracking-wide whitespace-nowrap"
               >
                 All
               </Link>
@@ -52,8 +51,7 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
                 <Link
                   key={tag.id}
                   href={`/blog/tag/${tag.slug}`}
-                  className="shrink-0 inline-flex items-center h-7 px-3 rounded-full border text-xs font-serif uppercase tracking-wide transition-colors whitespace-nowrap hover:text-amber-400"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+                  className="blog-tag shrink-0 inline-flex items-center h-7 px-3 rounded-full border text-xs font-serif uppercase tracking-wide whitespace-nowrap"
                 >
                   {tag.name}
                 </Link>
