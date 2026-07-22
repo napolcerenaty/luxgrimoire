@@ -240,18 +240,19 @@ type BookComponent = {
   book: { id: string; slug: string; title: string }
 }
 
-function BookComponentsPanel({ bookSlug }: { bookSlug: string }) {
-  const qc = useQueryClient()
+/** The book-search-and-pick sub-form, shared by the live panel (existing book) and the
+ * staged editor (book being created — nothing to attach to yet). Just resolves "which
+ * book, what volume number, what order" and hands it to the caller via onAdd; the caller
+ * decides whether that means an API call (live) or appending to local state (staged). */
+function ComponentPickerForm({ onAdd, disabled }: {
+  onAdd: (book: { id: string; title: string }, volumeNumber: string, order: string) => void
+  disabled?: boolean
+}) {
   const [bookSearch, setBookSearch] = useState('')
   const [selectedBook, setSelectedBook] = useState<{ id: string; title: string } | null>(null)
   const [volumeNumber, setVolumeNumber] = useState('')
   const [order, setOrder] = useState('')
-  const [addError, setAddError] = useState('')
-
-  const { data: components = [], isLoading } = useQuery<BookComponent[]>({
-    queryKey: ['book-components', bookSlug],
-    queryFn: () => authFetch<BookComponent[]>(`/books/${bookSlug}/components`),
-  })
+  const [error, setError] = useState('')
 
   const { data: bookResults = [] } = useQuery<{ id: string; title: string; slug: string; seriesName: string | null }[]>({
     queryKey: ['book-search', bookSearch],
@@ -264,18 +265,103 @@ function BookComponentsPanel({ bookSlug }: { bookSlug: string }) {
     enabled: bookSearch.length >= 2,
   })
 
+  const handleAdd = () => {
+    if (!selectedBook) {
+      setError('Select a book — every component must be a cataloged book')
+      return
+    }
+    onAdd(selectedBook, volumeNumber, order)
+    setSelectedBook(null)
+    setBookSearch('')
+    setVolumeNumber('')
+    setOrder('')
+    setError('')
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-stone-500">Add component (must be an existing cataloged book)</p>
+      {!selectedBook ? (
+        <div className="relative">
+          <input
+            value={bookSearch}
+            onChange={e => setBookSearch(e.target.value)}
+            placeholder="Search book (2+ chars)…"
+            className={INP}
+          />
+          {bookSearch.length >= 2 && bookResults.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-stone-800 border border-stone-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+              {bookResults.map(b => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => { setSelectedBook({ id: b.id, title: b.title }); setBookSearch('') }}
+                  className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors"
+                >
+                  {b.title}
+                  {b.seriesName && (
+                    <span className="text-stone-400 ml-1">({b.seriesName})</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
+          <span className="flex-1">{selectedBook.title}</span>
+          <button type="button" onClick={() => setSelectedBook(null)} className="text-stone-500 hover:text-red-400">×</button>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={LBL}>Volume number</label>
+          <input
+            value={volumeNumber}
+            onChange={e => setVolumeNumber(e.target.value)}
+            placeholder="e.g. 1.5"
+            type="number"
+            step="0.5"
+            className={INP}
+          />
+        </div>
+        <div>
+          <label className={LBL}>Order (sort)</label>
+          <input
+            value={order}
+            onChange={e => setOrder(e.target.value)}
+            placeholder="0"
+            type="number"
+            min="0"
+            className={INP}
+          />
+        </div>
+      </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <button
+        type="button"
+        onClick={handleAdd}
+        disabled={disabled}
+        className="w-full bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors text-sm"
+      >
+        + Add component
+      </button>
+    </div>
+  )
+}
+
+function BookComponentsPanel({ bookSlug }: { bookSlug: string }) {
+  const qc = useQueryClient()
+
+  const { data: components = [], isLoading } = useQuery<BookComponent[]>({
+    queryKey: ['book-components', bookSlug],
+    queryFn: () => authFetch<BookComponent[]>(`/books/${bookSlug}/components`),
+  })
+
   const addMutation = useMutation({
     mutationFn: (payload: { bookId: string; volumeNumber?: number; order?: number }) =>
       authFetch(`/books/${bookSlug}/components`, { method: 'POST', body: JSON.stringify(payload) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['book-components', bookSlug] })
-      setSelectedBook(null)
-      setBookSearch('')
-      setVolumeNumber('')
-      setOrder('')
-      setAddError('')
-    },
-    onError: (e: unknown) => setAddError(e instanceof Error ? e.message : String(e)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['book-components', bookSlug] }),
   })
 
   const deleteMutation = useMutation({
@@ -283,18 +369,6 @@ function BookComponentsPanel({ bookSlug }: { bookSlug: string }) {
       authFetch(`/books/${bookSlug}/components/${componentId}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['book-components', bookSlug] }),
   })
-
-  const handleAdd = () => {
-    if (!selectedBook) {
-      setAddError('Select a book — every component must be a cataloged book')
-      return
-    }
-    addMutation.mutate({
-      bookId: selectedBook.id,
-      volumeNumber: volumeNumber ? parseFloat(volumeNumber) : undefined,
-      order: order ? parseInt(order, 10) : undefined,
-    })
-  }
 
   return (
     <div className="border border-stone-700 rounded-xl p-4 space-y-4 bg-stone-900/50">
@@ -323,73 +397,68 @@ function BookComponentsPanel({ bookSlug }: { bookSlug: string }) {
           ))}
         </div>
       )}
-      <div className="border-t border-stone-700 pt-3 space-y-2">
-        <p className="text-xs text-stone-500">Add component (must be an existing cataloged book)</p>
-        {!selectedBook ? (
-          <div className="relative">
-            <input
-              value={bookSearch}
-              onChange={e => setBookSearch(e.target.value)}
-              placeholder="Search book (2+ chars)…"
-              className={INP}
-            />
-            {bookSearch.length >= 2 && bookResults.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-stone-800 border border-stone-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                {bookResults.map(b => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => { setSelectedBook({ id: b.id, title: b.title }); setBookSearch('') }}
-                    className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors"
-                  >
-                    {b.title}
-                    {b.seriesName && (
-                      <span className="text-stone-400 ml-1">({b.seriesName})</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
-            <span className="flex-1">{selectedBook.title}</span>
-            <button type="button" onClick={() => setSelectedBook(null)} className="text-stone-500 hover:text-red-400">×</button>
-          </div>
-        )}
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className={LBL}>Volume number</label>
-            <input
-              value={volumeNumber}
-              onChange={e => setVolumeNumber(e.target.value)}
-              placeholder="e.g. 1.5"
-              type="number"
-              step="0.5"
-              className={INP}
-            />
-          </div>
-          <div>
-            <label className={LBL}>Order (sort)</label>
-            <input
-              value={order}
-              onChange={e => setOrder(e.target.value)}
-              placeholder="0"
-              type="number"
-              min="0"
-              className={INP}
-            />
-          </div>
-        </div>
-        {addError && <p className="text-xs text-red-400">{addError}</p>}
-        <button
-          type="button"
-          onClick={handleAdd}
+      <div className="border-t border-stone-700 pt-3">
+        <ComponentPickerForm
           disabled={addMutation.isPending}
-          className="w-full bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors text-sm"
-        >
-          {addMutation.isPending ? 'Adding…' : '+ Add component'}
-        </button>
+          onAdd={(book, volumeNumber, order) => addMutation.mutate({
+            bookId: book.id,
+            volumeNumber: volumeNumber ? parseFloat(volumeNumber) : undefined,
+            order: order ? parseInt(order, 10) : undefined,
+          })}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** A component staged before the omnibus book exists — volumeNumber/order kept as raw
+ * strings (like the rest of this form's numeric fields) until flushed to the API. */
+export interface StagedComponent {
+  bookId: string
+  title: string
+  volumeNumber: string
+  order: string
+}
+
+/** Same UI as BookComponentsPanel, but backed by local state instead of live API calls —
+ * used while creating a book, before it has a slug to attach real components to. The
+ * parent flushes `components` via POST /books/:slug/components once the book is created. */
+export function StagedComponentsEditor({ components, onChange }: {
+  components: StagedComponent[]
+  onChange: (components: StagedComponent[]) => void
+}) {
+  return (
+    <div className="border border-stone-700 rounded-xl p-4 space-y-4 bg-stone-900/50">
+      <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Omnibus components</p>
+      <p className="text-xs text-stone-500">Added automatically right after the book is created.</p>
+      {components.length === 0 ? (
+        <p className="text-stone-500 text-xs">No components staged yet.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {components.map((c, i) => (
+            <div key={c.bookId} className="flex items-center gap-2 text-sm text-stone-300">
+              {c.volumeNumber && (
+                <span className="text-xs text-amber-600/80 font-semibold w-14 shrink-0">Vol. {c.volumeNumber}</span>
+              )}
+              <span className="flex-1">{c.title}</span>
+              <button
+                type="button"
+                onClick={() => onChange(components.filter((_, j) => j !== i))}
+                className={`${BTN_SM} bg-red-900/30 text-red-400 hover:bg-red-900/50`}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="border-t border-stone-700 pt-3">
+        <ComponentPickerForm
+          onAdd={(book, volumeNumber, order) => {
+            if (components.some(c => c.bookId === book.id)) return
+            onChange([...components, { bookId: book.id, title: book.title, volumeNumber, order }])
+          }}
+        />
       </div>
     </div>
   )
