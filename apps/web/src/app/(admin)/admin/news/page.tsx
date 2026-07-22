@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Upload, ExternalLink, Check, X, Trash2, RotateCcw, GitMerge } from 'lucide-react'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
@@ -31,8 +31,48 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+/** Injects a <base> tag so relative image/link paths in raw email/blog HTML actually resolve. */
+function buildSrcDoc(html: string, baseUrl?: string): string {
+  const safeBase = baseUrl ? baseUrl.replace(/"/g, '&quot;') : ''
+  const baseTag = safeBase ? `<base href="${safeBase}">` : ''
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`)
+  }
+  return `<!DOCTYPE html><html><head>${baseTag}</head><body>${html}</body></html>`
+}
+
+const MAX_FRAME_HEIGHT = 800
+
+/**
+ * Rendered (not just plain-text) view of raw email/blog HTML (spec 4.3) — sandboxed
+ * with no allow-scripts, so nothing in the source can execute; allow-same-origin is
+ * kept only so this component can measure the iframe's real content height below.
+ */
+function HtmlSourceFrame({ html, baseUrl }: { html: string; baseUrl?: string }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [height, setHeight] = useState(200)
+
+  const handleLoad = useCallback(() => {
+    const body = iframeRef.current?.contentWindow?.document?.body
+    if (body) setHeight(Math.min(body.scrollHeight + 16, MAX_FRAME_HEIGHT))
+  }, [])
+
+  return (
+    <iframe
+      ref={iframeRef}
+      sandbox="allow-same-origin"
+      srcDoc={buildSrcDoc(html, baseUrl)}
+      onLoad={handleLoad}
+      style={{ height }}
+      className="mt-2 w-full rounded-lg border border-stone-700 bg-white"
+      title="Source preview"
+    />
+  )
+}
+
 function RawSourceView({ item }: { item: ApiNewsItem }) {
   const [show, setShow] = useState(false)
+  const [mode, setMode] = useState<'rendered' | 'text'>('rendered')
   const source = item.sources?.[0]
   if (!source?.rawContentRef) return null
 
@@ -48,9 +88,29 @@ function RawSourceView({ item }: { item: ApiNewsItem }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={source.rawContentRef} alt="Screenshot source" className="mt-2 max-w-xs rounded-lg border border-stone-700" />
         ) : (
-          <pre className="mt-2 max-h-64 overflow-auto text-[11px] text-stone-400 bg-stone-950 border border-stone-800 rounded-lg p-3 whitespace-pre-wrap">
-            {source.rawContentRef}
-          </pre>
+          <>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => setMode('rendered')}
+                className={`text-xs px-2 py-0.5 rounded-full transition-colors ${mode === 'rendered' ? 'bg-amber-400 text-stone-950' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}
+              >
+                Rendered
+              </button>
+              <button
+                onClick={() => setMode('text')}
+                className={`text-xs px-2 py-0.5 rounded-full transition-colors ${mode === 'text' ? 'bg-amber-400 text-stone-950' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}
+              >
+                Plain text
+              </button>
+            </div>
+            {mode === 'rendered' ? (
+              <HtmlSourceFrame html={source.rawContentRef} baseUrl={item.originalSourceUrl ?? undefined} />
+            ) : (
+              <pre className="mt-2 max-h-64 overflow-auto text-[11px] text-stone-400 bg-stone-950 border border-stone-800 rounded-lg p-3 whitespace-pre-wrap">
+                {source.rawContentRef}
+              </pre>
+            )}
+          </>
         )
       )}
     </div>
