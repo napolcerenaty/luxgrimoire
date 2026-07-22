@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PersonPicker, type PersonEntry } from '@/components/admin/pickers/PersonPicker'
 import { SeriesPicker } from '@/components/admin/pickers/SeriesPicker'
@@ -48,8 +48,75 @@ interface Props {
   submitting: boolean
   submitLabel: string
   onCancel?: () => void
-  /** When provided (editing an existing book), shows the omnibus components panel below the form. */
+  /** When provided (editing an existing book), shows the omnibus checkbox + components panel below the form. */
   bookSlug?: string
+  /** Whether this book is currently an omnibus (has components) — initializes the checkbox that reveals the components panel. Ignored unless bookSlug is also given. */
+  initialIsOmnibus?: boolean
+}
+
+/** Series membership editor — a book can belong to several series, with exactly one marked
+ * Primary (shown on cards). Shared by BookForm (edit) and CreateBookEditionForm (create) so
+ * both places offer the same multi-series input instead of create-time being limited to one. */
+export function SeriesEntriesEditor({ entries, onChange }: {
+  entries: SeriesEntryFormState[]
+  onChange: (entries: SeriesEntryFormState[]) => void
+}) {
+  const radioGroupName = useId()
+
+  const updateEntry = (i: number, patch: Partial<SeriesEntryFormState>) =>
+    onChange(entries.map((e, j) => j === i ? { ...e, ...patch } : e))
+
+  const addEntry = () =>
+    onChange([...entries, { seriesName: '', volumeNumbers: '', isPrimary: entries.length === 0 }])
+
+  const removeEntry = (i: number) => {
+    const wasPrimary = entries[i]?.isPrimary
+    const rest = entries.filter((_, j) => j !== i)
+    if (wasPrimary && rest.length > 0 && !rest.some((e) => e.isPrimary)) rest[0].isPrimary = true
+    onChange(rest)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className={LBL}>Series <span className="text-stone-600 font-normal normal-case tracking-normal">(the one marked Primary shows on cards)</span></label>
+        <button type="button" onClick={addEntry} className={`${BTN_SM} bg-stone-700 text-stone-400 hover:bg-stone-600`}>+ Add series</button>
+      </div>
+      {entries.length === 0 && <p className="text-xs text-stone-600 italic">Not part of any series.</p>}
+      {entries.length > 0 && (
+        <p className="text-xs text-stone-600 mb-2">
+          Vol #: comma-separated (<code>0.5, 2</code>) or a range for an omnibus (<code>1-3</code> → 1, 2, 3).
+        </p>
+      )}
+      <div className="space-y-2">
+        {entries.map((entry, i) => (
+          <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <div className="flex-1">
+              <SeriesPicker value={entry.seriesName} onChange={(v) => updateEntry(i, { seriesName: v })} />
+            </div>
+            <input
+              value={entry.volumeNumbers}
+              onChange={(e) => updateEntry(i, { volumeNumbers: e.target.value })}
+              placeholder="e.g. 1, 2 or 1-3"
+              title="Comma-separated volume numbers, e.g. &quot;0.5, 2&quot;. For an omnibus spanning consecutive volumes, use a range like &quot;1-3&quot; — it expands to 1, 2, 3."
+              className={`${INP} sm:w-40`}
+            />
+            <label className="flex items-center gap-1.5 text-xs text-stone-400 whitespace-nowrap shrink-0">
+              <input
+                type="radio"
+                name={radioGroupName}
+                checked={entry.isPrimary}
+                onChange={() => onChange(entries.map((e, j) => ({ ...e, isPrimary: j === i })))}
+                className="accent-amber-400"
+              />
+              Primary
+            </label>
+            <button type="button" onClick={() => removeEntry(i)} className="text-stone-500 hover:text-red-400 text-sm shrink-0">✕</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export interface AiBookResult {
@@ -328,8 +395,9 @@ function BookComponentsPanel({ bookSlug }: { bookSlug: string }) {
   )
 }
 
-export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel, bookSlug }: Props) {
+export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel, bookSlug, initialIsOmnibus }: Props) {
   const [form, setForm] = useState<BookFormState>(initial)
+  const [showOmnibusPanel, setShowOmnibusPanel] = useState(initialIsOmnibus ?? false)
 
   function applyParserResult(data: AiBookResult) {
     const patch: Partial<BookFormState> = {}
@@ -346,20 +414,6 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel,
     if (Array.isArray(data.authors) && data.authors.length) patch.authors = data.authors.map(a => ({ name: a.name }))
     setForm(f => ({ ...f, ...patch }))
   }
-
-  const updateEntry = (i: number, patch: Partial<SeriesEntryFormState>) =>
-    setForm(f => ({ ...f, seriesEntries: f.seriesEntries.map((e, j) => j === i ? { ...e, ...patch } : e) }))
-
-  const addEntry = () =>
-    setForm(f => ({ ...f, seriesEntries: [...f.seriesEntries, { seriesName: '', volumeNumbers: '', isPrimary: f.seriesEntries.length === 0 }] }))
-
-  const removeEntry = (i: number) =>
-    setForm(f => {
-      const wasPrimary = f.seriesEntries[i]?.isPrimary
-      const rest = f.seriesEntries.filter((_, j) => j !== i)
-      if (wasPrimary && rest.length > 0 && !rest.some(e => e.isPrimary)) rest[0].isPrimary = true
-      return { ...f, seriesEntries: rest }
-    })
 
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(form) }} className="flex flex-col gap-4">
@@ -399,45 +453,10 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel,
         )}
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className={LBL}>Series <span className="text-stone-600 font-normal normal-case tracking-normal">(the one marked Primary shows on cards)</span></label>
-          <button type="button" onClick={addEntry} className={`${BTN_SM} bg-stone-700 text-stone-400 hover:bg-stone-600`}>+ Add series</button>
-        </div>
-        {form.seriesEntries.length === 0 && <p className="text-xs text-stone-600 italic">Not part of any series.</p>}
-        {form.seriesEntries.length > 0 && (
-          <p className="text-xs text-stone-600 mb-2">
-            Vol #: comma-separated (<code>0.5, 2</code>) or a range for an omnibus (<code>1-3</code> → 1, 2, 3).
-          </p>
-        )}
-        <div className="space-y-2">
-          {form.seriesEntries.map((entry, i) => (
-            <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
-              <div className="flex-1">
-                <SeriesPicker value={entry.seriesName} onChange={v => updateEntry(i, { seriesName: v })} />
-              </div>
-              <input
-                value={entry.volumeNumbers}
-                onChange={e => updateEntry(i, { volumeNumbers: e.target.value })}
-                placeholder="e.g. 1, 2 or 1-3"
-                title="Comma-separated volume numbers, e.g. &quot;0.5, 2&quot;. For an omnibus spanning consecutive volumes, use a range like &quot;1-3&quot; — it expands to 1, 2, 3."
-                className={`${INP} sm:w-40`}
-              />
-              <label className="flex items-center gap-1.5 text-xs text-stone-400 whitespace-nowrap shrink-0">
-                <input
-                  type="radio"
-                  name="primary-series"
-                  checked={entry.isPrimary}
-                  onChange={() => setForm(f => ({ ...f, seriesEntries: f.seriesEntries.map((e, j) => ({ ...e, isPrimary: j === i })) }))}
-                  className="accent-amber-400"
-                />
-                Primary
-              </label>
-              <button type="button" onClick={() => removeEntry(i)} className="text-stone-500 hover:text-red-400 text-sm shrink-0">✕</button>
-            </div>
-          ))}
-        </div>
-      </div>
+      <SeriesEntriesEditor
+        entries={form.seriesEntries}
+        onChange={(seriesEntries) => setForm(f => ({ ...f, seriesEntries }))}
+      />
 
       <div>
         <label className={LBL}>Genres</label>
@@ -457,7 +476,24 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel,
         )}
       </div>
 
-      {bookSlug && <BookComponentsPanel bookSlug={bookSlug} />}
+      {bookSlug && (
+        <div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showOmnibusPanel}
+              onChange={(e) => setShowOmnibusPanel(e.target.checked)}
+              className="w-4 h-4 accent-amber-400"
+            />
+            <span className={LBL}>Is omnibus (contains multiple volumes/titles)</span>
+          </label>
+          {showOmnibusPanel && (
+            <div className="mt-3">
+              <BookComponentsPanel bookSlug={bookSlug} />
+            </div>
+          )}
+        </div>
+      )}
     </form>
   )
 }

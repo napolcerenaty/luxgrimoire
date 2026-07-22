@@ -245,7 +245,7 @@ export default function AdminBooksPage() {
         )}
         {editBookData && (
           <BookForm initial={rawBookToForm(editBookData)} submitLabel="Save Changes"
-            submitting={editMutation.isPending} bookSlug={editBookData.slug}
+            submitting={editMutation.isPending} bookSlug={editBookData.slug} initialIsOmnibus={editBookData.isOmnibus}
             onSubmit={form => editMutation.mutate({ book: editBookData, form })} />
         )}
       </FormModal>
