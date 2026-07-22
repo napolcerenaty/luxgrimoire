@@ -31,6 +31,7 @@ model User {
   privacyVersion           String?
   onboardingCompletedAt    DateTime?
   lastLoginAt              DateTime?
+  newsLastSeenAt           DateTime?
   statsSettings            Json?                       // { spending, sales, reading, features } booleans; null = all true
   accounts                 Account[]
   auditLogs                AuditLog[]
@@ -353,6 +354,12 @@ model BookBoxCompany {
   tiktok            String?
   x                 String?
   brandColors       String[]
+  newsletterSubscribed Boolean            @default(false)
+  blogUrl              String?
+  rssUrlOverride       String?
+  blogCheckFrequency   BlogCheckFrequency @default(DAILY)
+  blogLastCheckedAt    DateTime?
+  blogFeedType         BlogFeedType?
   collections       BookBoxCollection[]
   editions          BookEdition[]
   saleAnnouncements SaleAnnouncement[]
@@ -1660,4 +1667,83 @@ model HomepageFeature {
   updatedAt   DateTime @updatedAt
 
   @@map("homepage_features")
+}
+
+// ── News aggregator (see Desktop:luxgrimoire-feature-news-aggregator.md) ────────
+
+enum BlogCheckFrequency {
+  HOURLY
+  EVERY_6H
+  DAILY
+  WEEKLY
+}
+
+enum BlogFeedType {
+  SHOPIFY_ATOM
+  WORDPRESS
+  HTML_SCRAPE
+}
+
+enum NewsItemType {
+  NEW_SUBSCRIPTION
+  CONTINUATION
+  TEASER
+  SALE_ANNOUNCEMENT
+  MONTH_THEME
+  OTHER
+}
+
+enum NewsItemStatus {
+  DRAFT
+  PUBLISHED
+  REJECTED
+  RETRACTED
+}
+
+enum NewsSourceType {
+  RSS
+  EMAIL
+  INSTAGRAM_SCREENSHOT
+}
+
+enum NewsSourceMergeStatus {
+  PENDING_REVIEW
+  CONFIRMED
+  DECLINED
+}
+
+model NewsItem {
+  id                 String           @id @default(uuid())
+  companyName        String
+  title              String
+  type               NewsItemType     @default(OTHER)
+  summary            String?
+  appEntityLink      String?
+  originalSourceUrl  String?
+  status             NewsItemStatus   @default(DRAFT)
+  publishedAt        DateTime?
+  lastUpdatedAt      DateTime?
+  linkedDraftPayload Json?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  sources            NewsSourceRecord[]
+
+  @@index([status])
+  @@index([publishedAt])
+  @@index([companyName])
+  @@map("news_items")
+}
+
+model NewsSourceRecord {
+  id            String                @id @default(uuid())
+  newsItemId    String?
+  sourceType    NewsSourceType
+  rawContentRef String?
+  ingestedAt    DateTime              @default(now())
+  mergeStatus   NewsSourceMergeStatus @default(PENDING_REVIEW)
+  newsItem      NewsItem?             @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
+
+  @@index([newsItemId])
+  @@index([mergeStatus])
+  @@map("news_source_records")
 }
