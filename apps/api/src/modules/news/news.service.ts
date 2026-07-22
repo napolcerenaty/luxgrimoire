@@ -1,14 +1,58 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
-import { NewsItemStatus } from '@prisma/client';
+import { NewsItemStatus, NewsItemType } from '@prisma/client';
 import { CreateNewsDraftDto, UpdateNewsDraftDto } from './news.dto';
+import { AiService } from '../ai/ai.service';
+import { UploadService } from '../upload/upload.service';
+
+const SCREENSHOT_FOLDER = 'luxgrimoire/news-sources';
 
 @Injectable()
 export class NewsService {
   private readonly logger = new Logger(NewsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiService: AiService,
+    private readonly uploadService: UploadService,
+  ) {}
+
+  // ─── Ingestion (Phase 2 — Instagram screenshot) ────────────────────────────
+
+  /**
+   * Screenshot -> AI classification/extraction -> stored image -> draft NewsItem.
+   * No dedup yet (Phase 4) — every screenshot becomes its own new draft, its single
+   * source already CONFIRMED since there's nothing ambiguous to review-merge against.
+   */
+  async ingestScreenshot(imageBase64: string, caption?: string) {
+    const [parsed, uploaded] = await Promise.all([
+      this.aiService.parseNewsAnnouncement({ imageBase64, text: caption }),
+      this.uploadService.uploadImageBase64(this.toDataUri(imageBase64), SCREENSHOT_FOLDER),
+    ]);
+
+    if (!parsed.companyName && !parsed.title) {
+      throw new BadRequestException('Could not extract any usable news information from this screenshot');
+    }
+
+    return this.prisma.newsItem.create({
+      data: {
+        companyName: parsed.companyName ?? 'Unknown',
+        title: parsed.title ?? `${parsed.companyName ?? 'Untitled'} — news`,
+        type: this.mapAiType(parsed.type),
+        summary: parsed.summary,
+        originalSourceUrl: parsed.originalSourceUrl,
+        sources: {
+          create: {
+            sourceType: 'INSTAGRAM_SCREENSHOT',
+            rawContentRef: uploaded.url,
+            mergeStatus: 'CONFIRMED',
+          },
+        },
+      },
+      include: { sources: true },
+    });
+  }
 
   // ─── Public ─────────────────────────────────────────────────────────────────
 
@@ -168,6 +212,16 @@ export class NewsService {
   }
 
   // ─── Internal ───────────────────────────────────────────────────────────────
+
+  /** AI returns a free-form type string; fall back to OTHER for anything unrecognised rather than throwing. */
+  private mapAiType(type?: string): NewsItemType {
+    const valid = Object.values(NewsItemType) as string[];
+    return valid.includes(type ?? '') ? (type as NewsItemType) : NewsItemType.OTHER;
+  }
+
+  private toDataUri(imageBase64: string): string {
+    return imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+  }
 
   private async assertDraftOrRejected(id: string) {
     const item = await this.getOne(id);

@@ -1,6 +1,17 @@
 import { IsString, IsOptional, IsEnum, IsUrl, IsObject, MaxLength } from 'class-validator';
 import { NewsItemType } from '@prisma/client';
 
+export class IngestScreenshotDto {
+  @IsString()
+  @MaxLength(10_000_000) // ~7.5 MB base64
+  imageBase64!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  caption?: string;
+}
+
 export class CreateNewsDraftDto {
   @IsString()
   @MaxLength(200)

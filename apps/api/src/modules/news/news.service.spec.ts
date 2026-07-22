@@ -7,6 +7,8 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NewsService } from './news.service';
 import { NewsItemStatus } from '@prisma/client';
+import { AiService } from '../ai/ai.service';
+import { UploadService } from '../upload/upload.service';
 
 describe('NewsService — status transitions', () => {
   let service: NewsService;
@@ -14,7 +16,7 @@ describe('NewsService — status transitions', () => {
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    service = new NewsService(prisma);
+    service = new NewsService(prisma, {} as AiService, {} as UploadService);
   });
 
   it('approve() moves a DRAFT to PUBLISHED and sets publishedAt', async () => {
@@ -97,7 +99,7 @@ describe('NewsService.listPublished — jump-to-date filter (spec 9.1)', () => {
     prisma = mockDeep<PrismaService>();
     (prisma.newsItem.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.newsItem.count as jest.Mock).mockResolvedValue(0);
-    service = new NewsService(prisma);
+    service = new NewsService(prisma, {} as AiService, {} as UploadService);
   });
 
   it('filters to a single UTC calendar day when `date` is given', async () => {
@@ -134,7 +136,7 @@ describe('NewsService — unread count cursor (spec 8.1/8.2)', () => {
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    service = new NewsService(prisma);
+    service = new NewsService(prisma, {} as AiService, {} as UploadService);
   });
 
   it('getUnreadCountForUser() counts published items newer than the user\'s newsLastSeenAt cursor', async () => {
@@ -173,5 +175,70 @@ describe('NewsService — unread count cursor (spec 8.1/8.2)', () => {
       where: { id: 'u1' },
       data: { newsLastSeenAt: expect.any(Date) },
     });
+  });
+});
+
+describe('NewsService.ingestScreenshot — Phase 2 (spec section 2.3/4.1)', () => {
+  let service: NewsService;
+  let prisma: DeepMockProxy<PrismaService>;
+  let aiService: { parseNewsAnnouncement: jest.Mock };
+  let uploadService: { uploadImageBase64: jest.Mock };
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    aiService = { parseNewsAnnouncement: jest.fn() };
+    uploadService = { uploadImageBase64: jest.fn() };
+    service = new NewsService(prisma, aiService as unknown as AiService, uploadService as unknown as UploadService);
+  });
+
+  it('creates a DRAFT NewsItem with a CONFIRMED INSTAGRAM_SCREENSHOT source — no dedup review needed for a lone screenshot', async () => {
+    aiService.parseNewsAnnouncement.mockResolvedValue({
+      companyName: 'Illumicrate',
+      type: 'MONTH_THEME',
+      title: 'August 2026 theme reveal',
+      summary: 'Illumicrate revealed the August theme.',
+    });
+    uploadService.uploadImageBase64.mockResolvedValue({ publicId: 'luxgrimoire/news-sources/abc', url: 'https://res.cloudinary.com/x/abc.jpg' });
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n1' });
+
+    await service.ingestScreenshot('base64data', 'caption text');
+
+    expect(aiService.parseNewsAnnouncement).toHaveBeenCalledWith({ imageBase64: 'base64data', text: 'caption text' });
+    expect(prisma.newsItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          companyName: 'Illumicrate',
+          title: 'August 2026 theme reveal',
+          type: 'MONTH_THEME',
+          sources: {
+            create: {
+              sourceType: 'INSTAGRAM_SCREENSHOT',
+              rawContentRef: 'https://res.cloudinary.com/x/abc.jpg',
+              mergeStatus: 'CONFIRMED',
+            },
+          },
+        }),
+      }),
+    );
+  });
+
+  it('falls back to OTHER when the AI returns a type it does not recognise, rather than crashing on an invalid enum value', async () => {
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'Owlcrate', title: 'x', type: 'SOMETHING_WEIRD' });
+    uploadService.uploadImageBase64.mockResolvedValue({ publicId: 'p', url: 'https://x/y.jpg' });
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n1' });
+
+    await service.ingestScreenshot('base64data');
+
+    expect(prisma.newsItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ type: 'OTHER' }) }),
+    );
+  });
+
+  it('rejects when the AI extracted nothing usable at all (garbage screenshot)', async () => {
+    aiService.parseNewsAnnouncement.mockResolvedValue({});
+    uploadService.uploadImageBase64.mockResolvedValue({ publicId: 'p', url: 'https://x/y.jpg' });
+
+    await expect(service.ingestScreenshot('base64data')).rejects.toThrow(BadRequestException);
+    expect(prisma.newsItem.create).not.toHaveBeenCalled();
   });
 });

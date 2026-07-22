@@ -2,11 +2,12 @@ import {
   Controller, Get, Post, Patch, Delete, Param, Query, Body, Request, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { NewsItemStatus } from '@prisma/client';
 import { NewsService } from './news.service';
 import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { CreateNewsDraftDto, UpdateNewsDraftDto } from './news.dto';
+import { CreateNewsDraftDto, UpdateNewsDraftDto, IngestScreenshotDto } from './news.dto';
 
 @ApiTags('news')
 @Controller('news')
@@ -75,6 +76,16 @@ export class NewsController {
   @Roles('ADMIN', 'MODERATOR')
   create(@Body() dto: CreateNewsDraftDto) {
     return this.newsService.createDraft(dto);
+  }
+
+  // Screenshot -> AI classification (OpenAI Vision, paid) -> stored image -> draft.
+  // Keep the limit tight, same reasoning as ai.controller.ts's vision endpoints.
+  @Post('admin/ingest-screenshot')
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  ingestScreenshot(@Body() dto: IngestScreenshotDto) {
+    return this.newsService.ingestScreenshot(dto.imageBase64, dto.caption);
   }
 
   @Patch('admin/:id')

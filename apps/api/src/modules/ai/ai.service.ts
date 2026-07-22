@@ -35,6 +35,23 @@ export interface AiBookResult {
   genres?: string[];
 }
 
+export type AiNewsItemType =
+  | 'NEW_SUBSCRIPTION'
+  | 'CONTINUATION'
+  | 'TEASER'
+  | 'SALE_ANNOUNCEMENT'
+  | 'MONTH_THEME'
+  | 'OTHER';
+
+export interface AiNewsParseResult {
+  companyName?: string;
+  type?: AiNewsItemType;
+  title?: string;
+  summary?: string;
+  bookTitle?: string;
+  originalSourceUrl?: string;
+}
+
 export interface AiParseResult {
   book?: {
     title?: string;
@@ -331,6 +348,35 @@ ENDS AT RULES:
 
 For dates, use ISO 8601 format WITHOUT Z suffix (local time, not UTC). If only a date is given without time, use 00:00:00.000 (no Z).
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
+
+const NEWS_PROMPT = `You are a news classification and extraction assistant for a luxury book subscription tracking app.
+Given a social media post, newsletter, blog post, or screenshot about the book subscription box industry, classify and extract structured information.
+
+Return ONLY valid JSON matching this schema (omit fields you cannot find):
+{
+  "companyName": "name of the book subscription company, e.g. 'The Locked Library', 'Illumicrate', 'Owlcrate'",
+  "type": "NEW_SUBSCRIPTION | CONTINUATION | TEASER | SALE_ANNOUNCEMENT | MONTH_THEME | OTHER",
+  "title": "short headline for this news item, written by you — not necessarily copied verbatim from the source",
+  "summary": "2-4 sentence plain-language summary of the announcement",
+  "bookTitle": "the specific book/series title mentioned, if any",
+  "originalSourceUrl": "a public URL EXPLICITLY present in the source text pointing back to the announcement (e.g. a CTA/'Shop Now' link) — omit entirely if no such URL is present in the text, never invent one"
+}
+
+COMPANY NAME RULES:
+- Extract the name of the book subscription company or box this news is about
+- Look for it in: explicit mentions ("The Locked Library announces…", "We are Illumicrate"), hashtags (#thelockedlibrary → "The Locked Library", #illumicrate → "Illumicrate"), the "we" context ("The Locked Librarians are thrilled…" → "The Locked Library")
+- If a source URL is provided (e.g. "illumicrate.com/…"), extract the company name from the domain: illumicrate.com → "Illumicrate", thelockedlibrary.com → "The Locked Library", owlcrate.com → "Owlcrate"
+- Use proper capitalisation (e.g. "The Locked Library", "Illumicrate", "Owlcrate", "FairyLoot")
+
+TYPE RULES:
+- NEW_SUBSCRIPTION: announcing a brand-new subscription box/tier that didn't exist before
+- CONTINUATION: a renewal/relaunch/ongoing update to an EXISTING subscription (e.g. next season/term announced)
+- TEASER: a preview/hint about an upcoming book or edition without full sale details yet (no price/date)
+- SALE_ANNOUNCEMENT: a specific limited/open preorder or overstock sale, with price and/or date information
+- MONTH_THEME: a reveal of the theme/book for a specific upcoming subscription month
+- OTHER: anything else relevant to the industry that doesn't clearly fit the above — never force a fit
+
+Do not invent information not present in the source. If the source is unrelated to the book subscription box industry entirely, still return your best-effort classification as "OTHER" with a short summary — do not refuse.`;
 
 /**
  * Resolve ambiguous US timezone abbreviations (ET, PT, CT, MT) to their
@@ -727,6 +773,54 @@ export class AiService {
 
     try {
       return normalizeSaleAnnouncementDates(JSON.parse(content) as AiSaleAnnouncementResult);
+    } catch {
+      throw new BadRequestException('AI returned invalid JSON');
+    }
+  }
+
+  /**
+   * Classifies + extracts a news-aggregator draft (spec section 3) from raw text
+   * and/or an image (Instagram screenshot, blog HTML-as-text, email body).
+   * Shared by every ingestion source (screenshot now; RSS/email in later phases).
+   */
+  async parseNewsAnnouncement(input: { text?: string; imageBase64?: string; sourceUrl?: string }): Promise<AiNewsParseResult> {
+    if (!this.client) {
+      throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
+    }
+    if (!input.text && !input.imageBase64) {
+      throw new BadRequestException('Provide either text or imageBase64');
+    }
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: NEWS_PROMPT },
+    ];
+
+    if (input.imageBase64) {
+      const textNote = input.text ? `\n\nAccompanying text/caption:\n${input.text}` : '';
+      messages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: `Classify and extract news information from this image:${textNote}` },
+          { type: 'image_url', image_url: { url: this.buildDataUrl(input.imageBase64), detail: 'high' } },
+        ],
+      });
+    } else {
+      let userContent = `Classify and extract news information from this text:\n\n${input.text}`;
+      if (input.sourceUrl) {
+        userContent = `Source URL: ${input.sourceUrl}\n\n` + userContent;
+      }
+      messages.push({ role: 'user', content: userContent });
+    }
+
+    const content = await this.callOpenAi({
+      model: 'gpt-4o',
+      messages,
+      response_format: { type: 'json_object' },
+      max_tokens: 1000,
+    });
+
+    try {
+      return JSON.parse(content) as AiNewsParseResult;
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }
