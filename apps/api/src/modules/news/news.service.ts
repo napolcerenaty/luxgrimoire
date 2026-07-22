@@ -9,6 +9,7 @@ import { UploadService } from '../upload/upload.service';
 import { extractTextFromHtml } from '../../common/utils/html-to-text.util';
 import { assertPublicHttpsUrl } from '../../common/utils/ssrf-guard.util';
 import { looksLikeConfirmationEmail, extractActionLink, extractTrackingPixelUrls } from './email-parse.util';
+import { matchSubscription } from './subscription-match.util';
 
 const SCREENSHOT_FOLDER = 'luxgrimoire/news-sources';
 const STALE_NEWSLETTER_DEFAULT_DAYS = 60;
@@ -37,10 +38,11 @@ export class NewsService {
       this.uploadService.uploadImageBase64(this.toDataUri(imageBase64), SCREENSHOT_FOLDER),
     ]);
 
-    return this.createDraftFromParsed(parsed, {
-      sourceType: 'INSTAGRAM_SCREENSHOT',
-      rawContentRef: uploaded.url,
-    });
+    return this.createDraftFromParsed(
+      parsed,
+      { sourceType: 'INSTAGRAM_SCREENSHOT', rawContentRef: uploaded.url },
+      { imageBase64, text: caption },
+    );
   }
 
   // ─── Ingestion (Phase 3 — RSS/blog) ─────────────────────────────────────────
@@ -59,12 +61,11 @@ export class NewsService {
       sourceUrl: entry.link,
     });
 
-    return this.createDraftFromParsed(parsed, {
-      sourceType: 'RSS',
-      rawContentRef: entry.textContent,
-      externalRef: entry.link,
-      fallbackOriginalSourceUrl: entry.link,
-    });
+    return this.createDraftFromParsed(
+      parsed,
+      { sourceType: 'RSS', rawContentRef: entry.textContent, externalRef: entry.link, fallbackOriginalSourceUrl: entry.link },
+      { text: `${entry.title}\n\n${entry.textContent}` },
+    );
   }
 
   // ─── Ingestion (Phase 5 — newsletter e-mail) ───────────────────────────────
@@ -96,13 +97,14 @@ export class NewsService {
     }
 
     const textContent = extractTextFromHtml(input.html);
-    const parsed = await this.aiService.parseNewsAnnouncement({ text: `${input.subject}\n\n${textContent}` });
+    const combinedText = `${input.subject}\n\n${textContent}`;
+    const parsed = await this.aiService.parseNewsAnnouncement({ text: combinedText });
 
-    const created = await this.createDraftFromParsed(parsed, {
-      sourceType: 'EMAIL',
-      rawContentRef: input.html,
-      externalRef: input.messageId,
-    });
+    const created = await this.createDraftFromParsed(
+      parsed,
+      { sourceType: 'EMAIL', rawContentRef: input.html, externalRef: input.messageId },
+      { text: combinedText },
+    );
 
     // Best-effort "simulate open" (spec 2.2) — fire-and-forget, never blocks/fails ingestion.
     void this.simulateOpen(input.html);
@@ -169,6 +171,7 @@ export class NewsService {
   private async createDraftFromParsed(
     parsed: AiNewsParseResult,
     source: { sourceType: NewsSourceType; rawContentRef?: string; externalRef?: string; fallbackOriginalSourceUrl?: string },
+    rawInput?: { text?: string; imageBase64?: string },
   ) {
     if (!parsed.companyName && !parsed.title) {
       throw new BadRequestException('Could not extract any usable news information from this source');
@@ -176,14 +179,15 @@ export class NewsService {
 
     const companyName = parsed.companyName ?? 'Unknown';
     const title = parsed.title ?? `${companyName} — news`;
+    const type = this.mapAiType(parsed.type);
 
     const possibleDuplicateOfId = await this.findDuplicateCandidate(companyName, title, parsed.summary);
 
-    return this.prisma.newsItem.create({
+    const created = await this.prisma.newsItem.create({
       data: {
         companyName,
         title,
-        type: this.mapAiType(parsed.type),
+        type,
         summary: parsed.summary,
         originalSourceUrl: parsed.originalSourceUrl ?? source.fallbackOriginalSourceUrl,
         possibleDuplicateOfId,
@@ -202,6 +206,81 @@ export class NewsService {
       },
       include: { sources: true },
     });
+
+    if (type === NewsItemType.MONTH_THEME && rawInput) {
+      return this.attachMonthThemeDraft(created.id, companyName, rawInput);
+    }
+    if (type === NewsItemType.SALE_ANNOUNCEMENT && rawInput) {
+      return this.attachSaleAnnouncementDraft(created.id, rawInput);
+    }
+    return created;
+  }
+
+  // ─── Routing to existing models (Phase 6, spec section 4.1) ───────────────
+
+  /**
+   * SALE_ANNOUNCEMENT items get a second, specialized pass — reusing the
+   * existing (already production-tested) parseSaleAnnouncement/FromImage
+   * rather than building new extraction logic — and the full structured
+   * result (regions included) is stashed as linkedDraftPayload so the admin's
+   * EXISTING sale-announcement creation form can be pre-filled from it
+   * instead of typing prices/dates/regions in from scratch.
+   */
+  private async attachSaleAnnouncementDraft(newsItemId: string, rawInput: { text?: string; imageBase64?: string }) {
+    try {
+      const payload = rawInput.imageBase64
+        ? await this.aiService.parseSaleAnnouncementFromImage(rawInput.imageBase64)
+        : await this.aiService.parseSaleAnnouncement(rawInput.text ?? '');
+      return this.prisma.newsItem.update({
+        where: { id: newsItemId },
+        data: { linkedDraftPayload: payload as any },
+        include: { sources: true },
+      });
+    } catch (err) {
+      this.logger.warn(`Sale-announcement second-pass extraction failed for news item ${newsItemId}: ${err}`);
+      return this.getOne(newsItemId);
+    }
+  }
+
+  /**
+   * MONTH_THEME items get a second pass for year/month/theme/signatureType
+   * (spec 4.1b), plus confidence-gated Subscription matching so the admin's
+   * SubscriptionMonth form opens pre-filled instead of blank whenever the
+   * match is unambiguous.
+   */
+  private async attachMonthThemeDraft(newsItemId: string, companyName: string, rawInput: { text?: string; imageBase64?: string }) {
+    try {
+      const parsed = await this.aiService.parseMonthThemeAnnouncement(rawInput);
+
+      const company = await this.prisma.bookBoxCompany.findFirst({
+        where: { name: { equals: companyName, mode: 'insensitive' } },
+        include: { subscriptions: { select: { id: true, name: true } } },
+      });
+      // Deliberately NOT falling back to companyName as the match target when the AI
+      // didn't extract a distinguishing subscriptionName — with multiple candidates,
+      // that would make an exact-name subscription always "win" (it always dice-scores
+      // ~1.0 against its own company's name), silently reintroducing exactly the
+      // ambiguous-match failure the confidence threshold exists to prevent (spec 4.1b).
+      const { subscriptionId, confidence } = matchSubscription(company?.subscriptions ?? [], parsed.subscriptionName);
+
+      return this.prisma.newsItem.update({
+        where: { id: newsItemId },
+        data: {
+          linkedDraftPayload: {
+            subscriptionId,
+            subscriptionMatchConfidence: confidence,
+            year: parsed.year,
+            month: parsed.month,
+            theme: parsed.theme,
+            signatureType: parsed.signatureType,
+          } as any,
+        },
+        include: { sources: true },
+      });
+    } catch (err) {
+      this.logger.warn(`Month-theme second-pass extraction failed for news item ${newsItemId}: ${err}`);
+      return this.getOne(newsItemId);
+    }
   }
 
   // ─── Dedup (Phase 4, spec section 5) ───────────────────────────────────────

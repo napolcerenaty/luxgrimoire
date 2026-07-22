@@ -196,7 +196,7 @@ describe('NewsService.ingestScreenshot — Phase 2 (spec section 2.3/4.1)', () =
   it('creates a DRAFT NewsItem with a CONFIRMED INSTAGRAM_SCREENSHOT source — no dedup review needed for a lone screenshot', async () => {
     aiService.parseNewsAnnouncement.mockResolvedValue({
       companyName: 'Illumicrate',
-      type: 'MONTH_THEME',
+      type: 'TEASER',
       title: 'August 2026 theme reveal',
       summary: 'Illumicrate revealed the August theme.',
     });
@@ -211,7 +211,7 @@ describe('NewsService.ingestScreenshot — Phase 2 (spec section 2.3/4.1)', () =
         data: expect.objectContaining({
           companyName: 'Illumicrate',
           title: 'August 2026 theme reveal',
-          type: 'MONTH_THEME',
+          type: 'TEASER',
           sources: {
             create: {
               sourceType: 'INSTAGRAM_SCREENSHOT',
@@ -277,7 +277,7 @@ describe('NewsService.ingestFromRssEntry — Phase 3 (spec 2.1)', () => {
     (prisma.newsSourceRecord.findUnique as jest.Mock).mockResolvedValue(null);
     aiService.parseNewsAnnouncement.mockResolvedValue({
       companyName: 'Illumicrate',
-      type: 'MONTH_THEME',
+      type: 'CONTINUATION',
       title: 'August 2026 Theme Reveal',
       summary: 'Illumicrate revealed August.',
       // no originalSourceUrl from the AI this time — should fall back to the entry link
@@ -522,5 +522,124 @@ describe('NewsService.findStaleNewsletterCompanies — Phase 5 (spec 2.2)', () =
     (prisma.newsSourceRecord.findMany as jest.Mock).mockResolvedValue([{ companyName: 'ILLUMICRATE' }]);
 
     expect(await service.findStaleNewsletterCompanies(60)).toEqual([]);
+  });
+});
+
+describe('NewsService — Phase 6 routing to existing models (spec 4.1)', () => {
+  let service: NewsService;
+  let prisma: DeepMockProxy<PrismaService>;
+  let aiService: {
+    parseNewsAnnouncement: jest.Mock;
+    checkForDuplicate: jest.Mock;
+    parseMonthThemeAnnouncement: jest.Mock;
+    parseSaleAnnouncement: jest.Mock;
+    parseSaleAnnouncementFromImage: jest.Mock;
+  };
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    aiService = {
+      parseNewsAnnouncement: jest.fn(),
+      checkForDuplicate: jest.fn(),
+      parseMonthThemeAnnouncement: jest.fn(),
+      parseSaleAnnouncement: jest.fn(),
+      parseSaleAnnouncementFromImage: jest.fn(),
+    };
+    (prisma.newsItem.findMany as jest.Mock).mockResolvedValue([]); // no dedup candidates
+    service = new NewsService(prisma, aiService as unknown as AiService, {} as UploadService);
+  });
+
+  it('MONTH_THEME: runs the second pass and pre-selects the subscription when the company only has one', async () => {
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'Illumicrate', type: 'MONTH_THEME', title: 'August 2026 Theme Reveal' });
+    aiService.parseMonthThemeAnnouncement.mockResolvedValue({ year: 2026, month: 8, theme: 'Villains', signatureType: 'signed' });
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n1' });
+    (prisma.bookBoxCompany.findFirst as jest.Mock).mockResolvedValue({
+      id: 'company-1',
+      subscriptions: [{ id: 'sub-1', name: 'Illumicrate' }],
+    });
+    (prisma.newsItem.update as jest.Mock).mockResolvedValue({ id: 'n1', linkedDraftPayload: {} });
+
+    await service.ingestFromRssEntry({ link: 'https://illumicrate.com/x', title: 'August 2026 Theme Reveal', textContent: 'body' });
+
+    expect(aiService.parseMonthThemeAnnouncement).toHaveBeenCalledWith({ text: 'August 2026 Theme Reveal\n\nbody' });
+    expect(prisma.newsItem.update).toHaveBeenCalledWith({
+      where: { id: 'n1' },
+      data: {
+        linkedDraftPayload: {
+          subscriptionId: 'sub-1',
+          subscriptionMatchConfidence: 1,
+          year: 2026,
+          month: 8,
+          theme: 'Villains',
+          signatureType: 'signed',
+        },
+      },
+      include: { sources: true },
+    });
+  });
+
+  it('MONTH_THEME: leaves subscriptionId null when the company has multiple ambiguous subscriptions (spec 4.1b)', async () => {
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'The Locked Library', type: 'MONTH_THEME', title: 'This month\'s pick from The Locked Library is announced!' });
+    aiService.parseMonthThemeAnnouncement.mockResolvedValue({ theme: 'Mystery pick' }); // no subscriptionName extracted — genuinely ambiguous
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n2' });
+    (prisma.bookBoxCompany.findFirst as jest.Mock).mockResolvedValue({
+      id: 'company-2',
+      subscriptions: [
+        { id: 'main', name: 'The Locked Library' },
+        { id: 'villains', name: 'The Locked Library: Villains Edition' },
+      ],
+    });
+    (prisma.newsItem.update as jest.Mock).mockResolvedValue({ id: 'n2' });
+
+    await service.ingestFromRssEntry({ link: 'https://x/y', title: 'title', textContent: 'body' });
+
+    expect(prisma.newsItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ linkedDraftPayload: expect.objectContaining({ subscriptionId: null }) }),
+      }),
+    );
+  });
+
+  it('MONTH_THEME: falls back to the original NewsItem (no crash) if the second pass throws', async () => {
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'Illumicrate', type: 'MONTH_THEME', title: 'x' });
+    aiService.parseMonthThemeAnnouncement.mockRejectedValue(new Error('AI down'));
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n3', title: 'x' });
+    (prisma.newsItem.findUnique as jest.Mock).mockResolvedValue({ id: 'n3', title: 'x' });
+
+    const result = await service.ingestFromRssEntry({ link: 'https://x/y', title: 'x', textContent: 'body' });
+
+    expect(result).toEqual({ id: 'n3', title: 'x' });
+    expect(prisma.newsItem.update).not.toHaveBeenCalled();
+  });
+
+  it('SALE_ANNOUNCEMENT: reuses the existing parseSaleAnnouncement (text) and stashes the full result as linkedDraftPayload', async () => {
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'Illumicrate', type: 'SALE_ANNOUNCEMENT', title: 'Victorious Exclusive Edition' });
+    const salePayload = { title: 'Victorious Exclusive Edition', companyName: 'Illumicrate', regions: [{ name: 'UK/INT', isDefault: true }] };
+    aiService.parseSaleAnnouncement.mockResolvedValue(salePayload);
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n4' });
+    (prisma.newsItem.update as jest.Mock).mockResolvedValue({ id: 'n4', linkedDraftPayload: salePayload });
+
+    await service.ingestFromRssEntry({ link: 'https://illumicrate.com/x', title: 'Victorious Exclusive Edition', textContent: 'body' });
+
+    expect(aiService.parseSaleAnnouncement).toHaveBeenCalledWith('Victorious Exclusive Edition\n\nbody');
+    expect(prisma.newsItem.update).toHaveBeenCalledWith({
+      where: { id: 'n4' },
+      data: { linkedDraftPayload: salePayload },
+      include: { sources: true },
+    });
+  });
+
+  it('SALE_ANNOUNCEMENT: uses parseSaleAnnouncementFromImage for a screenshot source instead of the text variant', async () => {
+    aiService.parseNewsAnnouncement.mockResolvedValue({ companyName: 'Illumicrate', type: 'SALE_ANNOUNCEMENT', title: 'x' });
+    aiService.parseSaleAnnouncementFromImage.mockResolvedValue({ title: 'x' });
+    const uploadService = { uploadImageBase64: jest.fn().mockResolvedValue({ publicId: 'p', url: 'https://x/y.jpg' }) };
+    (prisma.newsItem.create as jest.Mock).mockResolvedValue({ id: 'n5' });
+    (prisma.newsItem.update as jest.Mock).mockResolvedValue({ id: 'n5' });
+    service = new NewsService(prisma, aiService as unknown as AiService, uploadService as unknown as UploadService);
+
+    await service.ingestScreenshot('base64img');
+
+    expect(aiService.parseSaleAnnouncementFromImage).toHaveBeenCalledWith('base64img');
+    expect(aiService.parseSaleAnnouncement).not.toHaveBeenCalled();
   });
 });

@@ -53,6 +53,16 @@ export interface AiNewsParseResult {
   originalSourceUrl?: string;
 }
 
+export type AiSignatureType = 'unsigned' | 'signed' | 'autopen' | 'digitally_signed' | 'signed_bookplate' | 'stamped';
+
+export interface AiMonthThemeResult {
+  subscriptionName?: string;
+  year?: number;
+  month?: number;
+  theme?: string;
+  signatureType?: AiSignatureType;
+}
+
 export interface AiDuplicateCandidate {
   id: string;
   title: string;
@@ -395,6 +405,32 @@ You are given ONE new news item and a list of EXISTING candidate items from the 
 Return ONLY valid JSON: { "duplicateOfId": "the id of the matching candidate, or null if none of them describe the same event" }
 
 Be conservative: if you are not reasonably confident it's the same event, return null rather than guessing. Two different books/editions/announcements from the same company on the same day are NOT duplicates of each other.`;
+
+const MONTH_THEME_PROMPT = `You are an extraction assistant for a luxury book subscription tracking app. Given an announcement revealing the theme/book for a specific upcoming subscription month, extract structured information.
+
+Return ONLY valid JSON matching this schema (omit fields you cannot find):
+{
+  "subscriptionName": "the specific subscription/box name this reveal is for, EXACTLY as written — only needed if the company runs more than one box/tier (e.g. 'The Locked Library' vs 'The Locked Library: Villains Edition', 'FairyLoot YA' vs 'FairyLoot Romantasy')",
+  "year": 2026,
+  "month": 8,
+  "theme": "short description of the month's theme/book",
+  "signatureType": "unsigned | signed | autopen | digitally_signed | signed_bookplate | stamped"
+}
+
+DATE RULES:
+- Extract year/month from an explicit date if given (e.g. "August 2026 theme reveal" -> year 2026, month 8)
+- If only a relative reference is given (e.g. "next month's theme"), omit year/month rather than guessing — do not use today's date as a fallback
+
+SIGNATURE TYPE RULES:
+- "signed": the book is hand-signed by the author (phrases like "signed by the author", "hand-signed copy")
+- "digitally_signed": explicitly described as a digital/printed facsimile signature, not a live signature
+- "autopen": explicitly described as autopen-signed
+- "signed_bookplate": a separate signed bookplate/sticker, not signed on the book itself
+- "stamped": a stamped (not signed) signature facsimile
+- "unsigned": no signature of any kind is mentioned or implied
+- If signature status isn't mentioned at all, omit the field entirely rather than defaulting to "unsigned"
+
+Do not invent a theme, date, or subscription name that isn't actually present in the source text.`;
 
 /**
  * Resolve ambiguous US timezone abbreviations (ET, PT, CT, MT) to their
@@ -849,6 +885,50 @@ export class AiService {
       return result;
     } catch {
       return { duplicateOfId: null };
+    }
+  }
+
+  /**
+   * Second-pass extraction for a news item already classified as MONTH_THEME
+   * (spec 4.1b) — re-analyzes the same source for the specific fields needed
+   * to pre-fill a SubscriptionMonth draft (year/month/theme/signatureType/which
+   * subscription, if the company runs more than one).
+   */
+  async parseMonthThemeAnnouncement(input: { text?: string; imageBase64?: string }): Promise<AiMonthThemeResult> {
+    if (!this.client) {
+      throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
+    }
+    if (!input.text && !input.imageBase64) {
+      throw new BadRequestException('Provide either text or imageBase64');
+    }
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: MONTH_THEME_PROMPT },
+    ];
+
+    if (input.imageBase64) {
+      messages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Extract month-theme information from this image:' },
+          { type: 'image_url', image_url: { url: this.buildDataUrl(input.imageBase64), detail: 'high' } },
+        ],
+      });
+    } else {
+      messages.push({ role: 'user', content: `Extract month-theme information from this text:\n\n${input.text}` });
+    }
+
+    const content = await this.callOpenAi({
+      model: 'gpt-4o',
+      messages,
+      response_format: { type: 'json_object' },
+      max_tokens: 500,
+    });
+
+    try {
+      return JSON.parse(content) as AiMonthThemeResult;
+    } catch {
+      throw new BadRequestException('AI returned invalid JSON');
     }
   }
 
