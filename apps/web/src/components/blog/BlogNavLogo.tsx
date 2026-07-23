@@ -16,7 +16,7 @@ export default function BlogNavLogo() {
         className="h-8 w-auto"
         priority
       />
-      <span className="font-serif font-bold tracking-widest text-amber-400 text-base">LuxGrimoire</span>
+      <span className="hidden sm:inline font-serif font-bold tracking-widest text-amber-400 text-base">LuxGrimoire</span>
     </Link>
   )
 }

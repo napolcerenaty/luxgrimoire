@@ -16,17 +16,17 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
           <div className="flex items-center gap-4 py-3">
             <BlogNavLogo />
 
-            <div className="w-px h-5 shrink-0" style={{ background: 'var(--border)' }} />
+            <div className="hidden sm:block w-px h-5 shrink-0" style={{ background: 'var(--border)' }} />
 
             <Link
               href="/blog"
-              className="font-serif text-sm uppercase tracking-widest transition-colors hover:text-amber-400"
+              className="shrink-0 font-serif text-sm uppercase tracking-widest transition-colors hover:text-amber-400"
               style={{ color: 'var(--text-dim)' }}
             >
               Blog
             </Link>
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0">
               <BlogSearchButton />
               <BlogThemeToggle />
               <Link

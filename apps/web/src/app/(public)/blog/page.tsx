@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Clock } from 'lucide-react'
-import { getPosts, getTags, hasInternalTag, getSponsoredLabel, type GhostPost } from '@/lib/ghost'
+import { getPosts, hasInternalTag, getSponsoredLabel, type GhostPost } from '@/lib/ghost'
 import BlogViewTracker from '@/components/blog/BlogViewTracker'
 
 export const revalidate = 60
@@ -98,9 +98,8 @@ function GuideCard({ post }: { post: GhostPost }) {
 }
 
 export default async function BlogPage() {
-  const [posts, tags, features] = await Promise.all([
+  const [posts, features] = await Promise.all([
     getPosts(30),
-    getTags(),
     fetch(`${process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/homepage-features`, { next: { revalidate: 60 } })
       .then(r => r.ok ? r.json() : [])
       .catch(() => []) as Promise<{ title: string; description: string }[]>,
@@ -183,29 +182,6 @@ export default async function BlogPage() {
             </div>
           )}
         </section>
-
-        {/* ── Tag strip ── */}
-        {tags.length > 0 && (
-          <div className="flex gap-2.5 overflow-x-auto pt-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Topics">
-            <Link
-              href="/blog"
-              className="inline-flex items-center h-11 px-4 rounded-full border text-sm font-serif uppercase tracking-wide whitespace-nowrap blog-tag active"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              All
-            </Link>
-            {tags.map((tag) => (
-              <Link
-                key={tag.id}
-                href={`/blog/tag/${tag.slug}`}
-                className="inline-flex items-center h-11 px-4 rounded-full border text-sm font-serif uppercase tracking-wide whitespace-nowrap blog-tag"
-                style={{ borderColor: 'var(--border)' }}
-              >
-                {tag.name}
-              </Link>
-            ))}
-          </div>
-        )}
 
         {/* ── Sections by tag ── */}
         {Array.from(byTag.entries()).map(([, { name: tagName, slug: tagSlug, posts: tagPosts }]) => (
