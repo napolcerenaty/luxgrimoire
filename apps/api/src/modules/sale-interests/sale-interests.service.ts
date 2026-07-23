@@ -3,6 +3,17 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
 
+const FAR_FUTURE = new Date(8640000000000000); // JS Date max — sentinel for "no date at all, sort last"
+
+type AnnouncementDates = {
+  saleType: string;
+  firstAccessDate: Date | string | null;
+  earlyAccessDate: Date | string | null;
+  generalSaleDate: Date | string | null;
+  endsAt: Date | string | null;
+  regions?: { id: string; isDefault: boolean; firstAccessDate: Date | string | null; earlyAccessDate: Date | string | null; generalSaleDate: Date | string | null; endsAt: Date | string | null }[];
+};
+
 @Injectable()
 export class SaleInterestsService {
   constructor(
@@ -139,6 +150,12 @@ export class SaleInterestsService {
     };
   }
 
+  private pickRegion<R extends { id: string; isDefault: boolean }>(regions: R[] | undefined, regionId: string | null | undefined): R | null {
+    const list = regions ?? [];
+    return (regionId ? list.find(r => r.id === regionId) : null)
+      ?? (list.length > 0 ? (list.find(r => r.isDefault) ?? list[0]) : null);
+  }
+
   // FA/EA fall forward to whichever later tier date is known — but GS previously had no
   // fallback at all, so a followed sale with tier GS and no generalSaleDate set yet (only
   // FA/EA announced so far) resolved to a null tierDate and got silently dropped from both
@@ -149,37 +166,29 @@ export class SaleInterestsService {
   // Also mirrors resolveSaleDates on the frontend (apps/web/src/lib/saleDates.ts): the user's
   // selected region (or the sale's default region) takes priority over the top-level dates,
   // since sales with per-country dates leave the top-level fields null entirely.
-  private resolveTierDate(
-    ann: {
-      saleType: string;
-      firstAccessDate: Date | string | null;
-      earlyAccessDate: Date | string | null;
-      generalSaleDate: Date | string | null;
-      endsAt: Date | string | null;
-      regions?: { id: string; isDefault: boolean; firstAccessDate: Date | string | null; earlyAccessDate: Date | string | null; generalSaleDate: Date | string | null; endsAt: Date | string | null }[];
-    },
-    tier: string | null,
-    regionId?: string | null,
-  ): Date | null {
-    const regions = ann.regions ?? [];
-    const region = (regionId ? regions.find(r => r.id === regionId) : null)
-      ?? (regions.length > 0 ? (regions.find(r => r.isDefault) ?? regions[0]) : null);
-
+  //
+  // Deliberately does NOT special-case OPEN_PREORDER — this always resolves the FA/EA/GS "opens
+  // at" date regardless of type. OPEN_PREORDER eligibility/sorting is handled separately in
+  // getUpcoming/getUpcomingCount using resolveEndsAt, since its own closing deadline (not its
+  // start date) is what determines whether it's still relevant.
+  private resolveTierDate(ann: AnnouncementDates, tier: string | null, regionId?: string | null): Date | null {
+    const region = this.pickRegion(ann.regions, regionId);
     const pick = (regionDate: Date | string | null | undefined, annDate: Date | string | null) => {
       const d = regionDate ?? annDate;
       return d ? new Date(d) : null;
     };
-
-    if (ann.saleType === 'OPEN_PREORDER') {
-      const endsAt = pick(region?.endsAt, ann.endsAt);
-      return endsAt ?? new Date(8640000000000000);
-    }
     const fa = pick(region?.firstAccessDate, ann.firstAccessDate);
     const ea = pick(region?.earlyAccessDate, ann.earlyAccessDate);
     const gs = pick(region?.generalSaleDate, ann.generalSaleDate);
     if (tier === 'FA') return fa ?? ea ?? gs;
     if (tier === 'EA') return ea ?? gs ?? fa;
     return gs ?? ea ?? fa;
+  }
+
+  private resolveEndsAt(ann: AnnouncementDates, regionId?: string | null): Date | null {
+    const region = this.pickRegion(ann.regions, regionId);
+    const d = region?.endsAt ?? ann.endsAt;
+    return d ? new Date(d) : null;
   }
 
   async getUpcoming(userId: string, limit = 3) {
@@ -211,18 +220,27 @@ export class SaleInterestsService {
       },
     });
 
-    // Resolve the tier-relevant date for each row, filter out sales whose tier date is past,
-    // then sort by that date and take limit.
+    // Resolve both the tier date (FA/EA/GS "opens at") and the closing deadline for each row.
+    // OPEN_PREORDER stays "upcoming" for as long as it hasn't closed — including once its own
+    // start date has already passed, since it's still purchasable — everything else requires
+    // its tier date to still be today or later. Sort by whichever date is the relevant one
+    // (falling back between the two so nothing sorts to the literal end of time just because
+    // one of the two happens to be unset).
     const resolved = rows
-      .map(row => ({ row, tierDate: this.resolveTierDate(row.announcement, row.tier, row.regionId) }))
-      .filter(({ row, tierDate }) => {
-        if (!tierDate) return false;
-        if (row.announcement.saleType === 'OPEN_PREORDER') {
-          return tierDate.getTime() === new Date(8640000000000000).getTime() || tierDate > now;
-        }
-        return tierDate >= today;
-      })
-      .sort((a, b) => (a.tierDate!.getTime()) - (b.tierDate!.getTime()))
+      .map(row => ({
+        row,
+        tierDate: this.resolveTierDate(row.announcement, row.tier, row.regionId),
+        endsAt: this.resolveEndsAt(row.announcement, row.regionId),
+      }))
+      .filter(({ row, tierDate, endsAt }) =>
+        row.announcement.saleType === 'OPEN_PREORDER'
+          ? endsAt == null || endsAt > now
+          : tierDate != null && tierDate >= today
+      )
+      // tierDate ?? endsAt covers everything except an OPEN_PREORDER with neither FA/EA/GS nor
+      // endsAt ever set (permanently open, no dates at all) — sort those last via the FAR_FUTURE
+      // sentinel rather than crashing on a null getTime().
+      .sort((a, b) => (a.tierDate ?? a.endsAt ?? FAR_FUTURE).getTime() - (b.tierDate ?? b.endsAt ?? FAR_FUTURE).getTime())
       .slice(0, limit)
       .map(({ row }) => row);
 
@@ -256,12 +274,12 @@ export class SaleInterestsService {
     });
 
     const count = rows.filter(row => {
-      const tierDate = this.resolveTierDate(row.announcement, row.tier, row.regionId);
-      if (!tierDate) return false;
       if (row.announcement.saleType === 'OPEN_PREORDER') {
-        return tierDate.getTime() === new Date(8640000000000000).getTime() || tierDate > now;
+        const endsAt = this.resolveEndsAt(row.announcement, row.regionId);
+        return endsAt == null || endsAt > now;
       }
-      return tierDate >= today;
+      const tierDate = this.resolveTierDate(row.announcement, row.tier, row.regionId);
+      return tierDate != null && tierDate >= today;
     }).length;
 
     return { count };

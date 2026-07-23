@@ -53,6 +53,7 @@ interface SaleInterest {
     company: { id: string; name: string; slug: string; logoUrl: string | null; brandColors?: string[] | null } | null
     regions: Array<{
       id: string
+      isDefault: boolean
       firstAccessDate: string | null
       earlyAccessDate: string | null
       generalSaleDate: string | null
@@ -190,21 +191,24 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
   return renewalDay
 }
 
-/** Resolve tier date for a sale interest, using stored regionId if available */
+/** Resolve tier date for a sale interest, using stored regionId if available.
+ * Mirrors SaleInterestsService.resolveTierDate on the backend: falls back to the sale's default
+ * region when no regionId is stored (not just when one is), and every tier falls back to *any*
+ * other known date, not just "later" ones — otherwise a GS-tier interest with no generalSaleDate
+ * set (only FA/EA known so far) would resolve to null and vanish from the calendar entirely. */
 function resolveInterestDate(interest: SaleInterest): string | null {
   const a = interest.announcement
-  const region = interest.regionId
-    ? a.regions?.find(r => r.id === interest.regionId) ?? null
-    : null
+  const regions = a.regions ?? []
+  const region = (interest.regionId ? regions.find(r => r.id === interest.regionId) : null)
+    ?? (regions.length > 0 ? (regions.find(r => r.isDefault) ?? regions[0]) : null)
 
   const FA = region?.firstAccessDate ?? a.firstAccessDate
   const EA = region?.earlyAccessDate ?? a.earlyAccessDate
   const GS = region?.generalSaleDate ?? a.generalSaleDate
 
-  // Mirror the homepage fallback chain: FA falls back to EA then GS, EA falls back to GS
   if (interest.tier === 'FA') return FA ?? EA ?? GS
-  if (interest.tier === 'EA') return EA ?? GS
-  return GS
+  if (interest.tier === 'EA') return EA ?? GS ?? FA
+  return GS ?? EA ?? FA
 }
 
 export default function CalendarPage() {
