@@ -98,6 +98,27 @@ export class SaleInterestsService {
     });
   }
 
+  // FA/EA fall forward to whichever later tier date is known — but GS previously had no
+  // fallback at all, so a followed sale with tier GS and no generalSaleDate set yet (only
+  // FA/EA announced so far) resolved to a null tierDate and got silently dropped from both
+  // "upcoming sales" and the upcoming count. Every tier now falls back to *any* known date on
+  // the announcement, so a followed sale always surfaces once at least one date is known,
+  // regardless of which tier the user picked.
+  private resolveTierDate(
+    ann: { saleType: string; firstAccessDate: Date | string | null; earlyAccessDate: Date | string | null; generalSaleDate: Date | string | null; endsAt: Date | string | null },
+    tier: string | null,
+  ): Date | null {
+    if (ann.saleType === 'OPEN_PREORDER') {
+      return ann.endsAt ? new Date(ann.endsAt) : new Date(8640000000000000);
+    }
+    const fa = ann.firstAccessDate ? new Date(ann.firstAccessDate) : null;
+    const ea = ann.earlyAccessDate ? new Date(ann.earlyAccessDate) : null;
+    const gs = ann.generalSaleDate ? new Date(ann.generalSaleDate) : null;
+    if (tier === 'FA') return fa ?? ea ?? gs;
+    if (tier === 'EA') return ea ?? gs ?? fa;
+    return gs ?? ea ?? fa;
+  }
+
   async getUpcoming(userId: string, limit = 3) {
     const now = new Date();
     const today = new Date(now);
@@ -144,28 +165,7 @@ export class SaleInterestsService {
     // Resolve the tier-relevant date for each row, filter out sales whose tier date is past,
     // then sort by that date and take limit.
     const resolved = rows
-      .map(row => {
-        const ann = row.announcement;
-        let tierDate: Date | null = null;
-
-        if (ann.saleType === 'OPEN_PREORDER') {
-          // Open preorders have no tier gating — treat as always open until endsAt
-          tierDate = ann.endsAt ? new Date(ann.endsAt) : new Date(8640000000000000);
-        } else {
-          const fa = ann.firstAccessDate ? new Date(ann.firstAccessDate) : null;
-          const ea = ann.earlyAccessDate ? new Date(ann.earlyAccessDate) : null;
-          const gs = ann.generalSaleDate ? new Date(ann.generalSaleDate) : null;
-          const tier = row.tier ?? 'GS';
-          if (tier === 'FA') {
-            tierDate = fa ?? ea ?? gs;
-          } else if (tier === 'EA') {
-            tierDate = ea ?? gs;
-          } else {
-            tierDate = gs;
-          }
-        }
-        return { row, tierDate };
-      })
+      .map(row => ({ row, tierDate: this.resolveTierDate(row.announcement, row.tier) }))
       .filter(({ row, tierDate }) => {
         if (!tierDate) return false;
         if (row.announcement.saleType === 'OPEN_PREORDER') {
@@ -218,18 +218,10 @@ export class SaleInterestsService {
     });
 
     const count = rows.filter(row => {
-      const ann = row.announcement;
-      if (ann.saleType === 'OPEN_PREORDER') {
-        return ann.endsAt == null || new Date(ann.endsAt) > now;
+      if (row.announcement.saleType === 'OPEN_PREORDER') {
+        return row.announcement.endsAt == null || new Date(row.announcement.endsAt) > now;
       }
-      const fa = ann.firstAccessDate ? new Date(ann.firstAccessDate) : null;
-      const ea = ann.earlyAccessDate ? new Date(ann.earlyAccessDate) : null;
-      const gs = ann.generalSaleDate ? new Date(ann.generalSaleDate) : null;
-      const tier = row.tier ?? 'GS';
-      let tierDate: Date | null;
-      if (tier === 'FA') tierDate = fa ?? ea ?? gs;
-      else if (tier === 'EA') tierDate = ea ?? gs;
-      else tierDate = gs;
+      const tierDate = this.resolveTierDate(row.announcement, row.tier);
       return tierDate != null && tierDate >= today;
     }).length;
 

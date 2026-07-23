@@ -23,13 +23,16 @@ interface UpcomingSale {
   }
 }
 
+// Mirrors SaleInterestsService.resolveTierDate on the backend — every tier falls back to any
+// other known date on the announcement (not just "later" ones), so the countdown still renders
+// for a GS-tier interest even when generalSaleDate isn't set yet but FA/EA already is.
 function resolveTierDate(sale: UpcomingSale): string | null {
   const ann = sale.announcement
   if (ann.saleType === 'OPEN_PREORDER') return ann.endsAt ?? null
   const tier = sale.tier ?? 'GS'
   if (tier === 'FA') return ann.firstAccessDate ?? ann.earlyAccessDate ?? ann.generalSaleDate
-  if (tier === 'EA') return ann.earlyAccessDate ?? ann.generalSaleDate
-  return ann.generalSaleDate
+  if (tier === 'EA') return ann.earlyAccessDate ?? ann.generalSaleDate ?? ann.firstAccessDate
+  return ann.generalSaleDate ?? ann.earlyAccessDate ?? ann.firstAccessDate
 }
 
 export function HomeAuthSection() {
