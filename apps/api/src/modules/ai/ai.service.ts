@@ -377,8 +377,8 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
 {
   "companyName": "name of the book subscription company, e.g. 'The Locked Library', 'Illumicrate', 'Owlcrate'",
   "type": "NEW_SUBSCRIPTION | CONTINUATION | TEASER | SALE_ANNOUNCEMENT | MONTH_THEME | OTHER",
-  "title": "short headline for this news item, written by you — not necessarily copied verbatim from the source",
-  "summary": "2-4 sentence plain-language summary of the announcement",
+  "title": "short headline, written by you in REPORTED SPEECH (see TITLE STYLE RULES) — not necessarily copied verbatim from the source",
+  "summary": "2-4 sentence plain-language summary, also in reported speech (see TITLE STYLE RULES)",
   "bookTitle": "the specific book/series title mentioned, if any",
   "originalSourceUrl": "a public URL EXPLICITLY present in the source text pointing back to the announcement (e.g. a CTA/'Shop Now' link) — omit entirely if no such URL is present in the text, never invent one"
 }
@@ -388,6 +388,12 @@ COMPANY NAME RULES:
 - Look for it in: explicit mentions ("The Locked Library announces…", "We are Illumicrate"), hashtags (#thelockedlibrary → "The Locked Library", #illumicrate → "Illumicrate"), the "we" context ("The Locked Librarians are thrilled…" → "The Locked Library")
 - If a source URL is provided (e.g. "illumicrate.com/…"), extract the company name from the domain: illumicrate.com → "Illumicrate", thelockedlibrary.com → "The Locked Library", owlcrate.com → "Owlcrate"
 - Use proper capitalisation (e.g. "The Locked Library", "Illumicrate", "Owlcrate", "FairyLoot")
+
+TITLE STYLE RULES — this is critical, we are a third-party news aggregator, not the brand itself:
+- ALWAYS write the title (and summary) as REPORTED SPEECH with the company name as the grammatical subject performing a reporting verb (announced, shared, showed, revealed, teased, confirmed, unveiled, launched) — never as if we ARE the brand speaking, and never drop the company name from the title.
+- Do NOT copy the source's own marketing voice/hype verbatim (exclamation marks, "Available now!", imperative calls-to-action like "Get yours today") — we are describing what the company did, in our own neutral reporting voice, not repeating their ad copy.
+- GOOD examples: "Illumicrate shared a first look at the August exclusive edition", "FairyLoot announced its new Romantasy tier", "EverHeart Book Box showed a sneak peek of the endpapers", "The Locked Library revealed August's theme"
+- BAD examples (do NOT do this): "First Look at the August Exclusive Edition!" (drops the company, reads like our own headline), "New Romantasy Tier Available Now!" (marketing voice, no attribution), "Sneak Peek: Gorgeous Endpapers" (no company name as subject)
 
 TYPE RULES:
 - NEW_SUBSCRIPTION: announcing a brand-new subscription box/tier that didn't exist before
