@@ -183,15 +183,16 @@ export default function WishlistPage() {
     setDateTo('')
   }
 
+  // Time filter is its own always-visible segmented control (not tucked behind "Filters"), so
+  // it doesn't need a redundant chip here — the active segment already shows the current state.
   const activeFilterChips = useMemo(() => {
     const chips: { key: string; label: string; onRemove: () => void }[] = []
-    if (timeFilter !== 'upcoming') chips.push({ key: 'time', label: timeFilter === 'all' ? 'All' : 'Past', onRemove: () => setTimeFilter('upcoming') })
     if (companyFilter) chips.push({ key: 'company', label: filterCompanies.find(c => c.id === companyFilter)?.name ?? companyFilter, onRemove: () => setCompanyFilter('') })
     if (saleTypeFilter) chips.push({ key: 'saleType', label: saleTypeFilter.replace('_', ' ').toLowerCase(), onRemove: () => setSaleTypeFilter('') })
     if (dateFrom) chips.push({ key: 'dateFrom', label: `From ${dateFrom}`, onRemove: () => setDateFrom('') })
     if (dateTo) chips.push({ key: 'dateTo', label: `To ${dateTo}`, onRemove: () => setDateTo('') })
     return chips
-  }, [timeFilter, companyFilter, saleTypeFilter, dateFrom, dateTo, filterCompanies])
+  }, [companyFilter, saleTypeFilter, dateFrom, dateTo, filterCompanies])
 
   const filteredInterests = useMemo(() => {
     const now = new Date()
@@ -420,8 +421,23 @@ export default function WishlistPage() {
             {/* Filters — sizing and chip convention matches SubscriptionList
                 (apps/web/src/components/subscriptions/SubscriptionList.tsx) */}
             <div className="mb-4 space-y-2">
-              {/* Filter toggle button */}
-              <div className="flex items-center gap-2">
+              {/* Time filter — always visible, not tucked behind the Filters toggle, since it's
+                  the primary/most-used split. All first: it's the "no filter applied" baseline. */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex rounded-lg border border-stone-700 overflow-hidden text-sm w-fit shrink-0">
+                  {(['all', 'upcoming', 'past'] as const).map((val) => (
+                    <button
+                      key={val}
+                      onClick={() => setTimeFilter(val)}
+                      className={`px-3 py-2 capitalize transition-colors border-r border-stone-700 last:border-0 ${
+                        timeFilter === val ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+                      }`}
+                    >
+                      {val === 'upcoming' ? 'Upcoming' : val === 'past' ? 'Past' : 'All'}
+                    </button>
+                  ))}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setShowSaleFilters(p => !p)}
@@ -441,30 +457,16 @@ export default function WishlistPage() {
                 <span className="text-sm text-stone-500">{filteredInterests.length} / {saleInterests.length}</span>
               </div>
 
-              {/* Collapsible filter panel */}
+              {/* Collapsible filter panel — company/type/date-range only; sized to content on
+                  desktop (not stretched across half the row each) via flex-wrap + fixed widths. */}
               {showSaleFilters && (
-                <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-3 space-y-3">
-                  {/* Time filter */}
-                  <div className="flex rounded-lg border border-stone-700 overflow-hidden text-sm w-fit">
-                    {(['upcoming', 'all', 'past'] as const).map((val) => (
-                      <button
-                        key={val}
-                        onClick={() => setTimeFilter(val)}
-                        className={`px-3 py-1.5 capitalize transition-colors border-r border-stone-700 last:border-0 ${
-                          timeFilter === val ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-400 hover:text-stone-200'
-                        }`}
-                      >
-                        {val === 'upcoming' ? 'Upcoming' : val === 'past' ? 'Past' : 'All'}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-3">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                     {/* Company filter */}
                     <select
                       value={companyFilter}
                       onChange={(e) => setCompanyFilter(e.target.value)}
-                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-amber-600 w-full"
+                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-amber-600 sm:w-44"
                     >
                       <option value="">All companies</option>
                       {filterCompanies.map((c) => (
@@ -476,7 +478,7 @@ export default function WishlistPage() {
                     <select
                       value={saleTypeFilter}
                       onChange={(e) => setSaleTypeFilter(e.target.value)}
-                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-amber-600 w-full"
+                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-amber-600 sm:w-40"
                     >
                       <option value="">All types</option>
                       <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
@@ -485,24 +487,24 @@ export default function WishlistPage() {
                     </select>
 
                     {/* Date from */}
-                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-amber-600">
+                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-amber-600 sm:w-auto">
                       <span className="shrink-0 text-stone-500">From</span>
                       <input
                         type="date"
                         value={dateFrom}
                         onChange={(e) => setDateFrom(e.target.value)}
-                        className="bg-transparent text-stone-300 focus:outline-none w-full"
+                        className="bg-transparent text-stone-300 focus:outline-none w-full sm:w-auto"
                       />
                     </label>
 
                     {/* Date to */}
-                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-amber-600">
+                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-amber-600 sm:w-auto">
                       <span className="shrink-0 text-stone-500">To</span>
                       <input
                         type="date"
                         value={dateTo}
                         onChange={(e) => setDateTo(e.target.value)}
-                        className="bg-transparent text-stone-300 focus:outline-none w-full"
+                        className="bg-transparent text-stone-300 focus:outline-none w-full sm:w-auto"
                       />
                     </label>
                   </div>
@@ -591,31 +593,33 @@ export default function WishlistPage() {
                             <span className={isOpen ? 'text-green-400' : ''}>{tl}{isOpen ? ' (open)' : ''}: {dateLabel}</span>
                           </p>
                         )}
-                        <div className="flex gap-1.5 pt-1">
-                          <Link
-                            href={`/sale-announcements/${sa.id}`}
-                            className="flex-1 text-center text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700"
-                          >
-                            View
-                          </Link>
+                        <div className="flex flex-col gap-1.5 pt-1">
+                          <div className="flex gap-1.5">
+                            <Link
+                              href={`/sale-announcements/${sa.id}`}
+                              className="flex-1 text-center text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700"
+                            >
+                              View
+                            </Link>
+                            <button
+                              onClick={() => removeSaleInterestMutation.mutate(sa.id)}
+                              disabled={removeSaleInterestMutation.isPending}
+                              className="p-1.5 text-stone-600 hover:text-red-400 border border-stone-800 hover:border-red-900 rounded-lg transition-colors disabled:opacity-50"
+                              title="Remove from tracked sales"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                           {isOpen && (
                             <button
                               onClick={() => openAddModal(sa.id)}
                               disabled={addModalLoading === sa.id}
-                              className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 disabled:opacity-50"
+                              className="flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg transition-colors bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 disabled:opacity-50 w-full"
                             >
-                              <ShoppingCart size={11} />
-                              {addModalLoading === sa.id ? '…' : 'Add to collection'}
+                              <ShoppingCart size={13} />
+                              {addModalLoading === sa.id ? '…' : 'Add'}
                             </button>
                           )}
-                          <button
-                            onClick={() => removeSaleInterestMutation.mutate(sa.id)}
-                            disabled={removeSaleInterestMutation.isPending}
-                            className="p-1.5 text-stone-600 hover:text-red-400 border border-stone-800 hover:border-red-900 rounded-lg transition-colors disabled:opacity-50"
-                            title="Remove from tracked sales"
-                          >
-                            <Trash2 size={12} />
-                          </button>
                         </div>
                       </div>
                     </div>

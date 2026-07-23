@@ -45,9 +45,10 @@ export default function SubscriptionMonthGapsPage() {
     queryFn: () => authFetch<GapsResponse>(`/subscriptions/admin/month-gaps?year=${year}&month=${month}`),
   })
 
-  const filteredGaps = data?.gaps.filter((g) =>
-    g.name.toLowerCase().includes(search.trim().toLowerCase())
-  ) ?? []
+  const filteredGaps = data?.gaps.filter((g) => {
+    const q = search.trim().toLowerCase()
+    return g.name.toLowerCase().includes(q) || g.companyName.toLowerCase().includes(q)
+  }) ?? []
 
   return (
     <div className="space-y-6">
@@ -62,7 +63,7 @@ export default function SubscriptionMonthGapsPage() {
         <MonthPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m) }} />
         <input
           type="search"
-          placeholder="Search by subscription name…"
+          placeholder="Search by subscription or company name…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 w-64"
