@@ -38,9 +38,12 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
             </div>
           </div>
 
-          {/* Tags strip — second row, only if tags exist */}
+          {/* Tags strip — second row, only if tags exist. pt-1.5 gives the hover lift
+              (.blog-tag:hover translateY(-1px) + box-shadow glow) room above — overflow-x-auto
+              implicitly sets overflow-y: auto too, so without it the hovered pill's top edge and
+              glow get clipped right at the nav's own top edge. */}
           {tags.length > 0 && (
-            <nav className="flex gap-1 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Blog categories">
+            <nav className="flex gap-1 overflow-x-auto pt-1.5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Blog categories">
               <Link
                 href="/blog"
                 className="blog-tag shrink-0 inline-flex items-center h-7 px-3 rounded-full border text-xs font-serif uppercase tracking-wide whitespace-nowrap"
