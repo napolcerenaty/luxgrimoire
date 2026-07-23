@@ -11,6 +11,7 @@ import { SaleRowCountdown } from './SaleRowCountdown'
 interface UpcomingSale {
   announcementId: string
   tier: string
+  regionId: string | null
   announcement: {
     id: string
     title: string
@@ -20,19 +21,30 @@ interface UpcomingSale {
     generalSaleDate: string | null
     endsAt: string | null
     company: { name: string; slug: string } | null
+    regions?: { id: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null; endsAt: string | null }[]
   }
 }
 
 // Mirrors SaleInterestsService.resolveTierDate on the backend — every tier falls back to any
 // other known date on the announcement (not just "later" ones), so the countdown still renders
-// for a GS-tier interest even when generalSaleDate isn't set yet but FA/EA already is.
+// for a GS-tier interest even when generalSaleDate isn't set yet but FA/EA already is. Also
+// prefers the user's selected region's dates over the top-level ones (sales with per-country
+// dates leave the top-level fields null entirely — see apps/web/src/lib/saleDates.ts).
 function resolveTierDate(sale: UpcomingSale): string | null {
   const ann = sale.announcement
-  if (ann.saleType === 'OPEN_PREORDER') return ann.endsAt ?? null
+  const regions = ann.regions ?? []
+  const region = (sale.regionId ? regions.find(r => r.id === sale.regionId) : null)
+    ?? (regions.length > 0 ? (regions.find(r => r.isDefault) ?? regions[0]) : null)
+  const pick = (regionDate: string | null | undefined, annDate: string | null) => regionDate ?? annDate
+
+  if (ann.saleType === 'OPEN_PREORDER') return pick(region?.endsAt, ann.endsAt)
   const tier = sale.tier ?? 'GS'
-  if (tier === 'FA') return ann.firstAccessDate ?? ann.earlyAccessDate ?? ann.generalSaleDate
-  if (tier === 'EA') return ann.earlyAccessDate ?? ann.generalSaleDate ?? ann.firstAccessDate
-  return ann.generalSaleDate ?? ann.earlyAccessDate ?? ann.firstAccessDate
+  const fa = pick(region?.firstAccessDate, ann.firstAccessDate)
+  const ea = pick(region?.earlyAccessDate, ann.earlyAccessDate)
+  const gs = pick(region?.generalSaleDate, ann.generalSaleDate)
+  if (tier === 'FA') return fa ?? ea ?? gs
+  if (tier === 'EA') return ea ?? gs ?? fa
+  return gs ?? ea ?? fa
 }
 
 export function HomeAuthSection() {
