@@ -30,6 +30,9 @@ interface UpcomingSale {
 // for a GS-tier interest even when generalSaleDate isn't set yet but FA/EA already is. Also
 // prefers the user's selected region's dates over the top-level ones (sales with per-country
 // dates leave the top-level fields null entirely — see apps/web/src/lib/saleDates.ts).
+//
+// Deliberately ignores saleType/endsAt — this widget never shows saleType to the user, so
+// there's no reason to resolve OPEN_PREORDER's date differently from any other type.
 function resolveTierDate(sale: UpcomingSale): string | null {
   const ann = sale.announcement
   const regions = ann.regions ?? []
@@ -37,7 +40,6 @@ function resolveTierDate(sale: UpcomingSale): string | null {
     ?? (regions.length > 0 ? (regions.find(r => r.isDefault) ?? regions[0]) : null)
   const pick = (regionDate: string | null | undefined, annDate: string | null) => regionDate ?? annDate
 
-  if (ann.saleType === 'OPEN_PREORDER') return pick(region?.endsAt, ann.endsAt)
   const tier = sale.tier ?? 'GS'
   const fa = pick(region?.firstAccessDate, ann.firstAccessDate)
   const ea = pick(region?.earlyAccessDate, ann.earlyAccessDate)
