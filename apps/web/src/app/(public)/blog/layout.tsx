@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { getTags } from '@/lib/ghost'
 import BlogNavLogo from '@/components/blog/BlogNavLogo'
 import BlogFooter from '@/components/blog/BlogFooter'
@@ -29,11 +30,17 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
             <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0">
               <BlogSearchButton />
               <BlogThemeToggle />
+              {/* Logo now goes to /blog (standard "logo = home of this section" convention),
+                  so this is the only way back to the app — always visible, not hidden on
+                  mobile, just icon-only there instead of the full labeled pill. */}
               <Link
                 href="/"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-700/60 text-amber-400 hover:bg-amber-700 hover:text-stone-950 transition-colors text-xs font-semibold font-serif tracking-wide"
+                aria-label="Back to the LuxGrimoire app"
+                title="Back to the LuxGrimoire app"
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-700/60 text-amber-400 hover:bg-amber-700 hover:text-stone-950 transition-colors font-semibold font-serif tracking-wide p-1.5 sm:pl-3 sm:pr-3.5 sm:py-1.5"
               >
-                Open App →
+                <ArrowLeft size={14} />
+                <span className="hidden sm:inline text-xs">Open App</span>
               </Link>
             </div>
           </div>

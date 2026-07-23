@@ -7,7 +7,7 @@ import { useTheme } from '@/components/ThemeProvider'
 export default function BlogNavLogo() {
   const { theme } = useTheme()
   return (
-    <Link href="/" className="flex items-center gap-2 shrink-0" aria-label="Back to LuxGrimoire app">
+    <Link href="/blog" className="flex items-center gap-2 shrink-0" aria-label="LuxGrimoire Blog home">
       <Image
         src={theme === 'dark' ? '/logo-light.png' : '/logo-dark.png'}
         alt="LuxGrimoire"
