@@ -305,6 +305,10 @@ model BookEdition {
   previousEditionId        String?                   @unique
   previousEdition          BookEdition?              @relation("EditionHistory", fields: [previousEditionId], references: [id], onDelete: SetNull)
   nextEdition              BookEdition?              @relation("EditionHistory")
+  variantLabel             String?
+  variantGroupParentId     String?
+  variantGroupParent       BookEdition?              @relation("EditionVariants", fields: [variantGroupParentId], references: [id], onDelete: SetNull)
+  variants                 BookEdition[]             @relation("EditionVariants")
   artists                  ArtistContribution[]
   bookBoxCompany           BookBoxCompany?           @relation(fields: [bookBoxCompanyId], references: [id])
   book                     Book                      @relation(fields: [bookId], references: [id], onDelete: Cascade)
@@ -329,6 +333,7 @@ model BookEdition {
   @@index([createdAt])
   @@index([updatedAt])
   @@index([verifiedAt])
+  @@index([variantGroupParentId])
   @@map("book_editions")
 }
 

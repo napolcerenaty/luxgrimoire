@@ -18,6 +18,7 @@ import {
   UpdateArtistRoleDto,
   EditionQueryDto,
   LinkEditionHistoryDto,
+  LinkVariantDto,
 } from './editions.dto';
 import { SubmitUserEditionImagesDto } from './user-edition-images.dto';
 import { UserEditionImagesService } from './user-edition-images.service';
@@ -265,5 +266,20 @@ export class EditionsController {
   @Delete(':slug/link-history')
   unlinkHistory(@Param('slug') slug: string) {
     return this.editionsService.unlinkEditionHistory(slug);
+  }
+
+  // Edition variants (e.g. White/Black/Numbered — coexisting siblings, not a reissue)
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/link-variant')
+  linkVariant(@Param('slug') slug: string, @Body() dto: LinkVariantDto) {
+    return this.editionsService.linkVariant(slug, dto.relatedEditionSlug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete(':slug/link-variant')
+  unlinkVariant(@Param('slug') slug: string) {
+    return this.editionsService.unlinkVariant(slug);
   }
 }

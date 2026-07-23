@@ -26,6 +26,7 @@ type TrendingEditionResult = {
   id: string;
   slug: string;
   additionalImages: string[];
+  variantLabel: string | null;
   book: {
     title: string;
     seriesName: string | null;
@@ -301,9 +302,40 @@ export class EditionsService {
     if (!subscriptionId && !collectionId) await this.cache.del(companyEditionsNoColCountKey(companySlug));
   }
 
+  /** Resolves an edition's variant-group root: itself if it has no parent, otherwise its parent's id.
+   * Keeps the group exactly two levels deep (root + flat children) no matter which sibling is used as a starting point. */
+  private async resolveVariantGroupRootId(editionId: string): Promise<string> {
+    const source = await this.prisma.bookEdition.findUnique({
+      where: { id: editionId },
+      select: { id: true, variantGroupParentId: true },
+    });
+    if (!source) throw new NotFoundException(`Edition '${editionId}' not found`);
+    return source.variantGroupParentId ?? source.id;
+  }
+
+  /** Fetches the full sibling group for an edition (root + all other children), excluding the edition itself. */
+  private async getVariantSiblings(edition: { id: string; variantGroupParentId: string | null }) {
+    const rootId = edition.variantGroupParentId ?? edition.id;
+    return this.prisma.bookEdition.findMany({
+      where: {
+        OR: [{ id: rootId }, { variantGroupParentId: rootId }],
+        NOT: { id: edition.id },
+      },
+      select: {
+        id: true, slug: true, variantLabel: true, additionalImages: true,
+        bookBoxCompany: { select: { name: true, slug: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   async create(dto: CreateEditionDto, opts?: { verifiedAt?: Date | null; submittedByUserId?: string }) {
     const book = await this.prisma.book.findUnique({ where: { id: dto.bookId } });
     if (!book) throw new NotFoundException(`Book '${dto.bookId}' not found`);
+
+    const variantGroupParentId = dto.sourceEditionId
+      ? await this.resolveVariantGroupRootId(dto.sourceEditionId)
+      : undefined;
 
     let companySlug: string | undefined;
     const slugPart = dto.bookBoxCompanyId
@@ -336,6 +368,8 @@ export class EditionsService {
         collectionId: dto.collectionId,
         features: dto.features ?? [],
         photoCredit: dto.photoCredit,
+        variantLabel: dto.variantLabel,
+        variantGroupParentId,
         verifiedAt:opts?.verifiedAt !== undefined ? opts.verifiedAt : new Date(),
         submittedByUserId: opts?.submittedByUserId,
       },
@@ -392,6 +426,7 @@ export class EditionsService {
           isSpecial: true,
           verifiedAt: true,
           createdAt: true,
+          variantLabel: true,
           book: {
             select: {
               id: true,
@@ -487,6 +522,7 @@ export class EditionsService {
         id: true,
         slug: true,
         additionalImages: true,
+        variantLabel: true,
         book: {
           select: {
             title: true,
@@ -520,6 +556,7 @@ export class EditionsService {
           id: edition.id,
           slug: edition.slug,
           additionalImages: edition.additionalImages,
+          variantLabel: edition.variantLabel,
           book: edition.book
             ? {
                 ...edition.book,
@@ -566,6 +603,7 @@ export class EditionsService {
         basePrice: true, currency: true, features: true,
         firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true,
         verifiedAt: true, submittedByUserId: true, photoCredit: true,
+        variantLabel: true, variantGroupParentId: true,
         book: { select: { id: true, title: true } },
         artists: {
           select: {
@@ -597,6 +635,7 @@ export class EditionsService {
     return {
       ...edition,
       featureTags: await this.enrichTagsWithCategories(edition.featureTags as any),
+      variants: await this.getVariantSiblings(edition),
     };
   }
 
@@ -611,6 +650,7 @@ export class EditionsService {
         basePrice: true, currency: true, features: true,
         firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true,
         verifiedAt: true, submittedByUserId: true, photoCredit: true,
+        variantLabel: true, variantGroupParentId: true,
         book: {
           select: {
             id: true, slug: true, title: true, description: true,
@@ -713,6 +753,7 @@ export class EditionsService {
     return {
       ...edition,
       featureTags: await this.enrichTagsWithCategories(edition.featureTags as any),
+      variants: await this.getVariantSiblings(edition),
       book: edition.book
         ? { ...edition.book, authors: edition.book.authors.map((ba: { author: unknown }) => ba.author) }
         : edition.book,
@@ -755,6 +796,7 @@ export class EditionsService {
     if (dto.collectionId !== undefined) data.collectionId = dto.collectionId;
     if (dto.features !== undefined) data.features = dto.features;
     if (dto.photoCredit !== undefined) data.photoCredit = dto.photoCredit;
+    if (dto.variantLabel !== undefined) data.variantLabel = dto.variantLabel;
 
     const edition = await this.prisma.bookEdition.update({ where: { slug }, data });
     if (dto.additionalImages !== undefined) {
@@ -916,6 +958,56 @@ export class EditionsService {
     const edition = await this.prisma.bookEdition.findUnique({ where: { slug }, select: { id: true } });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
     return this.prisma.bookEdition.update({ where: { id: edition.id }, data: { previousEditionId: null } });
+  }
+
+  /** Links two already-existing editions as siblings in the same variant group.
+   * Always resolves to a single flat root (never a chain): `slugB` and any of `slugB`'s own
+   * children are reparented onto slugA's group root, no matter which sibling was passed as `slugA`. */
+  async linkVariant(slugA: string, slugB: string) {
+    const [a, b] = await Promise.all([
+      this.prisma.bookEdition.findUnique({
+        where: { slug: slugA },
+        select: { id: true, bookId: true, variantGroupParentId: true },
+      }),
+      this.prisma.bookEdition.findUnique({
+        where: { slug: slugB },
+        select: { id: true, bookId: true, variantGroupParentId: true },
+      }),
+    ]);
+    if (!a) throw new NotFoundException(`Edition '${slugA}' not found`);
+    if (!b) throw new NotFoundException(`Edition '${slugB}' not found`);
+    if (a.id === b.id) throw new BadRequestException('An edition cannot be a variant of itself');
+    if (a.bookId !== b.bookId) throw new BadRequestException('Variants must belong to the same book');
+
+    const rootId = a.variantGroupParentId ?? a.id;
+    if (rootId === b.id) throw new BadRequestException('These editions are already linked as variants');
+
+    // Reparent b, and anything already grouped under b, onto the resolved root — keeps the group flat.
+    await this.prisma.$transaction([
+      this.prisma.bookEdition.update({ where: { id: b.id }, data: { variantGroupParentId: rootId } }),
+      this.prisma.bookEdition.updateMany({ where: { variantGroupParentId: b.id }, data: { variantGroupParentId: rootId } }),
+    ]);
+
+    const root = await this.prisma.bookEdition.findUnique({ where: { id: rootId }, select: { id: true, variantGroupParentId: true } });
+    return { rootId, variants: await this.getVariantSiblings(root!) };
+  }
+
+  /** Removes an edition from its variant group. Only valid for a child (leaf) —
+   * unlinking a root that still has other siblings pointing to it is rejected to avoid silently orphaning them. */
+  async unlinkVariant(slug: string) {
+    const edition = await this.prisma.bookEdition.findUnique({
+      where: { slug },
+      select: { id: true, variantGroupParentId: true },
+    });
+    if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    if (!edition.variantGroupParentId) {
+      const childCount = await this.prisma.bookEdition.count({ where: { variantGroupParentId: edition.id } });
+      if (childCount > 0) {
+        throw new BadRequestException('Unlink the other variants individually instead of unlinking the group root');
+      }
+      throw new BadRequestException('This edition is not linked to any variant group');
+    }
+    return this.prisma.bookEdition.update({ where: { id: edition.id }, data: { variantGroupParentId: null } });
   }
 
   private async indexEdition(editionId: string): Promise<void> {

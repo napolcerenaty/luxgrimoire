@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { authFetch } from '@/lib/authFetch'
 import { getFeeTemplates } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import type { ApiFeeTemplate } from '@luxgrimoire/shared-types'
 
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
@@ -27,10 +28,17 @@ interface BookEdition {
   id: string
   additionalImages: string[]
   title: string | null
+  variantLabel?: string | null
   book: {
     title: string
     authors: Author[]
   }
+}
+
+/** book.title (+ variant suffix) when book data is present, falling back to the edition's own legacy title field. */
+function editionDisplayTitle(edition: BookEdition | null | undefined): string | null {
+  if (!edition) return null
+  return formatEditionDisplayTitle(edition.book, edition) || edition.title
 }
 
 interface MonthBook {
@@ -1047,7 +1055,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
                     <div className="mt-1 space-y-0.5">
                       {uniqueBooks.map((b, i) => (
                         <p key={i} className="text-xs text-stone-500">
-                          {b.edition?.book?.title ?? b.edition?.title ?? '—'}
+                          {editionDisplayTitle(b.edition) ?? '—'}
                           {b.edition?.book?.authors?.[0]?.author?.name
                             ? <span className="text-stone-600"> · {b.edition.book.authors[0].author.name}</span>
                             : null}
@@ -1147,7 +1155,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
           {allBooks.length <= 1 ? (
             <>
               <p className="text-sm text-stone-100 leading-snug truncate">
-                {mainBook?.edition?.book?.title ?? mainBook?.edition?.title ?? '—'}
+                {editionDisplayTitle(mainBook?.edition) ?? '—'}
               </p>
               {authorName && <p className="text-xs text-stone-400 truncate">{authorName}</p>}
             </>
@@ -1155,7 +1163,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
             <ul className="space-y-0.5">
               {allBooks.map(b => (
                 <li key={b.editionId ?? b.bookId} className="text-sm text-stone-100 leading-snug truncate">
-                  {b.edition?.book?.title ?? b.edition?.title ?? '—'}
+                  {editionDisplayTitle(b.edition) ?? '—'}
                 </li>
               ))}
             </ul>
@@ -1170,7 +1178,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
           {allBooks.map(b => {
             if (!b.editionId) return null
             const key = `${month.id}:${b.editionId}`
-            const title = b.edition?.book?.title ?? b.edition?.title ?? b.editionId
+            const title = editionDisplayTitle(b.edition) ?? b.editionId
             return (
               <div key={b.editionId} className="flex items-center gap-2">
                 <span className="text-xs text-stone-400 flex-1 truncate">{title}</span>

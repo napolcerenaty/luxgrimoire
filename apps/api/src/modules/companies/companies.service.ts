@@ -373,6 +373,7 @@ export class CompaniesService {
         id: true,
         slug: true,
         additionalImages: true,
+        variantLabel: true,
         collectionId: true,
         subscriptionId: true,
         collection: { select: { id: true, name: true, slug: true } },

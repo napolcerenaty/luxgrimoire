@@ -4,6 +4,7 @@ import { API_BASE } from '@/lib/authFetch'
 import { apiFetch } from '@/lib/api'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
 import { formatVolumeNumbers } from '@/lib/volumeNumbers'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { EditionCarousel, type CarouselCard } from '@/components/ui/EditionCarousel'
 import { HomeAnnouncementsSection } from '@/components/sales/HomeAnnouncementsSection'
 import { HomeStatsBar } from '@/components/home/HomeStatsBar'
@@ -63,7 +64,7 @@ export default async function HomePage() {
       id: e.id,
       href: `/editions/${e.slug}`,
       coverImage: resolveEditionCoverRaw(e),
-      title: e.book?.title ?? 'Unknown',
+      title: formatEditionDisplayTitle(e.book, e) || 'Unknown',
       subtitle: e.book?.seriesName
         ? `${e.book.seriesName}${e.book.volumeNumbers?.length ? ` #${formatVolumeNumbers(e.book.volumeNumbers)}` : ''}`
         : null,

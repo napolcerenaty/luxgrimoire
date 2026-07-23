@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, type WheelEvent, typ
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { API_BASE, authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -440,7 +441,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
                 key={edition.id}
                 href={`/editions/${edition.slug}`}
                 coverImage={resolveEditionCoverRaw(edition)}
-                title={edition.book.title}
+                title={formatEditionDisplayTitle(edition.book, edition)}
                 seriesName={edition.book.seriesName}
                 volumeNumbers={edition.book.volumeNumbers}
                 authors={edition.book.authors.map((a) => ({ name: a.author.name }))}

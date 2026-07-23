@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandTextClasses } from '@/lib/brandGradient'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { Badge } from '@/components/ui/Badge'
 import type { ApiSubscription, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import MonthCard from '@/components/subscriptions/MonthCard'
@@ -47,7 +48,7 @@ function getMainBook(monthData: ApiSubscriptionMonth) {
   if (!mb) return null
   return {
     slug: mb.book.slug,
-    title: mb.book.title,
+    title: formatEditionDisplayTitle(mb.book, mb.edition),
     edition: mb.edition ? {
       slug: mb.edition.slug ?? null,
       coverImage: mb.edition.additionalImages?.[0] ?? null,
