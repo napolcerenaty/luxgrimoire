@@ -219,6 +219,7 @@ export default async function BlogPostPage({
               <BlogShareButton
                 url={`${process.env.NEXT_PUBLIC_BASE_URL ?? 'https://luxgrimoire.com'}/blog/${post.slug}`}
                 title={post.title}
+                imageUrl={post.feature_image}
                 className="ml-auto"
               />
             </div>

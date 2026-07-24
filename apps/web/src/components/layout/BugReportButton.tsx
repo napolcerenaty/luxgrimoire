@@ -20,7 +20,11 @@ export function BugReportButton() {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    const handler = () => setOpen(true)
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ category?: string }>).detail
+      if (detail?.category) setCategory(detail.category)
+      setOpen(true)
+    }
     window.addEventListener('open-bug-report', handler)
     return () => window.removeEventListener('open-bug-report', handler)
   }, [])

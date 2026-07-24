@@ -31,6 +31,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 interface BlogShareButtonProps {
   url: string
   title: string
+  imageUrl?: string | null
   className?: string
 }
 
@@ -38,7 +39,7 @@ interface BlogShareButtonProps {
 // tapping the button opens the OS share sheet directly — no menu needed. Everywhere else
 // (desktop browsers largely don't implement it) it falls back to a small dropdown of per-platform
 // share-intent links plus copy-link, since there's no native equivalent to defer to.
-export default function BlogShareButton({ url, title, className }: BlogShareButtonProps) {
+export default function BlogShareButton({ url, title, imageUrl, className }: BlogShareButtonProps) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -56,8 +57,30 @@ export default function BlogShareButton({ url, title, className }: BlogShareButt
 
   async function handleShareClick() {
     if (navigator.share) {
+      const shareData: ShareData = { title, url }
+
+      // Instagram (and some other apps) only offer "Add to Story" in the native share
+      // sheet when the payload includes an actual image file — a URL/text-only share
+      // just gets the DM/message option. Fetch the post's feature image and attach it
+      // as a File when the browser supports file sharing; silently fall back to the
+      // link-only share if the fetch fails or files aren't supported (desktop browsers,
+      // CORS-blocked hosts, etc).
+      if (imageUrl) {
+        try {
+          const res = await fetch(imageUrl)
+          const blob = await res.blob()
+          const ext = blob.type.split('/')[1] ?? 'jpg'
+          const file = new File([blob], `share.${ext}`, { type: blob.type })
+          if (navigator.canShare?.({ files: [file] })) {
+            shareData.files = [file]
+          }
+        } catch {
+          // Image fetch/CORS failed — share without an image instead of blocking the action.
+        }
+      }
+
       try {
-        await navigator.share({ title, url })
+        await navigator.share(shareData)
       } catch {
         // User cancelled the native share sheet, or it failed silently — nothing to do.
       }
