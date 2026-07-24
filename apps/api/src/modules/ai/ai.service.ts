@@ -3,6 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { FeatureTaggerService } from '../feature-categories/feature-tagger.service';
 
+export interface AiSaleTier {
+  name: string;
+  date: string;
+}
+
 export interface AiSaleRegion {
   name: string;
   isDefault: boolean;
@@ -11,9 +16,10 @@ export interface AiSaleRegion {
   subscriberBasePrice?: number;
   currency?: string;
   saleTimezone?: string;
-  firstAccessDate?: string;
-  earlyAccessDate?: string;
-  generalSaleDate?: string;
+  /** Arbitrary-length ordered list of named access tiers — replaces the old fixed
+   *  firstAccessDate/earlyAccessDate/generalSaleDate slots so companies with more (or
+   *  differently named) tiers than First/Early/General Access aren't forced to collapse them. */
+  tiers?: AiSaleTier[];
 }
 
 export interface AiSaleAnnouncementResult {
@@ -46,9 +52,10 @@ export interface AiParseResult {
     publisher?: string;
     price?: number;
     currency?: string;
-    firstAccessDate?: string;
-    earlyAccessDate?: string;
-    generalSaleDate?: string;
+    /** Manual sale dates for a standalone edition (no linked SaleAnnouncement) — date only,
+     *  no time, matching EditionSaleDate. Replaces the old fixed firstAccessDate/
+     *  earlyAccessDate/generalSaleDate slots. */
+    saleDates?: { label: string; date: string }[];
     features?: string[];
     artists?: { name: string; role: string }[];
     /** All feature raw values (standalone + artist-attributed) in the exact order they appear in the source text */
@@ -74,9 +81,11 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
     "publisher": "original publisher name",
     "price": 45.99,
     "currency": "GBP",
-    "firstAccessDate": "YYYY-MM-DD",
-    "earlyAccessDate": "YYYY-MM-DD",
-    "generalSaleDate": "YYYY-MM-DD",
+    "saleDates": [
+      { "label": "First Access", "date": "YYYY-MM-DD" },
+      { "label": "Early Access", "date": "YYYY-MM-DD" },
+      { "label": "General Sale", "date": "YYYY-MM-DD" }
+    ],
     "features": ["Sprayed edges", "Ribbon bookmark", "Exclusive art print", "Signed bookplate"],
     "artists": [
       { "name": "@artisthandle", "role": "full description of what they created, e.g. cover art, character illustrations, map, typography, interior artwork, endpapers design" }
@@ -265,9 +274,11 @@ Return ONLY valid JSON matching this schema (omit fields you cannot find):
       "subscriberBasePrice": 22.00,
       "currency": "GBP",
       "saleTimezone": "BST",
-      "firstAccessDate": "2025-07-15T09:00:00.000Z",
-      "earlyAccessDate": "2025-07-15T13:00:00.000Z",
-      "generalSaleDate": "2025-07-16T09:00:00.000Z"
+      "tiers": [
+        { "name": "First Access", "date": "2025-07-15T09:00:00.000" },
+        { "name": "Early Access", "date": "2025-07-15T13:00:00.000" },
+        { "name": "General Sale", "date": "2025-07-16T09:00:00.000" }
+      ]
     }
   ]
 }
@@ -299,17 +310,17 @@ REGION RULES:
 - The FIRST region/price mentioned = isDefault: true
 - If NO regions are mentioned (single global price/date), do NOT create a regions array
 - If only ONE region is mentioned (e.g. the whole announcement has one price/currency/date set), do NOT create a regions array — the data will be applied to the sale announcement defaults directly
-- Each region should have: name, price, currency, and dates where available
+- Each region should have: name, price, currency, and tiers where available
+
+TIER RULES (each region's "tiers" array):
+- List EVERY distinct customer-access moment found in the source as its own tier entry, in chronological order — do NOT merge, collapse, or drop any of them, even if there are more than three (e.g. a company with "VIP Access", "First Access", "Early Access", "General Sale" gets all four as separate tiers)
+- Use the tier's name AS WRITTEN in the source (e.g. "VIP Access", "First Access", "Subscriber Early Access", "Flash Sale", "General Sale") — do NOT rename or normalize it to First/Early/General Access unless that is literally the name used
 - For dates: output the LOCAL time exactly as stated in the announcement — do NOT convert to UTC
   - "10am BST" → "2025-07-15T10:00:00.000" (no Z suffix)
   - "9am ET" → "2025-07-15T09:00:00.000" (no Z suffix)
   - "2pm PT" → "2025-07-15T14:00:00.000" (no Z suffix)
   - NEVER convert to UTC — the server will handle UTC conversion using the saleTimezone
-  - firstAccessDate = earliest access date (e.g. previous customers/edition holders)
-  - earlyAccessDate = subscriber/presale early access date
-  - generalSaleDate = public/general sale date
-- If multiple time slots exist for the same region (different customer tiers), use:
-  - firstAccessDate = earliest slot, earlyAccessDate = subscriber slot, generalSaleDate = general public slot
+- If only one time slot exists for a region, it still gets exactly one tier entry (commonly named "General Sale" if the source doesn't name it)
 - Extract timezone EXACTLY as written in the text and set saleTimezone (e.g. "BST", "ET", "PT", "UTC", "EST", "PDT")
   - Do NOT resolve "ET" to "EDT" or "EST" — copy the abbreviation exactly as it appears
 - For country codes: UK/INT → "GB", US/Canada → "US,CA", EU → omit, AUS → "AU", INT → omit
@@ -419,15 +430,14 @@ function normalizeSaleAnnouncementDates(result: AiSaleAnnouncementResult): AiSal
   const globalTz = result.regions?.[0]?.saleTimezone ?? 'UTC'
   const convertRegion = (r: AiSaleRegion): AiSaleRegion => {
     const tz = r.saleTimezone ?? 'UTC'
-    const resolved = r.firstAccessDate ? resolveUsDst(tz, r.firstAccessDate) :
-                     r.earlyAccessDate ? resolveUsDst(tz, r.earlyAccessDate) :
-                     r.generalSaleDate ? resolveUsDst(tz, r.generalSaleDate) : tz
+    // Resolve ambiguous US abbreviations (ET/PT/CT/MT) off the earliest tier's date — same
+    // effect as the old firstAccessDate-then-earlyAccessDate-then-generalSaleDate priority,
+    // since tiers are already in chronological order.
+    const resolved = r.tiers?.[0]?.date ? resolveUsDst(tz, r.tiers[0].date) : tz
     return {
       ...r,
       saleTimezone: resolved,
-      firstAccessDate: r.firstAccessDate ? localToUtcIso(r.firstAccessDate, tz) : r.firstAccessDate,
-      earlyAccessDate: r.earlyAccessDate ? localToUtcIso(r.earlyAccessDate, tz) : r.earlyAccessDate,
-      generalSaleDate: r.generalSaleDate ? localToUtcIso(r.generalSaleDate, tz) : r.generalSaleDate,
+      tiers: r.tiers?.map(t => ({ ...t, date: localToUtcIso(t.date, tz) })),
     }
   }
   return {
