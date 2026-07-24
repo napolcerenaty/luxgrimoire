@@ -406,6 +406,7 @@ export class BooksService {
         additionalImages: true,
         verifiedAt: true,
         generalSaleDate: true,
+        variantLabel: true,
         bookBoxCompany: { select: { slug: true, name: true, brandColors: true } },
         communityImages: {
           where: { status: 'APPROVED' },
