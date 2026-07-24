@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle, brandTextClasses } from '@/lib/brandGradient'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 type SaleEdition = NonNullable<ApiSaleAnnouncement['editions']>[number]
@@ -33,7 +34,7 @@ function EditionCard({
   const authors = (book?.authors ?? []) as any[]
   const raw = edition.additionalImages?.[0]
   const imgSrc = raw ? cloudinaryUrl(raw, 'w_200,h_300,c_fill,q_auto,f_auto') : null
-  const title = book?.title ?? (edition as any).bookBoxCompany?.name ?? 'Edition'
+  const title = formatEditionDisplayTitle(book, edition) || (edition as any).bookBoxCompany?.name || 'Edition'
   const colors = (edition as any).bookBoxCompany?.brandColors ?? saleBrandColors
   const href = `/editions/${(edition as any).slug ?? editionId}`
 

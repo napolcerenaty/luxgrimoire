@@ -6,6 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
 import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type FeaturePreviewHandle } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -134,6 +135,99 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
   )
 }
 
+// ─── Edition Variants Section ──────────────────────────────────────────────────
+function EditionVariantSection({ edition, onLinked }: { edition: ApiBookEdition; onLinked: () => void }) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [linking, setLinking] = useState(false)
+
+  const bookId = edition.book?.id
+  const { data: searchResults } = useQuery({
+    queryKey: ['edition-search-for-variant-link', bookId, searchQuery],
+    queryFn: () => authFetch<{ data: Array<{ id: string; slug: string; bookBoxCompany?: { name: string } | null; variantLabel?: string | null }> }>(
+      `/editions?bookId=${bookId}&search=${encodeURIComponent(searchQuery)}&pageSize=10`
+    ),
+    enabled: !!bookId && searchQuery.length > 0,
+  })
+  const linkedSlugs = new Set((edition.variants ?? []).map(v => v.slug))
+  const candidates = (searchResults?.data ?? []).filter(e => e.slug !== edition.slug && !linkedSlugs.has(e.slug))
+
+  const handleLink = async (relatedEditionSlug: string) => {
+    setLinking(true)
+    try {
+      await authFetch(`/editions/${edition.slug}/link-variant`, {
+        method: 'POST', body: JSON.stringify({ relatedEditionSlug }),
+      })
+      onLinked()
+    } catch (e) {
+      alert(`Link failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setLinking(false)
+      setSearchQuery('')
+    }
+  }
+
+  const handleUnlink = async (variantSlug: string) => {
+    if (!confirm('Remove this edition from the variant group?')) return
+    setLinking(true)
+    try {
+      await authFetch(`/editions/${variantSlug}/link-variant`, { method: 'DELETE' })
+      onLinked()
+    } catch (e) {
+      alert(`Unlink failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <span className="text-xs text-stone-500 uppercase tracking-wide font-semibold">Edition Variants</span>
+      <p className="text-xs text-stone-500">
+        Simultaneously-released variants of this edition (e.g. White/Black/Numbered) — not a reissue.
+      </p>
+
+      {(edition.variants ?? []).length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          {edition.variants!.map(v => (
+            <div key={v.id} className="flex items-center gap-2 p-2 bg-stone-800/50 rounded-lg text-xs text-stone-300">
+              <span className="flex-1">{v.variantLabel ?? v.bookBoxCompany?.name ?? v.slug}</span>
+              <button type="button" onClick={() => handleUnlink(v.slug)} disabled={linking} className={BTN_DANGER}>
+                Unlink
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <label className={LBL}>Link an existing edition of this book as a variant</label>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search editions by company or name…"
+          className="w-full px-3 py-1.5 rounded bg-stone-700 text-stone-200 text-sm placeholder-stone-500 focus:outline-none"
+        />
+        {candidates.length > 0 && (
+          <div className="flex flex-col gap-1">
+            {candidates.map(c => (
+              <button
+                key={c.slug}
+                type="button"
+                disabled={linking}
+                onClick={() => handleLink(c.slug)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded bg-stone-700 hover:bg-stone-600 text-sm text-stone-200 text-left transition-colors"
+              >
+                <span>{c.variantLabel ?? c.bookBoxCompany?.name ?? c.slug}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export interface EditBookEditionFormProps {
   edition: ApiBookEdition
@@ -159,6 +253,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [firstAccessDate, setFirstAccessDate] = useState(edition.firstAccessDate?.slice(0, 10) ?? '')
   const [earlyAccessDate, setEarlyAccessDate] = useState(edition.earlyAccessDate?.slice(0, 10) ?? '')
   const [generalSaleDate, setGeneralSaleDate] = useState(edition.generalSaleDate?.slice(0, 10) ?? '')
+  const [variantLabel, setVariantLabel] = useState(edition.variantLabel ?? '')
   const [allImages, setAllImages] = useState<string[]>(() => {
     return edition.additionalImages?.length ? [...edition.additionalImages] : []
   })
@@ -258,6 +353,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           earlyAccessDate: earlyAccessDate || undefined,
           generalSaleDate: generalSaleDate || undefined,
           additionalImages: allImages.filter(Boolean),
+          variantLabel: variantLabel.trim() || null,
         }),
       })
       // 2. Remove deleted artists
@@ -328,8 +424,20 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
       <div>
         <span className="text-xs text-stone-500 uppercase tracking-wide font-semibold">Edition details</span>
         {edition.book?.title && (
-          <p className="text-stone-300 text-sm mt-0.5">{edition.book.title}</p>
+          <p className="text-stone-300 text-sm mt-0.5">{formatEditionDisplayTitle(edition.book, { variantLabel })}</p>
         )}
+      </div>
+
+      <div>
+        <label className={LBL}>Variant label</label>
+        <input
+          type="text"
+          value={variantLabel}
+          onChange={e => setVariantLabel(e.target.value)}
+          placeholder="e.g. White Edition, Overlay Edition, Numbered — leave blank if this isn't a variant"
+          className="w-full px-3 py-1.5 rounded bg-stone-700 text-stone-200 text-sm placeholder-stone-500 focus:outline-none"
+        />
+        <p className="text-xs text-stone-500 mt-1">Shown as a suffix on the title, e.g. &quot;Book Title (White Edition)&quot;.</p>
       </div>
 
       <EditionFieldsSection
@@ -369,6 +477,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
 
       <hr className="border-stone-700/50" />
       <EditionHistorySection edition={edition} onLinked={() => qc.invalidateQueries({ queryKey: ['admin', 'editions'] })} />
+
+      <hr className="border-stone-700/50" />
+      <EditionVariantSection edition={edition} onLinked={() => qc.invalidateQueries({ queryKey: ['admin', 'editions'] })} />
 
       <div className="flex gap-2 pt-1">
         <button type="button" disabled={busy || saved} onClick={handleSubmit}

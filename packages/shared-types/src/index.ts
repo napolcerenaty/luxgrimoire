@@ -150,6 +150,8 @@ export interface ApiBookEdition {
   communityPhotoCover?: string | null;
   verifiedAt: string | null;
   submittedByUserId: string | null;
+  variantLabel?: string | null;
+  variantGroupParentId?: string | null;
   // Edition commerce / access fields
   basePrice?: string | null;
   currency?: string | null;
@@ -184,6 +186,14 @@ export interface ApiBookEdition {
     bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
     collection?: { id: string; name: string; slug: string } | null;
   } | null;
+  /** Sibling editions in the same variant group (e.g. White/Black/Numbered) — see variantLabel/variantGroupParentId. */
+  variants?: Array<{
+    id: string;
+    slug: string;
+    variantLabel: string | null;
+    additionalImages: string[];
+    bookBoxCompany?: { name: string; slug: string } | null;
+  }>;
 }
 
 export interface ApiBookBoxCollection {
@@ -205,6 +215,7 @@ export interface ApiCompanyEdition {
   communityPhotoCover?: string | null;
   collectionId: string | null;
   subscriptionId: string | null;
+  variantLabel?: string | null;
   collection: { id: string; name: string; slug: string } | null;
   book: {
     id: string;
@@ -431,6 +442,7 @@ export interface ApiSearchEdition {
   communityPhotoCover: string | null;
   publisher: string | null;
   generalSaleDate: string | null;
+  variantLabel?: string | null;
   bookBoxCompany: { name: string; slug: string; logoUrl: string | null } | null;
   book: {
     id: string;
@@ -700,6 +712,7 @@ export interface ApiTrendingEdition {
   id: string;
   slug: string;
   additionalImages: string[];
+  variantLabel?: string | null;
   book: (Pick<ApiBook, 'title' | 'seriesName' | 'volumeNumbers'> & {
     authors: ApiAuthor[];
   }) | null;

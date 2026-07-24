@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { formatVolumeNumbers } from '@/lib/volumeNumbers'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { Badge } from '@/components/ui/Badge'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import { EditionActionButtons } from '@/components/books/EditionActionButtons'
@@ -104,6 +105,9 @@ interface EditionDetail {
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
   previousEdition?: { id: string; slug: string; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   nextEdition?: { id: string; slug: string; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
+  variantLabel?: string | null
+  variantGroupParentId?: string | null
+  variants?: Array<{ id: string; slug: string; variantLabel: string | null; additionalImages: string[]; bookBoxCompany: { name: string; slug: string } | null }>
   book?: {
     id: string; slug: string; title: string
     seriesName: string | null; volumeNumbers: number[]
@@ -146,7 +150,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const edition = await getEdition(slug)
     const book = edition.book
-    const title = [edition.bookBoxCompany?.name, book?.title].filter(Boolean).join(' · ')
+    const title = [edition.bookBoxCompany?.name, formatEditionDisplayTitle(book, edition)].filter(Boolean).join(' · ')
     const coverUrl = cloudinaryUrl(edition.additionalImages[0] ?? null, 'w_800,c_fill,q_auto,f_auto')
     return {
       title: title || 'Edition',
@@ -331,7 +335,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {book && (
                 <Link href={`/books/${book.slug}`} className="group">
                   <h1 className="text-4xl font-serif font-bold text-stone-100 mb-1 leading-tight group-hover:text-amber-400 transition-colors">
-                    {book.title}
+                    {formatEditionDisplayTitle(book, edition)}
                   </h1>
                 </Link>
               )}
@@ -369,7 +373,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               <div className="mb-6">
                 <EditionActionButtons
                   editionId={edition.id}
-                  bookTitle={book?.title ?? editionLabel}
+                  bookTitle={formatEditionDisplayTitle(book, edition) || editionLabel}
                   basePrice={edition.basePrice}
                   currency={edition.currency}
                   bundles={bundles.map(se => ({ id: se.announcement.id, title: se.announcement.title }))}
@@ -655,6 +659,25 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   <span className="text-stone-500">→</span>
                 </Link>
               )}
+            </div>
+          </section>
+        )}
+
+        {/* ── Available Variants ───────────────────────────────────────────── */}
+        {edition.variants && edition.variants.length > 0 && (
+          <section>
+            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Available Variants</h2>
+            <div className="space-y-2">
+              {edition.variants.map((v) => (
+                <Link key={v.id} href={`/editions/${v.slug}`}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-stone-300 truncate">
+                      {v.variantLabel ?? v.bookBoxCompany?.name ?? v.slug}
+                    </span>
+                  </div>
+                </Link>
+              ))}
             </div>
           </section>
         )}

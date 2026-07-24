@@ -10,6 +10,7 @@ import { PersonPicker } from '@/components/admin/pickers/PersonPicker'
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { CURRENCIES } from '@/components/sale/SaleFormFields'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LABEL = 'block text-xs text-stone-400 mb-1'
@@ -42,6 +43,7 @@ function editionCompany(ed: EditionInfo): string | null {
 
 type EditionInfo = {
   id: string; slug: string; additionalImages: string[]
+  variantLabel?: string | null
   bookBoxCompanyCustomName: string | null
   bookBoxCompany: { id: string; name: string } | null
 }
@@ -406,7 +408,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                   className="flex items-center gap-3 bg-stone-800/60 rounded-xl px-3 py-2">
                   <Cover id={mb.edition?.additionalImages?.[0] ?? null} size={44} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-stone-100 text-sm font-medium truncate">{mb.book.title}</div>
+                    <div className="text-stone-100 text-sm font-medium truncate">{formatEditionDisplayTitle(mb.book, mb.edition)}</div>
                     {mb.edition
                       ? <div className="text-stone-400 text-xs">
                           {editionCompany(mb.edition) || null}
