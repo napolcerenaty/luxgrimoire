@@ -120,6 +120,7 @@ export default function BlogPostsAdminPage() {
               value={publicId}
               onChange={setPublicId}
               onClear={() => setPublicId('')}
+              deletePreviousOnReplace={false}
             />
             {error && <p className="text-sm text-red-400">{error}</p>}
             <div className="flex justify-between gap-3 pt-2">
