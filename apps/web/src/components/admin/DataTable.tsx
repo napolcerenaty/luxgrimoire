@@ -13,9 +13,12 @@ interface DataTableProps<T> {
   data: T[]
   onEdit?: (row: T) => void
   onDelete?: (row: T) => void
+  onDuplicate?: (row: T) => void
+  duplicateLabel?: string
 }
 
-function DataTable<T>({ columns, data, onEdit, onDelete }: DataTableProps<T>) {
+function DataTable<T>({ columns, data, onEdit, onDelete, onDuplicate, duplicateLabel = 'Duplicate' }: DataTableProps<T>) {
+  const hasActions = !!(onEdit || onDelete || onDuplicate)
   return (
     <div className="overflow-x-auto rounded-2xl border border-stone-800">
       <table className="w-full text-sm text-stone-200">
@@ -29,7 +32,7 @@ function DataTable<T>({ columns, data, onEdit, onDelete }: DataTableProps<T>) {
                 {col.label}
               </th>
             ))}
-            {(onEdit || onDelete) && (
+            {hasActions && (
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">
                 Actions
               </th>
@@ -49,7 +52,7 @@ function DataTable<T>({ columns, data, onEdit, onDelete }: DataTableProps<T>) {
                     : String((row as Record<string, unknown>)[col.key] ?? '')}
                 </td>
               ))}
-              {(onEdit || onDelete) && (
+              {hasActions && (
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     {onEdit && (
@@ -58,6 +61,14 @@ function DataTable<T>({ columns, data, onEdit, onDelete }: DataTableProps<T>) {
                         className="bg-amber-400/10 text-amber-400 border border-amber-400/20 px-3 py-1 rounded text-xs font-medium hover:bg-amber-400/20 transition-colors"
                       >
                         Edit
+                      </button>
+                    )}
+                    {onDuplicate && (
+                      <button
+                        onClick={() => onDuplicate(row)}
+                        className="bg-stone-700/50 text-stone-300 border border-stone-600 px-3 py-1 rounded text-xs font-medium hover:bg-stone-600/50 transition-colors"
+                      >
+                        {duplicateLabel}
                       </button>
                     )}
                     {onDelete && (
@@ -76,7 +87,7 @@ function DataTable<T>({ columns, data, onEdit, onDelete }: DataTableProps<T>) {
           {data.length === 0 && (
             <tr>
               <td
-                colSpan={columns.length + (onEdit || onDelete ? 1 : 0)}
+                colSpan={columns.length + (hasActions ? 1 : 0)}
                 className="px-4 py-8 text-center text-stone-500"
               >
                 No records found

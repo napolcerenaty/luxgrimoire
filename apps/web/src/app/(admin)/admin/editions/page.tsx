@@ -301,16 +301,8 @@ export default function AdminEditionsPage() {
       key: 'publisher',
       label: 'Edition',
       render: (row: ApiBookEdition) => (
-        <div className="flex items-center gap-2">
+        <div>
           <a href={`/editions/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 text-sm font-medium">{row.slug}</a>
-          <button
-            type="button"
-            onClick={() => setDuplicateEditionSlug(row.slug)}
-            title="Duplicate as variant (e.g. White → Black Edition)"
-            className="text-stone-500 hover:text-stone-300 text-xs px-1.5 py-0.5 rounded border border-stone-700 hover:border-stone-500 transition-colors"
-          >
-            ⎘ Duplicate
-          </button>
         </div>
       ),
     },
@@ -448,6 +440,7 @@ export default function AdminEditionsPage() {
             columns={columns}
             data={editions}
             onEdit={(row) => setEditEditionSlug(row.slug)}
+            onDuplicate={(row) => setDuplicateEditionSlug(row.slug)}
             onDelete={(row) => { setDeleteError(null); setDeleteEdition(row); }}
           />
           <Pagination page={page} totalPages={data?.totalPages ?? 1} onPageChange={setPage} />
