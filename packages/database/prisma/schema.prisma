@@ -318,6 +318,7 @@ model BookEdition {
   saleStats                EditionSaleStat[]
   statsSnapshot            EditionStatsSnapshot?
   featureTags              EditionFeatureTag[]
+  saleDates                EditionSaleDate[]
 
   @@index([bookId])
   @@index([bookBoxCompanyId])
@@ -633,6 +634,7 @@ model SaleAnnouncement {
   editions             SaleAnnouncementEdition[]
   items                SaleAnnouncementItem[]
   regions              SaleAnnouncementRegion[]
+  tiers                SaleTier[]
   company              BookBoxCompany?           @relation(fields: [companyId], references: [id])
   purchaseGroups       UserPurchaseGroup[]
   interests            UserSaleInterest[]
@@ -695,9 +697,43 @@ model SaleAnnouncementRegion {
   currency        String?          @db.VarChar(3)
   createdAt       DateTime         @default(now())
   announcement    SaleAnnouncement @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  tiers           SaleTier[]
 
   @@index([saleId])
   @@map("sale_announcement_regions")
+}
+
+model SaleTier {
+  id        String   @id @default(uuid())
+  saleId    String
+  regionId  String?
+  name      String
+  date      DateTime
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  announcement SaleAnnouncement        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  region       SaleAnnouncementRegion? @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  interests    UserSaleInterest[]
+  reminders    ScheduledReminder[]
+
+  @@index([saleId, date])
+  @@index([regionId, date])
+  @@map("sale_tiers")
+}
+
+model EditionSaleDate {
+  id        String   @id @default(uuid())
+  editionId String
+  label     String
+  date      DateTime @db.Date
+  order     Int      @default(0)
+
+  edition BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+
+  @@index([editionId])
+  @@map("edition_sale_dates")
 }
 
 model SaleAnnouncementItem {
@@ -716,14 +752,17 @@ model UserSaleInterest {
   userId                String
   announcementId        String
   tier                  String           @default("GS") @db.VarChar(2)
+  tierId                String?
   regionId              String?
   selectedPrice         Decimal?         @db.Decimal(10, 2)
   selectedPriceCurrency String?          @db.VarChar(3)
   createdAt             DateTime         @default(now())
   announcement   SaleAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  saleTier       SaleTier?        @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
   @@id([userId, announcementId])
+  @@index([tierId])
   @@map("user_sale_interests")
 }
 
@@ -1074,13 +1113,16 @@ model ScheduledReminder {
   entryId        String?
   announcementId String?
   tier           String?
+  tierId         String?
   createdAt      DateTime  @default(now())
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  saleTier       SaleTier? @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([scheduledAt, sentAt, cancelledAt])
   @@index([entryId])
   @@index([userId, announcementId])
+  @@index([tierId])
   @@map("scheduled_reminders")
 }
 

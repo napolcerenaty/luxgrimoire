@@ -16,7 +16,8 @@
     "db:anonymize": "node scripts/db-anonymize.js",
     "cloudinary:migrate": "node scripts/cloudinary-migrate.js",
     "cloudinary:migrate:dry": "node scripts/cloudinary-migrate.js --dry-run",
-    "typesense:reindex": "node dist/scripts/typesense-reindex.js"
+    "typesense:reindex": "node dist/scripts/typesense-reindex.js",
+    "backfill:edition-sale-dates": "node dist/scripts/backfill-edition-sale-dates.js"
   },
   "dependencies": {
     "@fastify/compress": "^8.3.1",

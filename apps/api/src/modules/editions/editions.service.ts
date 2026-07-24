@@ -9,6 +9,7 @@ import {
   UpdateEditionDto,
   AddArtistDto,
   EditionQueryDto,
+  EditionSaleDateInputDto,
 } from './editions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
@@ -294,6 +295,61 @@ export class EditionsService {
     return deleteCloudinaryImages(ids, this.uploadService);
   }
 
+  private async replaceEditionSaleDates(editionId: string, saleDates: EditionSaleDateInputDto[]) {
+    await this.prisma.editionSaleDate.deleteMany({ where: { editionId } });
+    if (saleDates.length === 0) return;
+    await this.prisma.editionSaleDate.createMany({
+      data: saleDates.map((d, i) => ({
+        editionId,
+        label: d.label,
+        date: new Date(d.date),
+        order: d.order ?? i,
+      })),
+    });
+  }
+
+  /**
+   * Resolves the single representative sale date for an edition:
+   * - if linked to a SaleAnnouncement, the earliest SaleTier for that announcement/region —
+   *   read live, never copied, so it always reflects the announcement's current tiers
+   * - else the earliest manually-entered EditionSaleDate row (standalone editions)
+   * - else null (callers fall back to edition.createdAt, matching the previous
+   *   generalSaleDate-null behavior)
+   *
+   * Single-edition scoped — every current call site (linkEditionHistory, edition detail
+   * reads) resolves at most a handful of editions, not a list. A future list/grid view
+   * showing many editions' dates at once should batch across edition IDs instead of
+   * calling this in a loop, to avoid N+1 queries.
+   */
+  async resolveEditionSaleDate(editionId: string): Promise<{ label: string; date: Date } | null> {
+    const link = await this.prisma.saleAnnouncementEdition.findFirst({
+      where: { editionId },
+      select: { saleId: true },
+    });
+    if (link) {
+      const defaultRegion = await this.prisma.saleAnnouncementRegion.findFirst({
+        where: { saleId: link.saleId, isDefault: true },
+        select: { id: true },
+      });
+      const tier =
+        (defaultRegion &&
+          (await this.prisma.saleTier.findFirst({
+            where: { saleId: link.saleId, regionId: defaultRegion.id },
+            orderBy: { date: 'asc' },
+          }))) ||
+        (await this.prisma.saleTier.findFirst({
+          where: { saleId: link.saleId, regionId: null },
+          orderBy: { date: 'asc' },
+        }));
+      return tier ? { label: tier.name, date: tier.date } : null;
+    }
+    const manual = await this.prisma.editionSaleDate.findFirst({
+      where: { editionId },
+      orderBy: { date: 'asc' },
+    });
+    return manual ? { label: manual.label, date: manual.date } : null;
+  }
+
   private async invalidateEditionCountCaches(companySlug: string, subscriptionId?: string | null, collectionId?: string | null) {
     await this.cache.del(companyEditionsAllCountKey(companySlug));
     if (subscriptionId) await this.cache.del(companyEditionsSubCountKey(companySlug, subscriptionId));
@@ -341,6 +397,7 @@ export class EditionsService {
       },
     });
     await this.syncEditionMediaAssets(edition.id, dto.additionalImages ?? []);
+    if (dto.saleDates !== undefined) await this.replaceEditionSaleDates(edition.id, dto.saleDates);
     await this.indexEdition(edition.id);
     if (companySlug) await this.invalidateEditionCountCaches(companySlug, dto.subscriptionId, dto.collectionId);
     // Tag features asynchronously (artist roles not yet available at create time)
@@ -757,6 +814,7 @@ export class EditionsService {
     if (dto.photoCredit !== undefined) data.photoCredit = dto.photoCredit;
 
     const edition = await this.prisma.bookEdition.update({ where: { slug }, data });
+    if (dto.saleDates !== undefined) await this.replaceEditionSaleDates(edition.id, dto.saleDates);
     if (dto.additionalImages !== undefined) {
       await this.syncEditionMediaAssets(edition.id, dto.additionalImages ?? []);
     }
@@ -848,30 +906,34 @@ export class EditionsService {
     const [a, b] = await Promise.all([
       this.prisma.bookEdition.findUnique({
         where: { slug: slugA },
-        select: { id: true, slug: true, bookId: true, generalSaleDate: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, generalSaleDate: true, createdAt: true } } },
+        select: { id: true, slug: true, bookId: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, createdAt: true } } },
       }),
       this.prisma.bookEdition.findUnique({
         where: { slug: slugB },
-        select: { id: true, slug: true, bookId: true, generalSaleDate: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, generalSaleDate: true, createdAt: true } } },
+        select: { id: true, slug: true, bookId: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, createdAt: true } } },
       }),
     ]);
     if (!a) throw new NotFoundException(`Edition '${slugA}' not found`);
     if (!b) throw new NotFoundException(`Edition '${slugB}' not found`);
     if (a.bookId !== b.bookId) throw new BadRequestException('Editions must belong to the same book');
 
-    const dateA = a.generalSaleDate ? new Date(a.generalSaleDate) : a.createdAt;
-    const dateB = b.generalSaleDate ? new Date(b.generalSaleDate) : b.createdAt;
+    const resolvedA = await this.resolveEditionSaleDate(a.id);
+    const resolvedB = await this.resolveEditionSaleDate(b.id);
+    const dateA = resolvedA?.date ?? a.createdAt;
+    const dateB = resolvedB?.date ?? b.createdAt;
 
     // Determine older/newer
     const [older, newer] = dateA <= dateB ? [a, b] : [b, a];
+    const olderResolvedDate = older.id === a.id ? resolvedA?.date ?? null : resolvedB?.date ?? null;
+    const newerResolvedDate = newer.id === a.id ? resolvedA?.date ?? null : resolvedB?.date ?? null;
 
     let wasRerouted = false;
 
     // Detect chain re-linking: older already has a nextEdition (C) that is newer than `newer`
     const existingNext = older.nextEdition;
     if (existingNext) {
-      const dateExisting = existingNext.generalSaleDate ? new Date(existingNext.generalSaleDate) : null;
-      const dateNewer = newer.generalSaleDate ? new Date(newer.generalSaleDate) : null;
+      const dateExisting = (await this.resolveEditionSaleDate(existingNext.id))?.date ?? null;
+      const dateNewer = newerResolvedDate;
       if (dateExisting && dateNewer && dateNewer < dateExisting) {
         // Insert newer between older and existingNext: older→newer→existingNext
         await this.prisma.$transaction([
@@ -886,9 +948,9 @@ export class EditionsService {
           newer: { id: newer.id, slug: newer.slug },
           wasRerouted,
           chain: [
-            { slug: older.slug, date: older.generalSaleDate ? new Date(older.generalSaleDate) : null },
-            { slug: newer.slug, date: newer.generalSaleDate ? new Date(newer.generalSaleDate) : null },
-            { slug: existingNext.slug, date: existingNext.generalSaleDate ? new Date(existingNext.generalSaleDate) : null },
+            { slug: older.slug, date: olderResolvedDate },
+            { slug: newer.slug, date: newerResolvedDate },
+            { slug: existingNext.slug, date: dateExisting },
           ],
         };
       }
@@ -905,8 +967,8 @@ export class EditionsService {
       newer: { id: newer.id, slug: newer.slug },
       wasRerouted: false,
       chain: [
-        { slug: older.slug, date: older.generalSaleDate ? new Date(older.generalSaleDate) : null },
-        { slug: newer.slug, date: newer.generalSaleDate ? new Date(newer.generalSaleDate) : null },
+        { slug: older.slug, date: olderResolvedDate },
+        { slug: newer.slug, date: newerResolvedDate },
       ],
     };
   }
