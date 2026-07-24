@@ -68,6 +68,12 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
   const standalones = books
     .filter(b => !b.series && !b.seriesName)
     .sort((a, b) => a.title.localeCompare(b.title))
+  // A book spanning more than one volume number (e.g. [1,2,3]) is a bind-up/omnibus edition —
+  // kept in its own section rather than interleaved by volume number, same reasoning as the
+  // series page: an omnibus has no single numeric position that wouldn't read as surprising
+  // sitting in a strictly-numbered list of individual volumes.
+  const standaloneVolumes = standalones.filter(b => b.volumeNumbers.length <= 1)
+  const standaloneOmnibuses = standalones.filter(b => b.volumeNumbers.length > 1)
 
   // key = series slug (preferred) or series name (legacy fallback)
   const seriesMap = new Map<string, { label: string; slug: string | null; books: BookSnippet[] }>()
@@ -77,9 +83,6 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
     const existing = seriesMap.get(key)
     if (existing) existing.books.push(book)
     else seriesMap.set(key, { label: book.series?.name ?? book.seriesName!, slug: book.series?.slug ?? null, books: [book] })
-  }
-  for (const entry of seriesMap.values()) {
-    entry.books.sort((a, b) => compareVolumeNumbers(a.volumeNumbers, b.volumeNumbers))
   }
 
   return (
@@ -96,22 +99,46 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
               Standalones
             </h3>
           )}
-          {standalones.map(book => <BookRow key={book.id} book={book} />)}
+          {standaloneVolumes.map(book => <BookRow key={book.id} book={book} />)}
+          {standaloneOmnibuses.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[11px] uppercase tracking-widest text-stone-600 font-medium mb-2">
+                Also available as a bind-up edition
+              </p>
+              {standaloneOmnibuses.map(book => <BookRow key={book.id} book={book} />)}
+            </div>
+          )}
         </div>
       )}
 
-      {Array.from(seriesMap.entries()).map(([key, { label, slug, books: seriesBooks }]) => (
-        <div key={key} className="mb-10">
-          <h3 className="text-xs uppercase tracking-widest text-stone-500 font-medium mb-2 border-b border-stone-800 pb-2">
-            {slug ? (
-              <Link href={`/series/${slug}`} className="hover:text-amber-400 transition-colors">
-                {label}
-              </Link>
-            ) : label}
-          </h3>
-          {seriesBooks.map(book => <BookRow key={book.id} book={book} />)}
-        </div>
-      ))}
+      {Array.from(seriesMap.entries()).map(([key, { label, slug, books: seriesBooks }]) => {
+        const volumes = seriesBooks
+          .filter(b => b.volumeNumbers.length <= 1)
+          .sort((a, b) => compareVolumeNumbers(a.volumeNumbers, b.volumeNumbers))
+        const omnibuses = seriesBooks
+          .filter(b => b.volumeNumbers.length > 1)
+          .sort((a, b) => compareVolumeNumbers(a.volumeNumbers, b.volumeNumbers))
+        return (
+          <div key={key} className="mb-10">
+            <h3 className="text-xs uppercase tracking-widest text-stone-500 font-medium mb-2 border-b border-stone-800 pb-2">
+              {slug ? (
+                <Link href={`/series/${slug}`} className="hover:text-amber-400 transition-colors">
+                  {label}
+                </Link>
+              ) : label}
+            </h3>
+            {volumes.map(book => <BookRow key={book.id} book={book} />)}
+            {omnibuses.length > 0 && (
+              <div className="mt-4">
+                <p className="text-[11px] uppercase tracking-widest text-stone-600 font-medium mb-2">
+                  Also available as a bind-up edition
+                </p>
+                {omnibuses.map(book => <BookRow key={book.id} book={book} />)}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </section>
   )
 }
