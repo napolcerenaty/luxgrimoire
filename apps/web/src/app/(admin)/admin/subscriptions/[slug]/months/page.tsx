@@ -181,7 +181,10 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
             >
               <Cover id={ed.additionalImages?.[0]} size={36} />
               <div>
-                <div className="text-stone-100 text-xs">{editionCompany(ed) ?? ''}</div>
+                <div className="text-stone-100 text-xs">
+                  {editionCompany(ed) ?? ''}
+                  {ed.variantLabel && <span className="text-amber-400"> ({ed.variantLabel})</span>}
+                </div>
                 <div className="text-stone-500 text-xs">{ed.bookBoxCompanyCustomName ?? ''}</div>
               </div>
             </button>

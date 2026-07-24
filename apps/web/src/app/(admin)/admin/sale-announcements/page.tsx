@@ -275,6 +275,7 @@ interface LinkedEdition {
   coverImage?: string | null
   publisher?: string | null
   companyName?: string | null
+  variantLabel?: string | null
 }
 
 interface BookInfo {
@@ -288,6 +289,7 @@ interface EditionInfo {
   id: string
   additionalImages?: string[]
   publisher?: string | null
+  variantLabel?: string | null
   bookBoxCompany?: { name: string } | null
 }
 
@@ -405,6 +407,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
       coverImage: ed.additionalImages?.[0],
       publisher: ed.publisher,
       companyName: ed.bookBoxCompany?.name,
+      variantLabel: ed.variantLabel,
     })
     setSearch('')
     setDebounced('')
@@ -645,7 +648,10 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                   : <div className="w-8 h-10 bg-stone-700 rounded" />
                 }
                 <div className="flex-1 min-w-0">
-                  <div className="text-stone-100 text-xs font-medium truncate">{e.bookTitle}</div>
+                  <div className="text-stone-100 text-xs font-medium truncate">
+                    {e.bookTitle}
+                    {e.variantLabel && <span className="text-amber-400"> ({e.variantLabel})</span>}
+                  </div>
                   <div className="text-stone-500 text-xs truncate">{e.companyName || e.publisher || '—'}</div>
                 </div>
                 <button type="button" onClick={() => onRemove(e.editionId)}
@@ -677,7 +683,10 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
                   : <div className="w-8 h-10 bg-stone-600 rounded" />
                 }
                 <div>
-                  <div className="text-stone-100 text-xs">{ed.bookBoxCompany?.name || '—'}</div>
+                  <div className="text-stone-100 text-xs">
+                    {ed.bookBoxCompany?.name || '—'}
+                    {ed.variantLabel && <span className="text-amber-400"> ({ed.variantLabel})</span>}
+                  </div>
                   <div className="text-stone-500 text-xs">{ed.publisher ?? ''}</div>
                 </div>
               </button>
