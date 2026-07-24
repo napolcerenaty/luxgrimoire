@@ -636,23 +636,38 @@ export class EditionsService {
           },
           orderBy: [{ sortOrder: 'asc' as const }],
         },
+        saleEditions: { select: { id: true } },
+        saleDates: {
+          select: { id: true, label: true, date: true, order: true },
+          orderBy: { order: 'asc' as const },
+        },
         previousEdition: {
           select: {
-            slug: true, generalSaleDate: true,
+            id: true, slug: true,
             bookBoxCompany: { select: { name: true } },
           },
         },
         nextEdition: {
           select: {
-            slug: true, generalSaleDate: true,
+            id: true, slug: true,
             bookBoxCompany: { select: { name: true } },
           },
         },
       },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    const [resolvedSaleDate, previousResolved, nextResolved] = await Promise.all([
+      this.resolveEditionSaleDate(edition.id),
+      edition.previousEdition ? this.resolveEditionSaleDate(edition.previousEdition.id) : null,
+      edition.nextEdition ? this.resolveEditionSaleDate(edition.nextEdition.id) : null,
+    ]);
     return {
       ...edition,
+      // linked to an announcement => dates are resolved live from its tiers, not editable here
+      isLinkedToAnnouncement: edition.saleEditions.length > 0,
+      resolvedSaleDate,
+      previousEdition: edition.previousEdition ? { ...edition.previousEdition, resolvedSaleDate: previousResolved } : null,
+      nextEdition: edition.nextEdition ? { ...edition.nextEdition, resolvedSaleDate: nextResolved } : null,
       featureTags: await this.enrichTagsWithCategories(edition.featureTags as any),
     };
   }
@@ -667,6 +682,10 @@ export class EditionsService {
         additionalImages: true, language: true,
         basePrice: true, currency: true, features: true,
         firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true,
+        saleDates: {
+          select: { id: true, label: true, date: true, order: true },
+          orderBy: { order: 'asc' as const },
+        },
         verifiedAt: true, submittedByUserId: true, photoCredit: true,
         book: {
           select: {
@@ -735,7 +754,6 @@ export class EditionsService {
           },
         },
         saleEditions: {
-          orderBy: { announcement: { generalSaleDate: 'asc' as const } },
           select: {
             id: true,
             isReprint: true,
@@ -743,6 +761,7 @@ export class EditionsService {
               select: {
                 id: true, title: true, isBundle: true,
                 generalSaleDate: true, earlyAccessDate: true, firstAccessDate: true,
+                tiers: { select: { name: true, date: true }, orderBy: { date: 'asc' as const }, take: 1 },
               },
             },
           },
@@ -750,7 +769,7 @@ export class EditionsService {
         previousEdition: {
           select: {
             id: true, slug: true, additionalImages: true,
-            generalSaleDate: true, createdAt: true,
+            createdAt: true,
             bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
             collection: { select: { id: true, name: true, slug: true } },
           },
@@ -758,7 +777,7 @@ export class EditionsService {
         nextEdition: {
           select: {
             id: true, slug: true, additionalImages: true,
-            generalSaleDate: true, createdAt: true,
+            createdAt: true,
             bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
             collection: { select: { id: true, name: true, slug: true } },
           },
@@ -766,9 +785,27 @@ export class EditionsService {
       },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    // Sort sale editions by their announcement's earliest tier date (was: announcement.generalSaleDate,
+    // a single fixed column — announcements now carry an arbitrary-length tiers list instead).
+    const saleEditions = [...edition.saleEditions].sort((a, b) => {
+      const dateA = a.announcement.tiers[0]?.date ?? a.announcement.generalSaleDate;
+      const dateB = b.announcement.tiers[0]?.date ?? b.announcement.generalSaleDate;
+      if (!dateA) return dateB ? 1 : 0;
+      if (!dateB) return -1;
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+    const [resolvedSaleDate, previousResolved, nextResolved] = await Promise.all([
+      this.resolveEditionSaleDate(edition.id),
+      edition.previousEdition ? this.resolveEditionSaleDate(edition.previousEdition.id) : null,
+      edition.nextEdition ? this.resolveEditionSaleDate(edition.nextEdition.id) : null,
+    ]);
     // Flatten authors on nested book
     return {
       ...edition,
+      saleEditions,
+      resolvedSaleDate,
+      previousEdition: edition.previousEdition ? { ...edition.previousEdition, resolvedSaleDate: previousResolved } : null,
+      nextEdition: edition.nextEdition ? { ...edition.nextEdition, resolvedSaleDate: nextResolved } : null,
       featureTags: await this.enrichTagsWithCategories(edition.featureTags as any),
       book: edition.book
         ? { ...edition.book, authors: edition.book.authors.map((ba: { author: unknown }) => ba.author) }
