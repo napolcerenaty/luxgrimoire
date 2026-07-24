@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, Calendar } from 'lucide-react'
 import { getPostBySlug, getPosts, getPostsByTag, getSponsoredLabel, type GhostPost } from '@/lib/ghost'
 import BlogPostViewTracker from '@/components/blog/BlogPostViewTracker'
 import BlogPostContent from '@/components/blog/BlogPostContent'
+import BlogShareButton from '@/components/blog/BlogShareButton'
 
 export const revalidate = 60
 
@@ -21,12 +22,27 @@ export async function generateMetadata({
   const { slug } = await params
   const post = await getPostBySlug(slug)
   if (!post) return {}
+  const description = post.custom_excerpt ?? post.excerpt ?? undefined
+  const postUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? 'https://luxgrimoire.com'}/blog/${post.slug}`
   return {
     title: `${post.title} | LuxGrimoire Blog`,
-    description: post.custom_excerpt ?? post.excerpt ?? undefined,
-    openGraph: post.feature_image
-      ? { images: [{ url: post.feature_image }] }
-      : undefined,
+    description,
+    alternates: { canonical: postUrl },
+    openGraph: {
+      type: 'article',
+      url: postUrl,
+      title: post.title,
+      description,
+      images: post.feature_image ? [{ url: post.feature_image }] : undefined,
+    },
+    // Twitter/X reads its own card tags separately from Open Graph — without these, a shared
+    // link can fall back to a plain-text preview instead of the large-image card.
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description,
+      images: post.feature_image ? [post.feature_image] : undefined,
+    },
   }
 }
 
@@ -200,6 +216,11 @@ export default async function BlogPostPage({
               {post.reading_time > 0 && (
                 <span className="flex items-center gap-1.5"><Clock size={13} />{post.reading_time} min read</span>
               )}
+              <BlogShareButton
+                url={`${process.env.NEXT_PUBLIC_BASE_URL ?? 'https://luxgrimoire.com'}/blog/${post.slug}`}
+                title={post.title}
+                className="ml-auto"
+              />
             </div>
 
             {post.custom_excerpt && (
