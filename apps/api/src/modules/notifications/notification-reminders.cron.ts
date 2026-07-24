@@ -29,7 +29,7 @@ export class NotificationRemindersCron {
         type: true,
         entryId: true,
         announcementId: true,
-        tier: true,
+        tierId: true,
       },
     });
 
@@ -181,7 +181,7 @@ export class NotificationRemindersCron {
     id: string;
     userId: string;
     announcementId: string | null;
-    tier: string | null;
+    tierId: string | null;
   }) {
     if (!reminder.announcementId) {
       await this.markSent([reminder.id]);
@@ -203,10 +203,6 @@ export class NotificationRemindersCron {
       select: {
         id: true,
         title: true,
-        earlyAccessDate: true,
-        firstAccessDate: true,
-        generalSaleDate: true,
-        saleTimezone: true,
         basePrice: true,
         currency: true,
         company: { select: { name: true } },
@@ -218,20 +214,20 @@ export class NotificationRemindersCron {
       return;
     }
 
+    // The tier this reminder was scheduled for — a concrete row with its own date, no
+    // FA/EA/GS fallback-chain resolution needed anymore.
+    const tier = reminder.tierId
+      ? await this.prisma.saleTier.findUnique({ where: { id: reminder.tierId }, select: { date: true } })
+      : null;
+
     const userRecord = await this.prisma.user.findUnique({
       where: { id: reminder.userId },
       select: { timezone: true },
     });
     const timezone = (userRecord as any)?.timezone ?? 'UTC';
 
-    const effectiveTier = reminder.tier ?? 'GS';
-    const saleDate =
-      (effectiveTier === 'EA' && ann.earlyAccessDate) ||
-      (effectiveTier === 'FA' && ann.firstAccessDate) ||
-      ann.generalSaleDate;
-
     const priceStr = ann.basePrice ? `${ann.currency ?? ''} ${ann.basePrice}`.trim() : '';
-    const dateLabel = saleDate ? this.formatSaleDateLabel(saleDate, ann.saleTimezone ?? null, timezone) : '';
+    const dateLabel = tier?.date ? this.formatSaleDateLabel(tier.date, timezone) : '';
 
     const title = `Sale reminder: ${ann.title}`;
     const body = [ann.company?.name, priceStr, dateLabel].filter(Boolean).join(' · ');
@@ -254,7 +250,7 @@ export class NotificationRemindersCron {
     await this.markSent([reminder.id]);
   }
 
-  private formatSaleDateLabel(date: Date, saleTimezone: string | null, userTimezone: string): string {
+  private formatSaleDateLabel(date: Date, userTimezone: string): string {
     const now = new Date();
     const localNow = toZonedTime(now, userTimezone);
     const localDate = toZonedTime(date, userTimezone);
@@ -263,14 +259,7 @@ export class NotificationRemindersCron {
     const targetStart = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate());
     const diffDays = Math.round((targetStart.getTime() - todayStart.getTime()) / 86_400_000);
 
-    const dateStr = diffDays === 0 ? 'today' : diffDays === 1 ? 'tomorrow' : localDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-
-    // If there's a saleTimezone, show time of day in user's timezone
-    if (saleTimezone) {
-      // date is midnight UTC for the sale day — show the date in user's timezone without time
-      return dateStr;
-    }
-    return dateStr;
+    return diffDays === 0 ? 'today' : diffDays === 1 ? 'tomorrow' : localDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   }
 
   /**

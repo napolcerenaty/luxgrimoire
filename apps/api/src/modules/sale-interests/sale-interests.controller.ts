@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Delete, Param, Body } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SaleInterestsService } from './sale-interests.service';
+import { UpsertSaleInterestDto } from './sale-interests.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('sale-interests')
@@ -28,13 +29,12 @@ export class SaleInterestsController {
   upsert(
     @CurrentUser() user: { id: string },
     @Param('announcementId') announcementId: string,
-    @Body() body: { tier?: string; regionId?: string | null; selectedPrice?: number | null; selectedPriceCurrency?: string | null },
+    @Body() body: UpsertSaleInterestDto,
   ) {
     return this.service.upsert(
       user.id,
       announcementId,
-      body.tier ?? 'GS',
-      body.regionId,
+      body.tierId,
       body.selectedPrice,
       body.selectedPriceCurrency,
     );

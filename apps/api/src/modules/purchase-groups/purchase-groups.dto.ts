@@ -59,9 +59,6 @@ export class CreatePurchaseGroupDto {
 }
 
 export class ConfirmSalePurchaseDto {
-  @IsString()
-  tier: string = 'GS';
-
   @IsNumber()
   @Min(0)
   totalAmount: number = 0;

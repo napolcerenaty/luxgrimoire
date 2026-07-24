@@ -3,7 +3,7 @@ import { Prisma, SaleType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
-import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto } from './announcements.dto';
+import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto, UpsertSaleTierDto } from './announcements.dto';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
@@ -91,37 +91,26 @@ export class AnnouncementsService {
 
   // "Active or upcoming" logic differs per sale type — shared by findAll's `upcoming`/`pastOnly`
   // filters and getNextSale, so the definition of "live" can't drift between the list and the counter.
+  //
+  // Tiers now carry an arbitrary-length list of named access moments per sale (and per region,
+  // since a SaleTier's regionId scopes it to one region) — one `tiers: { some/none: {...} } }`
+  // relation filter covers every region at once, replacing the old OR-across-3-fixed-columns
+  // (+ separate regions OR) shape.
   private buildActiveSaleCondition(now: Date, today: Date, typeFilter?: SaleType | null): Prisma.SaleAnnouncementWhereInput {
     const activeSaleCondition: Prisma.SaleAnnouncementWhereInput[] = [];
 
-    // LIMITED_PREORDER: active when any date is today or upcoming, or endsAt is in future
+    const hasUpcomingTier: Prisma.SaleAnnouncementWhereInput = { tiers: { some: { date: { gte: today } } } };
+
+    // LIMITED_PREORDER: active when any tier is today or upcoming, or endsAt is in future
     const lpOrOsActive: Prisma.SaleAnnouncementWhereInput = {
-      OR: [
-        { generalSaleDate: { gte: today } },
-        { earlyAccessDate: { gte: today } },
-        { firstAccessDate: { gte: today } },
-        { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
-        { endsAt: { gt: now } },
-      ],
+      OR: [hasUpcomingTier, { endsAt: { gt: now } }],
     };
 
     // OVERSTOCK / SALE: if endsAt is set show until it expires; otherwise date-based (as LP)
     const overstockSaleActive: Prisma.SaleAnnouncementWhereInput = {
       OR: [
         { endsAt: { gt: now } },
-        {
-          AND: [
-            { endsAt: null },
-            {
-              OR: [
-                { generalSaleDate: { gte: today } },
-                { earlyAccessDate: { gte: today } },
-                { firstAccessDate: { gte: today } },
-                { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
-              ],
-            },
-          ],
-        },
+        { AND: [{ endsAt: null }, hasUpcomingTier] },
       ],
     };
 
@@ -155,23 +144,17 @@ export class AnnouncementsService {
    *  whole nested AND/OR/relation-filter structure in `NOT:` crashes the Prisma query engine
    *  for some rows ("Response from the Engine was empty"), silently excluding them from BOTH
    *  the active and NOT-active queries — e.g. one company's pastOnly list was missing 219 of
-   *  230 announcements this way. Keep this in sync by hand if buildActiveSaleCondition changes. */
+   *  230 announcements this way. Keep this in sync by hand if buildActiveSaleCondition changes.
+   *  `tiers: { none: {...} } }` is a dedicated relation filter (NOT EXISTS), not a `NOT:` wrapper
+   *  around another filter object — it doesn't hit the same engine bug. */
   private buildPastSaleCondition(now: Date, today: Date, typeFilter?: SaleType | null): Prisma.SaleAnnouncementWhereInput {
     const pastCondition: Prisma.SaleAnnouncementWhereInput[] = [];
 
-    // None of the three date fields is today-or-later (null counts as "not blocking past"),
-    // and no region override is today-or-later either.
-    const noFutureDates: Prisma.SaleAnnouncementWhereInput = {
-      AND: [
-        { OR: [{ generalSaleDate: null }, { generalSaleDate: { lt: today } }] },
-        { OR: [{ earlyAccessDate: null }, { earlyAccessDate: { lt: today } }] },
-        { OR: [{ firstAccessDate: null }, { firstAccessDate: { lt: today } }] },
-        { regions: { none: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
-      ],
-    };
+    // No tier (of any region) is today-or-later.
+    const noFutureTiers: Prisma.SaleAnnouncementWhereInput = { tiers: { none: { date: { gte: today } } } };
 
     const lpOrOsPast: Prisma.SaleAnnouncementWhereInput = {
-      AND: [noFutureDates, { OR: [{ endsAt: null }, { endsAt: { lte: now } }] }],
+      AND: [noFutureTiers, { OR: [{ endsAt: null }, { endsAt: { lte: now } }] }],
     };
 
     if (!typeFilter || typeFilter === 'LIMITED_PREORDER') {
@@ -185,11 +168,11 @@ export class AnnouncementsService {
     }
 
     if (!typeFilter || typeFilter === 'OVERSTOCK') {
-      pastCondition.push({ AND: [{ saleType: 'OVERSTOCK' }, { OR: [{ endsAt: { lte: now } }, { AND: [{ endsAt: null }, noFutureDates] }] }] });
+      pastCondition.push({ AND: [{ saleType: 'OVERSTOCK' }, { OR: [{ endsAt: { lte: now } }, { AND: [{ endsAt: null }, noFutureTiers] }] }] });
     }
 
     if (!typeFilter || typeFilter === 'SALE') {
-      pastCondition.push({ AND: [{ saleType: 'SALE' }, { OR: [{ endsAt: { lte: now } }, { AND: [{ endsAt: null }, noFutureDates] }] }] });
+      pastCondition.push({ AND: [{ saleType: 'SALE' }, { OR: [{ endsAt: { lte: now } }, { AND: [{ endsAt: null }, noFutureTiers] }] }] });
     }
 
     return { OR: pastCondition };
@@ -215,21 +198,14 @@ export class AnnouncementsService {
       andConditions.push({ saleType: query.saleType });
     }
 
-    // Date range filter — any of FA, EA, GS falls in [dateFrom, dateTo]
+    // Date range filter — any tier (any region) falls in [dateFrom, dateTo]
     if (query.dateFrom || query.dateTo) {
       const from = query.dateFrom ? new Date(query.dateFrom) : undefined;
       const to = query.dateTo ? new Date(query.dateTo) : undefined;
-      const dateFilter: Prisma.DateTimeNullableFilter = {};
+      const dateFilter: Prisma.DateTimeFilter = {};
       if (from) dateFilter.gte = from;
       if (to) dateFilter.lte = to;
-      andConditions.push({
-        OR: [
-          { firstAccessDate: dateFilter },
-          { earlyAccessDate: dateFilter },
-          { generalSaleDate: dateFilter },
-          { regions: { some: { OR: [{ firstAccessDate: dateFilter }, { earlyAccessDate: dateFilter }, { generalSaleDate: dateFilter }] } } },
-        ],
-      });
+      andConditions.push({ tiers: { some: { date: dateFilter } } });
     } else if (query.upcoming) {
       // "upcoming" == "live or upcoming" — when no saleType filter, all types currently active.
       andConditions.push(this.buildActiveSaleCondition(now, today, query.saleType ?? null));
@@ -254,6 +230,12 @@ export class AnnouncementsService {
         where,
         skip,
         take: pageSize,
+        // NOTE: sorting still keys off the legacy generalSaleDate column, not the tiers relation —
+        // Prisma's orderBy can't sort by an aggregate (e.g. MIN(tiers.date)) without a raw query.
+        // Sales created/edited through the legacy 3-field form keep generalSaleDate populated
+        // (see syncLegacyTiers), so this stays accurate for now; a sale defined ONLY through the
+        // new dynamic tier CRUD with no "General Sale"-named tier would sort as if dateless.
+        // Revisit with a raw correlated subquery if/when that becomes common.
         orderBy: query.sort === 'date' ? { generalSaleDate: 'asc' }
           : query.sort === 'date-desc' ? { generalSaleDate: 'desc' }
           : { createdAt: 'desc' },
@@ -274,6 +256,7 @@ export class AnnouncementsService {
           isSoldOut: true,
           isBundle: true,
           notes: true,
+          tiers: { select: { id: true, name: true, date: true, order: true, regionId: true }, orderBy: { date: 'asc' as const } },
           company: { select: { name: true, slug: true, brandColors: true } },
           regions: {
             select: { id: true, name: true, isDefault: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true, endsAt: true, isSoldOut: true, countryCodes: true, currency: true },
@@ -297,6 +280,7 @@ export class AnnouncementsService {
         },
         items: { orderBy: { sortOrder: 'asc' as const } },
         regions: regionsInclude,
+        tiers: { orderBy: { date: 'asc' as const } },
         company: { select: { name: true, slug: true, brandColors: true } },
       },
     });
@@ -304,27 +288,14 @@ export class AnnouncementsService {
     return this.mapAnnouncementAssets(announcement);
   }
 
-  // Resolves which single date a given tier (FA/EA/GS) actually points at, falling back to the
-  // next tier down when the earlier one isn't set — same precedence as SaleInterestsService.getUpcoming,
-  // kept in sync deliberately so a user's personalized countdown always matches what they signed up for.
-  private resolveTierDate(
-    tier: 'FA' | 'EA' | 'GS',
-    dates: { firstAccessDate: Date | null; earlyAccessDate: Date | null; generalSaleDate: Date | null },
-  ): Date | null {
-    const fa = dates.firstAccessDate;
-    const ea = dates.earlyAccessDate;
-    const gs = dates.generalSaleDate;
-    if (tier === 'FA') return fa ?? ea ?? gs;
-    if (tier === 'EA') return ea ?? gs;
-    return gs;
-  }
-
-  /** Countdown target for a company's page: the soonest upcoming tier date across every live/
+  /** Countdown target for a company's page: the soonest upcoming tier across every live/
    *  upcoming sale (all tiers combined) — unless the given user has an interest in one of this
-   *  company's live/upcoming sales, in which case their specific tier's date is returned instead. */
+   *  company's live/upcoming sales and picked a specific tier, in which case that tier's own
+   *  date is returned instead. `tier` is now the tier's free-text name, not a fixed FA/EA/GS code —
+   *  every SaleTier row is a concrete date, so no fallback-chain resolution is needed anymore. */
   async getNextSale(companyId: string, userId?: string | null): Promise<{
     date: string | null;
-    tier: 'FA' | 'EA' | 'GS' | null;
+    tier: string | null;
     announcementId: string | null;
     title: string | null;
     personalized: boolean;
@@ -335,37 +306,42 @@ export class AnnouncementsService {
 
     const empty = { date: null, tier: null, announcementId: null, title: null, personalized: false };
 
-    const liveOrUpcoming = await (this.prisma.saleAnnouncement as any).findMany({
+    const liveOrUpcoming = await this.prisma.saleAnnouncement.findMany({
       where: { companyId, ...this.buildActiveSaleCondition(now, today, null) },
-      select: { id: true, title: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true },
+      select: {
+        id: true,
+        title: true,
+        tiers: { where: { date: { gte: today } }, orderBy: { date: 'asc' as const }, select: { id: true, name: true, date: true } },
+      },
     });
     if (liveOrUpcoming.length === 0) return empty;
 
     if (userId) {
       const interest = await this.prisma.userSaleInterest.findFirst({
-        where: { userId, announcementId: { in: liveOrUpcoming.map((a: any) => a.id) } },
-        select: { tier: true, announcementId: true },
+        where: { userId, announcementId: { in: liveOrUpcoming.map(a => a.id) } },
+        select: { tierId: true, announcementId: true },
       });
-      if (interest) {
-        const ann = liveOrUpcoming.find((a: any) => a.id === interest.announcementId);
-        const tier = (interest.tier === 'FA' || interest.tier === 'EA' ? interest.tier : 'GS') as 'FA' | 'EA' | 'GS';
-        const date = ann ? this.resolveTierDate(tier, ann) : null;
-        if (date && date >= today) {
-          return { date: date.toISOString(), tier, announcementId: ann.id, title: ann.title, personalized: true };
+      if (interest?.tierId) {
+        const ann = liveOrUpcoming.find(a => a.id === interest.announcementId);
+        const tier =
+          ann?.tiers.find(t => t.id === interest.tierId) ??
+          (await this.prisma.saleTier.findUnique({ where: { id: interest.tierId }, select: { id: true, name: true, date: true } }));
+        if (ann && tier && tier.date >= today) {
+          return { date: tier.date.toISOString(), tier: tier.name, announcementId: ann.id, title: ann.title, personalized: true };
         }
       }
     }
 
-    let soonest: { date: Date; tier: 'FA' | 'EA' | 'GS'; announcementId: string; title: string } | null = null;
+    let soonest: { date: Date; tierName: string; announcementId: string; title: string } | null = null;
     for (const ann of liveOrUpcoming) {
-      for (const tier of ['FA', 'EA', 'GS'] as const) {
-        const date = this.resolveTierDate(tier, ann);
-        if (!date || date < today) continue;
-        if (!soonest || date < soonest.date) soonest = { date, tier, announcementId: ann.id, title: ann.title };
+      const nextTier = ann.tiers[0]; // pre-filtered to >= today and sorted ascending
+      if (!nextTier) continue;
+      if (!soonest || nextTier.date < soonest.date) {
+        soonest = { date: nextTier.date, tierName: nextTier.name, announcementId: ann.id, title: ann.title };
       }
     }
     if (!soonest) return empty;
-    return { date: soonest.date.toISOString(), tier: soonest.tier, announcementId: soonest.announcementId, title: soonest.title, personalized: false };
+    return { date: soonest.date.toISOString(), tier: soonest.tierName, announcementId: soonest.announcementId, title: soonest.title, personalized: false };
   }
 
   async findTrending(limit = 6) {
@@ -383,10 +359,11 @@ export class AnnouncementsService {
     const announcements = await (this.prisma.saleAnnouncement as any).findMany({
       where: {
         id: { in: ids },
-        generalSaleDate: { gte: new Date() },
+        tiers: { some: { date: { gte: new Date() } } },
       },
       include: {
         editions: editionsInclude,
+        tiers: { orderBy: { date: 'asc' as const } },
         company: { select: { name: true, slug: true, brandColors: true } },
       },
     });
@@ -432,6 +409,7 @@ export class AnnouncementsService {
           imageAsset: { select: { id: true, publicId: true } },
           editions: editionsIncludeAdmin,
           regions: regionsInclude,
+          tiers: { orderBy: { date: 'asc' as const } },
           items: { orderBy: { sortOrder: 'asc' as const } },
           company: { select: { id: true, name: true, slug: true, logoUrl: true } },
         },
@@ -528,6 +506,38 @@ export class AnnouncementsService {
     });
   }
 
+  /** Bridges the legacy 3-fixed-field inputs (still accepted by CreateSaleAnnouncementDto/
+   *  UpdateSaleAnnouncementDto/adminUpsertRegion, since the admin UI hasn't fully switched to the
+   *  dynamic tier editor yet) onto the new SaleTier model: whenever one of the 3 legacy fields is
+   *  provided, its corresponding named tier is created/updated/removed to match. Tiers created
+   *  directly via adminUpsertTier (arbitrary names, not one of these 3) are left untouched.
+   *  `date === undefined` means "field not present in this request" — skip. `date === null` means
+   *  "explicitly cleared" — remove that tier. */
+  private async syncLegacyTiers(
+    saleId: string,
+    regionId: string | null,
+    dates: { firstAccessDate?: Date | null; earlyAccessDate?: Date | null; generalSaleDate?: Date | null },
+  ) {
+    const entries: [string, Date | null | undefined, number][] = [
+      ['First Access', dates.firstAccessDate, 0],
+      ['Early Access', dates.earlyAccessDate, 1],
+      ['General Sale', dates.generalSaleDate, 2],
+    ];
+    for (const [name, date, order] of entries) {
+      if (date === undefined) continue;
+      if (date === null) {
+        await this.prisma.saleTier.deleteMany({ where: { saleId, regionId, name } });
+        continue;
+      }
+      const existing = await this.prisma.saleTier.findFirst({ where: { saleId, regionId, name } });
+      if (existing) {
+        await this.prisma.saleTier.update({ where: { id: existing.id }, data: { date } });
+      } else {
+        await this.prisma.saleTier.create({ data: { saleId, regionId, name, date, order } });
+      }
+    }
+  }
+
   async create(dto: CreateSaleAnnouncementDto) {
     const { editionIds, extraImages, ...data } = dto;
     const imageAsset = data.imageUrl ? await this.mediaAssetsService.ensureForPublicId(data.imageUrl) : null;
@@ -557,6 +567,11 @@ export class AnnouncementsService {
       },
     });
     await this.syncExtraImageAssets(announcement.id, extraImages ?? []);
+    await this.syncLegacyTiers(announcement.id, null, {
+      firstAccessDate: data.firstAccessDate ? new Date(data.firstAccessDate) : undefined,
+      earlyAccessDate: data.earlyAccessDate ? new Date(data.earlyAccessDate) : undefined,
+      generalSaleDate: data.generalSaleDate ? new Date(data.generalSaleDate) : undefined,
+    });
 
     if (editionIds && editionIds.length > 0) {
       await this.prisma.saleAnnouncementEdition.createMany({
@@ -617,6 +632,11 @@ export class AnnouncementsService {
     await (this.prisma.saleAnnouncement as any).update({
       where: { id },
       data: updateData,
+    });
+    await this.syncLegacyTiers(id, null, {
+      firstAccessDate: data.firstAccessDate !== undefined ? (data.firstAccessDate ? new Date(data.firstAccessDate) : null) : undefined,
+      earlyAccessDate: data.earlyAccessDate !== undefined ? (data.earlyAccessDate ? new Date(data.earlyAccessDate) : null) : undefined,
+      generalSaleDate: data.generalSaleDate !== undefined ? (data.generalSaleDate ? new Date(data.generalSaleDate) : null) : undefined,
     });
     // If dates changed, recalculate all pending sale reminders for this announcement
     const dateChanged = data.generalSaleDate !== undefined || data.firstAccessDate !== undefined || data.earlyAccessDate !== undefined || data.endsAt !== undefined;
@@ -699,6 +719,7 @@ export class AnnouncementsService {
         editions: { include: { variants: true }, orderBy: { sortOrder: 'asc' } },
         regions: { orderBy: { createdAt: 'asc' } },
         items: { orderBy: { sortOrder: 'asc' } },
+        tiers: true,
       },
     });
     if (!source) throw new NotFoundException('Sale announcement not found');
@@ -763,9 +784,19 @@ export class AnnouncementsService {
       }
     }
 
-    if (source.regions.length > 0) {
-      await this.prisma.saleAnnouncementRegion.createMany({
-        data: source.regions.map((r: any) => ({
+    const sourceTiers: any[] = source.tiers ?? [];
+    const defaultTiers = sourceTiers.filter(t => t.regionId === null);
+    if (defaultTiers.length > 0) {
+      await this.prisma.saleTier.createMany({
+        data: defaultTiers.map(t => ({ saleId: copy.id, regionId: null, name: t.name, date: t.date, order: t.order })),
+      });
+    }
+
+    // Regions are created one at a time (not createMany) so each new region's id is known,
+    // to correctly re-scope that region's own copied tiers.
+    for (const r of (source.regions ?? [])) {
+      const newRegion = await this.prisma.saleAnnouncementRegion.create({
+        data: {
           saleId: copy.id,
           name: r.name,
           countryCodes: r.countryCodes as Prisma.InputJsonValue,
@@ -779,8 +810,14 @@ export class AnnouncementsService {
           basePrice: r.basePrice,
           currency: r.currency,
           subscriberBasePrice: r.subscriberBasePrice,
-        })),
+        },
       });
+      const regionTiers = sourceTiers.filter(t => t.regionId === r.id);
+      if (regionTiers.length > 0) {
+        await this.prisma.saleTier.createMany({
+          data: regionTiers.map(t => ({ saleId: copy.id, regionId: newRegion.id, name: t.name, date: t.date, order: t.order })),
+        });
+      }
     }
 
     await this.indexSale(copy.id);
@@ -869,14 +906,46 @@ export class AnnouncementsService {
       currency: fields.currency ?? null,
       subscriberBasePrice: fields.subscriberBasePrice ?? null,
     };
-    if (id) {
-      return this.prisma.saleAnnouncementRegion.update({ where: { id }, data: payload });
-    }
-    return this.prisma.saleAnnouncementRegion.create({ data: payload });
+    const region = id
+      ? await this.prisma.saleAnnouncementRegion.update({ where: { id }, data: payload })
+      : await this.prisma.saleAnnouncementRegion.create({ data: payload });
+    await this.syncLegacyTiers(saleId, region.id, {
+      firstAccessDate: payload.firstAccessDate,
+      earlyAccessDate: payload.earlyAccessDate,
+      generalSaleDate: payload.generalSaleDate,
+    });
+    this.scheduledReminders?.recalculateForAnnouncement(saleId).catch(() => {});
+    return region;
   }
 
   async adminDeleteRegion(saleId: string, regionId: string) {
+    // SaleTier rows scoped to this region cascade-delete via the FK (onDelete: Cascade).
     await this.prisma.saleAnnouncementRegion.deleteMany({ where: { id: regionId, saleId } });
+  }
+
+  // ── Tier endpoints ───────────────────────────────────────────────────────────
+  // regionId=null manages the sale's own default tier set; a non-null regionId manages that
+  // region's tiers. This is the direct, dynamic-named-tier path — arbitrary count and names,
+  // not limited to First/Early/General Access like the legacy 3 fields still accepted above.
+
+  async adminUpsertTier(saleId: string, regionId: string | null, dto: UpsertSaleTierDto) {
+    const sale = await this.prisma.saleAnnouncement.findUnique({ where: { id: saleId } });
+    if (!sale) throw new NotFoundException('Sale announcement not found');
+    if (regionId) {
+      const region = await this.prisma.saleAnnouncementRegion.findFirst({ where: { id: regionId, saleId } });
+      if (!region) throw new NotFoundException('Region not found on this announcement');
+    }
+    const payload = { saleId, regionId, name: dto.name, date: new Date(dto.date), order: dto.order ?? 0 };
+    const tier = dto.id
+      ? await this.prisma.saleTier.update({ where: { id: dto.id }, data: payload })
+      : await this.prisma.saleTier.create({ data: payload });
+    this.scheduledReminders?.recalculateForAnnouncement(saleId).catch(() => {});
+    return tier;
+  }
+
+  async adminDeleteTier(saleId: string, tierId: string) {
+    await this.prisma.saleTier.deleteMany({ where: { id: tierId, saleId } });
+    this.scheduledReminders?.recalculateForAnnouncement(saleId).catch(() => {});
   }
 
   private async indexSale(saleId: string): Promise<void> {

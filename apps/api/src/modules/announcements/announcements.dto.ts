@@ -169,3 +169,22 @@ export class AssignEditionToItemDto {
   @IsString()
   itemId?: string | null;
 }
+
+/** One named access tier (e.g. "First Access", "VIP Access", "Flash Sale") for a sale
+ *  announcement or one of its regions — replaces the old fixed firstAccessDate/
+ *  earlyAccessDate/generalSaleDate slots with an arbitrary-length ordered list. */
+export class UpsertSaleTierDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @IsString()
+  name: string = '';
+
+  @IsString()
+  date: string = '';
+
+  @IsOptional()
+  @IsInt()
+  order?: number;
+}
