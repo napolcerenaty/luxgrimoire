@@ -102,8 +102,8 @@ interface EditionDetail {
   saleEditions?: EditionSaleEdition[]
   bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null } | null
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
-  previousEdition?: { id: string; slug: string; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
-  nextEdition?: { id: string; slug: string; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
+  previousEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
+  nextEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   book?: {
     id: string; slug: string; title: string
     seriesName: string | null; volumeNumbers: number[]

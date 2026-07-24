@@ -73,7 +73,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
             <div className="flex items-center gap-2">
               <span className="text-stone-500">← Previous:</span>
               <span className="text-stone-300">{prev.bookBoxCompany?.name ?? prev.slug}</span>
-              <span className="text-stone-600 text-[10px]">{prev.generalSaleDate?.slice(0, 10)}</span>
+              <span className="text-stone-600 text-[10px]">{prev.resolvedSaleDate?.date?.slice(0, 10)}</span>
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
             <div className="flex items-center gap-2">
               <span className="text-stone-500">→ Next:</span>
               <span className="text-stone-300">{next.bookBoxCompany?.name ?? next.slug}</span>
-              <span className="text-stone-600 text-[10px]">{next.generalSaleDate?.slice(0, 10)}</span>
+              <span className="text-stone-600 text-[10px]">{next.resolvedSaleDate?.date?.slice(0, 10)}</span>
             </div>
           )}
         </div>
