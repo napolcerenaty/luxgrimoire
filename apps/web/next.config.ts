@@ -86,8 +86,11 @@ const nextConfig: NextConfig = {
 };
 
 const sentryOptions = {
+  org: 'luxgrimoire',
+  project: 'luxgrimoire-web',
+  authToken: process.env.SENTRY_AUTH_TOKEN,
   tunnelRoute: '/monitoring',
-  sourcemaps: { disable: true },
+  sourcemaps: { disable: false },
   disableLogger: true,
   webpack: {
     autoInstrumentServerFunctions: false,
