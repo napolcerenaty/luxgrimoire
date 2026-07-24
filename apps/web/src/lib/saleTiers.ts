@@ -22,3 +22,14 @@ export function formatTierLabel(tier: Pick<ApiSaleTier, 'name'>): string {
 export function resolveInterestDate(interest: { saleTier?: { date: string } | null }): string | null {
   return interest.saleTier?.date ?? null
 }
+
+/** Earliest tier date across the sale's own default tier set (regionId: null) — used for
+ *  card/badge displays (homepage carousels, company lists) that previously read the single
+ *  fixed generalSaleDate column. Falls back to the legacy generalSaleDate for historical
+ *  announcements that haven't been backfilled with tiers (shouldn't happen post-migration,
+ *  but keeps old cached/SSR data from going blank). */
+export function getEarliestTierDate(sale: { tiers?: ApiSaleTier[]; generalSaleDate?: string | null }): string | null {
+  const defaultTiers = (sale.tiers ?? []).filter(t => t.regionId === null)
+  if (defaultTiers.length === 0) return sale.generalSaleDate ?? null
+  return defaultTiers.reduce((earliest, t) => (!earliest || t.date < earliest ? t.date : earliest), null as string | null)
+}

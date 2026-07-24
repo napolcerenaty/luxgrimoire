@@ -17,6 +17,11 @@ const CURRENCIES = ['GBP', 'USD', 'EUR', 'CAD', 'AUD', 'NZD', 'PLN', 'SGD', 'CHF
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean; contributionId?: string }
 export type EditionCompany = { id: string; name: string; slug: string; defaultCurrency?: string | null }
+/** One manually-entered sale date for a standalone edition (no linked SaleAnnouncement) —
+ *  date only, no time. Editions linked to an announcement resolve their date live from its
+ *  tiers instead (see resolvedSaleDate/isLinkedToAnnouncement) and don't use this list. */
+export type EditionSaleDateEntry = { label: string; date: string; order: number }
+export const SALE_DATE_LABEL_PRESETS = ['First Access', 'Early Access', 'General Sale', 'Subscription Renewal Day']
 export type FeatureTag = {
   id: string
   rawValue: string
@@ -54,9 +59,8 @@ export interface AiParseResult {
     publisher?: string
     price?: number
     currency?: string
-    firstAccessDate?: string
-    earlyAccessDate?: string
-    generalSaleDate?: string
+    /** Manual sale dates parsed from the source text — date only, no time. */
+    saleDates?: { label: string; date: string }[]
     features?: string[]
     featureTags?: Record<string, string[]>
     /** All feature raw values in source-text order (standalone + artist-attributed) */
@@ -620,12 +624,13 @@ export interface EditionFieldsSectionProps {
   onPhotoCreditChange: (v: string) => void
   language: string
   onLanguageChange: (v: string) => void
-  firstAccessDate: string
-  onFirstAccessDateChange: (v: string) => void
-  earlyAccessDate: string
-  onEarlyAccessDateChange: (v: string) => void
-  generalSaleDate: string
-  onGeneralSaleDateChange: (v: string) => void
+  /** Manual sale dates (standalone editions only — ignored/hidden when isLinkedToAnnouncement). */
+  saleDates: EditionSaleDateEntry[]
+  onSaleDatesChange: (fn: (prev: EditionSaleDateEntry[]) => EditionSaleDateEntry[]) => void
+  /** True when this edition is linked to a SaleAnnouncement — its sale date resolves live
+   *  from that announcement's tiers, so the manual editor is replaced with a read-only display. */
+  isLinkedToAnnouncement?: boolean
+  resolvedSaleDate?: { label: string; date: string } | null
   allImages: string[]
   onImagesChange: (imgs: string[]) => void
   onAiResult: (r: AiParseResult) => void
@@ -655,9 +660,8 @@ export function EditionFieldsSection({
   price, onPriceChange, currency, onCurrencyChange,
   publisher, onPublisherChange, photoCredit, onPhotoCreditChange,
   language, onLanguageChange,
-  firstAccessDate, onFirstAccessDateChange,
-  earlyAccessDate, onEarlyAccessDateChange,
-  generalSaleDate, onGeneralSaleDateChange,
+  saleDates, onSaleDatesChange,
+  isLinkedToAnnouncement, resolvedSaleDate,
   allImages, onImagesChange,
   onAiResult,
   artists = [], onArtistsChange, onRemoveExistingArtist,
@@ -736,21 +740,53 @@ export function EditionFieldsSection({
         </select>
       </div>
 
-      {/* Dates */}
-      <div className="grid sm:grid-cols-3 gap-3">
+      {/* Sale dates */}
+      {isLinkedToAnnouncement ? (
         <div>
-          <label className={LBL}>First access</label>
-          <input type="date" value={firstAccessDate} onChange={e => onFirstAccessDateChange(e.target.value)} className={INP} />
+          <label className={LBL}>Sale date</label>
+          <div className="bg-stone-800/60 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-300">
+            {resolvedSaleDate
+              ? `${resolvedSaleDate.label} — ${new Date(resolvedSaleDate.date).toLocaleString()}`
+              : 'No tiers set on the linked sale announcement yet'}
+            <p className="text-xs text-stone-500 mt-1">Resolved live from the linked sale announcement's tiers — edit it there, not here.</p>
+          </div>
         </div>
+      ) : (
         <div>
-          <label className={LBL}>Early access</label>
-          <input type="date" value={earlyAccessDate} onChange={e => onEarlyAccessDateChange(e.target.value)} className={INP} />
+          <label className={LBL}>Sale dates <span className="text-stone-600 font-normal normal-case tracking-normal">(date only, no time)</span></label>
+          <div className="space-y-2">
+            {saleDates.map((d, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <input
+                  list="sale-date-label-presets"
+                  className={`${INP} flex-1`}
+                  value={d.label}
+                  placeholder="e.g. First Access, General Sale, Subscription Renewal Day"
+                  onChange={e => onSaleDatesChange(prev => prev.map((row, j) => j === i ? { ...row, label: e.target.value } : row))}
+                />
+                <input
+                  type="date"
+                  className={INP}
+                  value={d.date}
+                  onChange={e => onSaleDatesChange(prev => prev.map((row, j) => j === i ? { ...row, date: e.target.value } : row))}
+                />
+                <button type="button" onClick={() => onSaleDatesChange(prev => prev.filter((_, j) => j !== i))}
+                  className="text-xs text-red-400 hover:text-red-300 px-2 py-2 rounded hover:bg-red-400/10 transition-colors flex-shrink-0">
+                  Remove
+                </button>
+              </div>
+            ))}
+            <datalist id="sale-date-label-presets">
+              {SALE_DATE_LABEL_PRESETS.map(l => <option key={l} value={l} />)}
+            </datalist>
+            <button type="button"
+              onClick={() => onSaleDatesChange(prev => [...prev, { label: '', date: '', order: prev.length }])}
+              className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+              + Add sale date
+            </button>
+          </div>
         </div>
-        <div>
-          <label className={LBL}>General sale</label>
-          <input type="date" value={generalSaleDate} onChange={e => onGeneralSaleDateChange(e.target.value)} className={INP} />
-        </div>
-      </div>
+      )}
 
       {/* Photo credit + Images */}
       <div>

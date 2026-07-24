@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
+import { getEarliestTierDate } from '@/lib/saleTiers'
 import type { ApiTrendingSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -80,7 +81,7 @@ export function HomeTrendingSales({ announcements }: Props) {
 
               <div className="flex flex-col px-2.5 pb-2 pt-2">
                 <p className="text-[10px] font-medium uppercase tracking-wide text-amber-600">
-                  {formatSaleDate(sale.generalSaleDate)}
+                  {formatSaleDate(getEarliestTierDate(sale))}
                 </p>
                 <div className="my-0.5 h-[2.25rem] overflow-hidden">
                   <p className="line-clamp-2 text-sm font-serif font-semibold leading-snug text-stone-200 transition-colors group-hover:text-amber-400">

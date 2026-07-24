@@ -10,7 +10,7 @@ import { useBrandColors } from '@/lib/useBrandColors'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { SaleAnnouncementModal } from '@/components/sales/SaleAnnouncementModal'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
-import { resolveSaleDates } from '@/lib/saleDates'
+import { getEarliestTierDate } from '@/lib/saleTiers'
 import { apiFetch } from '@/lib/api'
 
 const CARD_WIDTH = 192
@@ -86,7 +86,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
         )}
 
         {/* Days badge */}
-        <DaysBadge dateStr={sale.generalSaleDate} />
+        <DaysBadge dateStr={getEarliestTierDate(sale)} />
 
         {/* Company ribbon — same style as EditionCarousel */}
         {companyName && (

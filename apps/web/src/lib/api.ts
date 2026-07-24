@@ -796,6 +796,37 @@ export async function adminDeleteAnnouncementRegion(saleId: string, regionId: st
   if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
 }
 
+/** Upserts a tier on the sale's own default set (regionId omitted) or on one region
+ *  (pass regionId) — arbitrary name/date, not limited to First/Early/General Access. */
+export async function adminUpsertAnnouncementTier(
+  saleId: string,
+  data: { id?: string; name: string; date: string; order?: number },
+  regionId?: string,
+): Promise<import('@luxgrimoire/shared-types').ApiSaleTier> {
+  const path = regionId
+    ? `/announcements/admin/${saleId}/regions/${regionId}/tiers`
+    : `/announcements/admin/${saleId}/tiers`;
+  const res = await fetch(`${API_URL}${path}`, {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+  return res.json();
+}
+
+export async function adminDeleteAnnouncementTier(saleId: string, tierId: string, regionId?: string): Promise<void> {
+  const path = regionId
+    ? `/announcements/admin/${saleId}/regions/${regionId}/tiers/${tierId}`
+    : `/announcements/admin/${saleId}/tiers/${tierId}`;
+  const res = await fetch(`${API_URL}${path}`, {
+    credentials: 'include',
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error((await res.text()) || `API error ${res.status}`);
+}
+
 export async function adminCreateAnnouncementItem(saleId: string, data: { name?: string }): Promise<import('@luxgrimoire/shared-types').ApiSaleAnnouncementItem> {
   const res = await fetch(`${API_URL}/announcements/admin/${saleId}/items`, {
     credentials: 'include',

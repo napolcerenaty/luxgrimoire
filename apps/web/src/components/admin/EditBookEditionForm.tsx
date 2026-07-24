@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
-import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type FeaturePreviewHandle } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type EditionSaleDateEntry, type FeaturePreviewHandle } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
 
@@ -156,9 +156,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [publisher, setPublisher] = useState(edition.publisher ?? '')
   const [photoCredit, setPhotoCredit] = useState((edition as any).photoCredit ?? '')
   const [language, setLanguage] = useState(edition.language ?? '')
-  const [firstAccessDate, setFirstAccessDate] = useState(edition.firstAccessDate?.slice(0, 10) ?? '')
-  const [earlyAccessDate, setEarlyAccessDate] = useState(edition.earlyAccessDate?.slice(0, 10) ?? '')
-  const [generalSaleDate, setGeneralSaleDate] = useState(edition.generalSaleDate?.slice(0, 10) ?? '')
+  const [saleDates, setSaleDates] = useState<EditionSaleDateEntry[]>(() =>
+    (edition.saleDates ?? []).map((d, i) => ({ label: d.label, date: d.date.slice(0, 10), order: d.order ?? i })),
+  )
   const [allImages, setAllImages] = useState<string[]>(() => {
     return edition.additionalImages?.length ? [...edition.additionalImages] : []
   })
@@ -191,7 +191,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const collections = collectionsData?.data ?? []
 
   const applyAiResult = (r: AiParseResult) => {
-    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
+    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setSaleDates, setArtists })
     // Collect all feature raw values in source-text order using featureOrder if available;
     // fall back to standalones-first for older responses.
     const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
@@ -254,9 +254,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           basePrice: price || undefined,
           currency: currency || undefined,
           language: language || undefined,
-          firstAccessDate: firstAccessDate || undefined,
-          earlyAccessDate: earlyAccessDate || undefined,
-          generalSaleDate: generalSaleDate || undefined,
+          saleDates: edition.isLinkedToAnnouncement
+            ? undefined
+            : saleDates.filter(d => d.label && d.date),
           additionalImages: allImages.filter(Boolean),
         }),
       })
@@ -347,12 +347,10 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         onPhotoCreditChange={setPhotoCredit}
         language={language}
         onLanguageChange={setLanguage}
-        firstAccessDate={firstAccessDate}
-        onFirstAccessDateChange={setFirstAccessDate}
-        earlyAccessDate={earlyAccessDate}
-        onEarlyAccessDateChange={setEarlyAccessDate}
-        generalSaleDate={generalSaleDate}
-        onGeneralSaleDateChange={setGeneralSaleDate}
+        saleDates={saleDates}
+        onSaleDatesChange={setSaleDates}
+        isLinkedToAnnouncement={edition.isLinkedToAnnouncement}
+        resolvedSaleDate={edition.resolvedSaleDate}
         allImages={allImages}
         onImagesChange={setAllImages}
         onAiResult={applyAiResult}

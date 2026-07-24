@@ -747,6 +747,7 @@ export interface ApiTrendingSaleAnnouncement {
   imageUrl: string | null;
   company?: { name: string; slug?: string | null; brandColors?: string[] } | null;
   editions?: ApiSaleAnnouncement['editions'];
+  tiers?: ApiSaleTier[];
   interestCount: number;
 }
 
