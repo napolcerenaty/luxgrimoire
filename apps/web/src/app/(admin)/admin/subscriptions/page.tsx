@@ -138,6 +138,7 @@ interface SubFormData {
   isHidden: boolean
   isContentStream: boolean
   isBundleSubscription: boolean
+  hasBookChoiceMonths: boolean
   paymentOnStartup: boolean
   isUpcoming: boolean
   upcomingNote: string
@@ -174,6 +175,7 @@ const EMPTY_FORM: SubFormData = {
   isHidden: false,
   isContentStream: false,
   isBundleSubscription: false,
+  hasBookChoiceMonths: false,
   paymentOnStartup: false,
   isUpcoming: false,
   upcomingNote: '',
@@ -209,6 +211,7 @@ function subToForm(sub: ApiSubscription): SubFormData {
     isHidden: sub.isHidden ?? false,
     isContentStream: sub.isContentStream ?? false,
     isBundleSubscription: sub.isBundleSubscription ?? false,
+    hasBookChoiceMonths: (sub as any).hasBookChoiceMonths ?? false,
     paymentOnStartup: sub.paymentOnStartup ?? false,
     isUpcoming: sub.isUpcoming ?? false,
     upcomingNote: sub.upcomingNote ?? '',
@@ -245,6 +248,7 @@ function formToCreatePayload(form: SubFormData) {
     isHidden: form.isHidden,
     isContentStream: form.isContentStream,
     isBundleSubscription: form.isBundleSubscription,
+    hasBookChoiceMonths: form.hasBookChoiceMonths,
     paymentOnStartup: form.paymentOnStartup,
     isUpcoming: form.isUpcoming,
     upcomingNote: form.upcomingNote,
@@ -278,6 +282,7 @@ function formToUpdatePayload(form: SubFormData) {
     isHidden: form.isHidden,
     isContentStream: form.isContentStream,
     isBundleSubscription: form.isBundleSubscription,
+    hasBookChoiceMonths: form.hasBookChoiceMonths,
     paymentOnStartup: form.paymentOnStartup,
     isUpcoming: form.isUpcoming,
     upcomingNote: form.upcomingNote,
@@ -764,6 +769,7 @@ function SubscriptionForm({
               { field: 'isDiscontinued', label: 'Discontinued' },
               { field: 'isHidden', label: 'Hidden (draft / historical data)' },
               { field: 'isContentStream', label: 'Content stream (hidden parent, holds all months)' },
+              { field: 'hasBookChoiceMonths', label: 'Has book-choice months (subscribers pick between book alternatives)' },
             ] as { field: keyof SubFormData; label: string }[]).map(({ field, label }) => (
               <label key={field} className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
                 <input type="checkbox" checked={form[field] as boolean}

@@ -415,6 +415,91 @@ function InlineCostsEditor({
   )
 }
 
+type MyChoiceGroupOption = {
+  id: string; book: { title: string }; edition: { additionalImages: string[] } | null
+}
+type MyChoiceGroup = {
+  id: string; label: string | null; allowMultiple: boolean
+  options: MyChoiceGroupOption[]
+  myChoice: { source: string; monthBookIds: string[] } | null
+}
+
+function BookChoiceBanner({ subscriptionSlug, year, month }: { subscriptionSlug: string; year: number; month: number }) {
+  const queryClient = useQueryClient()
+  const qKey = ['sub-choice-groups', subscriptionSlug, year, month]
+  const [open, setOpen] = useState<string | null>(null)
+  const [picked, setPicked] = useState<string[]>([])
+
+  const { data: groups } = useQuery<MyChoiceGroup[]>({
+    queryKey: qKey,
+    queryFn: () => authFetch(`/subscriptions/${subscriptionSlug}/months/${year}/${month}/choice-groups`),
+  })
+
+  const submitMutation = useMutation({
+    mutationFn: ({ choiceGroupId, monthBookIds }: { choiceGroupId: string; monthBookIds: string[] }) =>
+      authFetch(`/subscriptions/${subscriptionSlug}/months/${year}/${month}/choice-groups/${choiceGroupId}/my-choice`, {
+        method: 'POST',
+        body: JSON.stringify({ monthBookIds }),
+      }),
+    onSuccess: () => { setOpen(null); setPicked([]); queryClient.invalidateQueries({ queryKey: qKey }) },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const pending = (groups ?? []).filter(g => !g.myChoice)
+  if (pending.length === 0) return null
+
+  return (
+    <div className="mb-4 space-y-2">
+      {pending.map(g => (
+        <div key={g.id} className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-sm text-amber-200">
+              <span className="font-medium">{g.label || 'Choose your book'}</span>
+              {' — '}pick {g.allowMultiple ? 'one or both' : 'one'} before the deadline, or both will be added automatically.
+            </div>
+            <button
+              onClick={() => { setOpen(open === g.id ? null : g.id); setPicked([]) }}
+              className="text-xs px-3 py-1.5 rounded-lg bg-amber-400 text-stone-950 font-semibold hover:bg-amber-300 transition-colors shrink-0"
+            >
+              {open === g.id ? 'Close' : 'Choose'}
+            </button>
+          </div>
+          {open === g.id && (
+            <div className="space-y-2 pt-1">
+              <div className="flex flex-wrap gap-2">
+                {g.options.map(o => (
+                  <label key={o.id} className="flex items-center gap-1.5 text-xs text-amber-100 bg-stone-900/40 rounded-lg px-2 py-1 cursor-pointer">
+                    <input
+                      type={g.allowMultiple ? 'checkbox' : 'radio'}
+                      name={`choice-${g.id}`}
+                      checked={picked.includes(o.id)}
+                      onChange={(e) => {
+                        if (g.allowMultiple) {
+                          setPicked(ids => e.target.checked ? [...ids, o.id] : ids.filter(id => id !== o.id))
+                        } else {
+                          setPicked([o.id])
+                        }
+                      }}
+                    />
+                    {o.book.title}
+                  </label>
+                ))}
+              </div>
+              <button
+                onClick={() => submitMutation.mutate({ choiceGroupId: g.id, monthBookIds: picked })}
+                disabled={submitMutation.isPending || picked.length === 0}
+                className="text-xs px-3 py-1.5 rounded-lg bg-amber-400 text-stone-950 font-semibold hover:bg-amber-300 disabled:opacity-40 transition-colors"
+              >
+                Confirm choice
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function SubscriptionOverviewPanel({
   entry,
   isExpanded,
@@ -462,6 +547,7 @@ function SubscriptionOverviewPanel({
 
   return (
     <div className="border-t border-stone-700/50 bg-stone-800/30 px-4 py-4">
+      {boxMonth && <BookChoiceBanner subscriptionSlug={subscriptionSlug} year={boxMonth.year} month={boxMonth.month} />}
       <div className="grid gap-4 md:grid-cols-3">
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">

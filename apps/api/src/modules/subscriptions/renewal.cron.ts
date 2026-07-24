@@ -7,6 +7,8 @@ import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-ch
 import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
 import { StatsService } from '../stats/stats.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { resolveMonthBooksForEntry, computeChoiceDeadline, persistMonthChoice } from './subscription-month-choice.util';
 
 @Injectable()
 export class RenewalCronService {
@@ -16,6 +18,7 @@ export class RenewalCronService {
     private readonly prisma: PrismaService,
     private readonly statsService: StatsService,
     @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
+    @Optional() private readonly notificationsService?: NotificationsService,
   ) {}
 
   /**
@@ -305,7 +308,7 @@ export class RenewalCronService {
     const monthRecord = await this.prisma.subscriptionMonth.findUnique({
       where: { subscriptionId_year_month: { subscriptionId: effectiveSubscriptionId, year, month } },
       include: {
-        books: { select: { bookId: true, editionId: true, signatureType: true } },
+        books: { select: { id: true, bookId: true, editionId: true, signatureType: true, choiceGroupId: true } },
       },
     });
 
@@ -332,7 +335,7 @@ export class RenewalCronService {
     year: number,
     month: number,
     renewalDate: Date,
-    books: Array<{ bookId: string; editionId: string | null; signatureType: $Enums.SignatureType | null }>,
+    books: Array<{ id: string; bookId: string; editionId: string | null; signatureType: $Enums.SignatureType | null; choiceGroupId: string | null }>,
     defaultSignatureType: $Enums.SignatureType | null,
     titleOverride?: string,
   ) {
@@ -456,7 +459,8 @@ export class RenewalCronService {
       purchaseGroupId: string;
     }> = [];
 
-    for (const mb of books) {
+    const resolvedBooks = await resolveMonthBooksForEntry(this.prisma, entry.id, books);
+    for (const mb of resolvedBooks) {
       if (!mb.bookId || !mb.editionId) continue;
 
       const existingEntry = await this.prisma.userBookEntry.findFirst({
@@ -554,13 +558,13 @@ export class RenewalCronService {
     }
 
     // Collect books from all months in the bundle window
-    const allBooks: Array<{ bookId: string; editionId: string | null; signatureType: $Enums.SignatureType | null }> = [];
+    const allBooks: Array<{ id: string; bookId: string; editionId: string | null; signatureType: $Enums.SignatureType | null; choiceGroupId: string | null }> = [];
     let curYear = bundleStartYear;
     let curMonth = bundleStartMonth;
     for (let i = 0; i < intervalMonths; i++) {
       const monthRecord = await this.prisma.subscriptionMonth.findUnique({
         where: { subscriptionId_year_month: { subscriptionId: effectiveSubscriptionId, year: curYear, month: curMonth } },
-        include: { books: { select: { bookId: true, editionId: true, signatureType: true } } },
+        include: { books: { select: { id: true, bookId: true, editionId: true, signatureType: true, choiceGroupId: true } } },
       });
       if (monthRecord) allBooks.push(...monthRecord.books);
       [curYear, curMonth] = curMonth === 12 ? [curYear + 1, 1] : [curYear, curMonth + 1];
@@ -608,7 +612,7 @@ export class RenewalCronService {
     // Collect books from all component subscriptions' months
     const componentMonths = await this.prisma.subscriptionMonth.findMany({
       where: { subscriptionId: { in: effectiveComponentIds }, year, month },
-      include: { books: { select: { bookId: true, editionId: true, signatureType: true } } },
+      include: { books: { select: { id: true, bookId: true, editionId: true, signatureType: true, choiceGroupId: true } } },
     });
 
     const allBooks = componentMonths.flatMap((m) => m.books).filter((b) => b.bookId && b.editionId);
@@ -833,6 +837,71 @@ export class RenewalCronService {
             await recordOwnershipHistory(this.prisma, [newEntry], 'PREORDER', renewalRecord.renewalDate).catch(() => {});
           }
         }
+      }
+    }
+  }
+
+  /**
+   * Daily at 00:30 UTC — resolves any SubscriptionMonthChoiceGroup whose deadline has
+   * passed for entries that never made an explicit choice. Applies the default (every
+   * option in the group — see subscription-month-choice.util) and sends a notification
+   * explaining how to self-correct: there is deliberately no automatic pricing here, the
+   * user removes the unwanted book via the collection trash, or edits the purchase-group
+   * cost themselves if keeping both at a different price.
+   */
+  @Cron('30 0 * * *')
+  async resolveExpiredBookChoices() {
+    const now = new Date();
+    const groups = await this.prisma.subscriptionMonthChoiceGroup.findMany({
+      select: {
+        id: true,
+        allowMultiple: true,
+        choiceDeadlineType: true,
+        choiceDeadlineDaysBefore: true,
+        choiceDeadlineDayOfMonth: true,
+        options: { select: { id: true } },
+        month: {
+          select: {
+            year: true,
+            month: true,
+            subscriptionId: true,
+            subscription: { select: { name: true, slug: true } },
+          },
+        },
+      },
+    });
+
+    for (const group of groups) {
+      const deadline = computeChoiceDeadline(group.month.year, group.month.month, group);
+      if (deadline > now) continue;
+
+      const activeEntries = await this.prisma.userSubscriptionEntry.findMany({
+        where: { subscriptionId: group.month.subscriptionId, active: true },
+        select: { id: true, userId: true },
+      });
+      if (activeEntries.length === 0) continue;
+
+      const alreadyChosen = await this.prisma.userSubscriptionMonthChoice.findMany({
+        where: { choiceGroupId: group.id, subscriptionEntryId: { in: activeEntries.map((e) => e.id) } },
+        select: { subscriptionEntryId: true },
+      });
+      const resolvedEntryIds = new Set(alreadyChosen.map((c) => c.subscriptionEntryId));
+      const unresolved = activeEntries.filter((e) => !resolvedEntryIds.has(e.id));
+      if (unresolved.length === 0) continue;
+
+      const monthLabel = `${group.month.year}/${String(group.month.month).padStart(2, '0')}`;
+      for (const entry of unresolved) {
+        await persistMonthChoice(this.prisma, group, entry.id, group.options.map((o) => o.id), 'default').catch(() => null);
+        this.scheduledReminders?.cancelBookChoice(entry.id, group.id).catch(() => {});
+
+        const title = 'Book choice deadline passed';
+        const body =
+          `${group.month.subscription.name} — ${monthLabel}: you didn't pick in time, so we added both books. ` +
+          `Only want one? Remove the other from your collection (trash icon). ` +
+          `Keeping both and the price differs from your usual subscription cost? Edit the cost yourself from that book's entry — open its edition detail page.`;
+        await this.notificationsService
+          ?.createNotification(entry.userId, 'book_choice_default_applied', title, body, 'subscriptions', group.month.subscription.slug)
+          .catch(() => {});
       }
     }
   }

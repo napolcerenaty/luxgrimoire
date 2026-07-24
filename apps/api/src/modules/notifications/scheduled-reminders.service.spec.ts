@@ -200,14 +200,14 @@ describe('ScheduledRemindersService', () => {
   });
 
   describe('cancelByEntry', () => {
-    it('cancels all pending renewal reminders for an entry', async () => {
+    it('cancels all pending renewal and book-choice reminders for an entry', async () => {
       (prisma.scheduledReminder.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
 
       await service.cancelByEntry(ENTRY_ID);
 
       expect(prisma.scheduledReminder.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ entryId: ENTRY_ID, type: 'renewal', sentAt: null, cancelledAt: null }),
+          where: expect.objectContaining({ entryId: ENTRY_ID, type: { in: ['renewal', 'book_choice'] }, sentAt: null, cancelledAt: null }),
         }),
       );
     });

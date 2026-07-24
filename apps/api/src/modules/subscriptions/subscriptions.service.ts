@@ -30,6 +30,9 @@ import {
   CreatePrepayOptionDto,
   UpdatePrepayOptionDto,
   UpdateSettingsHistoryEffectiveFromDto,
+  CreateChoiceGroupDto,
+  SubmitMonthChoiceDto,
+  AdminBackfillChoiceDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
@@ -40,6 +43,7 @@ import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
 import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
+import { resolveMonthBooksForEntry, persistMonthChoice } from './subscription-month-choice.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 import { StatsService } from '../stats/stats.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
@@ -312,6 +316,7 @@ export class SubscriptionsService {
         isHidden: dto.isHidden ?? false,
         isContentStream: dto.isContentStream ?? false,
         isBundleSubscription: dto.isBundleSubscription ?? false,
+        hasBookChoiceMonths: dto.hasBookChoiceMonths ?? false,
       },
     });
 
@@ -1032,10 +1037,12 @@ export class SubscriptionsService {
           cardArtist: { select: { id: true, name: true, slug: true, instagram: true } },
           books: {
             select: {
+              id: true,
               bookId: true,
               editionId: true,
               isMainBook: true,
               signatureType: true,
+              choiceGroupId: true,
               book: { select: { id: true, title: true, slug: true } },
               edition: {
                 select: {
@@ -1488,6 +1495,14 @@ export class SubscriptionsService {
     const subscription = await this.getSubscriptionMonths(subscriptionSlug);
     const monthRecord = await this.getMonth(subscription.id, year, month);
 
+    const edition = await this.prisma.bookEdition.findUnique({
+      where: { id: dto.editionId },
+      select: { id: true, bookId: true },
+    });
+    if (!edition || edition.bookId !== dto.bookId) {
+      throw new BadRequestException('Edition does not belong to the given book');
+    }
+
     let newBook;
     try {
       newBook = await this.prisma.subscriptionMonthBook.create({
@@ -1501,25 +1516,22 @@ export class SubscriptionsService {
         },
       });
     } catch {
-      throw new ConflictException('Book already added to this month');
+      // Unique on [monthId, editionId] — this exact edition is already attached to this month.
+      throw new ConflictException('This edition is already added to this month');
     }
 
     // If attaching an existing edition that has no subscriptionId yet, backfill it now
-    if (dto.editionId) {
-      await this.prisma.bookEdition.updateMany({
-        where: { id: dto.editionId, subscriptionId: null },
-        data: { subscriptionId: subscription.id },
-      });
-    }
+    await this.prisma.bookEdition.updateMany({
+      where: { id: dto.editionId, subscriptionId: null },
+      data: { subscriptionId: subscription.id },
+    });
 
     // Retroactively add this book to users whose renewal for this month already occurred
-    if (dto.bookId && dto.editionId) {
-      this.renewalCron.retroactivelyAddBookForSubscribers(
-        subscription.id,
-        { id: monthRecord.id, year, month, signatureType: monthRecord.signatureType ?? null },
-        { bookId: dto.bookId, editionId: dto.editionId, signatureType: (dto.signatureType as $Enums.SignatureType | null) ?? null },
-      ).catch(() => {});
-    }
+    this.renewalCron.retroactivelyAddBookForSubscribers(
+      subscription.id,
+      { id: monthRecord.id, year, month, signatureType: monthRecord.signatureType ?? null },
+      { bookId: dto.bookId, editionId: dto.editionId, signatureType: (dto.signatureType as $Enums.SignatureType | null) ?? null },
+    ).catch(() => {});
 
     void this.invalidateMonthsCache(subscriptionSlug);
     void this.invalidateCatalogMonthCaches();
@@ -1530,14 +1542,17 @@ export class SubscriptionsService {
     subscriptionSlug: string,
     year: number,
     month: number,
-    bookId: string,
+    monthBookId: string,
   ) {
     const subscription = await this.getSubscriptionMonths(subscriptionSlug);
     const monthRecord = await this.getMonth(subscription.id, year, month);
 
-    const result = await this.prisma.subscriptionMonthBook.delete({
-      where: { monthId_bookId: { monthId: monthRecord.id, bookId } },
-    });
+    const existing = await this.prisma.subscriptionMonthBook.findUnique({ where: { id: monthBookId } });
+    if (!existing || existing.monthId !== monthRecord.id) {
+      throw new NotFoundException('Book not found on this month');
+    }
+
+    const result = await this.prisma.subscriptionMonthBook.delete({ where: { id: monthBookId } });
     void this.invalidateMonthsCache(subscriptionSlug);
     void this.invalidateCatalogMonthCaches();
     return result;
@@ -1547,18 +1562,217 @@ export class SubscriptionsService {
     subscriptionSlug: string,
     year: number,
     month: number,
-    bookId: string,
+    monthBookId: string,
     dto: UpdateMonthBookDto,
   ) {
     const subscription = await this.getSubscriptionMonths(subscriptionSlug);
     const monthRecord = await this.getMonth(subscription.id, year, month);
 
+    const existing = await this.prisma.subscriptionMonthBook.findUnique({ where: { id: monthBookId } });
+    if (!existing || existing.monthId !== monthRecord.id) {
+      throw new NotFoundException('Book not found on this month');
+    }
+
     const result = await this.prisma.subscriptionMonthBook.update({
-      where: { monthId_bookId: { monthId: monthRecord.id, bookId } },
+      where: { id: monthBookId },
       data: { signatureType: dto.signatureType ?? null },
     });
     void this.invalidateMonthsCache(subscriptionSlug);
     return result;
+  }
+
+  /**
+   * Groups 2+ already-attached SubscriptionMonthBook rows (distinct editions) as
+   * mutually-selectable alternatives for a month. Schedules a book-choice reminder for
+   * every currently active subscriber so they know a choice is open.
+   */
+  async createChoiceGroup(
+    subscriptionSlug: string,
+    year: number,
+    month: number,
+    dto: CreateChoiceGroupDto,
+  ) {
+    const subscription = await this.getSubscriptionMonths(subscriptionSlug);
+    const monthRecord = await this.getMonth(subscription.id, year, month);
+
+    const uniqueIds = [...new Set(dto.monthBookIds)];
+    if (uniqueIds.length < 2) {
+      throw new BadRequestException('A choice group needs at least 2 distinct options');
+    }
+
+    const options = await this.prisma.subscriptionMonthBook.findMany({
+      where: { id: { in: uniqueIds } },
+    });
+    if (options.length !== uniqueIds.length || options.some((o) => o.monthId !== monthRecord.id)) {
+      throw new BadRequestException('One or more books do not belong to this month');
+    }
+    if (options.some((o) => o.choiceGroupId)) {
+      throw new ConflictException('One or more books already belong to a choice group');
+    }
+
+    const group = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.subscriptionMonthChoiceGroup.create({
+        data: {
+          monthId: monthRecord.id,
+          label: dto.label ?? null,
+          allowMultiple: dto.allowMultiple ?? true,
+          choiceDeadlineDaysBefore: dto.choiceDeadlineDaysBefore ?? 0,
+          choiceDeadlineType: dto.choiceDeadlineType ?? 'DAYS_BEFORE',
+          choiceDeadlineDayOfMonth: dto.choiceDeadlineDayOfMonth ?? null,
+        },
+      });
+      await tx.subscriptionMonthBook.updateMany({
+        where: { id: { in: uniqueIds } },
+        data: { choiceGroupId: created.id },
+      });
+      return created;
+    });
+
+    // Let every currently active subscriber know a choice is open for them.
+    const activeEntries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { subscriptionId: subscription.id, active: true },
+      select: { id: true },
+    });
+    for (const e of activeEntries) {
+      this.scheduledReminders?.scheduleBookChoice(e.id, group.id).catch(() => {});
+    }
+
+    void this.invalidateMonthsCache(subscriptionSlug);
+    return group;
+  }
+
+  async deleteChoiceGroup(subscriptionSlug: string, year: number, month: number, choiceGroupId: string) {
+    const subscription = await this.getSubscriptionMonths(subscriptionSlug);
+    const monthRecord = await this.getMonth(subscription.id, year, month);
+
+    const group = await this.prisma.subscriptionMonthChoiceGroup.findUnique({ where: { id: choiceGroupId } });
+    if (!group || group.monthId !== monthRecord.id) {
+      throw new NotFoundException('Choice group not found on this month');
+    }
+
+    // Member books are kept (choiceGroupId set null via onDelete:SetNull) — they just go
+    // back to being unconditionally-included books, same as any month without a choice group.
+    await this.prisma.subscriptionMonthChoiceGroup.delete({ where: { id: choiceGroupId } });
+    void this.invalidateMonthsCache(subscriptionSlug);
+    return { success: true };
+  }
+
+  /** Choice groups for a month, with each option's book/edition info and (if userId given) the caller's own pick. */
+  async getMonthChoiceGroups(subscriptionSlug: string, year: number, month: number, userId?: string) {
+    const subscription = await this.getSubscriptionMonths(subscriptionSlug);
+    const monthRecord = await this.getMonth(subscription.id, year, month);
+
+    const groups = await this.prisma.subscriptionMonthChoiceGroup.findMany({
+      where: { monthId: monthRecord.id },
+      include: {
+        options: {
+          select: {
+            id: true,
+            bookId: true,
+            editionId: true,
+            signatureType: true,
+            book: { select: { id: true, title: true, slug: true } },
+            edition: {
+              select: {
+                id: true,
+                slug: true,
+                additionalImages: true,
+                bookBoxCompanyCustomName: true,
+                bookBoxCompany: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!userId || groups.length === 0) {
+      return groups.map((g) => ({ ...g, myChoice: null }));
+    }
+
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: subscription.id },
+      orderBy: [{ active: 'desc' }, { startDate: 'desc' }],
+      select: { id: true },
+    });
+    if (!entry) return groups.map((g) => ({ ...g, myChoice: null }));
+
+    const myChoices = await this.prisma.userSubscriptionMonthChoice.findMany({
+      where: { subscriptionEntryId: entry.id, choiceGroupId: { in: groups.map((g) => g.id) } },
+      select: { choiceGroupId: true, source: true, selections: { select: { monthBookId: true } } },
+    });
+    const byGroup = new Map(myChoices.map((c) => [c.choiceGroupId, c]));
+
+    return groups.map((g) => {
+      const mine = byGroup.get(g.id);
+      return {
+        ...g,
+        myChoice: mine ? { source: mine.source, monthBookIds: mine.selections.map((s) => s.monthBookId) } : null,
+      };
+    });
+  }
+
+  /** The current user picks their own option(s) for an open choice group. */
+  async submitMonthChoice(
+    subscriptionSlug: string,
+    year: number,
+    month: number,
+    choiceGroupId: string,
+    userId: string,
+    dto: SubmitMonthChoiceDto,
+  ) {
+    const subscription = await this.getSubscriptionMonths(subscriptionSlug);
+    const monthRecord = await this.getMonth(subscription.id, year, month);
+
+    const group = await this.prisma.subscriptionMonthChoiceGroup.findUnique({
+      where: { id: choiceGroupId },
+      include: { options: { select: { id: true } } },
+    });
+    if (!group || group.monthId !== monthRecord.id) {
+      throw new NotFoundException('Choice group not found on this month');
+    }
+
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId: subscription.id, active: true },
+      select: { id: true },
+    });
+    if (!entry) throw new NotFoundException('No active subscription entry found');
+
+    const choice = await persistMonthChoice(this.prisma, group, entry.id, dto.monthBookIds, 'user');
+    // Resolved — no need to keep reminding this user about this specific choice group.
+    this.scheduledReminders?.cancelBookChoice(entry.id, choiceGroupId).catch(() => {});
+    return choice;
+  }
+
+  /** An admin retroactively records which option a user received for a past month. */
+  async submitAdminBackfillChoice(
+    subscriptionSlug: string,
+    year: number,
+    month: number,
+    choiceGroupId: string,
+    dto: AdminBackfillChoiceDto,
+  ) {
+    const subscription = await this.getSubscriptionMonths(subscriptionSlug);
+    const monthRecord = await this.getMonth(subscription.id, year, month);
+
+    const group = await this.prisma.subscriptionMonthChoiceGroup.findUnique({
+      where: { id: choiceGroupId },
+      include: { options: { select: { id: true } } },
+    });
+    if (!group || group.monthId !== monthRecord.id) {
+      throw new NotFoundException('Choice group not found on this month');
+    }
+
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId: dto.userId, subscriptionId: subscription.id },
+      orderBy: [{ active: 'desc' }, { startDate: 'desc' }],
+      select: { id: true },
+    });
+    if (!entry) throw new NotFoundException('No subscription entry found for this user');
+
+    const choice = await persistMonthChoice(this.prisma, group, entry.id, dto.monthBookIds, 'admin_backfill');
+    this.scheduledReminders?.cancelBookChoice(entry.id, choiceGroupId).catch(() => {});
+    return choice;
   }
 
   async getMySubscriptionHistory(userId: string, slug: string) {
@@ -2148,10 +2362,10 @@ export class SubscriptionsService {
         const monthIds = monthsInRange.map((m) => m.id);
         if (monthIds.length > 0) {
           const monthBooks = await this.prisma.subscriptionMonthBook.findMany({
-            where: { monthId: { in: monthIds }, editionId: { not: null } },
+            where: { monthId: { in: monthIds } },
             select: { editionId: true, bookId: true },
           });
-          const editionIds = monthBooks.map((mb) => mb.editionId).filter((id): id is string => id != null);
+          const editionIds = monthBooks.map((mb) => mb.editionId);
           const bookIds = monthBooks.map((mb) => mb.bookId);
 
           if (editionIds.length > 0 || bookIds.length > 0) {
@@ -2869,7 +3083,7 @@ export class SubscriptionsService {
         ],
       },
       include: {
-        books: { select: { editionId: true, bookId: true, signatureType: true } },
+        books: { select: { id: true, editionId: true, bookId: true, signatureType: true, choiceGroupId: true } },
       },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
     });
@@ -2877,7 +3091,10 @@ export class SubscriptionsService {
     if (!firstMonth || firstMonth.books.length === 0) return;
 
     const purchaseDate = new Date(Date.UTC(firstMonth.year, firstMonth.month - 1, renewalDay));
-    const monthBooks = firstMonth.books.filter(mb => mb.editionId && mb.bookId);
+    const monthBooks = await resolveMonthBooksForEntry(this.prisma, 
+      entryId,
+      firstMonth.books.filter(mb => mb.editionId && mb.bookId),
+    );
 
     // Fetch fee templates for this entry (they were just saved before calling this function)
     const feeTemplateLinks = await this.prisma.userSubscriptionEntryFeeTemplate.findMany({
@@ -3291,7 +3508,7 @@ export class SubscriptionsService {
         month: true,
         signatureType: true,
         books: {
-          select: { editionId: true, bookId: true, signatureType: true },
+          select: { id: true, editionId: true, bookId: true, signatureType: true, choiceGroupId: true },
         },
       },
     });
@@ -3405,17 +3622,17 @@ export class SubscriptionsService {
           })();
 
       // Aggregate books from every month in this unit, deduped by editionId.
-      const unitBookMap = new Map<string, { editionId: string; bookId: string; signatureType: $Enums.SignatureType | null }>();
+      const unitBookMap = new Map<string, { id: string; editionId: string; bookId: string; signatureType: $Enums.SignatureType | null; choiceGroupId: string | null }>();
       for (const mid of unit.monthIds) {
         const rec = monthMap.get(mid);
         if (!rec) continue;
         for (const mb of rec.books) {
           if (mb.editionId && mb.bookId && !unitBookMap.has(mb.editionId)) {
-            unitBookMap.set(mb.editionId, { editionId: mb.editionId, bookId: mb.bookId, signatureType: mb.signatureType });
+            unitBookMap.set(mb.editionId, { id: mb.id, editionId: mb.editionId, bookId: mb.bookId, signatureType: mb.signatureType, choiceGroupId: mb.choiceGroupId });
           }
         }
       }
-      const monthBooks = Array.from(unitBookMap.values());
+      const monthBooks = await resolveMonthBooksForEntry(this.prisma, entry.id, Array.from(unitBookMap.values()));
 
       const batchInfo = batchByMonthId.get(monthId);
       const batch = batchInfo?.batch;
@@ -4365,7 +4582,7 @@ export class SubscriptionsService {
             year: true,
             month: true,
             signatureType: true,
-            books: { select: { editionId: true, bookId: true, signatureType: true } },
+            books: { select: { id: true, editionId: true, bookId: true, signatureType: true, choiceGroupId: true } },
           },
         });
         if (!subMonth || subMonth.books.length === 0) continue;
@@ -4393,7 +4610,11 @@ export class SubscriptionsService {
           },
         });
 
-        for (const mb of subMonth.books) {
+        const unskippedMonthBooks = await resolveMonthBooksForEntry(this.prisma, 
+          entry.id,
+          subMonth.books.filter(mb => mb.editionId && mb.bookId),
+        );
+        for (const mb of unskippedMonthBooks) {
           if (!mb.editionId || !mb.bookId) continue;
           await this.upsertSubscriptionBookEntry({
             userId,

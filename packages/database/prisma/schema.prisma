@@ -413,6 +413,11 @@ model Subscription {
   waitlistLink         String?
   isContentStream      Boolean                      @default(false)
   isBundleSubscription Boolean                      @default(false)
+  /// Set once in admin settings for subscriptions that run on the book-choice model every
+  /// month. When true, attaching 2+ editions to a month implies a choice group by default
+  /// instead of requiring the admin to opt in per month. Purely an admin-setup convenience —
+  /// does not change resolution/notification behavior.
+  hasBookChoiceMonths  Boolean                      @default(false)
   paymentOnStartup              Boolean                      @default(false)
   renewalMonthOffset            Int                          @default(0)
   signupIncludesCurrentMonth    Boolean                      @default(false)
@@ -573,6 +578,7 @@ model SubscriptionMonth {
   signatureType  SignatureType?
   cardArtistId   String?
   books          SubscriptionMonthBook[]
+  choiceGroups   SubscriptionMonthChoiceGroup[]
   cardArtist     Artist?                 @relation(fields: [cardArtistId], references: [id])
   series         SubscriptionSeries?     @relation(fields: [seriesId], references: [id])
   subscription   Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
@@ -591,18 +597,85 @@ model SubscriptionMonthBook {
   id            String            @id @default(uuid())
   monthId       String
   bookId        String
-  editionId     String?
+  /// Always required (enforced at the DTO/service layer — see AddMonthBookDto).
+  /// Identity for uniqueness is anchored to the edition, not the book: this is what's
+  /// actually shipped, and it's what lets two variants of the same book coexist in one
+  /// month as choice-group alternatives (see choiceGroupId) without being a "duplicate".
+  editionId     String
   isMainBook    Boolean           @default(true)
   sortOrder     Int               @default(0)
   signatureType SignatureType?
+  choiceGroupId String?
   book          Book              @relation(fields: [bookId], references: [id])
-  edition       BookEdition?      @relation(fields: [editionId], references: [id])
+  edition       BookEdition       @relation(fields: [editionId], references: [id])
   month         SubscriptionMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  choiceGroup   SubscriptionMonthChoiceGroup?  @relation(fields: [choiceGroupId], references: [id], onDelete: SetNull)
+  choiceSelections UserMonthBookChoiceSelection[]
 
-  @@unique([monthId, bookId])
+  @@unique([monthId, editionId])
   @@index([bookId])
   @@index([editionId])
+  @@index([choiceGroupId])
   @@map("subscription_month_books")
+}
+
+/// Groups 2+ SubscriptionMonthBook rows (distinct editions) in the same month as
+/// mutually-selectable alternatives. Purely semantic/business grouping — the DB
+/// uniqueness that allows two editions of one book to coexist lives on
+/// SubscriptionMonthBook's own [monthId, editionId] unique constraint, not here.
+model SubscriptionMonthChoiceGroup {
+  id             String    @id @default(uuid())
+  monthId        String
+  label          String?
+  /// Whether a user may select more than one alternative (e.g. "both books").
+  allowMultiple  Boolean   @default(true)
+  /// Deadline fields mirror SubscriptionSkipPolicy's shape for consistency.
+  choiceDeadlineDaysBefore Int    @default(0)
+  choiceDeadlineType       String @default("DAYS_BEFORE")
+  choiceDeadlineDayOfMonth Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  month          SubscriptionMonth              @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  options        SubscriptionMonthBook[]
+  userChoices    UserSubscriptionMonthChoice[]
+
+  @@index([monthId])
+  @@map("subscription_month_choice_groups")
+}
+
+/// A single user's resolved selection for one choice group (1 row per user per group).
+/// Which specific edition(s) they picked lives in UserMonthBookChoiceSelection.
+model UserSubscriptionMonthChoice {
+  id                   String   @id @default(uuid())
+  subscriptionEntryId  String
+  choiceGroupId        String
+  /// 'user' = self-service pick, 'admin_backfill' = retroactively set by an admin for a
+  /// past month, 'default' = deadline passed with no pick — both books resolved automatically.
+  source               String   @default("user")
+  selectedAt           DateTime @default(now())
+
+  entry        UserSubscriptionEntry         @relation(fields: [subscriptionEntryId], references: [id], onDelete: Cascade)
+  choiceGroup  SubscriptionMonthChoiceGroup  @relation(fields: [choiceGroupId], references: [id], onDelete: Cascade)
+  selections   UserMonthBookChoiceSelection[]
+
+  @@unique([choiceGroupId, subscriptionEntryId])
+  @@index([subscriptionEntryId])
+  @@map("user_subscription_month_choices")
+}
+
+/// Join table: which SubscriptionMonthBook option(s) (1, or 2 if allowMultiple) a
+/// UserSubscriptionMonthChoice resolved to.
+model UserMonthBookChoiceSelection {
+  userChoiceId String
+  monthBookId  String
+
+  userChoice UserSubscriptionMonthChoice @relation(fields: [userChoiceId], references: [id], onDelete: Cascade)
+  monthBook  SubscriptionMonthBook       @relation(fields: [monthBookId], references: [id], onDelete: Cascade)
+
+  @@id([userChoiceId, monthBookId])
+  @@index([monthBookId])
+  @@map("user_month_book_choice_selections")
 }
 
 model SaleAnnouncement {
@@ -845,6 +918,7 @@ model UserSubscriptionEntry {
   costChanges        UserSubscriptionCostChange[]
   bookEntries        UserBookEntry[]
   renewalHistory     UserSubscriptionRenewal[]
+  monthChoices       UserSubscriptionMonthChoice[]
   subscription       Subscription                       @relation(fields: [subscriptionId], references: [id])
   user               User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
   feeTemplates       UserSubscriptionEntryFeeTemplate[]
@@ -1057,6 +1131,14 @@ model UserReminderSettings {
   saleMinutesBefore    Int?     @default(180)
   saleDigest           Boolean  @default(false)
 
+  /// Unlike renewal/sale (opt-in, default false), this defaults to true: missing a book
+  /// choice has a real consequence (both books ship, user must self-correct), so it's
+  /// active automatically as soon as a subscriber joins a subscription with an open choice.
+  bookChoiceEnabled       Boolean  @default(true)
+  bookChoiceInAppEnabled  Boolean  @default(true)
+  bookChoicePushEnabled   Boolean  @default(false)
+  bookChoiceDaysBefore    Int      @default(3)
+
   appNotifPushEnabled  Boolean  @default(false)
 
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1074,6 +1156,10 @@ model ScheduledReminder {
   entryId        String?
   announcementId String?
   tier           String?
+  /// Only used for type='book_choice' — scopes the reminder to one specific choice group so
+  /// it can be cancelled individually once that group is resolved, without touching other
+  /// choice groups that might still be pending for the same entry.
+  choiceGroupId  String?
   createdAt      DateTime  @default(now())
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1081,6 +1167,7 @@ model ScheduledReminder {
   @@index([scheduledAt, sentAt, cancelledAt])
   @@index([entryId])
   @@index([userId, announcementId])
+  @@index([entryId, choiceGroupId])
   @@map("scheduled_reminders")
 }
 

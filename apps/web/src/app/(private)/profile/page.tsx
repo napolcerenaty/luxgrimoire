@@ -937,6 +937,10 @@ interface ReminderSettings {
   saleDaysBefore: number
   saleMinutesBefore: number | null
   saleDigest: boolean
+  bookChoiceEnabled: boolean
+  bookChoiceInAppEnabled: boolean
+  bookChoicePushEnabled: boolean
+  bookChoiceDaysBefore: number
   appNotifPushEnabled: boolean
 }
 
@@ -1009,6 +1013,7 @@ function NotificationsTab() {
     renewalDaysBefore: 1, renewalHour: null, renewalDigest: true,
     saleEnabled: false, saleInAppEnabled: true, salePushEnabled: false,
     saleDaysBefore: 0, saleMinutesBefore: 180, saleDigest: false,
+    bookChoiceEnabled: true, bookChoiceInAppEnabled: true, bookChoicePushEnabled: false, bookChoiceDaysBefore: 3,
     appNotifPushEnabled: false,
   }
 
@@ -1185,6 +1190,49 @@ function NotificationsTab() {
                 <p className={TOGGLE_SUBLABEL}>Combine multiple sales on the same day into one notification</p>
               </div>
               <Toggle checked={s.saleDigest} onChange={(v) => update({ saleDigest: v })} />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Book Choice Reminders */}
+      <section className={SECTION}>
+        <div className={TOGGLE_ROW}>
+          <div>
+            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Book Choice Reminders</h3>
+            <p className={TOGGLE_SUBLABEL}>Get reminded when a subscription month lets you pick between book options. On by default — if you miss the deadline, both books are added and you can remove the one you don't want yourself.</p>
+          </div>
+          <Toggle checked={s.bookChoiceEnabled} onChange={(v) => update({ bookChoiceEnabled: v })} />
+        </div>
+
+        {s.bookChoiceEnabled && (
+          <div className="space-y-4 pt-2 border-t border-stone-800">
+            {/* Delivery channels */}
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <Toggle checked={s.bookChoiceInAppEnabled} onChange={(v) => update({ bookChoiceInAppEnabled: v })} />
+                <span className={TOGGLE_LABEL}>In-app</span>
+              </label>
+              {isSupported && isSubscribed && (
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <Toggle checked={s.bookChoicePushEnabled} onChange={(v) => update({ bookChoicePushEnabled: v })} />
+                  <span className={TOGGLE_LABEL}>Push</span>
+                </label>
+              )}
+            </div>
+
+            {/* Timing */}
+            <div>
+              <p className="text-xs text-stone-400 mb-2">When to remind</p>
+              <select
+                value={s.bookChoiceDaysBefore}
+                onChange={(e) => update({ bookChoiceDaysBefore: Number(e.target.value) })}
+                className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+              >
+                {[0, 1, 2, 3, 5, 7, 10, 14].map((d) => (
+                  <option key={d} value={d}>{d === 0 ? 'On the deadline day' : `${d} day${d > 1 ? 's' : ''} before deadline`}</option>
+                ))}
+              </select>
             </div>
           </div>
         )}
