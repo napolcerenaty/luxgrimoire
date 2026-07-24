@@ -4,18 +4,13 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Bell, BellOff, Loader2, MapPin, Tag } from 'lucide-react'
-import { useSaleInterest, type SaleTier } from '@/hooks/useSaleInterest'
+import { useSaleInterest } from '@/hooks/useSaleInterest'
 import { useAuth } from '@/components/AuthProvider'
 import { formatTierDate } from '@/lib/saleDates'
-import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
+import { getTiersForRegion } from '@/lib/saleTiers'
+import type { ApiSaleAnnouncement, ApiSaleTier } from '@luxgrimoire/shared-types'
 
 type Region = NonNullable<ApiSaleAnnouncement['regions']>[0]
-
-const ALL_TIERS: { value: SaleTier; label: string }[] = [
-  { value: 'FA', label: 'First Access' },
-  { value: 'EA', label: 'Early Access' },
-  { value: 'GS', label: 'General Sale' },
-]
 
 function findDefaultRegion(regions: Region[], shippingCountry?: string | null, preferredCurrency?: string | null): Region | null {
   if (shippingCountry) {
@@ -32,24 +27,13 @@ function findDefaultRegion(regions: Region[], shippingCountry?: string | null, p
   return regions.find(r => r.isDefault) ?? regions[0] ?? null
 }
 
-function resolveDates(
-  sale: Pick<ApiSaleAnnouncement, 'firstAccessDate' | 'earlyAccessDate' | 'generalSaleDate'>,
-  region: Region | null,
-) {
-  return {
-    FA: region?.firstAccessDate ?? sale.firstAccessDate ?? null,
-    EA: region?.earlyAccessDate ?? sale.earlyAccessDate ?? null,
-    GS: region?.generalSaleDate ?? sale.generalSaleDate ?? null,
-  }
-}
-
 function formatPrice(price: number, currency: string | null | undefined) {
   const sym = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : (currency ?? '')
   return `${sym}${price}`
 }
 
 interface Props {
-  sale: Pick<ApiSaleAnnouncement, 'id' | 'firstAccessDate' | 'earlyAccessDate' | 'generalSaleDate' | 'regions' | 'basePrice'>
+  sale: Pick<ApiSaleAnnouncement, 'id' | 'tiers' | 'regions' | 'basePrice'>
   subscriberBasePrice?: number | null
   currency?: string | null
   compact?: boolean
@@ -59,7 +43,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
   const { user } = useAuth()
   const router = useRouter()
   const hour12 = user?.timeFormat === '12h'
-  const { isInterested, tier, regionId: savedRegionId, selectedPrice, loading, setInterest, removeInterest } = useSaleInterest(sale.id)
+  const { isInterested, tierId, tierName, regionId: savedRegionId, selectedPrice, loading, setInterest, removeInterest } = useSaleInterest(sale.id)
   const [open, setOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
   const [isMobile, setIsMobile] = useState(false)
@@ -105,7 +89,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
   const effectiveSubscriberPrice = (effectiveRegion as (Region & { subscriberBasePrice?: number | null }))?.subscriberBasePrice ?? subscriberBasePrice
   const hasSubscriberPrice = effectiveSubscriberPrice != null && effectiveSubscriberPrice > 0
 
-  const dates = resolveDates(sale, effectiveRegion)
+  const availableTiers = getTiersForRegion(sale.tiers, effectiveRegion?.id ?? null)
 
   // Price mode: default to 'subscriber' when subscriber price exists
   const [priceMode, setPriceMode] = useState<'subscriber' | 'regular'>(() => {
@@ -125,12 +109,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
     ? (priceMode === 'subscriber' ? effectiveSubscriberPrice : null)
     : null
 
-  const availableTiers = ALL_TIERS.filter(t => {
-    if (t.value === 'FA') return !!dates.FA
-    if (t.value === 'EA') return !!dates.EA
-    return true
-  })
-  const onlyGS = availableTiers.length === 1
+  const onlyOneTier = availableTiers.length === 1
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -139,9 +118,10 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
       router.push(`/login?returnTo=${returnTo}`)
       return
     }
-    if (onlyGS && !hasRegions && !hasSubscriberPrice) {
+    if (onlyOneTier && !hasRegions && !hasSubscriberPrice) {
+      const onlyTier = availableTiers[0]
       if (isInterested) removeInterest()
-      else setInterest('GS', effectiveRegion?.id ?? null)
+      else if (onlyTier) setInterest(onlyTier.id, onlyTier.name, onlyTier.regionId)
       return
     }
     if (!isMobile && btnRef.current) {
@@ -163,7 +143,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
     setOpen(v => !v)
   }
 
-  const pickTier = async (t: SaleTier) => {
+  const pickTier = async (t: ApiSaleTier) => {
     // Save actual price: subscriber price when subscriber mode, base price when regular
     // null means "never set" — using actual regular price lets SaleInterestSection distinguish the two
     const regularPrice = (effectiveRegion as typeof effectiveRegion & { basePrice?: number | null })?.basePrice ?? sale.basePrice
@@ -171,7 +151,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
       ? (priceMode === 'subscriber' ? effectiveSubscriberPrice : (regularPrice ?? null))
       : null
     const priceCurrency = price != null ? (currency ?? null) : null
-    await setInterest(t, effectiveRegion?.id ?? null, price, priceCurrency)
+    await setInterest(t.id, t.name, t.regionId, price, priceCurrency)
     setOpen(false)
   }
 
@@ -232,7 +212,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
         ref={btnRef}
         type="button"
         onClick={handleClick}
-        title={isInterested ? `Interested (${tier}) — click to change` : 'Mark as interested'}
+        title={isInterested ? `Interested (${tierName}) — click to change` : 'Mark as interested'}
         className={`
           flex items-center gap-1.5 rounded-full transition-all duration-150
           ${compact ? 'p-1.5' : 'px-3 py-1.5 text-xs font-medium'}
@@ -243,7 +223,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
       >
         {isInterested ? <Bell size={14} className="fill-current" /> : <Bell size={14} />}
         {!compact && (
-          <span>{isInterested ? `Interested · ${tier}` : 'Interested?'}</span>
+          <span>{isInterested ? `Interested · ${tierName}` : 'Interested?'}</span>
         )}
       </button>
 
@@ -288,20 +268,20 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
 
               <div className="flex flex-col gap-2">
                 {availableTiers.map(t => {
-                  const formattedDate = formatTierDate(dates[t.value], hour12)
+                  const formattedDate = formatTierDate(t.date, hour12)
                   return (
                     <button
-                      key={t.value}
+                      key={t.id}
                       type="button"
-                      onClick={() => pickTier(t.value)}
+                      onClick={() => pickTier(t)}
                       className={`
                         w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-sm transition-colors
-                        ${tier === t.value && isInterested
+                        ${tierId === t.id && isInterested
                           ? 'bg-violet-800/60 text-violet-200 border border-violet-600'
                           : 'bg-stone-800 text-stone-300 border border-stone-700 active:bg-stone-700'}
                       `}
                     >
-                      <span className="font-medium">{t.label}</span>
+                      <span className="font-medium">{t.name}</span>
                       {formattedDate
                         ? <span className="text-xs text-stone-400 font-mono tabular-nums">{formattedDate}</span>
                         : <span className="text-xs text-stone-600 font-mono">–</span>
@@ -396,20 +376,20 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                 </p>
 
                 {availableTiers.map(t => {
-                  const formattedDate = formatTierDate(dates[t.value], hour12)
+                  const formattedDate = formatTierDate(t.date, hour12)
                   return (
                     <button
-                      key={t.value}
+                      key={t.id}
                       type="button"
-                      onClick={() => pickTier(t.value)}
+                      onClick={() => pickTier(t)}
                       className={`
                         w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors
-                        ${tier === t.value && isInterested
+                        ${tierId === t.id && isInterested
                           ? 'bg-violet-800/60 text-violet-200'
                           : 'hover:bg-stone-800 text-stone-300'}
                       `}
                     >
-                      <span className="font-medium">{t.label}</span>
+                      <span className="font-medium">{t.name}</span>
                       {formattedDate
                         ? <span className="text-xs text-stone-400 font-mono tabular-nums">{formattedDate}</span>
                         : <span className="text-xs text-stone-600 font-mono">–</span>

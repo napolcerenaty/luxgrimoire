@@ -1,29 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
+import type { ApiSaleAnnouncement, ApiSaleTier } from '@luxgrimoire/shared-types'
 import { useAuth } from '@/components/AuthProvider'
+import { getTiersForRegion } from '@/lib/saleTiers'
 
 type Region = NonNullable<ApiSaleAnnouncement['regions']>[0]
 
 interface Props {
   regions: Region[]
+  tiers: ApiSaleTier[]
   fallback: {
-    generalSaleDate: string | null
-    firstAccessDate: string | null
-    earlyAccessDate: string | null
-    endsAt?: string | null
     saleTimezone: string | null
     basePrice: number | null
     currency: string | null
   }
   userCountry?: string | null
-}
-
-const ACCESS_LABELS: Record<string, string> = {
-  firstAccess: '🔑 First Access',
-  earlyAccess: '⚡ Early Access',
-  general: '🛒 General Sale',
 }
 
 function findRegion(regions: Region[], countryCode: string | null | undefined, currency?: string | null): Region | null {
@@ -89,11 +81,11 @@ function Countdown({ ms }: { ms: number | null }) {
   )
 }
 
-export default function SaleDateSelector({ regions, fallback, userCountry }: Props) {
+export default function SaleDateSelector({ regions, tiers, fallback, userCountry }: Props) {
   const { user } = useAuth()
   const hour12 = user?.timeFormat === '12h'
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
-  const [selectedAccess, setSelectedAccess] = useState<'earlyAccess' | 'firstAccess' | 'general'>('general')
+  const [selectedTierId, setSelectedTierId] = useState<string | null>(null)
   const [userTz, setUserTz] = useState<string | null>(null)
 
   useEffect(() => {
@@ -108,26 +100,25 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
   const effectiveRegionId = selectedRegionId ?? autoRegion?.id ?? regions.find(r => r.isDefault)?.id ?? regions[0]?.id ?? null
   const region = regions.find(r => r.id === effectiveRegionId) ?? null
 
-  const dates = {
-    earlyAccess: region?.earlyAccessDate ?? fallback.earlyAccessDate,
-    firstAccess: region?.firstAccessDate ?? fallback.firstAccessDate,
-    general: region?.generalSaleDate ?? fallback.generalSaleDate,
-  }
+  // Tiers are pre-sorted chronologically — the earliest one is the sensible default selection
+  // (mirrors the old "prefer firstAccess, then earlyAccess, then general" fallback order).
+  const availableTiers = getTiersForRegion(tiers, effectiveRegionId)
+  const effectiveTierId = selectedTierId ?? availableTiers[0]?.id ?? null
+  const selectedTier = availableTiers.find(t => t.id === effectiveTierId) ?? availableTiers[0] ?? null
+
   const tz = region?.saleTimezone ?? fallback.saleTimezone
   const price = region?.basePrice ?? fallback.basePrice
   const currency = region?.currency ?? fallback.currency
 
+  // Reset tier selection when the region changes — that region's tiers may differ entirely.
   useEffect(() => {
-    if (dates.firstAccess) setSelectedAccess('firstAccess')
-    else if (dates.earlyAccess) setSelectedAccess('earlyAccess')
-    else setSelectedAccess('general')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveRegionId, dates.earlyAccess, dates.firstAccess])
+    setSelectedTierId(null)
+  }, [effectiveRegionId])
 
-  const targetDate = dates[selectedAccess]
+  const targetDate = selectedTier?.date ?? null
   const countdown = useCountdown(targetDate)
 
-  if (!hasRegions && !dates.general && !dates.firstAccess && !dates.earlyAccess) {
+  if (!hasRegions && availableTiers.length === 0) {
     return null
   }
 
@@ -153,24 +144,24 @@ export default function SaleDateSelector({ regions, fallback, userCountry }: Pro
         </div>
       )}
 
-      {(dates.earlyAccess || dates.firstAccess) && (
+      {availableTiers.length > 1 && (
         <div>
           <label className="block text-xs text-stone-500 mb-1">🎟️ Your access type</label>
           <select
-            value={selectedAccess}
-            onChange={e => setSelectedAccess(e.target.value as typeof selectedAccess)}
+            value={effectiveTierId ?? ''}
+            onChange={e => setSelectedTierId(e.target.value)}
             className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm"
           >
-            {dates.firstAccess && <option value="firstAccess">{ACCESS_LABELS.firstAccess}</option>}
-            {dates.earlyAccess && <option value="earlyAccess">{ACCESS_LABELS.earlyAccess}</option>}
-            {dates.general && <option value="general">{ACCESS_LABELS.general}</option>}
+            {availableTiers.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
           </select>
         </div>
       )}
 
-      {targetDate && (
+      {targetDate && selectedTier && (
         <div>
-          <p className="text-xs text-stone-500">{ACCESS_LABELS[selectedAccess]} opens:</p>
+          <p className="text-xs text-stone-500">{selectedTier.name} opens:</p>
           <p className="text-stone-100 font-medium text-sm mt-0.5" suppressHydrationWarning>
             {formatDateInTz(targetDate, tz, userTz ?? undefined, hour12)}
           </p>

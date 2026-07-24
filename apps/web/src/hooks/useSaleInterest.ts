@@ -5,27 +5,36 @@ import { useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 
-export type SaleTier = 'FA' | 'EA' | 'GS'
-
 // ─── Shared module-level cache ───────────────────────────────────────────────
 // All hook instances for the same announcementId share state.
 // When any instance writes, all others update immediately (no re-fetch needed).
 
 interface CachedState {
   isInterested: boolean;
-  tier: SaleTier | null;
+  tierId: string | null;
+  tierName: string | null;
   regionId: string | null;
   selectedPrice: number | null;
   selectedPriceCurrency: string | null;
 }
 type SaleInterestRecord = {
   announcementId: string;
-  tier: string;
+  tierId: string | null;
   regionId?: string | null;
   selectedPrice?: number | null;
   selectedPriceCurrency?: string | null;
+  saleTier?: { id: string; name: string; date: string; regionId: string | null } | null;
 } | null
 type Listener = (s: CachedState) => void
+
+const EMPTY_STATE: CachedState = {
+  isInterested: false,
+  tierId: null,
+  tierName: null,
+  regionId: null,
+  selectedPrice: null,
+  selectedPriceCurrency: null,
+}
 
 const cache = new Map<string, CachedState>()
 const listeners = new Map<string, Set<Listener>>()
@@ -41,19 +50,24 @@ function subscribe(id: string, fn: Listener) {
   return () => { listeners.get(id)?.delete(fn) }
 }
 
+function fromRecord(data: SaleInterestRecord): CachedState {
+  if (!data?.announcementId) return EMPTY_STATE
+  return {
+    isInterested: true,
+    tierId: data.saleTier?.id ?? data.tierId ?? null,
+    tierName: data.saleTier?.name ?? null,
+    regionId: data.saleTier?.regionId ?? data.regionId ?? null,
+    selectedPrice: data.selectedPrice ?? null,
+    selectedPriceCurrency: data.selectedPriceCurrency ?? null,
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function useSaleInterest(announcementId: string | null) {
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const [state, setState] = useState<CachedState & { loading: boolean }>({
-    isInterested: false,
-    tier: null,
-    regionId: null,
-    selectedPrice: null,
-    selectedPriceCurrency: null,
-    loading: false,
-  })
+  const [state, setState] = useState<CachedState & { loading: boolean }>({ ...EMPTY_STATE, loading: false })
 
   useEffect(() => {
     if (!announcementId) return
@@ -72,29 +86,16 @@ export function useSaleInterest(announcementId: string | null) {
     if (!cached) {
       setState(s => ({ ...s, loading: true }))
       authFetch<SaleInterestRecord>(`/sale-interests/${announcementId}`)
-        .then(data => {
-          const next: CachedState = data?.announcementId
-            ? {
-                isInterested: true,
-                tier: data.tier as SaleTier,
-                regionId: data.regionId ?? null,
-                selectedPrice: data.selectedPrice ?? null,
-                selectedPriceCurrency: data.selectedPriceCurrency ?? null,
-              }
-            : { isInterested: false, tier: null, regionId: null, selectedPrice: null, selectedPriceCurrency: null }
-          broadcast(announcementId, next)
-        })
-        .catch(() => {
-          const next: CachedState = { isInterested: false, tier: null, regionId: null, selectedPrice: null, selectedPriceCurrency: null }
-          broadcast(announcementId, next)
-        })
+        .then(data => broadcast(announcementId, fromRecord(data)))
+        .catch(() => broadcast(announcementId, EMPTY_STATE))
     }
 
     return unsub
   }, [announcementId, user])
 
   const setInterest = useCallback(async (
-    tier: SaleTier,
+    tierId: string,
+    tierName: string,
     regionId?: string | null,
     selectedPrice?: number | null,
     selectedPriceCurrency?: string | null,
@@ -102,47 +103,39 @@ export function useSaleInterest(announcementId: string | null) {
     if (!announcementId) return
     broadcast(announcementId, {
       isInterested: true,
-      tier,
+      tierId,
+      tierName,
       regionId: regionId ?? null,
       selectedPrice: selectedPrice ?? null,
       selectedPriceCurrency: selectedPriceCurrency ?? null,
     })
     try {
+      // regionId is derived server-side from the tier itself — not sent.
       await authFetch(`/sale-interests/${announcementId}`, {
         method: 'POST',
         body: JSON.stringify({
-          tier,
-          regionId: regionId ?? null,
+          tierId,
           selectedPrice: selectedPrice ?? null,
           selectedPriceCurrency: selectedPriceCurrency ?? null,
         }),
       })
       queryClient.invalidateQueries({ queryKey: ['sale-interests'] })
     } catch {
-      broadcast(announcementId, { isInterested: false, tier: null, regionId: null, selectedPrice: null, selectedPriceCurrency: null })
+      broadcast(announcementId, EMPTY_STATE)
     }
   }, [announcementId, queryClient])
 
   const removeInterest = useCallback(async () => {
     if (!announcementId) return
-    broadcast(announcementId, { isInterested: false, tier: null, regionId: null, selectedPrice: null, selectedPriceCurrency: null })
+    broadcast(announcementId, EMPTY_STATE)
     try {
       await authFetch(`/sale-interests/${announcementId}`, { method: 'DELETE' })
       queryClient.invalidateQueries({ queryKey: ['sale-interests'] })
     } catch {
       // rollback — refetch to get real state
-      authFetch<SaleInterestRecord>(`/sale-interests/${announcementId}`).then(data => {
-        const next: CachedState = data?.announcementId
-          ? {
-              isInterested: true,
-              tier: data.tier as SaleTier,
-              regionId: data.regionId ?? null,
-              selectedPrice: data.selectedPrice ?? null,
-              selectedPriceCurrency: data.selectedPriceCurrency ?? null,
-            }
-          : { isInterested: false, tier: null, regionId: null, selectedPrice: null, selectedPriceCurrency: null }
-        broadcast(announcementId, next)
-      }).catch(() => {})
+      authFetch<SaleInterestRecord>(`/sale-interests/${announcementId}`)
+        .then(data => broadcast(announcementId, fromRecord(data)))
+        .catch(() => {})
     }
   }, [announcementId, queryClient])
 

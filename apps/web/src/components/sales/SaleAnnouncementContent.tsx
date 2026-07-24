@@ -139,10 +139,8 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
       <div className={compact ? 'mb-3' : 'mb-6'}>
         <SaleDateSelector
           regions={sale.regions ?? []}
+          tiers={sale.tiers ?? []}
           fallback={{
-            generalSaleDate: sale.generalSaleDate,
-            firstAccessDate: sale.firstAccessDate,
-            earlyAccessDate: sale.earlyAccessDate,
             saleTimezone: sale.saleTimezone,
             basePrice: sale.basePrice,
             currency: sale.currency,

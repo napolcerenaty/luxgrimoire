@@ -11,7 +11,8 @@ import { SaleCountdownCounter } from './SaleCountdownCounter'
 
 interface NextSale {
   date: string | null
-  tier: 'FA' | 'EA' | 'GS' | null
+  /** The tier's own free-text name (e.g. "First Access", "VIP Access") — no longer a fixed code. */
+  tier: string | null
   announcementId: string | null
   title: string | null
   personalized: boolean

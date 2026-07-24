@@ -9,21 +9,13 @@ import { parseDecimalInput } from '@/lib/parseDecimalInput'
 
 interface Props {
   sale: ApiSaleAnnouncement
-  preselectedTier?: 'FA' | 'EA' | 'GS'
   onClose: () => void
   onSuccess?: () => void
 }
 
-const TIERS = [
-  { value: 'FA', label: 'First Access' },
-  { value: 'EA', label: 'Early Access' },
-  { value: 'GS', label: 'General Sale' },
-] as const
-
-export function ConfirmPurchaseModal({ sale, preselectedTier = 'GS', onClose, onSuccess }: Props) {
+export function ConfirmPurchaseModal({ sale, onClose, onSuccess }: Props) {
   const editions = sale.editions ?? []
 
-  const [tier, setTier] = useState<'FA' | 'EA' | 'GS'>(preselectedTier)
   const [selectedEditionIds, setSelectedEditionIds] = useState<string[]>(
     editions.map(e => e.editionId).filter(Boolean) as string[]
   )
@@ -52,7 +44,6 @@ export function ConfirmPurchaseModal({ sale, preselectedTier = 'GS', onClose, on
       await authFetch(`/collection/bundles/from-sale/${sale.id}`, {
         method: 'POST',
         body: JSON.stringify({
-          tier,
           purchasedAt: new Date(purchasedAt).toISOString(),
           totalAmount: parseDecimalInput(totalAmount),
           currency: currency.toUpperCase(),
@@ -93,27 +84,6 @@ export function ConfirmPurchaseModal({ sale, preselectedTier = 'GS', onClose, on
             <h2 className="text-lg font-serif font-bold text-stone-100">Confirm Purchase</h2>
           </div>
           <p className="text-sm text-stone-400 -mt-2">{sale.title}</p>
-
-          {/* Tier */}
-          <div>
-            <label className="text-xs text-stone-500 uppercase tracking-wider block mb-2">Sale Tier</label>
-            <div className="flex gap-2">
-              {TIERS.map(t => (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setTier(t.value)}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                    tier === t.value
-                      ? 'bg-violet-800/60 border-violet-500 text-violet-200'
-                      : 'bg-stone-800 border-stone-700 text-stone-400 hover:text-stone-200'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Editions */}
           {editions.length > 0 && (

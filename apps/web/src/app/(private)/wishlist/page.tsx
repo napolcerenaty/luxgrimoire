@@ -47,22 +47,14 @@ interface PaginatedEntries {
   pageSize: number
 }
 
-interface SaleRegion {
-  id: string
-  isDefault: boolean
-  firstAccessDate: string | null
-  earlyAccessDate: string | null
-  generalSaleDate: string | null
-  endsAt: string | null
-}
-
 interface SaleInterestItem {
   userId: string
   announcementId: string
-  tier: string
-  regionId: string | null
   selectedPrice: number | null
   selectedPriceCurrency: string | null
+  /** The concrete tier this interest points at — its date IS the resolved date, no
+   *  FA/EA/GS fallback-chain needed. Null for pre-migration interests not yet backfilled. */
+  saleTier: { id: string; name: string; date: string; regionId: string | null } | null
   announcement: {
     id: string
     title: string
@@ -70,42 +62,16 @@ interface SaleInterestItem {
     basePrice: number | null
     subscriberBasePrice: number | null
     currency: string | null
-    generalSaleDate: string | null
-    earlyAccessDate: string | null
-    firstAccessDate: string | null
     endsAt: string | null
     saleType: string | null
     company: { id: string; name: string; slug: string; logoUrl: string | null; brandColors?: string[] | null } | null
-    regions: SaleRegion[]
   }
 }
 
-// Mirrors SaleInterestsService.resolveTierDate on the backend: prefers the selected (or the
-// sale's default) region's dates over the top-level ones — sales with per-country dates leave
-// the top-level fields null entirely — and every tier falls back to *any* other known date, not
-// just "later" ones, so a followed sale never silently disappears just because its own tier's
-// date isn't set yet.
 function getEffectiveDate(interest: SaleInterestItem): string | null {
-  const { announcement: sa, regionId, tier } = interest
-  const regions = sa.regions ?? []
-  const region = (regionId ? regions.find((r) => r.id === regionId) : null)
-    ?? (regions.length > 0 ? (regions.find((r) => r.isDefault) ?? regions[0]) : null)
-  const pick = (regionDate: string | null | undefined, annDate: string | null) => regionDate ?? annDate
-
-  if (sa.saleType === 'OPEN_PREORDER') return pick(region?.endsAt, sa.endsAt)
-
-  const fa = pick(region?.firstAccessDate, sa.firstAccessDate)
-  const ea = pick(region?.earlyAccessDate, sa.earlyAccessDate)
-  const gs = pick(region?.generalSaleDate, sa.generalSaleDate)
-  if (tier === 'FA') return fa ?? ea ?? gs
-  if (tier === 'EA') return ea ?? gs ?? fa
-  return gs ?? ea ?? fa
-}
-
-function tierLabel(tier: string): string {
-  if (tier === 'FA') return 'First Access'
-  if (tier === 'EA') return 'Early Access'
-  return 'General Sale'
+  // OPEN_PREORDER has no tier "opens at" moment — the relevant date is the closing deadline.
+  if (interest.announcement.saleType === 'OPEN_PREORDER') return interest.announcement.endsAt
+  return interest.saleTier?.date ?? null
 }
 
 const OWNERSHIP_OPTIONS = [
@@ -551,7 +517,7 @@ export default function WishlistPage() {
                   const dateLabel = effectiveDate
                     ? new Date(effectiveDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
                     : null
-                  const tl = tierLabel(interest.tier)
+                  const tl = interest.saleTier?.name ?? 'General Sale'
 
                   return (
                     <div key={sa.id} className="relative flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10 group">

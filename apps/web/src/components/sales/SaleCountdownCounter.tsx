@@ -2,12 +2,6 @@
 
 import { useEffect, useState } from 'react'
 
-const TIER_LABEL: Record<string, string> = {
-  FA: 'First Access',
-  EA: 'Early Access',
-  GS: 'General Sale',
-}
-
 function getCountdown(target: Date) {
   const diff = Math.max(0, target.getTime() - Date.now())
   const days = Math.floor(diff / 86400000)
@@ -30,7 +24,8 @@ function Segment({ value, label }: { value: number; label: string }) {
 
 interface Props {
   date: string
-  tier: 'FA' | 'EA' | 'GS'
+  /** The tier's own free-text name (e.g. "First Access", "VIP Access") — no longer a fixed code. */
+  tier: string
   title: string | null
   personalized: boolean
 }
@@ -48,7 +43,7 @@ export function SaleCountdownCounter({ date, tier, title, personalized }: Props)
   return (
     <div className="rounded-2xl border border-amber-800/40 bg-gradient-to-br from-stone-900 to-amber-950/20 p-5">
       <p className="text-xs uppercase tracking-widest text-amber-600 font-medium mb-1">
-        {personalized ? `Your ${TIER_LABEL[tier]} countdown` : `Next sale — ${TIER_LABEL[tier]}`}
+        {personalized ? `Your ${tier} countdown` : `Next sale — ${tier}`}
       </p>
       {title && <p title={title} className="text-sm text-stone-300 font-serif mb-3 line-clamp-1">{title}</p>}
       {countdown.done ? (
