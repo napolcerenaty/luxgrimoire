@@ -5,11 +5,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
-import { SeriesPicker } from './pickers/SeriesPicker'
 import { GenreTagsPicker } from './pickers/GenreTagsPicker'
 import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type FeaturePreviewHandle, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
-import { GoodreadsParser, type AiBookResult } from './BookForm'
+import { GoodreadsParser, SeriesEntriesEditor, seriesEntriesToPayload, StagedComponentsEditor, type AiBookResult, type SeriesEntryFormState, type StagedComponent } from './BookForm'
 import { INP, LBL, BTN_PRIMARY, BTN_GHOST } from '@/lib/adminFormStyles'
 import { computeGeneralSaleDatePrefill } from '@/lib/generalSalePrefill'
 
@@ -76,8 +75,9 @@ export default function CreateBookEditionForm({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [authors, setAuthors] = useState<PersonEntry[]>([])
-  const [seriesName, setSeriesName] = useState('')
-  const [volumeNumber, setVolumeNumber] = useState('')
+  const [seriesEntries, setSeriesEntries] = useState<SeriesEntryFormState[]>([])
+  const [isOmnibus, setIsOmnibus] = useState(false)
+  const [stagedComponents, setStagedComponents] = useState<StagedComponent[]>([])
   const [genres, setGenres] = useState<string[]>([])
   const [createdBookId, setCreatedBookId] = useState(existingBookId ?? '')
   const [createdBookSlug, setCreatedBookSlug] = useState('')
@@ -135,8 +135,13 @@ export default function CreateBookEditionForm({
   const applyAiResult = (r: AiParseResult) => {
     if (r.book?.title && !title) setTitle(r.book.title)
     if (r.book?.description && !description) setDescription(r.book.description)
-    if (r.book?.seriesName) setSeriesName(r.book.seriesName)
-    if (r.book?.volumeNumber != null) setVolumeNumber(String(r.book.volumeNumber))
+    if (r.book?.seriesName) {
+      setSeriesEntries([{
+        seriesName: r.book.seriesName,
+        volumeNumbers: r.book.volumeNumber != null ? String(r.book.volumeNumber) : '',
+        isPrimary: true,
+      }])
+    }
     if (r.book?.genres?.length) {
       setGenres(prev => Array.from(new Set([...prev, ...r.book!.genres!])))
     }
@@ -172,8 +177,13 @@ export default function CreateBookEditionForm({
   const applyGoodreadsResult = (data: AiBookResult) => {
     if (data.title) setTitle(data.title)
     if (data.description) setDescription(data.description)
-    if (data.seriesName) setSeriesName(data.seriesName)
-    if (data.volumeNumber != null) setVolumeNumber(String(data.volumeNumber))
+    if (data.seriesName) {
+      setSeriesEntries([{
+        seriesName: data.seriesName,
+        volumeNumbers: data.volumeNumber != null ? String(data.volumeNumber) : '',
+        isPrimary: true,
+      }])
+    }
     if (Array.isArray(data.genres) && data.genres.length) setGenres(data.genres.slice(0, 5))
     if (Array.isArray(data.authors) && data.authors.length) {
       setAuthors(prev => {
@@ -237,8 +247,7 @@ export default function CreateBookEditionForm({
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim() || undefined,
-          seriesName: seriesName.trim() || undefined,
-          volumeNumber: volumeNumber ? Number(volumeNumber) : undefined,
+          seriesEntries: seriesEntriesToPayload(seriesEntries),
           genres: genres.length ? genres : undefined,
         }),
       })
@@ -259,6 +268,18 @@ export default function CreateBookEditionForm({
           }
         }
         await authFetch(`/books/${book.slug}/authors/${authorId}`, { method: 'POST' })
+      }
+      if (isPrivileged && stagedComponents.length > 0) {
+        await Promise.all(stagedComponents.map(c =>
+          authFetch(`/books/${book.slug}/components`, {
+            method: 'POST',
+            body: JSON.stringify({
+              bookId: c.bookId,
+              volumeNumber: c.volumeNumber ? parseFloat(c.volumeNumber) : undefined,
+              order: c.order ? parseInt(c.order, 10) : undefined,
+            }),
+          }).catch(() => null)
+        ))
       }
       setCreatedBookId(book.id)
       setCreatedBookSlug(book.slug)
@@ -475,18 +496,28 @@ export default function CreateBookEditionForm({
         )}
       </div>
 
-      {/* Series + Volume */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Series */}
+      <SeriesEntriesEditor entries={seriesEntries} onChange={setSeriesEntries} />
+
+      {/* Omnibus components — admin/moderator only, since attaching components requires that role */}
+      {isPrivileged && (
         <div>
-          <label className={LBL}>Series</label>
-          <SeriesPicker value={seriesName} onChange={setSeriesName} />
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isOmnibus}
+              onChange={e => setIsOmnibus(e.target.checked)}
+              className="w-4 h-4 accent-amber-400"
+            />
+            <span className={LBL}>Is omnibus (contains multiple volumes/titles)</span>
+          </label>
+          {isOmnibus && (
+            <div className="mt-3">
+              <StagedComponentsEditor components={stagedComponents} onChange={setStagedComponents} />
+            </div>
+          )}
         </div>
-        <div>
-          <label className={LBL}>Volume / position</label>
-          <input type="number" value={volumeNumber} onChange={e => setVolumeNumber(e.target.value)}
-            placeholder="1" min={0} step={0.5} className={INP} />
-        </div>
-      </div>
+      )}
 
       {/* Genres */}
       <div>

@@ -89,7 +89,113 @@ export class AnnouncementsService {
     }
   }
 
-  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; search?: string; sort?: 'date' | 'recent'; companyId?: string; dateFrom?: string; dateTo?: string; saleType?: SaleType }) {
+  // "Active or upcoming" logic differs per sale type — shared by findAll's `upcoming`/`pastOnly`
+  // filters and getNextSale, so the definition of "live" can't drift between the list and the counter.
+  private buildActiveSaleCondition(now: Date, today: Date, typeFilter?: SaleType | null): Prisma.SaleAnnouncementWhereInput {
+    const activeSaleCondition: Prisma.SaleAnnouncementWhereInput[] = [];
+
+    // LIMITED_PREORDER: active when any date is today or upcoming, or endsAt is in future
+    const lpOrOsActive: Prisma.SaleAnnouncementWhereInput = {
+      OR: [
+        { generalSaleDate: { gte: today } },
+        { earlyAccessDate: { gte: today } },
+        { firstAccessDate: { gte: today } },
+        { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
+        { endsAt: { gt: now } },
+      ],
+    };
+
+    // OVERSTOCK / SALE: if endsAt is set show until it expires; otherwise date-based (as LP)
+    const overstockSaleActive: Prisma.SaleAnnouncementWhereInput = {
+      OR: [
+        { endsAt: { gt: now } },
+        {
+          AND: [
+            { endsAt: null },
+            {
+              OR: [
+                { generalSaleDate: { gte: today } },
+                { earlyAccessDate: { gte: today } },
+                { firstAccessDate: { gte: today } },
+                { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    if (!typeFilter || typeFilter === 'LIMITED_PREORDER') {
+      activeSaleCondition.push({ AND: [{ saleType: 'LIMITED_PREORDER' }, lpOrOsActive] });
+    }
+
+    if (!typeFilter || typeFilter === 'OPEN_PREORDER') {
+      // Open preorder: runs indefinitely once started — only expires when endsAt is set
+      activeSaleCondition.push({
+        AND: [
+          { saleType: 'OPEN_PREORDER' },
+          { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+        ],
+      });
+    }
+
+    if (!typeFilter || typeFilter === 'OVERSTOCK') {
+      activeSaleCondition.push({ AND: [{ saleType: 'OVERSTOCK' }, overstockSaleActive] });
+    }
+
+    if (!typeFilter || typeFilter === 'SALE') {
+      activeSaleCondition.push({ AND: [{ saleType: 'SALE' }, overstockSaleActive] });
+    }
+
+    return { OR: activeSaleCondition };
+  }
+
+  /** The logical negation of buildActiveSaleCondition, written as direct positive terms rather
+   *  than `NOT: buildActiveSaleCondition(...)`. Confirmed against real data that wrapping the
+   *  whole nested AND/OR/relation-filter structure in `NOT:` crashes the Prisma query engine
+   *  for some rows ("Response from the Engine was empty"), silently excluding them from BOTH
+   *  the active and NOT-active queries — e.g. one company's pastOnly list was missing 219 of
+   *  230 announcements this way. Keep this in sync by hand if buildActiveSaleCondition changes. */
+  private buildPastSaleCondition(now: Date, today: Date, typeFilter?: SaleType | null): Prisma.SaleAnnouncementWhereInput {
+    const pastCondition: Prisma.SaleAnnouncementWhereInput[] = [];
+
+    // None of the three date fields is today-or-later (null counts as "not blocking past"),
+    // and no region override is today-or-later either.
+    const noFutureDates: Prisma.SaleAnnouncementWhereInput = {
+      AND: [
+        { OR: [{ generalSaleDate: null }, { generalSaleDate: { lt: today } }] },
+        { OR: [{ earlyAccessDate: null }, { earlyAccessDate: { lt: today } }] },
+        { OR: [{ firstAccessDate: null }, { firstAccessDate: { lt: today } }] },
+        { regions: { none: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
+      ],
+    };
+
+    const lpOrOsPast: Prisma.SaleAnnouncementWhereInput = {
+      AND: [noFutureDates, { OR: [{ endsAt: null }, { endsAt: { lte: now } }] }],
+    };
+
+    if (!typeFilter || typeFilter === 'LIMITED_PREORDER') {
+      pastCondition.push({ AND: [{ saleType: 'LIMITED_PREORDER' }, lpOrOsPast] });
+    }
+
+    if (!typeFilter || typeFilter === 'OPEN_PREORDER') {
+      // Negation of "endsAt is null (runs forever) or endsAt is in the future" — endsAt must
+      // be set AND already past.
+      pastCondition.push({ AND: [{ saleType: 'OPEN_PREORDER' }, { endsAt: { lte: now } }] });
+    }
+
+    if (!typeFilter || typeFilter === 'OVERSTOCK') {
+      pastCondition.push({ AND: [{ saleType: 'OVERSTOCK' }, { OR: [{ endsAt: { lte: now } }, { AND: [{ endsAt: null }, noFutureDates] }] }] });
+    }
+
+    if (!typeFilter || typeFilter === 'SALE') {
+      pastCondition.push({ AND: [{ saleType: 'SALE' }, { OR: [{ endsAt: { lte: now } }, { AND: [{ endsAt: null }, noFutureDates] }] }] });
+    }
+
+    return { OR: pastCondition };
+  }
+
+  async findAll(query: { page?: number; pageSize?: number; upcoming?: boolean; pastOnly?: boolean; search?: string; sort?: 'date' | 'date-desc' | 'recent'; companyId?: string; dateFrom?: string; dateTo?: string; saleType?: SaleType }) {
     const { skip, take: pageSize, page } = parsePagination({ page: query.page, pageSize: query.pageSize ?? 20 });
 
     const now = new Date();
@@ -125,65 +231,12 @@ export class AnnouncementsService {
         ],
       });
     } else if (query.upcoming) {
-      // "upcoming/active" logic differs per sale type.
-      // When no saleType filter: show all types that are currently active.
-      const typeFilter = query.saleType ?? null;
-      const activeSaleCondition: Prisma.SaleAnnouncementWhereInput[] = [];
-
-      // LIMITED_PREORDER: active when any date is today or upcoming, or endsAt is in future
-      const lpOrOsActive: Prisma.SaleAnnouncementWhereInput = {
-        OR: [
-          { generalSaleDate: { gte: today } },
-          { earlyAccessDate: { gte: today } },
-          { firstAccessDate: { gte: today } },
-          { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
-          { endsAt: { gt: now } },
-        ],
-      };
-
-      // OVERSTOCK / SALE: if endsAt is set show until it expires; otherwise date-based (as LP)
-      const overstockSaleActive: Prisma.SaleAnnouncementWhereInput = {
-        OR: [
-          { endsAt: { gt: now } },
-          {
-            AND: [
-              { endsAt: null },
-              {
-                OR: [
-                  { generalSaleDate: { gte: today } },
-                  { earlyAccessDate: { gte: today } },
-                  { firstAccessDate: { gte: today } },
-                  { regions: { some: { OR: [{ generalSaleDate: { gte: today } }, { earlyAccessDate: { gte: today } }, { firstAccessDate: { gte: today } }] } } },
-                ],
-              },
-            ],
-          },
-        ],
-      };
-
-      if (!typeFilter || typeFilter === 'LIMITED_PREORDER') {
-        activeSaleCondition.push({ AND: [{ saleType: 'LIMITED_PREORDER' }, lpOrOsActive] });
-      }
-
-      if (!typeFilter || typeFilter === 'OPEN_PREORDER') {
-        // Open preorder: runs indefinitely once started — only expires when endsAt is set
-        activeSaleCondition.push({
-          AND: [
-            { saleType: 'OPEN_PREORDER' },
-            { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
-          ],
-        });
-      }
-
-      if (!typeFilter || typeFilter === 'OVERSTOCK') {
-        activeSaleCondition.push({ AND: [{ saleType: 'OVERSTOCK' }, overstockSaleActive] });
-      }
-
-      if (!typeFilter || typeFilter === 'SALE') {
-        activeSaleCondition.push({ AND: [{ saleType: 'SALE' }, overstockSaleActive] });
-      }
-
-      andConditions.push({ OR: activeSaleCondition });
+      // "upcoming" == "live or upcoming" — when no saleType filter, all types currently active.
+      andConditions.push(this.buildActiveSaleCondition(now, today, query.saleType ?? null));
+    } else if (query.pastOnly) {
+      // Built as direct positive terms (buildPastSaleCondition), not `NOT: buildActiveSaleCondition(...)`
+      // — see that method's comment for why the NOT: form silently drops rows.
+      andConditions.push(this.buildPastSaleCondition(now, today, query.saleType ?? null));
     }
 
     if (query.search) {
@@ -201,7 +254,9 @@ export class AnnouncementsService {
         where,
         skip,
         take: pageSize,
-        orderBy: query.sort === 'date' ? { generalSaleDate: 'asc' } : { createdAt: 'desc' },
+        orderBy: query.sort === 'date' ? { generalSaleDate: 'asc' }
+          : query.sort === 'date-desc' ? { generalSaleDate: 'desc' }
+          : { createdAt: 'desc' },
         select: {
           id: true,
           title: true,
@@ -247,6 +302,70 @@ export class AnnouncementsService {
     });
     if (!announcement) throw new NotFoundException('Sale announcement not found');
     return this.mapAnnouncementAssets(announcement);
+  }
+
+  // Resolves which single date a given tier (FA/EA/GS) actually points at, falling back to the
+  // next tier down when the earlier one isn't set — same precedence as SaleInterestsService.getUpcoming,
+  // kept in sync deliberately so a user's personalized countdown always matches what they signed up for.
+  private resolveTierDate(
+    tier: 'FA' | 'EA' | 'GS',
+    dates: { firstAccessDate: Date | null; earlyAccessDate: Date | null; generalSaleDate: Date | null },
+  ): Date | null {
+    const fa = dates.firstAccessDate;
+    const ea = dates.earlyAccessDate;
+    const gs = dates.generalSaleDate;
+    if (tier === 'FA') return fa ?? ea ?? gs;
+    if (tier === 'EA') return ea ?? gs;
+    return gs;
+  }
+
+  /** Countdown target for a company's page: the soonest upcoming tier date across every live/
+   *  upcoming sale (all tiers combined) — unless the given user has an interest in one of this
+   *  company's live/upcoming sales, in which case their specific tier's date is returned instead. */
+  async getNextSale(companyId: string, userId?: string | null): Promise<{
+    date: string | null;
+    tier: 'FA' | 'EA' | 'GS' | null;
+    announcementId: string | null;
+    title: string | null;
+    personalized: boolean;
+  }> {
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+
+    const empty = { date: null, tier: null, announcementId: null, title: null, personalized: false };
+
+    const liveOrUpcoming = await (this.prisma.saleAnnouncement as any).findMany({
+      where: { companyId, ...this.buildActiveSaleCondition(now, today, null) },
+      select: { id: true, title: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true },
+    });
+    if (liveOrUpcoming.length === 0) return empty;
+
+    if (userId) {
+      const interest = await this.prisma.userSaleInterest.findFirst({
+        where: { userId, announcementId: { in: liveOrUpcoming.map((a: any) => a.id) } },
+        select: { tier: true, announcementId: true },
+      });
+      if (interest) {
+        const ann = liveOrUpcoming.find((a: any) => a.id === interest.announcementId);
+        const tier = (interest.tier === 'FA' || interest.tier === 'EA' ? interest.tier : 'GS') as 'FA' | 'EA' | 'GS';
+        const date = ann ? this.resolveTierDate(tier, ann) : null;
+        if (date && date >= today) {
+          return { date: date.toISOString(), tier, announcementId: ann.id, title: ann.title, personalized: true };
+        }
+      }
+    }
+
+    let soonest: { date: Date; tier: 'FA' | 'EA' | 'GS'; announcementId: string; title: string } | null = null;
+    for (const ann of liveOrUpcoming) {
+      for (const tier of ['FA', 'EA', 'GS'] as const) {
+        const date = this.resolveTierDate(tier, ann);
+        if (!date || date < today) continue;
+        if (!soonest || date < soonest.date) soonest = { date, tier, announcementId: ann.id, title: ann.title };
+      }
+    }
+    if (!soonest) return empty;
+    return { date: soonest.date.toISOString(), tier: soonest.tier, announcementId: soonest.announcementId, title: soonest.title, personalized: false };
   }
 
   async findTrending(limit = 6) {

@@ -21,19 +21,13 @@ function setThemeCookie(theme: Theme) {
 
 export function ThemeProvider({
   children,
-  initialTheme = 'dark',
 }: {
   children: React.ReactNode
-  initialTheme?: Theme
 }) {
-  // initialTheme is read server-side → <html data-theme> is set before hydration (no FOUC)
-  const [theme, setTheme] = useState<Theme>(initialTheme)
-
-  // On mount sync cookie → state in case it changed in another tab
-  useEffect(() => {
-    const cookieTheme = getThemeCookie()
-    if (cookieTheme !== theme) setTheme(cookieTheme)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Lazy-initialized from the cookie on first client render, matching the blocking inline
+  // script in the root layout's <head> that already set <html data-theme> before hydration —
+  // no server-rendered value to reconcile with (see layout.tsx for why), so no FOUC either way.
+  const [theme, setTheme] = useState<Theme>(() => getThemeCookie())
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)

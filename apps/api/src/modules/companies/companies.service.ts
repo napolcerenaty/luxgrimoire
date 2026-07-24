@@ -48,13 +48,25 @@ export class CompaniesService {
     };
   }
 
+  // Active (0) → Upcoming (1) → Discontinued (2), so the company page can render grouped
+  // sections without the API returning them in arbitrary insertion order.
+  private subscriptionStatusRank(subscription: { isDiscontinued: boolean; isUpcoming: boolean }): number {
+    if (subscription.isDiscontinued) return 2;
+    if (subscription.isUpcoming) return 1;
+    return 0;
+  }
+
+  private sortSubscriptionsByStatus<T extends { isDiscontinued: boolean; isUpcoming: boolean }>(subscriptions: T[]): T[] {
+    return [...subscriptions].sort((a, b) => this.subscriptionStatusRank(a) - this.subscriptionStatusRank(b));
+  }
+
   private mapCompanyAssets(company: any) {
     if (!company) return company;
     return {
       ...company,
       logoUrl: company.logoAsset?.publicId ?? company.logoUrl,
       subscriptions: Array.isArray(company.subscriptions)
-        ? company.subscriptions.map((subscription: any) => this.mapSubscriptionAssets(subscription))
+        ? this.sortSubscriptionsByStatus(company.subscriptions.map((subscription: any) => this.mapSubscriptionAssets(subscription)))
         : company.subscriptions,
     };
   }
@@ -255,6 +267,57 @@ export class CompaniesService {
     return { data, total };
   }
 
+  // Collapses the raw ownershipStatus enum down to 3 glance-able glow buckets — showing all 8
+  // raw statuses as separate colors would undercut the point of a glow (see project memory).
+  private static readonly OWNERSHIP_GLOW_BUCKETS: Record<string, 'have-it' | 'coming' | 'gone'> = {
+    OWNED: 'have-it',
+    BORROWED: 'have-it',
+    PREORDER: 'coming',
+    SHIPPING: 'coming',
+    SOLD: 'gone',
+    GIFTED_AWAY: 'gone',
+    TO_SELL: 'gone',
+    LENDED: 'gone',
+  };
+
+  /** Per-user overlay for the editions grid glow — deliberately NOT part of the cached, shared
+   *  `findBySlug`/`getEditions` responses (those are public and cached by slug for 24h). Ownership
+   *  and skip status are personal, so they're fetched separately, uncached, and merged client-side. */
+  async getMyEditionStatuses(userId: string, editionIds: string[]): Promise<{
+    ownership: Record<string, 'have-it' | 'coming' | 'gone'>;
+    skipped: string[];
+  }> {
+    if (editionIds.length === 0) return { ownership: {}, skipped: [] };
+
+    const [entries, monthBooks, months] = await Promise.all([
+      this.prisma.userBookEntry.findMany({
+        where: { userId, editionId: { in: editionIds } },
+        select: { editionId: true, ownershipStatus: true },
+      }),
+      this.prisma.subscriptionMonthBook.findMany({
+        where: { editionId: { in: editionIds }, month: { skipRecords: { some: { userId, undoneAt: null } } } },
+        select: { editionId: true },
+      }),
+      this.prisma.subscriptionMonth.findMany({
+        where: { editionId: { in: editionIds }, skipRecords: { some: { userId, undoneAt: null } } },
+        select: { editionId: true },
+      }),
+    ]);
+
+    const ownership: Record<string, 'have-it' | 'coming' | 'gone'> = {};
+    for (const entry of entries) {
+      if (!entry.editionId) continue;
+      const bucket = CompaniesService.OWNERSHIP_GLOW_BUCKETS[entry.ownershipStatus];
+      if (bucket) ownership[entry.editionId] = bucket;
+    }
+
+    const skipped = new Set<string>();
+    for (const row of monthBooks) if (row.editionId) skipped.add(row.editionId);
+    for (const row of months) if (row.editionId) skipped.add(row.editionId);
+
+    return { ownership, skipped: [...skipped] };
+  }
+
   private buildEditionSearchWhere(search?: string): Prisma.BookEditionWhereInput {
     if (!search) return {};
     return {
@@ -313,7 +376,7 @@ export class CompaniesService {
             slug: true,
             title: true,
             seriesName: true,
-            volumeNumber: true,
+            volumeNumbers: true,
             authors: {
               select: {
                 author: { select: { id: true, name: true, slug: true } },

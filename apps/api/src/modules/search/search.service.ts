@@ -120,7 +120,7 @@ export class SearchService {
               slug: true,
               title: true,
               seriesName: true,
-              volumeNumber: true,
+              volumeNumbers: true,
               authors: {
                 select: { author: { select: { id: true, name: true, slug: true } } },
                 take: 1,
@@ -154,7 +154,7 @@ export class SearchService {
               },
               book: {
                 select: {
-                  id: true, slug: true, title: true, seriesName: true, volumeNumber: true,
+                  id: true, slug: true, title: true, seriesName: true, volumeNumbers: true,
                   authors: { select: { author: { select: { name: true } } }, take: 1 },
                 },
               },
@@ -242,7 +242,7 @@ export class SearchService {
               slug: true,
               title: true,
               seriesName: true,
-              volumeNumber: true,
+              volumeNumbers: true,
               authors: {
                 select: { author: { select: { id: true, name: true, slug: true } } },
                 take: 1,
@@ -284,7 +284,7 @@ export class SearchService {
               },
               book: {
                 select: {
-                  id: true, slug: true, title: true, seriesName: true, volumeNumber: true,
+                  id: true, slug: true, title: true, seriesName: true, volumeNumbers: true,
                   authors: { select: { author: { select: { name: true } } }, take: 1 },
                 },
               },

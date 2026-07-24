@@ -63,6 +63,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
     <div
       role="button"
       tabIndex={0}
+      title={sale.title}
       onClick={() => onClick(sale)}
       onKeyDown={(e) => e.key === 'Enter' && onClick(sale)}
       className="flex-shrink-0 w-48 group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-600/60 transition-all duration-250 text-left cursor-pointer"

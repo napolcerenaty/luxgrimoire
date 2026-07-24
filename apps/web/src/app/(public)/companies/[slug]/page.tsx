@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge'
 import type { ApiBookBoxCompany } from '@luxgrimoire/shared-types'
 import { SubCoverImage } from '@/components/subscriptions/SubCoverImage'
 import { CompanyEditionsSection } from './CompanyEditionsSection'
+import { CompanySaleAnnouncementsSection } from '@/components/sales/CompanySaleAnnouncementsSection'
 
 // Minimal inline SVG icons for social platforms
 function InstagramIcon({ className }: { className?: string }) {
@@ -107,6 +108,11 @@ export default async function CompanyPage({ params }: Props) {
   const logoUrl = cloudinaryUrl(company.logoUrl, 'w_400,h_200,c_fit,q_auto,f_auto')
   const subscriptions = company.subscriptions ?? []
   const displaySubscriptions = subscriptions.filter((s) => !s.isContentStream)
+  // Backend already returns these sorted active→upcoming→discontinued, but partition explicitly
+  // here rather than relying on that order — the three sections render very differently.
+  const activeSubscriptions = displaySubscriptions.filter((s) => !s.isDiscontinued && !s.isUpcoming)
+  const upcomingSubscriptions = displaySubscriptions.filter((s) => !s.isDiscontinued && s.isUpcoming)
+  const discontinuedSubscriptions = displaySubscriptions.filter((s) => s.isDiscontinued)
 
   const socials = [
     company.website
@@ -143,27 +149,30 @@ export default async function CompanyPage({ params }: Props) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-10 max-w-5xl">
+    <div className="container mx-auto px-4 py-10 max-w-6xl">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
 
-      {/* Company header: logo+links left, info right */}
-      <div className="flex flex-col sm:flex-row gap-8 items-start mb-12">
+      {/* Company header: logo+links left, info right. Logo spans full width on mobile (its
+          own banner row) and settles into a fixed-size box beside the info column at sm+;
+          social links are icon-only circular buttons at every breakpoint — compact and
+          consistent rather than forking into a different control per device. */}
+      <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 items-start mb-12">
         {/* Left column: logo + social links */}
-        <div className="shrink-0 flex flex-col items-start gap-4">
+        <div className="w-full sm:w-44 sm:shrink-0 flex flex-col items-start gap-3">
           {logoUrl && (
-            <div className="w-44 h-24 rounded-xl bg-white/5 border border-stone-700/40 flex items-center justify-center overflow-hidden p-2">
+            <div className="w-full h-28 sm:w-44 sm:h-24 rounded-xl bg-white/5 border border-stone-700/40 flex items-center justify-center overflow-hidden p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logoUrl} alt={company.name} className="w-full h-full object-contain" />
             </div>
           )}
 
-          {/* Social links as a column */}
+          {/* Social links — icon-only circular buttons in a single row */}
           {socials.length > 0 && (
-            <div className="flex flex-col gap-1.5 w-44">
+            <div className="flex flex-row flex-wrap gap-2">
               {socials.map((s) => (
                 <a
                   key={s.icon}
@@ -171,21 +180,21 @@ export default async function CompanyPage({ params }: Props) {
                   target="_blank"
                   rel="noopener noreferrer"
                   title={s.label}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-amber-600/50 text-stone-300 hover:text-amber-400 transition-colors text-xs font-medium"
+                  aria-label={s.label}
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-amber-600/50 text-stone-300 hover:text-amber-400 transition-colors"
                 >
-                  {s.icon === 'instagram' && <InstagramIcon className="w-3.5 h-3.5 shrink-0" />}
-                  {s.icon === 'facebook' && <FacebookIcon className="w-3.5 h-3.5 shrink-0" />}
-                  {s.icon === 'x' && <XIcon className="w-3.5 h-3.5 shrink-0" />}
-                  {s.icon === 'tiktok' && <TikTokIcon className="w-3.5 h-3.5 shrink-0" />}
-                  {s.icon === 'threads' && <ThreadsIcon className="w-3.5 h-3.5 shrink-0" />}
-                  {s.icon === 'bluesky' && <BlueskyIcon className="w-3.5 h-3.5 shrink-0" />}
+                  {s.icon === 'instagram' && <InstagramIcon className="w-4 h-4 shrink-0" />}
+                  {s.icon === 'facebook' && <FacebookIcon className="w-4 h-4 shrink-0" />}
+                  {s.icon === 'x' && <XIcon className="w-4 h-4 shrink-0" />}
+                  {s.icon === 'tiktok' && <TikTokIcon className="w-4 h-4 shrink-0" />}
+                  {s.icon === 'threads' && <ThreadsIcon className="w-4 h-4 shrink-0" />}
+                  {s.icon === 'bluesky' && <BlueskyIcon className="w-4 h-4 shrink-0" />}
                   {s.icon === 'website' && (
-                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                       <circle cx="12" cy="12" r="10" />
                       <path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" />
                     </svg>
                   )}
-                  {s.label}
                 </a>
               ))}
             </div>
@@ -210,12 +219,27 @@ export default async function CompanyPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Subscriptions — compact cards, denser grid */}
+      {/* Below the header: main column (subscriptions, editions) + a sticky rail on desktop
+          (next-sale countdown, latest announcements) so browsing content and glanceable content
+          don't have to compete for the same single scrolling column. Collapses to one column
+          on mobile, where a sticky rail wouldn't make sense anyway. */}
+      {/* items-start only at lg: (row layout) so the rail doesn't vertically stretch to match
+          the main column's height — unprefixed, it also applied to the flex-col mobile layout
+          and overrode the default align-items:stretch there, so the main column (and its grid
+          inside) sized to its own unconstrained max-content width instead of the viewport,
+          causing severe horizontal overflow on mobile. */}
+      <div className="flex flex-col lg:flex-row gap-8 lg:items-start mt-12">
+      <div className="flex-1 min-w-0 order-2 lg:order-1">
+
+      {/* Subscriptions — grouped active/upcoming/discontinued instead of one mixed grid */}
       {displaySubscriptions.length > 0 && (
-        <section className="mt-12">
+        <section>
           <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">Subscriptions</h2>
+          {activeSubscriptions.length === 0 && upcomingSubscriptions.length === 0 && (
+            <p className="text-stone-500 text-sm mb-4">No active subscriptions right now.</p>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {displaySubscriptions.map((sub) => {
+            {[...activeSubscriptions, ...upcomingSubscriptions].map((sub) => {
               const cover = cloudinaryUrl(sub.coverImage ?? sub.logoUrl, 'w_600,q_auto,f_auto')
               const subGenres = [
                 ...(Array.isArray((sub as any).genres) ? (sub as any).genres : []),
@@ -225,23 +249,50 @@ export default async function CompanyPage({ params }: Props) {
                 <Link
                   key={sub.id}
                   href={`/subscriptions/${sub.slug}`}
-                  className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors"
+                  className={`group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors ${sub.isUpcoming ? 'edition-glow-amber' : ''}`}
                 >
                   <SubCoverImage coverUrl={cover} name={sub.name} brandColors={company.brandColors} />
                   <div className="p-3">
-                    <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight mb-1">
+                    {/* line-clamp + min-h so a long name (2 lines) and a short one (1 line) don't
+                        leave cards in the same row at wildly different heights on mobile. */}
+                    <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight mb-1 line-clamp-2 min-h-[2.4em]">
                       {sub.name}
                     </h3>
                     <div className="flex items-center gap-1 flex-wrap">
                       {subGenres.slice(0, 2).map((g: string) => <Badge key={g} variant="outline">{g}</Badge>)}
                       {sub.isUpcoming && <Badge variant="outline">🔔 Upcoming</Badge>}
-                      {sub.isDiscontinued && <Badge variant="destructive">Discontinued</Badge>}
                     </div>
                   </div>
                 </Link>
               )
             })}
           </div>
+
+          {/* Discontinued — a much smaller secondary line, not full cards, since it's not
+              actionable for someone deciding what to follow. */}
+          {discontinuedSubscriptions.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-stone-800/60">
+              <p className="text-xs text-stone-500 mb-2">Discontinued</p>
+              <div className="flex flex-wrap gap-x-3 gap-y-2">
+                {discontinuedSubscriptions.map((sub) => {
+                  const logo = cloudinaryUrl(sub.logoUrl ?? sub.coverImage, 'w_64,h_64,c_fit,q_auto,f_auto')
+                  return (
+                    <Link
+                      key={sub.id}
+                      href={`/subscriptions/${sub.slug}`}
+                      className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-300 transition-colors"
+                    >
+                      {logo && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={logo} alt="" className="w-4 h-4 rounded object-contain bg-stone-900" />
+                      )}
+                      <span className="underline decoration-stone-700 underline-offset-2">{sub.name}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -254,6 +305,20 @@ export default async function CompanyPage({ params }: Props) {
           brandColors={company.brandColors}
         />
       </Suspense>
+
+      </div>
+
+      {/* Sticky rail — next-sale countdown + latest announcements. A client component that
+          fetches independently on mount, so it never blocks the header/subscriptions render
+          above, and (unlike the public, shared-cache company payload) can be personalized. */}
+      {/* top-[126px]: the site navbar is `sticky top-0` and measures 110px tall (confirmed via
+          getBoundingClientRect) — top-20 (80px) wasn't enough and let this rail scroll in
+          partially hidden behind it. 126px = 110px navbar + 16px breathing room. */}
+      <div className="w-full lg:w-80 shrink-0 order-1 lg:order-2 lg:sticky lg:top-[126px]">
+        <CompanySaleAnnouncementsSection companyId={company.id} companySlug={slug} />
+      </div>
+
+      </div>
     </div>
   )
 }

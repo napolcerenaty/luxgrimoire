@@ -1,5 +1,6 @@
 import { EditionCarousel, type CarouselCard } from '@/components/ui/EditionCarousel'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 import type { ApiTrendingEdition } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -15,7 +16,7 @@ export function HomeTrendingEditions({ editions }: Props) {
     coverImage: resolveEditionCoverRaw(edition),
     title: edition.book?.title ?? 'Unknown',
     subtitle: edition.book?.seriesName
-      ? `${edition.book.seriesName}${edition.book.volumeNumber != null ? ` #${edition.book.volumeNumber}` : ''}`
+      ? `${edition.book.seriesName}${edition.book.volumeNumbers?.length ? ` #${formatVolumeNumbers(edition.book.volumeNumbers)}` : ''}`
       : null,
     author: edition.book?.authors?.map((author) => author.name).join(', ') ?? null,
     ribbon: edition.bookBoxCompany?.name ?? null,

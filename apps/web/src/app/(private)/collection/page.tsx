@@ -16,6 +16,7 @@ import { EditionCard } from '@/components/books/EditionCard'
 import { Plus, Trash2, BookOpen, Banknote, Tag, X, Pencil, Truck, Search, Check, History, LayoutGrid, List, SlidersHorizontal } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 import type { ApiSearchResult, ApiSearchEdition } from '@luxgrimoire/shared-types'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
@@ -96,7 +97,7 @@ interface CollectionEntry {
       title: string
       slug: string
       seriesName: string | null
-      volumeNumber: number | null
+      volumeNumbers: number[]
       authors: Array<{ id: string; name: string; slug: string }>
     }
   }
@@ -1255,7 +1256,7 @@ export default function CollectionPage() {
                       companyName={entry.edition.bookBoxCompany?.name}
                       companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                       seriesName={entry.edition.book.seriesName}
-                      volumeNumber={entry.edition.book.volumeNumber}
+                      volumeNumbers={entry.edition.book.volumeNumbers}
                       title={entry.edition.book.title}
                       authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                       imageActions={
@@ -1577,7 +1578,7 @@ export default function CollectionPage() {
                           {authors && <p className="text-xs text-stone-400 truncate">{authors}</p>}
                           {(book.seriesName || entry.edition.bookBoxCompany?.name) && (
                             <p className="text-[10px] text-stone-500 truncate">
-                              {book.seriesName && <span>{book.seriesName}{book.volumeNumber ? ` #${book.volumeNumber}` : ''}</span>}
+                              {book.seriesName && <span>{book.seriesName}{book.volumeNumbers?.length ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}</span>}
                               {book.seriesName && entry.edition.bookBoxCompany?.name && <span className="mx-1">·</span>}
                               {entry.edition.bookBoxCompany?.name && <span>{entry.edition.bookBoxCompany.name}</span>}
                             </p>

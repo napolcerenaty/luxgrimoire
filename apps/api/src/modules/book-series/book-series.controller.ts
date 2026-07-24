@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { BookSeriesService } from './book-series.service';
-import { BookSeriesQueryDto, CreateBookSeriesDto, UpdateBookSeriesDto } from './book-series.dto';
+import { BookSeriesQueryDto, CreateBookSeriesDto, UpdateBookSeriesDto, SwitchPrimarySeriesDto } from './book-series.dto';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
@@ -50,6 +50,33 @@ export class BookSeriesController {
   async delete(@Param('slug') slug: string, @CurrentUser() user: { id: string; username: string }) {
     const result = await this.bookSeriesService.delete(slug);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'DELETE_BOOK_SERIES', entityType: 'book_series', entityId: result.id, entityTitle: slug });
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Get(':slug/primary-books')
+  getPrimaryBooksForSwitch(@Param('slug') slug: string, @Query('toSlug') toSlug?: string) {
+    return this.bookSeriesService.getPrimaryBooksForSwitch(slug, toSlug);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post(':slug/switch-primary')
+  async switchPrimary(
+    @Param('slug') slug: string,
+    @Body() dto: SwitchPrimarySeriesDto,
+    @CurrentUser() user: { id: string; username: string },
+  ) {
+    const result = await this.bookSeriesService.switchPrimarySeries(slug, dto.toSeriesSlug, dto.volumeNumbers);
+    void this.auditService.log({
+      userId: user.id,
+      username: user.username,
+      action: 'BULK_SWITCH_PRIMARY_SERIES',
+      entityType: 'book_series',
+      entityId: slug,
+      entityTitle: `${slug} -> ${dto.toSeriesSlug} (${result.switchedCount} books)`,
+    });
     return result;
   }
 }

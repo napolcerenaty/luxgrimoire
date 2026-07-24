@@ -45,6 +45,7 @@ export interface GhostTag {
   description: string | null
   feature_image: string | null
   accent_color: string | null
+  count?: { posts: number }
 }
 
 export interface GhostAuthor {
@@ -130,11 +131,12 @@ export async function getPostsByTag(tagSlug: string, limit = 4, excludeSlug?: st
 }
 
 export async function getTags(limit = 20): Promise<GhostTag[]> {
+  // filter=count.posts:>0 currently 400s on this Ghost instance (ER_BAD_FIELD_ERROR) —
+  // order by count.posts works fine, so filter out zero-count tags client-side instead.
   const data = await ghostFetch<{ tags: GhostTag[] }>('tags', {
     limit: String(limit),
     include: 'count.posts',
-    filter: 'count.posts:>0',
     order: 'count.posts DESC',
   })
-  return data?.tags ?? []
+  return (data?.tags ?? []).filter(t => (t.count?.posts ?? 0) > 0)
 }

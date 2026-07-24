@@ -54,5 +54,5 @@ export function CompanyEditionsSection({ companySlug, subscriptions, collections
 
   if (groups.length === 0) return null
 
-  return <CompanyBooksSection groups={groups} brandColors={brandColors} />
+  return <CompanyBooksSection companySlug={companySlug} groups={groups} brandColors={brandColors} />
 }

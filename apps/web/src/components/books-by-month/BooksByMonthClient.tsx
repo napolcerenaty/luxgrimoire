@@ -18,7 +18,7 @@ interface BookByMonthItem {
   bookSlug: string | null
   bookTitle: string | null
   seriesName: string | null
-  volumeNumber: number | null
+  volumeNumbers: number[]
   authors: string[]
   editionId: string | null
   editionSlug: string | null
@@ -62,7 +62,7 @@ function BookByMonthCard({ item }: { item: BookByMonthItem }) {
       // branch keeps them pixel-aligned.
       title={item.bookTitle ?? 'Not yet announced'}
       seriesName={item.seriesName}
-      volumeNumber={item.volumeNumber}
+      volumeNumbers={item.volumeNumbers}
       authors={item.authors.map((name) => ({ name }))}
       highlight={item.highlight}
       imageActions={
@@ -184,7 +184,7 @@ export function BooksByMonthClient() {
   return (
     <div>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center mb-4">
-        <MonthPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m) }} maxAheadMonths={1} />
+        <MonthPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m) }} maxAheadMonths={2} />
         <input
           type="text"
           value={searchQuery}

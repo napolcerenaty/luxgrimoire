@@ -3,12 +3,29 @@ import {
   IsOptional,
   IsNumber,
   IsInt,
+  IsBoolean,
   Min,
   Max,
   IsArray,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
+
+export class BookSeriesEntryInputDto {
+  @IsString()
+  seriesName!: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @Type(() => Number)
+  volumeNumbers?: number[];
+
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
+}
 
 export class CreateBookDto {
   @IsString()
@@ -23,13 +40,10 @@ export class CreateBookDto {
   language?: string;
 
   @IsOptional()
-  @IsString()
-  seriesName?: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  volumeNumber?: number;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BookSeriesEntryInputDto)
+  seriesEntries?: BookSeriesEntryInputDto[];
 
   @IsOptional()
   @IsArray()
@@ -56,15 +70,10 @@ export class UpdateBookDto {
   language?: string;
 
   @IsOptional()
-  @ValidateIf((o) => o.seriesName !== null)
-  @IsString()
-  seriesName?: string | null;
-
-  @IsOptional()
-  @ValidateIf((o) => o.volumeNumber !== null)
-  @IsNumber()
-  @Type(() => Number)
-  volumeNumber?: number | null;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BookSeriesEntryInputDto)
+  seriesEntries?: BookSeriesEntryInputDto[];
 
   @IsOptional()
   @IsArray()
@@ -117,4 +126,38 @@ export class BookQueryDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  isOmnibus?: boolean;
+}
+
+export class CreateBookComponentDto {
+  @IsString()
+  bookId!: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  volumeNumber?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  order?: number;
+}
+
+export class UpdateBookComponentDto {
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  volumeNumber?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  order?: number;
 }

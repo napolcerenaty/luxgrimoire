@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api'
 import { BookDescription } from '@/components/books/BookDescription'
 import { BookEditionsSection, BookEditionsSkeleton } from '@/components/books/BookEditionsSection'
 import { EditionCard } from '@/components/books/EditionCard'
+import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 import type { ApiBook } from '@luxgrimoire/shared-types'
 
 interface Props {
@@ -66,9 +67,22 @@ export default async function BookPage({ params }: Props) {
             className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
           >
             {book.series?.name ?? book.seriesName}
-            {book.volumeNumber ? ` #${book.volumeNumber}` : ''}
+            {book.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
             <span className="ml-1 text-xs text-stone-500">→ series</span>
           </Link>
+        )}
+        {book.seriesEntries && book.seriesEntries.filter(e => !e.isPrimary).length > 0 && (
+          <p className="text-xs text-stone-500 mb-2">
+            Also in{' '}
+            {book.seriesEntries.filter(e => !e.isPrimary).map((entry, i, arr) => (
+              <span key={entry.seriesId}>
+                <Link href={`/series/${entry.series.slug}`} className="text-stone-400 hover:text-amber-400 transition-colors hover:underline">
+                  {entry.series.name}{entry.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(entry.volumeNumbers)}` : ''}
+                </Link>
+                {i < arr.length - 1 && ', '}
+              </span>
+            ))}
+          </p>
         )}
         <h1 className="text-4xl font-serif font-bold text-stone-100 mb-3 leading-tight">
           {book.title}
@@ -103,20 +117,37 @@ export default async function BookPage({ params }: Props) {
         )}
       </div>
 
+      {/* This book is itself an omnibus — what it contains */}
+      {book.isOmnibus && book.omnibusComponents && book.omnibusComponents.length > 0 && (
+        <section className="mb-10">
+          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Contains</h2>
+          <ul className="flex flex-col gap-2">
+            {book.omnibusComponents.map((c) => (
+              <li key={c.id}>
+                <Link href={`/books/${c.book.slug}`} className="text-stone-300 hover:text-amber-400 transition-colors">
+                  {c.volumeNumber != null && <span className="text-amber-600/80 font-semibold mr-2">Vol. {c.volumeNumber}</span>}
+                  {c.book.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Omnibus appearances */}
       {book.appearsInOmnibus && book.appearsInOmnibus.length > 0 && (
         <section className="mb-10">
           <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Part of Omnibus</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {book.appearsInOmnibus.map(({ id, volumeNumber, customTitle, edition }) => (
+            {book.appearsInOmnibus.map(({ id, volumeNumber, omnibusBookSlug, omnibusBookTitle, coverImage, companyName, companySlug, companyBrandColors }) => (
               <EditionCard
                 key={id}
-                href={`/editions/${edition.slug}`}
-                coverImage={edition.additionalImages?.[0] ?? null}
-                title={customTitle ?? edition.book.title}
-                companyName={edition.bookBoxCompany?.name}
-                companySlug={edition.bookBoxCompany?.slug}
-                companyBrandColors={edition.bookBoxCompany?.brandColors}
+                href={`/books/${omnibusBookSlug}`}
+                coverImage={coverImage}
+                title={omnibusBookTitle}
+                companyName={companyName}
+                companySlug={companySlug}
+                companyBrandColors={companyBrandColors}
                 footer={volumeNumber != null ? (
                   <span className="text-[10px] text-stone-500">Vol. {volumeNumber}</span>
                 ) : undefined}

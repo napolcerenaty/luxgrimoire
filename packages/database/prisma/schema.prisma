@@ -132,36 +132,76 @@ model BookSeries {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   books     Book[]
+  entries   BookSeriesEntry[]
 
   @@index([name])
   @@map("book_series")
 }
 
 model Book {
-  id           String                  @id @default(uuid())
-  slug         String                  @unique
-  title        String
-  description  String?
-  language     String                  @default("en")
-  seriesName   String?
-  seriesId     String?
-  volumeNumber Float?
-  createdAt    DateTime                @default(now())
-  updatedAt    DateTime                @updatedAt
-  status       String                  @default("approved")
-  genres       String[]
+  id             String                  @id @default(uuid())
+  slug           String                  @unique
+  title          String
+  description    String?
+  language       String                  @default("en")
+  seriesName     String?
+  seriesId       String?
+  volumeNumbers  Float[]                 @default([])
+  isOmnibus      Boolean                 @default(false)
+  componentCount Int                     @default(0)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  status         String                  @default("approved")
+  genres         String[]
   series            BookSeries?             @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   authors           BookAuthor[]
   editions          BookEdition[]
   monthBooks        SubscriptionMonthBook[]
   userEntries       UserBookEntry[]
-  editionComponents BookEditionComponent[]
+  seriesEntries     BookSeriesEntry[]
+  omnibusComponents BookComponent[]         @relation("OmnibusContents")
+  componentOf       BookComponent[]         @relation("ComponentOf")
 
   @@index([language])
   @@index([seriesName])
   @@index([seriesId])
   @@index([status])
+  @@index([isOmnibus])
   @@map("books")
+}
+
+model BookSeriesEntry {
+  id            String   @id @default(uuid())
+  bookId        String
+  seriesId      String
+  volumeNumbers Float[]  @default([])
+  /// Enforced by a partial unique index (bookId) WHERE "isPrimary" = true, added in the migration SQL —
+  /// schema.prisma can't express a partial unique index without the extendedIndexes preview feature.
+  isPrimary     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  book   Book       @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  series BookSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, seriesId])
+  @@index([seriesId])
+  @@index([bookId, isPrimary])
+  @@map("book_series_entries")
+}
+
+model BookComponent {
+  id            String @id @default(uuid())
+  omnibusBookId String
+  bookId        String
+  volumeNumber  Float?
+  order         Int    @default(0)
+
+  omnibusBook Book @relation("OmnibusContents", fields: [omnibusBookId], references: [id], onDelete: Cascade)
+  book        Book @relation("ComponentOf", fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([omnibusBookId, bookId])
+  @@index([bookId])
+  @@map("book_components")
 }
 
 model Author {
@@ -245,9 +285,6 @@ model BookEdition {
   additionalImages         String[]
   editionImages            BookEditionMediaAsset[]
   isSpecial                Boolean                   @default(false)
-  isOmnibus                Boolean                   @default(false)
-  componentCount           Int                       @default(0)
-  components               BookEditionComponent[]
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   basePrice                Decimal?                  @db.Decimal(10, 2)
@@ -293,21 +330,6 @@ model BookEdition {
   @@index([updatedAt])
   @@index([verifiedAt])
   @@map("book_editions")
-}
-
-model BookEditionComponent {
-  id           String      @id @default(uuid())
-  editionId    String
-  bookId       String?
-  customTitle  String?
-  volumeNumber Float?
-  order        Int         @default(0)
-  edition      BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
-  book         Book?       @relation(fields: [bookId], references: [id], onDelete: SetNull)
-
-  @@index([editionId])
-  @@index([bookId])
-  @@map("book_edition_components")
 }
 
 model BookBoxCompany {
