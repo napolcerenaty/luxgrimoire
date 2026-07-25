@@ -53,6 +53,7 @@ import { MediaAssetsModule } from './modules/media-assets/media-assets.module';
 import { BookSeriesModule } from './modules/book-series/book-series.module';
 import { HomepageFeaturesModule } from './modules/homepage-features/homepage-features.module';
 import { BlogAdminModule } from './modules/blog-admin/blog-admin.module';
+import { SitemapModule } from './modules/sitemap/sitemap.module';
 
 @Module({
   imports: [
@@ -167,6 +168,7 @@ import { BlogAdminModule } from './modules/blog-admin/blog-admin.module';
     ReadingImportModule,
     BookSeriesModule,
     BlogAdminModule,
+    SitemapModule,
   ],
   providers: [
     ...(process.env.SENTRY_DSN ? [{ provide: APP_FILTER, useClass: SentryGlobalFilter }] : []),
