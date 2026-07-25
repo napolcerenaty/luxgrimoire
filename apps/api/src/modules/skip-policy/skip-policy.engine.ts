@@ -1154,6 +1154,16 @@ export class SkipPolicyEngine {
     // here we want the subscriber's own next occurrence, not a fresh joiner's first eligible one).
     let candidate = computeFirstEligibleBoxMonth(now, renewalDay ?? 1, offset, true, intervalMonths, startingMonth);
 
+    // Pure cycle math assumes the grid has always existed — if the subscription's actual first
+    // deliverable bundle starts LATER than what that math computes for "now" (e.g. the grid's
+    // nominal alignment predates the subscription's real launch), snap forward to it. There's no
+    // meaningful "in-flight cycle" before the first bundle ever shipped.
+    if (excludeBundleStart) {
+      const candidateAbs = candidate.year * 12 + candidate.month;
+      const excludeAbs = excludeBundleStart.year * 12 + excludeBundleStart.month;
+      if (candidateAbs < excludeAbs) candidate = excludeBundleStart;
+    }
+
     // Bounded walk forward over already-skipped bundles (mirrors the non-bundle candidate loop).
     for (let i = 0; i < 24; i++) {
       const bundleMonths = enumerateBundleMonths(candidate, intervalMonths);

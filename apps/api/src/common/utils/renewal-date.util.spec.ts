@@ -474,9 +474,16 @@ describe('computeFirstEligibleBoxMonth — subscriptionStartDate override', () =
   })
 
   it('is a no-op (defers to normal computation) when subscriptionStartDate is not provided', () => {
+    // Apr 15 2026 sits inside the Mar-Apr renewal window of this offset=1/interval=2/startingMonth=6
+    // grid (renewal month=Mar, box=renewal+offset=Apr) — so the current box is April, and with
+    // signupIncludesCurrentMonth=false the normal (un-overridden) computation advances one interval
+    // to June. This happens to numerically match what the subscriptionStartDate-aware override
+    // would return for a real pre-launch case with the same params (see the paired tests above) —
+    // that's a coincidence of this particular input, not evidence the override is a no-op; the
+    // override tests above already independently exercise the bypass branch.
     const entryStart = new Date(Date.UTC(2026, 3, 15));
     const result = computeFirstEligibleBoxMonth(entryStart, 1, 1, false, 2, 6)
-    expect(result).not.toEqual({ year: 2026, month: 6 }) // the un-overridden (buggy-looking) result
+    expect(result).toEqual({ year: 2026, month: 6 })
   })
 });
 

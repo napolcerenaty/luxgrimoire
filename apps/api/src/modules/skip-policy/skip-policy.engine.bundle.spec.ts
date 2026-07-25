@@ -193,6 +193,13 @@ function makePrismaForGetStatus(opts: {
   state: { windowKey: string | null; skipsInWindow: number; consecutiveSkips: number; totalSkips: number } | null;
   /** subscriptionMonth.findMany result — only bundle start months */
   upcomingBundleMonths: ReturnType<typeof makeBundleMonth>[];
+  /**
+   * subscriptionMonth.findFirst result (getFirstDeliverableMonthInfo → excludeBundleStart).
+   * Every test fixture here uses entry.startDate='2025-01-01', so this should be the real
+   * first SubscriptionMonth row on/after that date for the given cadence — NOT null, which
+   * would silently disable the "never skip the first bundle" exclusion entirely.
+   */
+  firstDeliverableMonth: { year: number; month: number };
 }): PrismaService {
   return {
     subscription: {
@@ -209,7 +216,12 @@ function makePrismaForGetStatus(opts: {
       findMany: jest.fn().mockResolvedValue([]),
     },
     subscriptionMonth: {
-      findFirst: jest.fn().mockResolvedValue(null),
+      findFirst: jest.fn().mockResolvedValue({
+        id: `sm-${opts.firstDeliverableMonth.year}-${opts.firstDeliverableMonth.month}`,
+        seriesId: null,
+        year: opts.firstDeliverableMonth.year,
+        month: opts.firstDeliverableMonth.month,
+      }),
       findMany: jest.fn().mockResolvedValue(opts.upcomingBundleMonths),
       // findBundleTargetMonth resolves each candidate bundle-start via findUnique.
       findUnique: jest.fn().mockImplementation(({ where }: any) => {
@@ -242,6 +254,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
           makeBundleMonth(2025, 7),  // Q3 start
           makeBundleMonth(2025, 10), // Q4 start
         ],
+        firstDeliverableMonth: { year: 2025, month: 1 },
       });
       const engine = new SkipPolicyEngine(prisma);
       const status = await engine.getStatus('user-1', 'test-bundle-sub');
@@ -264,6 +277,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
           makeBundleMonth(2025, 5),
           makeBundleMonth(2025, 7),
         ],
+        firstDeliverableMonth: { year: 2025, month: 1 },
       });
       const engine = new SkipPolicyEngine(prisma);
       const status = await engine.getStatus('user-1', 'test-bundle-sub');
@@ -284,6 +298,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
           makeBundleMonth(2025, 7), // Q3 — first non-skipped
           makeBundleMonth(2025, 10),
         ],
+        firstDeliverableMonth: { year: 2025, month: 1 },
       });
       const engine = new SkipPolicyEngine(prisma);
       const status = await engine.getStatus('user-1', 'test-bundle-sub');
@@ -306,6 +321,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
         subscription: sub,
         state: { windowKey: '2025', skipsInWindow: 2, consecutiveSkips: 2, totalSkips: 2 },
         upcomingBundleMonths: [makeBundleMonth(2025, 10)],
+        firstDeliverableMonth: { year: 2025, month: 1 },
       });
       const engine = new SkipPolicyEngine(prisma);
       const status = await engine.getStatus('user-1', 'test-bundle-sub');
@@ -329,6 +345,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
           makeBundleMonth(2025, 8),  // Aug = first box of Q3
           makeBundleMonth(2025, 11), // Nov = first box of Q4
         ],
+        firstDeliverableMonth: { year: 2025, month: 2 },
       });
       const engine = new SkipPolicyEngine(prisma);
       const status = await engine.getStatus('user-1', 'test-bundle-sub');
@@ -547,6 +564,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
         subscription: sub1,
         state: null,
         upcomingBundleMonths: [makeBundleMonth(2025, 4), makeBundleMonth(2025, 7), makeBundleMonth(2025, 10)],
+        firstDeliverableMonth: { year: 2025, month: 1 },
       });
       const engine1 = new SkipPolicyEngine(prisma1);
       const status1 = await engine1.getStatus('user-1', 'test-bundle-sub');
@@ -563,6 +581,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
         subscription: sub2,
         state: { windowKey: '2025', skipsInWindow: 1, consecutiveSkips: 1, totalSkips: 1 },
         upcomingBundleMonths: [makeBundleMonth(2025, 7), makeBundleMonth(2025, 10)],
+        firstDeliverableMonth: { year: 2025, month: 1 },
       });
       const engine2 = new SkipPolicyEngine(prisma2);
       const status2 = await engine2.getStatus('user-1', 'test-bundle-sub');
@@ -581,6 +600,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
         subscription: sub3,
         state: { windowKey: '2025', skipsInWindow: 2, consecutiveSkips: 0, totalSkips: 2 },
         upcomingBundleMonths: [makeBundleMonth(2025, 10)],
+        firstDeliverableMonth: { year: 2025, month: 1 },
       });
       const engine3 = new SkipPolicyEngine(prisma3);
       const status3 = await engine3.getStatus('user-1', 'test-bundle-sub');
@@ -605,6 +625,7 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
         // Engine should detect stale window and show 0 (new year = no skips yet)
         state: { windowKey: '2025', skipsInWindow: 1, consecutiveSkips: 1, totalSkips: 1 },
         upcomingBundleMonths: [makeBundleMonth(2026, 1), makeBundleMonth(2026, 4), makeBundleMonth(2026, 7)],
+        firstDeliverableMonth: { year: 2025, month: 1 },
       });
       const engine = new SkipPolicyEngine(prisma);
       const status = await engine.getStatus('user-1', 'test-bundle-sub');
@@ -734,10 +755,8 @@ describe('SkipPolicyEngine — bundle subscription skip recording', () => {
         state: null,
         // Q2 (Apr/May/Jun) is the user's first bundle; Q3 (Jul) is the first skippable one.
         upcomingBundleMonths: [makeBundleMonth(2025, 4), makeBundleMonth(2025, 7), makeBundleMonth(2025, 10)],
-      });
-      // getFirstDeliverableMonthInfo → subscriptionMonth.findFirst → April is the first month
-      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({
-        id: 'sm-2025-4', seriesId: null, year: 2025, month: 4,
+        // getFirstDeliverableMonthInfo → subscriptionMonth.findFirst → April is the first month
+        firstDeliverableMonth: { year: 2025, month: 4 },
       });
       const engine = new SkipPolicyEngine(prisma);
       const status = await engine.getStatus('user-1', 'test-bundle-sub');
