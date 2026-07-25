@@ -734,7 +734,8 @@ export default function SoldPage() {
                       <EditionCard
                         href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                         coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
-                        title={formatEditionDisplayTitle(entry.edition.book, entry.edition)}
+                        title={entry.edition.book.title}
+                        variantLabel={entry.edition.variantLabel}
                         authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                         companyName={entry.edition.bookBoxCompany?.name}
                         companySlug={entry.edition.bookBoxCompany?.slug}
@@ -844,7 +845,8 @@ export default function SoldPage() {
                       <EditionCard
                         href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                         coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
-                        title={formatEditionDisplayTitle(entry.edition.book, entry.edition)}
+                        title={entry.edition.book.title}
+                        variantLabel={entry.edition.variantLabel}
                         authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                         companyName={entry.edition.bookBoxCompany?.name}
                         companySlug={entry.edition.bookBoxCompany?.slug}

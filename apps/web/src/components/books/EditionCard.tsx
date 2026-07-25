@@ -54,6 +54,7 @@ export function EditionCard({
 }: EditionCardProps) {
   const cover = cloudinaryUrl(coverImage, 'w_400,h_600,c_fill,q_auto,f_auto')
   const altText = title ?? companyName ?? 'Edition'
+  const fullTitle = title && variantLabel ? `${title} (${variantLabel})` : title
   const isUpcoming = generalSaleDate ? new Date(generalSaleDate) > new Date() : false
   const highlightClass = highlight ? (HIGHLIGHT_CLASS[highlight] ?? '') : ''
 
@@ -109,7 +110,7 @@ export function EditionCard({
               <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate min-h-[1em]">
                 {seriesName ? `${seriesName}${volumeNumbers?.length ? ` #${formatVolumeNumbers(volumeNumbers)}` : ''}` : '\u00A0'}
               </p>
-              <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
+              <p title={fullTitle} className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
                 {title}
               </p>
               {authors && authors.length > 0 && (

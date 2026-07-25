@@ -376,7 +376,8 @@ export default function WishlistPage() {
                 companyName={entry.edition.bookBoxCompany?.name}
                 companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                 volumeNumbers={entry.edition.book.volumeNumbers}
-                title={formatEditionDisplayTitle(entry.edition.book, entry.edition)}
+                title={entry.edition.book.title}
+                variantLabel={entry.edition.variantLabel}
                 authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                 imageActions={
                   <div className="absolute inset-0 bg-stone-950/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
