@@ -119,22 +119,22 @@ export default async function CompanyPage({ params }: Props) {
       ? { label: 'Website', href: company.website, icon: 'website' as const }
       : null,
     company.instagram
-      ? { label: 'Instagram', href: `https://instagram.com/${company.instagram.replace(/^@/, '')}`, icon: 'instagram' as const }
+      ? { label: 'Instagram', href: company.instagram.startsWith('http') ? company.instagram : `https://instagram.com/${company.instagram.replace(/^@/, '')}`, icon: 'instagram' as const }
       : null,
     company.facebook
       ? { label: 'Facebook', href: company.facebook.startsWith('http') ? company.facebook : `https://facebook.com/${company.facebook}`, icon: 'facebook' as const }
       : null,
     company.x
-      ? { label: 'X / Twitter', href: `https://x.com/${company.x.replace(/^@/, '')}`, icon: 'x' as const }
+      ? { label: 'X / Twitter', href: company.x.startsWith('http') ? company.x : `https://x.com/${company.x.replace(/^@/, '')}`, icon: 'x' as const }
       : null,
     company.tiktok
-      ? { label: 'TikTok', href: `https://tiktok.com/@${company.tiktok.replace(/^@/, '')}`, icon: 'tiktok' as const }
+      ? { label: 'TikTok', href: company.tiktok.startsWith('http') ? company.tiktok : `https://tiktok.com/@${company.tiktok.replace(/^@/, '')}`, icon: 'tiktok' as const }
       : null,
     company.threads
-      ? { label: 'Threads', href: `https://threads.net/@${company.threads.replace(/^@/, '')}`, icon: 'threads' as const }
+      ? { label: 'Threads', href: company.threads.startsWith('http') ? company.threads : `https://threads.net/@${company.threads.replace(/^@/, '')}`, icon: 'threads' as const }
       : null,
     company.bluesky
-      ? { label: 'Bluesky', href: `https://bsky.app/profile/${company.bluesky.replace(/^@/, '')}`, icon: 'bluesky' as const }
+      ? { label: 'Bluesky', href: company.bluesky.startsWith('http') ? company.bluesky : `https://bsky.app/profile/${company.bluesky.replace(/^@/, '')}`, icon: 'bluesky' as const }
       : null,
   ].filter(Boolean) as { label: string; href: string; icon: 'website' | 'instagram' | 'facebook' | 'x' | 'tiktok' | 'threads' | 'bluesky' }[]
 
