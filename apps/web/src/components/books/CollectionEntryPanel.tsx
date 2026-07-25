@@ -21,6 +21,7 @@ interface PurchaseFee {
   currency: string
   category: string
   date: string
+  feeTemplateId: string | null
 }
 
 interface PurchaseDiscount {
@@ -199,11 +200,12 @@ const INP_BASE = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 te
 const INP = INP_BASE + ' w-full'
 const INP_FLEX = INP_BASE + ' flex-1 min-w-0'
 const FEE_CATEGORIES = [
-  { value: 'OTHER', label: 'Other' },
-  { value: 'SHIPPING', label: 'Shipping' },
-  { value: 'FORWARDING', label: 'Forwarding' },
   { value: 'VAT', label: 'VAT' },
   { value: 'CUSTOMS', label: 'Customs' },
+  { value: 'PROCESSING', label: 'Processing' },
+  { value: 'FORWARDING', label: 'Forwarding' },
+  { value: 'PRICE_ADJUSTMENT', label: 'Price Adjustment' },
+  { value: 'OTHER', label: 'Other' },
 ]
 const SEC_HDR = 'text-xs uppercase tracking-widest font-semibold text-stone-500 mb-3'
 
@@ -364,6 +366,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [newFeeCurrency, setNewFeeCurrency] = useState('')
   const [newFeeDate, setNewFeeDate] = useState('')
   const [newFeeCategory, setNewFeeCategory] = useState('OTHER')
+  const [newFeeTemplateId, setNewFeeTemplateId] = useState<string | null>(null)
   const [savingFee, setSavingFee] = useState(false)
   const [editingFeeId, setEditingFeeId] = useState<string | null>(null)
   const [editFeeName, setEditFeeName] = useState('')
@@ -371,6 +374,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [editFeeCurrency, setEditFeeCurrency] = useState('')
   const [editFeeDate, setEditFeeDate] = useState('')
   const [editFeeCategory, setEditFeeCategory] = useState('OTHER')
+  const [editFeeTemplateId, setEditFeeTemplateId] = useState<string | null>(null)
 
   // Refund state
   const [addingRefund, setAddingRefund] = useState(false)
@@ -703,7 +707,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     setNewFeeCurrency(entry!.purchaseGroup?.currency ?? 'EUR')
     setNewFeeDate(new Date().toISOString().slice(0, 10))
     setNewFeeCategory('OTHER')
+    setNewFeeTemplateId(null)
     setAddingFee(true)
+  }
+
+  function clearNewFeeTemplate() {
+    setNewFeeTemplateId(null)
+    setNewFeeName('')
+    setNewFeeCategory('OTHER')
   }
 
   async function saveNewFee() {
@@ -713,6 +724,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       await authFetch(`/fees`, {
         method: 'POST',
         body: JSON.stringify({
+          feeTemplateId: newFeeTemplateId ?? undefined,
           name: newFeeName,
           amount: parseFloat(newFeeAmount),
           currency: newFeeCurrency,
@@ -733,13 +745,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     await refetchEntry()
   }
 
-  function openEditFee(fee: { id: string; name: string; amount: string; currency: string; date: string | null; category: string }) {
+  function openEditFee(fee: { id: string; name: string; amount: string; currency: string; date: string | null; category: string; feeTemplateId: string | null }) {
     setEditingFeeId(fee.id)
     setEditFeeName(fee.name)
     setEditFeeAmount(parseFloat(fee.amount).toFixed(2))
     setEditFeeCurrency(fee.currency)
     setEditFeeDate(fee.date ? fee.date.slice(0, 10) : new Date().toISOString().slice(0, 10))
     setEditFeeCategory(fee.category ?? 'OTHER')
+    setEditFeeTemplateId(fee.feeTemplateId ?? null)
   }
 
   async function saveEditFee() {
@@ -749,11 +762,12 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       await authFetch(`/fees/${editingFeeId}`, {
         method: 'PATCH',
         body: JSON.stringify({
-          name: editFeeName,
           amount: parseFloat(editFeeAmount),
           currency: editFeeCurrency,
           date: new Date(editFeeDate).toISOString(),
-          category: editFeeCategory,
+          // Name/category are template-owned when this fee is linked to a template — only
+          // amount/currency/date are ever editable for those (see FEE_CATEGORIES usage below).
+          ...(editFeeTemplateId ? {} : { name: editFeeName, category: editFeeCategory }),
         }),
       })
       await refetchEntry()
@@ -1256,8 +1270,20 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                     {(pg.fees ?? []).map(fee => (
                       editingFeeId === fee.id ? (
                         <div key={fee.id} className="flex flex-col gap-1.5 pt-0.5">
+                          {editFeeTemplateId ? (
+                            <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded border border-stone-700" style={{ color: 'var(--text-dim)' }}>
+                              <span className="flex-1 truncate">{editFeeName}</span>
+                              <span className="text-stone-500">{FEE_CATEGORIES.find(c => c.value === editFeeCategory)?.label ?? editFeeCategory}</span>
+                            </div>
+                          ) : (
+                            <div className="flex gap-1.5">
+                              <input value={editFeeName} onChange={e => setEditFeeName(e.target.value)} placeholder="Fee name" className={INP_FLEX} />
+                              <select value={editFeeCategory} onChange={e => setEditFeeCategory(e.target.value)} className={INP_BASE + ' w-28'}>
+                                {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                              </select>
+                            </div>
+                          )}
                           <div className="flex gap-1.5">
-                            <input value={editFeeName} onChange={e => setEditFeeName(e.target.value)} placeholder="Fee name" className={INP_FLEX} />
                             <input type="number" step="0.01" min="0" value={editFeeAmount} onChange={e => setEditFeeAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} style={{ MozAppearance: 'textfield' } as React.CSSProperties} />
                             <select value={editFeeCurrency} onChange={e => setEditFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1276,6 +1302,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       ) : (
                         <div key={fee.id} className="flex items-center gap-1.5 text-xs">
                           <span className="flex-1 truncate" style={{ color: 'var(--text-dim)' }}>{fee.name}</span>
+                          <span className="text-stone-500">{FEE_CATEGORIES.find(c => c.value === fee.category)?.label ?? fee.category}</span>
                           <span style={{ color: 'var(--text-dim)' }}>{parseFloat(fee.amount).toFixed(2)} {fee.currency}</span>
                           <span className="text-stone-500">{fee.date ? fee.date.slice(0, 10) : ''}</span>
                           <button onClick={() => openEditFee(fee)} className="text-stone-600 hover:text-amber-400 transition-colors shrink-0">
@@ -1296,20 +1323,36 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                                 key={t.id}
                                 type="button"
                                 onClick={() => {
+                                  setNewFeeTemplateId(t.id)
                                   setNewFeeName(t.name)
                                   if (t.defaultAmount) setNewFeeAmount(String(t.defaultAmount))
                                   if (t.defaultCurrency) setNewFeeCurrency(t.defaultCurrency)
                                   if (t.category) setNewFeeCategory(t.category)
                                 }}
-                                className="px-2 py-0.5 rounded text-xs border border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400 transition-colors"
+                                className={`px-2 py-0.5 rounded text-xs border transition-colors ${newFeeTemplateId === t.id ? 'border-amber-500/60 text-amber-400' : 'border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400'}`}
                               >
                                 {t.name}
                               </button>
                             ))}
                           </div>
                         )}
+                        {newFeeTemplateId ? (
+                          <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded border border-stone-700" style={{ color: 'var(--text-dim)' }}>
+                            <span className="flex-1 truncate">{newFeeName}</span>
+                            <span className="text-stone-500">{FEE_CATEGORIES.find(c => c.value === newFeeCategory)?.label ?? newFeeCategory}</span>
+                            <button type="button" onClick={clearNewFeeTemplate} className="text-stone-500 hover:text-red-400 transition-colors shrink-0">
+                              <X size={11} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1.5">
+                            <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP_FLEX} />
+                            <select value={newFeeCategory} onChange={e => setNewFeeCategory(e.target.value)} className={INP_BASE + ' w-28'}>
+                              {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                            </select>
+                          </div>
+                        )}
                         <div className="flex gap-1.5">
-                          <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP_FLEX} />
                           <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} />
                           <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}

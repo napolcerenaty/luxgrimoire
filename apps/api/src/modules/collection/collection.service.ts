@@ -384,7 +384,7 @@ export class CollectionService {
               notes: true,
               saleAnnouncementId: true,
               fees: {
-                select: { id: true, name: true, amount: true, currency: true, category: true, date: true },
+                select: { id: true, name: true, amount: true, currency: true, category: true, date: true, feeTemplateId: true },
                 orderBy: { createdAt: 'asc' },
               },
               discounts: {
