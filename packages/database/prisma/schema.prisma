@@ -1406,6 +1406,10 @@ enum FeeCategory {
   SHIPPING
   PROCESSING
   FORWARDING
+  /// Manually-tracked amount that counts as part of the book/box's base price for stats
+  /// purposes (e.g. installment payments, pre-launch reservation fees credited against the
+  /// first box payment) — deliberately NOT auto-computed, unlike the other categories.
+  PRICE_ADJUSTMENT
   OTHER
 }
 

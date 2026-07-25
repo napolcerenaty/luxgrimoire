@@ -61,6 +61,7 @@ const CATEGORIES: { value: FeeCategory; label: string }[] = [
   { value: 'CUSTOMS', label: 'Customs' },
   { value: 'PROCESSING', label: 'Processing' },
   { value: 'FORWARDING', label: 'Forwarding' },
+  { value: 'PRICE_ADJUSTMENT', label: 'Price Adjustment' },
   { value: 'OTHER', label: 'Other' },
 ]
 

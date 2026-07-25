@@ -5,7 +5,7 @@ import type { StatsContext } from '../stats.context';
 @Injectable()
 export class SpendingStatsComputer extends StatsComputer {
   readonly key = 'spending';
-  readonly version = 4;
+  readonly version = 5;
 
   async compute(ctx: StatsContext): Promise<StatsComputeResult> {
     const { entries, saleGroups, convert, now } = ctx;
@@ -28,6 +28,7 @@ export class SpendingStatsComputer extends StatsComputer {
     let totalFees = 0;
     let totalShippingFees = 0;
     let totalForwardingFees = 0;
+    let totalPriceAdjustment = 0;
     let totalBasePrice = 0;
     let totalShipping = 0;
     let totalForwarding = 0;
@@ -74,12 +75,17 @@ export class SpendingStatsComputer extends StatsComputer {
       let shippingFeesPerEntry = 0;
       let forwardingFeesPerEntry = 0;
       let taxFeesPerEntry = 0;
+      let priceAdjustmentPerEntry = 0;
       for (const fee of group.fees) {
         const amt = (await convert(toNum(fee.amount), fee.currency, new Date(fee.date))) / entryCount;
         feesPerEntry += amt;
         if (fee.category === 'SHIPPING') shippingFeesPerEntry += amt;
         else if (fee.category === 'FORWARDING') forwardingFeesPerEntry += amt;
         else if (fee.category === 'VAT' || fee.category === 'CUSTOMS') taxFeesPerEntry += amt;
+        // Manually-tracked amounts (installments, pre-launch reservation fees, etc.) that the
+        // user wants counted as part of the book/box's price rather than as a separate fee —
+        // see FeeCategory.PRICE_ADJUSTMENT in schema.prisma.
+        else if (fee.category === 'PRICE_ADJUSTMENT') priceAdjustmentPerEntry += amt;
       }
 
       let discountsPerEntry = 0;
@@ -96,13 +102,14 @@ export class SpendingStatsComputer extends StatsComputer {
       if (entryTotal === 0) continue;
 
       booksWithCost++;
-      totalBasePrice += baseConverted;
+      totalBasePrice += baseConverted + priceAdjustmentPerEntry;
       totalShipping += shippingConverted + shippingFeesPerEntry;
       totalShippingFees += shippingFeesPerEntry;
       totalForwarding += forwardingFeesPerEntry;
       totalForwardingFees += forwardingFeesPerEntry;
       totalTax += taxFeesPerEntry;
       totalFees += feesPerEntry;
+      totalPriceAdjustment += priceAdjustmentPerEntry;
       totalDiscounts += discountsPerEntry;
       totalRefunds += refundsPerEntry;
 
@@ -240,7 +247,7 @@ export class SpendingStatsComputer extends StatsComputer {
       totalShipping: r(totalShipping),
       totalForwarding: r(totalForwarding),
       totalTax: r(totalTax),
-      totalOtherFees: r(totalFees - totalShippingFees - totalForwardingFees - totalTax),
+      totalOtherFees: r(totalFees - totalShippingFees - totalForwardingFees - totalTax - totalPriceAdjustment),
       totalDiscounts: r(totalDiscounts),
       totalRefunds: r(totalRefunds),
       byYear: Object.entries(byYearMap)
