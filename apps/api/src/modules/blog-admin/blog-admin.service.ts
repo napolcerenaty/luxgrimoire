@@ -52,7 +52,7 @@ export class BlogAdminService {
       `${this.ghostUrl}/ghost/api/admin/posts/?limit=100&fields=id,title,slug,feature_image&order=published_at%20DESC`,
       { headers: this.authHeaders() },
     );
-    if (!res.ok) throw new InternalServerErrorException(`Ghost admin API error: ${res.status}`);
+    if (!res.ok) throw new InternalServerErrorException(`Ghost admin API error: ${res.status} ${await res.text()}`);
     const { posts } = (await res.json()) as { posts: GhostAdminPost[] };
     return posts.map((p) => ({ id: p.id, title: p.title, slug: p.slug, featureImage: p.feature_image }));
   }
@@ -60,7 +60,7 @@ export class BlogAdminService {
   private async getPostBySlug(slug: string): Promise<GhostAdminPost> {
     const res = await fetch(`${this.ghostUrl}/ghost/api/admin/posts/slug/${slug}/`, { headers: this.authHeaders() });
     if (res.status === 404) throw new NotFoundException(`Post "${slug}" not found`);
-    if (!res.ok) throw new InternalServerErrorException(`Ghost admin API error: ${res.status}`);
+    if (!res.ok) throw new InternalServerErrorException(`Ghost admin API error: ${res.status} ${await res.text()}`);
     const { posts } = (await res.json()) as { posts: GhostAdminPost[] };
     return posts[0];
   }
