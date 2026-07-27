@@ -30,6 +30,7 @@ export class NotificationRemindersCron {
         entryId: true,
         announcementId: true,
         tier: true,
+        choiceGroupId: true,
       },
     });
 
@@ -43,12 +44,15 @@ export class NotificationRemindersCron {
     // Group renewal reminders by userId for digest logic
     const renewalsByUser = new Map<string, typeof due>();
     const saleReminders: typeof due = [];
+    const bookChoiceReminders: typeof due = [];
 
     for (const r of due) {
       if (r.type === 'renewal') {
         const list = renewalsByUser.get(r.userId) ?? [];
         list.push(r);
         renewalsByUser.set(r.userId, list);
+      } else if (r.type === 'book_choice') {
+        bookChoiceReminders.push(r);
       } else {
         saleReminders.push(r);
       }
@@ -62,6 +66,11 @@ export class NotificationRemindersCron {
     // Process sale reminders
     for (const reminder of saleReminders) {
       await this.processSaleReminder(reminder);
+    }
+
+    // Process book-choice reminders
+    for (const reminder of bookChoiceReminders) {
+      await this.processBookChoiceReminder(reminder);
     }
   }
 
@@ -271,6 +280,72 @@ export class NotificationRemindersCron {
       return dateStr;
     }
     return dateStr;
+  }
+
+  private async processBookChoiceReminder(reminder: {
+    id: string;
+    userId: string;
+    entryId: string | null;
+    choiceGroupId: string | null;
+  }) {
+    if (!reminder.entryId || !reminder.choiceGroupId) {
+      await this.markSent([reminder.id]);
+      return;
+    }
+
+    const settings = await this.prisma.userReminderSettings.findUnique({
+      where: { userId: reminder.userId },
+      select: { bookChoiceEnabled: true, bookChoiceInAppEnabled: true, bookChoicePushEnabled: true },
+    });
+    if (!settings?.bookChoiceEnabled) {
+      await this.markSent([reminder.id]);
+      return;
+    }
+
+    // Already resolved between scheduling and firing (e.g. user chose right before the
+    // reminder fired) — nothing to say.
+    const alreadyChosen = await this.prisma.userSubscriptionMonthChoice.findUnique({
+      where: { choiceGroupId_subscriptionEntryId: { choiceGroupId: reminder.choiceGroupId, subscriptionEntryId: reminder.entryId } },
+    });
+    if (alreadyChosen) {
+      await this.markSent([reminder.id]);
+      return;
+    }
+
+    const group = await this.prisma.subscriptionMonthChoiceGroup.findUnique({
+      where: { id: reminder.choiceGroupId },
+      select: {
+        label: true,
+        month: { select: { year: true, month: true, subscription: { select: { name: true, slug: true } } } },
+      },
+    });
+    if (!group) {
+      await this.markSent([reminder.id]);
+      return;
+    }
+
+    const monthLabel = `${group.month.year}/${String(group.month.month).padStart(2, '0')}`;
+    const title = 'Book choice open';
+    const body = [group.month.subscription.name, group.label, monthLabel, 'Pick your book(s) before the deadline.']
+      .filter(Boolean)
+      .join(' · ');
+
+    if (settings.bookChoiceInAppEnabled) {
+      await this.notificationsService.createNotification(
+        reminder.userId,
+        'book_choice_reminder',
+        title,
+        body,
+        'subscriptions',
+        group.month.subscription.slug,
+        { skipPush: true },
+      );
+    }
+    if (settings.bookChoicePushEnabled) {
+      await this.sendPush(reminder.userId, 'book_choice_reminder', title, body, 'subscriptions', group.month.subscription.slug);
+    }
+
+    await this.markSent([reminder.id]);
   }
 
   /**
