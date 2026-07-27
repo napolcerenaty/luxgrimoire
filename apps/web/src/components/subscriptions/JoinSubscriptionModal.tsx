@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { authFetch } from '@/lib/authFetch'
 import { getFeeTemplates } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -131,6 +132,7 @@ interface Props {
   subscriptionEndDate?: string | null
   signupIncludesCurrentMonth?: boolean
   isBundleSubscription?: boolean
+  hasBookChoiceMonths?: boolean
   intervalMonths?: number
   startingMonth?: number
   onJoined: () => void
@@ -2014,6 +2016,7 @@ export default function JoinSubscriptionModal({
   subscriptionEndDate,
   signupIncludesCurrentMonth,
   isBundleSubscription,
+  hasBookChoiceMonths,
   intervalMonths,
   startingMonth,
   onJoined,
@@ -2218,6 +2221,14 @@ export default function JoinSubscriptionModal({
           <div className="text-center py-8 space-y-3">
             <p className="text-2xl">🎉</p>
             <p className="text-stone-100 font-medium">You&apos;re subscribed!</p>
+            {hasBookChoiceMonths && (
+              <p className="text-xs text-stone-400 max-w-xs mx-auto">
+                Some months let you pick between book options — we&apos;ll remind you when one&apos;s open.{' '}
+                <Link href="/profile?tab=notifications" className="text-amber-400 hover:text-amber-300 underline">
+                  Check your reminder settings
+                </Link>
+              </p>
+            )}
             <button
               onClick={onClose}
               className="mt-2 py-2 px-6 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"

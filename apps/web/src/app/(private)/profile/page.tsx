@@ -6,7 +6,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import StatsSettingsPanel from '@/components/stats/StatsSettingsPanel'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle, Upload, BookMarked, Bell } from 'lucide-react'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
 import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
@@ -85,7 +85,10 @@ export default function ProfilePage() {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<Tab>('profile')
+  const searchParams = useSearchParams()
+  const requestedTab = searchParams.get('tab') as Tab | null
+  const initialTab: Tab = requestedTab && TAB_CONFIG.some(t => t.id === requestedTab) ? requestedTab : 'profile'
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const [mobileShowContent, setMobileShowContent] = useState(false)
 
   const [deleteConfirmText, setDeleteConfirmText] = useState('')

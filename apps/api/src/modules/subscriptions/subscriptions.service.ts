@@ -42,7 +42,7 @@ import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
 import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
-import { resolveMonthBooksForEntry, persistMonthChoice } from './subscription-month-choice.util';
+import { resolveMonthBooksForEntry, persistMonthChoice, computeChoiceDeadline } from './subscription-month-choice.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 import { StatsService } from '../stats/stats.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
@@ -1926,6 +1926,7 @@ export class SubscriptionsService {
             paymentOnStartup: true,
             renewalDay: true,
             isBundleSubscription: true,
+            hasBookChoiceMonths: true,
             intervalMonths: true,
             startingMonth: true,
             renewalMonthOffset: true,
@@ -2858,7 +2859,32 @@ export class SubscriptionsService {
 
     this.statsService.markStatsStale(userId);
     this.scheduledReminders?.scheduleRenewal(entry.id).catch(() => {});
+    // If this subscription already has open book-choice groups, schedule reminders for the
+    // new entry too — otherwise only entries active at group-creation time would ever get
+    // one (see createChoiceGroup, which only loops over then-active entries).
+    if (!isCombo && (sub as any).hasBookChoiceMonths) {
+      this.scheduleBookChoiceForNewEntry(entry.id, monthsSubscriptionId).catch(() => {});
+    }
     return { entry, eligibleMonths };
+  }
+
+  private async scheduleBookChoiceForNewEntry(entryId: string, subscriptionId: string) {
+    const groups = await this.prisma.subscriptionMonthChoiceGroup.findMany({
+      where: { month: { subscriptionId } },
+      select: {
+        id: true,
+        choiceDeadlineType: true,
+        choiceDeadlineDaysBefore: true,
+        choiceDeadlineDayOfMonth: true,
+        month: { select: { year: true, month: true } },
+      },
+    });
+    const now = new Date();
+    for (const group of groups) {
+      const deadline = computeChoiceDeadline(group.month.year, group.month.month, group);
+      if (deadline <= now) continue;
+      this.scheduledReminders?.scheduleBookChoice(entryId, group.id).catch(() => {});
+    }
   }
 
   private async getEligibleMonths(subscriptionId: string, startDateObj: Date | null, endDateObj?: Date | null, signupIncludesCurrentMonth = false, renewalMonthOffset = 0, renewalDay: number | null = null, intervalMonths = 1, startingMonth = 1, subscriptionStartDate: Date | null = null) {

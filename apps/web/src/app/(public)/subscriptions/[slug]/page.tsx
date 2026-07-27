@@ -89,6 +89,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
 
   // Bundle subscription: compute current and upcoming bundle windows
   const isBundleSubscription = (sub as unknown as { isBundleSubscription?: boolean }).isBundleSubscription ?? false
+  const hasBookChoiceMonths = (sub as unknown as { hasBookChoiceMonths?: boolean }).hasBookChoiceMonths ?? false
   const intervalMonths = sub.intervalMonths ?? 1
   const startingMonth = sub.startingMonth ?? 1
 
@@ -287,6 +288,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           currency={sub.currency}
           intervalMonths={sub.intervalMonths}
           isBundleSubscription={isBundleSubscription}
+          hasBookChoiceMonths={hasBookChoiceMonths}
           startingMonth={startingMonth}
           shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
           country={sub.company?.country ?? null}
