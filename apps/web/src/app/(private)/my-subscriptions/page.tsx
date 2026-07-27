@@ -15,6 +15,7 @@ import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
 import { Ban, ChevronDown, ChevronUp, LayoutGrid, List, Trash2, XCircle } from 'lucide-react'
 import SkipStatusCompact from '@/components/SkipStatusCompact'
 import { bundleRangeLabel } from '@/lib/bundleHelpers'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 
 const PREFS_KEY = 'my_subscriptions_prefs'
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -416,7 +417,7 @@ function InlineCostsEditor({
 }
 
 type MyChoiceGroupOption = {
-  id: string; book: { title: string }; edition: { additionalImages: string[] } | null
+  id: string; book: { title: string }; edition: { additionalImages: string[]; variantLabel?: string | null } | null
 }
 type MyChoiceGroup = {
   id: string; label: string | null; allowMultiple: boolean
@@ -481,7 +482,7 @@ function BookChoiceBanner({ subscriptionSlug, year, month }: { subscriptionSlug:
                         }
                       }}
                     />
-                    {o.book.title}
+                    {formatEditionDisplayTitle(o.book, o.edition)}
                   </label>
                 ))}
               </div>

@@ -1683,6 +1683,7 @@ export class SubscriptionsService {
                 slug: true,
                 additionalImages: true,
                 bookBoxCompanyCustomName: true,
+                variantLabel: true,
                 bookBoxCompany: { select: { id: true, name: true } },
               },
             },

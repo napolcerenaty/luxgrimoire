@@ -564,14 +564,17 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
                 <div className="flex flex-wrap gap-2">
                   {g.options.map(o => (
                     <span key={o.id} className="text-xs px-2 py-1 rounded bg-stone-800 text-stone-300">
-                      {o.book.title}{o.edition ? ` — ${editionCompany(o.edition) ?? ''}` : ''}
+                      {formatEditionDisplayTitle(o.book, o.edition)}{o.edition ? ` — ${editionCompany(o.edition) ?? ''}` : ''}
                     </span>
                   ))}
                 </div>
 
-                {/* Admin backfill: set a specific user's pick for this group */}
+                {/* Admin backfill: retroactively records what ONE SPECIFIC user actually received
+                    for this month (source: admin_backfill) — not a group-wide default. Each user
+                    needs their own entry here; there is no "set for everyone" action. */}
                 <div className="border-t border-sky-500/20 pt-2 mt-1 space-y-1.5">
-                  <div className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Admin: set choice for user</div>
+                  <div className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Admin backfill: record what this one user received</div>
+                  <p className="text-[11px] text-stone-500">Sets the pick for a single user by ID — repeat per user. Doesn't change the group's default for anyone else.</p>
                   <input value={bf.userId} placeholder="User ID"
                     onChange={e => setBackfillState(s => ({ ...s, [g.id]: { ...bf, userId: e.target.value } }))}
                     className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1 text-stone-200 w-full focus:outline-none focus:border-amber-400" />
@@ -583,7 +586,7 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
                             ...s,
                             [g.id]: { ...bf, picked: e.target.checked ? [...bf.picked, o.id] : bf.picked.filter(id => id !== o.id) },
                           }))} />
-                        {o.book.title}
+                        {formatEditionDisplayTitle(o.book, o.edition)}
                       </label>
                     ))}
                   </div>
@@ -608,7 +611,7 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
               <label key={b.id} className="flex items-center gap-1 text-xs text-stone-300 cursor-pointer">
                 <input type="checkbox" checked={selectedIds.includes(b.id)}
                   onChange={e => setSelectedIds(ids => e.target.checked ? [...ids, b.id] : ids.filter(id => id !== b.id))} />
-                {b.book.title}{b.edition ? ` — ${editionCompany(b.edition) ?? ''}` : ''}
+                {formatEditionDisplayTitle(b.book, b.edition)}{b.edition ? ` — ${editionCompany(b.edition) ?? ''}` : ''}
               </label>
             ))}
           </div>
