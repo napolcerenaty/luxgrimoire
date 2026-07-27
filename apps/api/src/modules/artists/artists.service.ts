@@ -164,6 +164,7 @@ export class ArtistsService {
             id: true,
             slug: true,
             additionalImages: true,
+            variantLabel: true,
             bookBoxCompany: { select: { name: true, brandColors: true } },
             communityImages: {
               where: { status: 'APPROVED' },

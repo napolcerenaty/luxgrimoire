@@ -7,6 +7,7 @@ import { Search, BookOpen, User, Brush, Package, Building2, Layers, Megaphone, X
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverUrl } from '@/lib/editionCover'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { API_BASE } from '@/lib/authFetch'
 
 function debounce<T extends (...args: Parameters<T>) => void>(fn: T, ms: number) {
@@ -163,7 +164,7 @@ export function SearchDropdown() {
                 icon={<Layers size={11} />}
                 items={(results!.editions ?? []).map((e) => ({
                   key: e.id,
-                  label: e.book.title,
+                  label: formatEditionDisplayTitle(e.book, e),
                   sub: [e.bookBoxCompany?.name, e.publisher].filter(Boolean).join(' · ') || null,
                   image: resolveEditionCoverUrl(e),
                   badge: e.generalSaleDate && new Date(e.generalSaleDate) > new Date() ? 'Upcoming' : null,

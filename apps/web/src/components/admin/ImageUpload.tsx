@@ -12,9 +12,25 @@ interface Props {
   onChange: (publicId: string) => void
   onClear?: () => void       // optional — shows "Remove" button when provided
   aspectRatio?: string       // e.g. '2/3' (default) or '1/1'
+  /**
+   * Auto-delete the replaced image from Cloudinary on upload — safe only when `value` is
+   * tracked by a real DB foreign key (MediaAssetsService.countUsages() checks those FKs
+   * before deleting). Set to false for fields with no such FK (e.g. blog feature images,
+   * which live in Ghost, not this app's DB) — otherwise every replacement silently deletes
+   * an asset that's still in use elsewhere, since countUsages() has no way to see it.
+   */
+  deletePreviousOnReplace?: boolean
 }
 
-export default function ImageUpload({ label, folder, value, onChange, onClear, aspectRatio = '2/3' }: Props) {
+export default function ImageUpload({
+  label,
+  folder,
+  value,
+  onChange,
+  onClear,
+  aspectRatio = '2/3',
+  deletePreviousOnReplace = true,
+}: Props) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -31,7 +47,7 @@ export default function ImageUpload({ label, folder, value, onChange, onClear, a
     try {
       const publicId = await uploadImage(file, folder)
       onChange(publicId)
-      if (previousId) void deleteImage(previousId)
+      if (previousId && deletePreviousOnReplace) void deleteImage(previousId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {

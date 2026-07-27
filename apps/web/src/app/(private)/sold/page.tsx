@@ -18,6 +18,7 @@ import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { formatVolumeNumbers } from '@/lib/volumeNumbers'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 
 interface CollectionEntry {
   id: string
@@ -38,6 +39,7 @@ interface CollectionEntry {
     publisher: string | null
     additionalImages: string[]
     communityPhotoCover?: string | null
+    variantLabel?: string | null
     bookBoxCompany: { id: string; name: string; slug: string; brandColors?: string[] | null } | null
     book: {
       id: string
@@ -82,7 +84,7 @@ function RecordSaleModal({
   const count = selected.length
   const perBook = count > 0 ? (totalNum / count).toFixed(2) : '0.00'
 
-  const visible = entries.filter(e => e.edition.book.title.toLowerCase().includes(search.toLowerCase()))
+  const visible = entries.filter(e => formatEditionDisplayTitle(e.edition.book, e.edition).toLowerCase().includes(search.toLowerCase()))
 
   const toggle = (id: string) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
@@ -156,7 +158,7 @@ function RecordSaleModal({
                       <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-stone-600">
                         {selected.includes(e.id) ? '✓' : ''}
                       </span>
-                      <span className="flex-1 truncate">{e.edition.book.title}</span>
+                      <span className="flex-1 truncate">{formatEditionDisplayTitle(e.edition.book, e.edition)}</span>
                       {e.purchaseGroup && <span className="text-stone-500 text-xs shrink-0">{parseFloat(e.purchaseGroup.totalAmount).toFixed(2)} {e.purchaseGroup.currency}</span>}
                     </button>
                   ))}
@@ -183,7 +185,7 @@ function RecordSaleModal({
                         if (!entry) return null
                         return (
                           <div key={eid} className="flex items-center gap-2">
-                            <span className="flex-1 text-sm text-stone-300 truncate">{entry.edition.book.title}</span>
+                            <span className="flex-1 text-sm text-stone-300 truncate">{formatEditionDisplayTitle(entry.edition.book, entry.edition)}</span>
                             <input type="number" step="0.01" min="0" className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-sm text-stone-100"
                               value={customAmounts[eid] ?? ''} onChange={e => setCustomAmounts(prev => ({ ...prev, [eid]: e.target.value }))} placeholder="0.00" />
                             <span className="text-xs text-stone-500">{currency}</span>
@@ -325,7 +327,8 @@ function EditSaleModal({
               <p className="text-xs text-stone-400 uppercase tracking-wider mb-2">Books in this sale</p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {saleGroup.entries.map(entry => {
-                  const bookTitle = (entry.userBookEntry as any)?.edition?.book?.title ?? '—'
+                  const ube = entry.userBookEntry as any
+                  const bookTitle = ube?.edition ? (formatEditionDisplayTitle(ube.edition.book, ube.edition) || '—') : '—'
                   const sgCur = saleGroup.currency
                   const sgDate = saleGroup.soldAt?.slice(0, 10) ?? ''
                   const rate = userCurrency && sgCur !== userCurrency ? rates[`${sgCur}:${userCurrency}:${sgDate}`] : null
@@ -731,7 +734,7 @@ export default function SoldPage() {
                       <EditionCard
                         href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                         coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
-                        title={entry.edition.book.title}
+                        title={formatEditionDisplayTitle(entry.edition.book, entry.edition)}
                         authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                         companyName={entry.edition.bookBoxCompany?.name}
                         companySlug={entry.edition.bookBoxCompany?.slug}
@@ -764,14 +767,15 @@ export default function SoldPage() {
                   {soldBooks.map(entry => {
                     const cover = cloudinaryUrl(entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null, 'w_80,h_120,c_fill,q_auto,f_auto')
                     const sigIcon = entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : entry.signatureType === 'digitally_signed' ? '🖨️' : entry.signatureType === 'stamped' ? '🕹️' : null
+                    const displayTitle = formatEditionDisplayTitle(entry.edition.book, entry.edition)
                     return (
                       <a key={entry.id} href={`/editions/${entry.edition.slug}?entry=${entry.id}`} className="group flex items-center gap-3 px-3 py-2.5 bg-stone-900 hover:bg-stone-800/80 transition-colors first:rounded-t-xl last:rounded-b-xl">
                         <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden">
-                          {cover ? <img src={cover} alt={entry.edition.book.title} className="w-full h-full object-cover" />
+                          {cover ? <img src={cover} alt={displayTitle} className="w-full h-full object-cover" />
                             : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}><BookOpen size={14} /></div>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{entry.edition.book.title}</p>
+                          <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{displayTitle}</p>
                           <p className="text-xs text-stone-400 truncate">{(entry.edition.book.authors as any[]).map(a => (a.author ?? a).name).join(', ')}</p>
                           {(entry.edition.book.seriesName || entry.edition.bookBoxCompany) && (
                             <p className="text-[10px] text-stone-500 truncate">
@@ -840,7 +844,7 @@ export default function SoldPage() {
                       <EditionCard
                         href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
                         coverImage={entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null}
-                        title={entry.edition.book.title}
+                        title={formatEditionDisplayTitle(entry.edition.book, entry.edition)}
                         authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                         companyName={entry.edition.bookBoxCompany?.name}
                         companySlug={entry.edition.bookBoxCompany?.slug}
@@ -927,7 +931,8 @@ export default function SoldPage() {
                     {sg.entries && sg.entries.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-stone-800 space-y-1">
                         {sg.entries.map(e => {
-                          const title = (e.userBookEntry as any)?.edition?.book?.title ?? '—'
+                          const ube = e.userBookEntry as any
+                          const title = ube?.edition ? (formatEditionDisplayTitle(ube.edition.book, ube.edition) || '—') : '—'
                           return (
                             <div key={e.id} className="flex items-center justify-between gap-2">
                               <span className="text-xs text-stone-400 truncate">{title}</span>

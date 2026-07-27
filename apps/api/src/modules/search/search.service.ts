@@ -145,6 +145,7 @@ export class SearchService {
               additionalImages: true,
               publisher: true,
               generalSaleDate: true,
+              variantLabel: true,
               bookBoxCompany: { select: { name: true, slug: true, logoUrl: true } },
               communityImages: {
                 where: { status: 'APPROVED' },
@@ -275,6 +276,7 @@ export class SearchService {
               additionalImages: true,
               publisher: true,
               generalSaleDate: true,
+              variantLabel: true,
               bookBoxCompany: { select: { name: true, slug: true, logoUrl: true } },
               communityImages: {
                 where: { status: 'APPROVED' },

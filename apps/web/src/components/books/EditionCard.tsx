@@ -17,6 +17,7 @@ interface EditionCardProps {
   authors?: Array<{ name: string }>
   unverified?: boolean
   generalSaleDate?: string | null
+  variantLabel?: string | null
   /** Rendered inside the image area (e.g. hover action buttons overlay) */
   imageActions?: React.ReactNode
   /** Rendered below authors */
@@ -49,6 +50,7 @@ export function EditionCard({
   imageActions,
   footer,
   highlight,
+  variantLabel,
 }: EditionCardProps) {
   const cover = cloudinaryUrl(coverImage, 'w_400,h_600,c_fill,q_auto,f_auto')
   const altText = title ?? companyName ?? 'Edition'
@@ -88,6 +90,12 @@ export function EditionCard({
           <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-stone-950/80 border border-stone-600/50">
             <span className="text-[9px] text-stone-300 font-medium uppercase tracking-wide">Upcoming</span>
           </div>
+        )}
+
+        {variantLabel && (
+          <span className="absolute bottom-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-tight bg-stone-800/90 text-stone-300 border border-stone-600 max-w-[calc(100%-0.75rem)] truncate">
+            {variantLabel}
+          </span>
         )}
 
         {imageActions}

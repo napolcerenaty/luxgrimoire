@@ -250,7 +250,7 @@ Given a sale announcement post (usually from a book subscription box company), e
 
 Return ONLY valid JSON matching this schema (omit fields you cannot find):
 {
-  "title": "announcement title, e.g. 'All Hail Chaos Exclusive Edition'",
+  "title": "announcement title exactly as it appears in the source, e.g. 'All Hail Chaos'",
   "companyName": "name of the book subscription company, e.g. 'The Locked Library', 'Illumicrate', 'Owlcrate'",
   "subscriberBasePrice": 22.00,
   "expectedShipping": "e.g. November/December 2025",
@@ -282,14 +282,16 @@ SUBSCRIBER PRICE RULES:
 - If the announcement mentions a special lower price for active/current subscribers (phrases like "Subscriber price: £22", "for active subscribers the price will drop to £75", "subscriber-only price: £X", "subscribers pay £X"), extract it as subscriberBasePrice
 - subscriberBasePrice is a numeric price (same currency as the general basePrice/currency)
 - Do NOT confuse with the general sale price — subscriberBasePrice is LOWER and only for existing subscribers
+- ONLY set subscriberBasePrice if it is a genuinely DIFFERENT (lower) number than the regular/general price for that same region. If the text restates the same price for subscribers as for everyone else, or doesn't clearly call out a distinct subscriber price, OMIT subscriberBasePrice entirely — do not set it equal to the regular price "just in case"
 - If there are regions and the subscriber price differs per region, set subscriberBasePrice on the relevant region object instead of (or in addition to) the top-level field
 
 TITLE RULES:
-- Extract the edition title from the announcement. Usually quoted or explicitly named.
-- Keep "Exclusive Edition" if it's part of the product name.
-- Example: "'All Hail Chaos' Exclusive Edition" → title: "All Hail Chaos Exclusive Edition"
-- AUTHOR IN TITLE: If the announcement title or product name includes an author credit in the format "by [Author Name]" (e.g. "The Name of the Wind by Patrick Rothfuss Exclusive Edition"), ALWAYS include the "by [Author Name]" part in the title. Never strip it.
-  - Example: "The Way of Kings by Brandon Sanderson Exclusive Edition" → title: "The Way of Kings by Brandon Sanderson Exclusive Edition"
+- Extract the edition title exactly as named in the announcement (usually quoted or explicitly stated). Do NOT paraphrase, shorten, or embellish it.
+- Do NOT append "Exclusive Edition" (or similar suffixes like "Special Edition") to the title unless those exact words are literally part of the product name as written in the source text. Most subscription-box sales are implicitly exclusive editions — that is not a reason to add the phrase; only copy it when it's actually there.
+  - Example: source says "'All Hail Chaos' Exclusive Edition" → title: "All Hail Chaos Exclusive Edition" (kept — literally present)
+  - Example: source says "Introducing our next book: 'All Hail Chaos'" (no "Exclusive Edition" wording anywhere) → title: "All Hail Chaos" (do NOT add "Exclusive Edition")
+- AUTHOR IN TITLE: If the announcement title or product name includes an author credit in the format "by [Author Name]" (e.g. "The Name of the Wind by Patrick Rothfuss"), ALWAYS include the "by [Author Name]" part in the title. Never strip it.
+  - Example: "The Way of Kings by Brandon Sanderson" → title: "The Way of Kings by Brandon Sanderson"
   - Example: "A Court of Thorns and Roses by Sarah J. Maas" → title: "A Court of Thorns and Roses by Sarah J. Maas"
 
 REGION RULES:
@@ -432,6 +434,25 @@ function normalizeSaleAnnouncementDates(result: AiSaleAnnouncementResult): AiSal
     ...result,
     endsAt: result.endsAt ? localToUtcIso(result.endsAt, globalTz) : result.endsAt,
     regions: result.regions?.map(convertRegion),
+  }
+}
+
+/**
+ * The prompt asks the model to only extract a per-region subscriberBasePrice when it's a
+ * genuinely different (lower) number than that region's regular price, but LLM extraction is
+ * best-effort, not guaranteed — this is a deterministic backstop. Drop subscriberBasePrice
+ * whenever it's equal to the region's own price, so the UI's "Subscriber price available" badge
+ * only ever appears when there's an actual discount.
+ */
+function stripRedundantSubscriberPrice(result: AiSaleAnnouncementResult): AiSaleAnnouncementResult {
+  if (!result.regions) return result
+  return {
+    ...result,
+    regions: result.regions.map(r =>
+      r.subscriberBasePrice != null && r.price != null && r.subscriberBasePrice === r.price
+        ? { ...r, subscriberBasePrice: undefined }
+        : r
+    ),
   }
 }
 
@@ -726,7 +747,7 @@ export class AiService {
     });
 
     try {
-      return normalizeSaleAnnouncementDates(JSON.parse(content) as AiSaleAnnouncementResult);
+      return stripRedundantSubscriberPrice(normalizeSaleAnnouncementDates(JSON.parse(content) as AiSaleAnnouncementResult));
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }
@@ -780,7 +801,7 @@ export class AiService {
     });
 
     try {
-      return normalizeSaleAnnouncementDates(JSON.parse(content) as AiSaleAnnouncementResult);
+      return stripRedundantSubscriberPrice(normalizeSaleAnnouncementDates(JSON.parse(content) as AiSaleAnnouncementResult));
     } catch {
       throw new BadRequestException('AI returned invalid JSON');
     }

@@ -28,6 +28,7 @@ import {
   BookMarked,
   Star,
   AlertTriangle,
+  Newspaper,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -100,6 +101,7 @@ const ADMIN_GROUPS: NavGroup[] = [
       { href: '/admin/notifications', label: 'Notifications', icon: Bell },
       { href: '/admin/bug-reports', label: 'Bug Reports', icon: Bug },
       { href: '/admin/feature-requests', label: 'Feature Requests', icon: Lightbulb },
+      { href: '/admin/blog-posts', label: 'Blog Posts', icon: Newspaper },
     ],
   },
   {

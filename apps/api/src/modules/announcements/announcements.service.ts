@@ -36,6 +36,7 @@ const editionsIncludeAdmin = {
     edition: {
       select: {
         additionalImages: true,
+        variantLabel: true,
         book: {
           select: { id: true, title: true, slug: true },
         },

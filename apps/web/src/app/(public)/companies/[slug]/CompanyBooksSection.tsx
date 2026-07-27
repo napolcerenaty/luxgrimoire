@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, type WheelEvent, typ
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { API_BASE, authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -30,11 +31,16 @@ const FEW_GROUPS_THRESHOLD = 3
 type OwnershipBucket = 'have-it' | 'coming' | 'gone'
 type StatusFilter = OwnershipBucket | 'skipped'
 
+// Dot colors are hardcoded CSS classes (status-dot-*, globals.css), not Tailwind bg-amber-*/
+// bg-stone-* utilities — this site's @theme block remaps those palettes to its blue/navy brand
+// accent, so e.g. "bg-amber-400" renders blue here, not gold. Each status-dot-* class matches
+// the RGB of its corresponding .edition-glow-* box-shadow so the filter dot and the card glow
+// it represents can never visually disagree.
 const STATUS_FILTER_META: { value: StatusFilter; label: string; dotClass: string }[] = [
-  { value: 'have-it', label: 'Have it', dotClass: 'bg-amber-400' },
-  { value: 'coming', label: 'Coming', dotClass: 'bg-orange-500' },
-  { value: 'gone', label: 'Gone', dotClass: 'bg-stone-500' },
-  { value: 'skipped', label: 'Skipped', dotClass: 'bg-red-500' },
+  { value: 'have-it', label: 'Have it', dotClass: 'status-dot-gold' },
+  { value: 'coming', label: 'Coming', dotClass: 'status-dot-amber' },
+  { value: 'gone', label: 'Gone', dotClass: 'status-dot-slate' },
+  { value: 'skipped', label: 'Skipped', dotClass: 'status-dot-red' },
 ]
 
 function SearchIcon() {
@@ -435,7 +441,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
                 key={edition.id}
                 href={`/editions/${edition.slug}`}
                 coverImage={resolveEditionCoverRaw(edition)}
-                title={edition.book.title}
+                title={formatEditionDisplayTitle(edition.book, edition)}
                 seriesName={edition.book.seriesName}
                 volumeNumbers={edition.book.volumeNumbers}
                 authors={edition.book.authors.map((a) => ({ name: a.author.name }))}

@@ -46,6 +46,7 @@ jobs:
             NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
             NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -92,11 +93,15 @@ jobs:
     needs: [build-web, deploy-api]
     runs-on: ubuntu-latest
     steps:
+      # The Web resource in Coolify is a "Docker Image" app pointed at ${{ env.WEB_IMAGE }}:latest
+      # (not a git/Dockerfile build), so this only tells Coolify to redeploy — it never sees a new
+      # git commit to trigger a rebuild on its own. force=true is required so it actually re-pulls
+      # :latest instead of reusing whatever image it last had for that same tag string.
       - name: Deploy Web
         id: deploy_web
         run: |
           RESPONSE=$(curl -s -X POST \
-            "${{ secrets.COOLIFY_URL }}/api/v1/deploy?uuid=${{ secrets.COOLIFY_WEB_UUID }}&force=false" \
+            "${{ secrets.COOLIFY_URL }}/api/v1/deploy?uuid=${{ secrets.COOLIFY_WEB_UUID }}&force=true" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
             -H "Content-Type: application/json")
           echo "Response: $RESPONSE"

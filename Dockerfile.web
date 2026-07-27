@@ -20,7 +20,6 @@ RUN pnpm install --frozen-lockfile
 ENV NODE_OPTIONS="--max-old-space-size=1536"
 ENV NEXT_WEBPACK_PARALLELISM="1"
 ENV NEXT_TELEMETRY_DISABLED="1"
-ENV GENERATE_SOURCEMAP="false"
 
 # Copy source
 COPY tsconfig.base.json ./
@@ -48,6 +47,12 @@ ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
 
 ARG SENTRY_DSN
 ENV SENTRY_DSN=${SENTRY_DSN}
+
+# Build-time only — used by the Sentry webpack plugin to upload source maps for readable
+# stack traces, then never referenced again. Not embedded in the standalone output (only
+# NEXT_PUBLIC_* vars get baked into the client bundle).
+ARG SENTRY_AUTH_TOKEN
+ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
 
 RUN nice -n 19 pnpm --filter @luxgrimoire/web build
 

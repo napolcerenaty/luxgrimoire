@@ -8,6 +8,7 @@ import { authFetch } from '@/lib/authFetch'
 import { apiFetch } from '@/lib/api'
 import { EditionCard } from '@/components/books/EditionCard'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { BookOpen, Megaphone, Tag, Trash2, MoveRight, ShoppingCart, X } from 'lucide-react'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -28,6 +29,7 @@ interface CollectionEntry {
     publisher: string | null
     additionalImages: string[]
     communityPhotoCover?: string | null
+    variantLabel?: string | null
     bookBoxCompany: { id: string; name: string; slug: string; brandColors?: string[] | null } | null
     book: {
       id: string
@@ -49,9 +51,11 @@ interface PaginatedEntries {
 
 interface SaleRegion {
   id: string
+  isDefault: boolean
   firstAccessDate: string | null
   earlyAccessDate: string | null
   generalSaleDate: string | null
+  endsAt: string | null
 }
 
 interface SaleInterestItem {
@@ -71,24 +75,33 @@ interface SaleInterestItem {
     generalSaleDate: string | null
     earlyAccessDate: string | null
     firstAccessDate: string | null
+    endsAt: string | null
     saleType: string | null
     company: { id: string; name: string; slug: string; logoUrl: string | null; brandColors?: string[] | null } | null
     regions: SaleRegion[]
   }
 }
 
-/** Returns the effective sale-open date for this interest based on region + tier. */
+// Mirrors SaleInterestsService.resolveTierDate on the backend: prefers the selected (or the
+// sale's default) region's dates over the top-level ones — sales with per-country dates leave
+// the top-level fields null entirely — and every tier falls back to *any* other known date, not
+// just "later" ones, so a followed sale never silently disappears just because its own tier's
+// date isn't set yet.
 function getEffectiveDate(interest: SaleInterestItem): string | null {
   const { announcement: sa, regionId, tier } = interest
-  const region = regionId ? sa.regions?.find((r) => r.id === regionId) : null
+  const regions = sa.regions ?? []
+  const region = (regionId ? regions.find((r) => r.id === regionId) : null)
+    ?? (regions.length > 0 ? (regions.find((r) => r.isDefault) ?? regions[0]) : null)
+  const pick = (regionDate: string | null | undefined, annDate: string | null) => regionDate ?? annDate
 
-  const fa = region?.firstAccessDate ?? sa.firstAccessDate
-  const ea = region?.earlyAccessDate ?? sa.earlyAccessDate
-  const gs = region?.generalSaleDate ?? sa.generalSaleDate
+  if (sa.saleType === 'OPEN_PREORDER') return pick(region?.endsAt, sa.endsAt)
 
+  const fa = pick(region?.firstAccessDate, sa.firstAccessDate)
+  const ea = pick(region?.earlyAccessDate, sa.earlyAccessDate)
+  const gs = pick(region?.generalSaleDate, sa.generalSaleDate)
   if (tier === 'FA') return fa ?? ea ?? gs
-  if (tier === 'EA') return ea ?? gs
-  return gs // 'GS' or unknown
+  if (tier === 'EA') return ea ?? gs ?? fa
+  return gs ?? ea ?? fa
 }
 
 function tierLabel(tier: string): string {
@@ -164,11 +177,28 @@ export default function WishlistPage() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [saleInterests])
 
-  const hasFilters = !!companyFilter || !!saleTypeFilter || timeFilter !== 'all' || !!dateFrom || !!dateTo
+  const clearAllFilters = () => {
+    setCompanyFilter('')
+    setSaleTypeFilter('')
+    setTimeFilter('upcoming')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  // Time filter is its own always-visible segmented control (not tucked behind "Filters"), so
+  // it doesn't need a redundant chip here — the active segment already shows the current state.
+  const activeFilterChips = useMemo(() => {
+    const chips: { key: string; label: string; onRemove: () => void }[] = []
+    if (companyFilter) chips.push({ key: 'company', label: filterCompanies.find(c => c.id === companyFilter)?.name ?? companyFilter, onRemove: () => setCompanyFilter('') })
+    if (saleTypeFilter) chips.push({ key: 'saleType', label: saleTypeFilter.replace('_', ' ').toLowerCase(), onRemove: () => setSaleTypeFilter('') })
+    if (dateFrom) chips.push({ key: 'dateFrom', label: `From ${dateFrom}`, onRemove: () => setDateFrom('') })
+    if (dateTo) chips.push({ key: 'dateTo', label: `To ${dateTo}`, onRemove: () => setDateTo('') })
+    return chips
+  }, [companyFilter, saleTypeFilter, dateFrom, dateTo, filterCompanies])
 
   const filteredInterests = useMemo(() => {
     const now = new Date()
-    return saleInterests.filter((interest) => {
+    const list = saleInterests.filter((interest) => {
       if (companyFilter && interest.announcement.company?.id !== companyFilter) return false
       if (saleTypeFilter && interest.announcement.saleType !== saleTypeFilter) return false
       const d = getEffectiveDate(interest)
@@ -184,7 +214,20 @@ export default function WishlistPage() {
       }
       return true
     })
-  }, [saleInterests, companyFilter, timeFilter, dateFrom, dateTo])
+
+    // Ascending (soonest first) on Upcoming, descending (most recent first) on All/Past —
+    // undated interests always sort last regardless of direction.
+    const dir = timeFilter === 'upcoming' ? 1 : -1
+    return list
+      .map((interest) => ({ interest, date: getEffectiveDate(interest) }))
+      .sort((a, b) => {
+        if (!a.date && !b.date) return 0
+        if (!a.date) return 1
+        if (!b.date) return -1
+        return dir * (new Date(a.date).getTime() - new Date(b.date).getTime())
+      })
+      .map(({ interest }) => interest)
+  }, [saleInterests, companyFilter, saleTypeFilter, timeFilter, dateFrom, dateTo])
 
   const removeSaleInterestMutation = useMutation({
     mutationFn: (announcementId: string) => authFetch<void>(`/sale-interests/${announcementId}`, { method: 'DELETE' }),
@@ -333,7 +376,7 @@ export default function WishlistPage() {
                 companyName={entry.edition.bookBoxCompany?.name}
                 companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                 volumeNumbers={entry.edition.book.volumeNumbers}
-                title={entry.edition.book.title}
+                title={formatEditionDisplayTitle(entry.edition.book, entry.edition)}
                 authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                 imageActions={
                   <div className="absolute inset-0 bg-stone-950/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
@@ -377,62 +420,55 @@ export default function WishlistPage() {
           </div>
         ) : (
           <>
-            {/* Filters */}
-            <div className="mb-4">
-              {/* Filter toggle button */}
-              <div className="flex items-center gap-2 mb-2">
+            {/* Filters — sizing and chip convention matches SubscriptionList
+                (apps/web/src/components/subscriptions/SubscriptionList.tsx) */}
+            <div className="mb-4 space-y-2">
+              {/* Time filter — always visible, not tucked behind the Filters toggle, since it's
+                  the primary/most-used split. All first: it's the "no filter applied" baseline. */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex rounded-lg border border-stone-700 overflow-hidden text-sm w-fit shrink-0">
+                  {(['all', 'upcoming', 'past'] as const).map((val) => (
+                    <button
+                      key={val}
+                      onClick={() => setTimeFilter(val)}
+                      className={`px-3 py-2 capitalize transition-colors border-r border-stone-700 last:border-0 ${
+                        timeFilter === val ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+                      }`}
+                    >
+                      {val === 'upcoming' ? 'Upcoming' : val === 'past' ? 'Past' : 'All'}
+                    </button>
+                  ))}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setShowSaleFilters(p => !p)}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                    showSaleFilters
-                      ? 'border-amber-600/60 bg-amber-500/10 text-amber-400'
-                      : 'border-stone-700 bg-stone-800/60 text-stone-400 hover:border-stone-600 hover:text-stone-200'
+                  aria-expanded={showSaleFilters}
+                  className={`relative flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
+                    showSaleFilters ? 'bg-stone-700 border-amber-600 text-amber-400' : 'bg-stone-800 border-stone-700 text-stone-300'
                   }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
                   Filters
-                  {[companyFilter, saleTypeFilter, dateFrom, dateTo, timeFilter !== 'upcoming' ? '1' : ''].filter(Boolean).length > 0 && (
-                    <span className="ml-0.5 rounded-full bg-amber-500/30 px-1.5 py-0.5 text-[10px] text-amber-300">
-                      {[companyFilter, saleTypeFilter, dateFrom, dateTo, timeFilter !== 'upcoming' ? '1' : ''].filter(Boolean).length}
+                  {activeFilterChips.length > 0 && (
+                    <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-amber-600 text-[10px] font-semibold text-stone-950">
+                      {activeFilterChips.length}
                     </span>
                   )}
                 </button>
-                <span className="text-xs text-stone-500">{filteredInterests.length} / {saleInterests.length}</span>
-                {hasFilters && (
-                  <button
-                    onClick={() => { setCompanyFilter(''); setSaleTypeFilter(''); setTimeFilter('upcoming'); setDateFrom(''); setDateTo('') }}
-                    className="ml-auto flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 transition-colors"
-                  >
-                    <X size={11} /> Reset
-                  </button>
-                )}
+                <span className="text-sm text-stone-500">{filteredInterests.length} / {saleInterests.length}</span>
               </div>
 
-              {/* Collapsible filter panel */}
+              {/* Collapsible filter panel — company/type/date-range only; sized to content on
+                  desktop (not stretched across half the row each) via flex-wrap + fixed widths. */}
               {showSaleFilters && (
-                <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-3 space-y-3">
-                  {/* Time filter */}
-                  <div className="flex rounded-xl border border-stone-700 overflow-hidden text-sm w-fit">
-                    {(['upcoming', 'all', 'past'] as const).map((val) => (
-                      <button
-                        key={val}
-                        onClick={() => setTimeFilter(val)}
-                        className={`px-3 py-1.5 capitalize transition-colors border-r border-stone-700 last:border-0 text-xs ${
-                          timeFilter === val ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-400 hover:text-stone-200'
-                        }`}
-                      >
-                        {val === 'upcoming' ? 'Upcoming' : val === 'past' ? 'Past' : 'All'}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-3">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                     {/* Company filter */}
                     <select
                       value={companyFilter}
                       onChange={(e) => setCompanyFilter(e.target.value)}
-                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-xs text-stone-300 focus:outline-none focus:border-amber-500 w-full"
+                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-amber-600 sm:w-44"
                     >
                       <option value="">All companies</option>
                       {filterCompanies.map((c) => (
@@ -444,7 +480,7 @@ export default function WishlistPage() {
                     <select
                       value={saleTypeFilter}
                       onChange={(e) => setSaleTypeFilter(e.target.value)}
-                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-xs text-stone-300 focus:outline-none focus:border-amber-500 w-full"
+                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-amber-600 sm:w-40"
                     >
                       <option value="">All types</option>
                       <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
@@ -453,38 +489,47 @@ export default function WishlistPage() {
                     </select>
 
                     {/* Date from */}
-                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-xs text-stone-400 focus-within:border-amber-500">
+                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-amber-600 sm:w-auto">
                       <span className="shrink-0 text-stone-500">From</span>
                       <input
                         type="date"
                         value={dateFrom}
                         onChange={(e) => setDateFrom(e.target.value)}
-                        className="bg-transparent text-stone-300 focus:outline-none w-full text-xs"
+                        className="bg-transparent text-stone-300 focus:outline-none w-full sm:w-auto"
                       />
                     </label>
 
                     {/* Date to */}
-                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-xs text-stone-400 focus-within:border-amber-500">
+                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-amber-600 sm:w-auto">
                       <span className="shrink-0 text-stone-500">To</span>
                       <input
                         type="date"
                         value={dateTo}
                         onChange={(e) => setDateTo(e.target.value)}
-                        className="bg-transparent text-stone-300 focus:outline-none w-full text-xs"
+                        className="bg-transparent text-stone-300 focus:outline-none w-full sm:w-auto"
                       />
                     </label>
                   </div>
                 </div>
               )}
 
-              {/* Active filter chips */}
-              {hasFilters && !showSaleFilters && (
-                <div className="flex items-center gap-2 flex-wrap mt-1">
-                  {timeFilter !== 'upcoming' && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300 capitalize">{timeFilter}</span>}
-                  {companyFilter && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{filterCompanies.find(c => c.id === companyFilter)?.name}</span>}
-                  {saleTypeFilter && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{saleTypeFilter.replace('_', ' ').toLowerCase()}</span>}
-                  {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
-                  {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
+              {/* Active filter chips — always visible when filters are applied, independent of
+                  whether the panel is expanded, each removable individually */}
+              {activeFilterChips.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {activeFilterChips.map((chip) => (
+                    <button
+                      key={chip.key}
+                      onClick={chip.onRemove}
+                      className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-amber-950/40 border border-amber-800/50 text-amber-300 text-xs hover:bg-amber-950/70 transition-colors capitalize"
+                    >
+                      {chip.label}
+                      <X className="w-3 h-3" />
+                    </button>
+                  ))}
+                  <button onClick={clearAllFilters} className="text-xs text-stone-500 hover:text-stone-300 underline underline-offset-2 ml-1">
+                    Clear all
+                  </button>
                 </div>
               )}
             </div>
@@ -494,62 +539,89 @@ export default function WishlistPage() {
                 <p>No results for current filters.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {filteredInterests.map((interest) => {
                   const { announcement: sa } = interest
-                  const coverSrc = sa.imageUrl ? cloudinaryUrl(sa.imageUrl, 'w_400,h_300,c_fill,q_auto,f_auto') : null
+                  const coverSrc = sa.imageUrl ? cloudinaryUrl(sa.imageUrl, 'w_400,h_600,c_fill,q_auto,f_auto') : null
                   const effectiveDate = getEffectiveDate(interest)
-                  const isOpen = !!effectiveDate && new Date(effectiveDate) <= new Date()
+                  // effectiveDate is a closing deadline for OPEN_PREORDER (endsAt), not an
+                  // opens-at date like FA/EA/GS — "open" means not yet past that deadline,
+                  // the opposite comparison from every other sale type.
+                  const isOpen = sa.saleType === 'OPEN_PREORDER'
+                    ? !effectiveDate || new Date(effectiveDate) > new Date()
+                    : !!effectiveDate && new Date(effectiveDate) <= new Date()
                   const dateLabel = effectiveDate
                     ? new Date(effectiveDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
                     : null
                   const tl = tierLabel(interest.tier)
 
                   return (
-                    <div key={sa.id} className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden group hover:border-stone-700 transition-colors">
-                      {coverSrc ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={coverSrc} alt={sa.title} className="w-full aspect-[4/3] object-cover" />
-                      ) : (
-                        <div className="relative w-full aspect-[4/3] flex items-center justify-center bg-stone-900">
-                          <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(sa.company ? (getBrandColors(sa.company.slug) ?? sa.company.brandColors) : null)} />
-                          <span className="relative z-10 text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4 px-3">{sa.title}</span>
-                        </div>
-                      )}
+                    <div key={sa.id} className="relative flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10 group">
+                      {/* Image — same 2/3 portrait ratio as AnnouncementCard/EditionCard */}
+                      <div className="relative aspect-[2/3] bg-stone-950 overflow-hidden rounded-t-2xl">
+                        {coverSrc ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={coverSrc}
+                            alt={sa.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="relative w-full h-full flex items-center justify-center text-stone-600">
+                            <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(sa.company ? (getBrandColors(sa.company.slug) ?? sa.company.brandColors) : null)} />
+                            <p className="relative z-10 font-serif font-semibold text-center px-3 text-sm leading-snug line-clamp-4 text-stone-300">
+                              {sa.title}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Company ribbon — same style as AnnouncementCard/EditionCarousel */}
+                        {sa.company?.name && (
+                          <div className="card-ribbon absolute bottom-0 left-0 right-0 px-2 py-2 text-center pointer-events-none">
+                            <span
+                              className="card-ribbon-text font-serif font-semibold uppercase leading-none line-clamp-1 text-white"
+                              style={{ fontSize: '10px', letterSpacing: '0.12em' }}
+                            >
+                              {sa.company.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                       <div className="p-3 space-y-2">
-                        <p className="text-stone-100 text-sm font-medium leading-tight line-clamp-2">{sa.title}</p>
-                        <p className="text-stone-500 text-xs">{sa.company?.name}</p>
+                        <p className="text-stone-100 text-sm font-medium leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors">{sa.title}</p>
                         {dateLabel && (
                           <p className="text-xs text-stone-500 flex items-center gap-1">
                             <Tag size={10} />
                             <span className={isOpen ? 'text-green-400' : ''}>{tl}{isOpen ? ' (open)' : ''}: {dateLabel}</span>
                           </p>
                         )}
-                        <div className="flex gap-1.5 pt-1">
-                          <Link
-                            href={`/sale-announcements/${sa.id}`}
-                            className="flex-1 text-center text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700"
-                          >
-                            View
-                          </Link>
+                        <div className="flex flex-col gap-1.5 pt-1">
+                          <div className="flex gap-1.5">
+                            <Link
+                              href={`/sale-announcements/${sa.id}`}
+                              className="flex-1 text-center text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700"
+                            >
+                              View
+                            </Link>
+                            <button
+                              onClick={() => removeSaleInterestMutation.mutate(sa.id)}
+                              disabled={removeSaleInterestMutation.isPending}
+                              className="p-1.5 text-stone-600 hover:text-red-400 border border-stone-800 hover:border-red-900 rounded-lg transition-colors disabled:opacity-50"
+                              title="Remove from tracked sales"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                           {isOpen && (
                             <button
                               onClick={() => openAddModal(sa.id)}
                               disabled={addModalLoading === sa.id}
-                              className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 disabled:opacity-50"
+                              className="flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg transition-colors bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 disabled:opacity-50 w-full"
                             >
-                              <ShoppingCart size={11} />
-                              {addModalLoading === sa.id ? '…' : 'Add to collection'}
+                              <ShoppingCart size={13} />
+                              {addModalLoading === sa.id ? '…' : 'Add'}
                             </button>
                           )}
-                          <button
-                            onClick={() => removeSaleInterestMutation.mutate(sa.id)}
-                            disabled={removeSaleInterestMutation.isPending}
-                            className="p-1.5 text-stone-600 hover:text-red-400 border border-stone-800 hover:border-red-900 rounded-lg transition-colors disabled:opacity-50"
-                            title="Remove from tracked sales"
-                          >
-                            <Trash2 size={12} />
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -566,7 +638,7 @@ export default function WishlistPage() {
         onClose={() => setMoveEntry(null)}
         title="Move to Collection"
         submitLabel="Move"
-        subtitle={moveEntry?.edition.book.title ?? null}
+        subtitle={moveEntry ? formatEditionDisplayTitle(moveEntry.edition.book, moveEntry.edition) : null}
         defaultOwnershipStatus="PREORDER"
         ownershipOptions={[...OWNERSHIP_OPTIONS]}
         submitting={moveMutation.isPending}

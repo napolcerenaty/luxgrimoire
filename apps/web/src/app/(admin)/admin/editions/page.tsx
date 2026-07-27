@@ -7,6 +7,7 @@ import { authFetch } from '@/lib/authFetch'
 import { INPUT_CLASS, LABEL_CLASS } from '@/lib/adminFormStyles'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { formatVolumeNumbers } from '@/lib/volumeNumbers'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { useAuth } from '@/components/AuthProvider'
 import type { ApiBookEdition, ApiBookBoxCompany, PaginatedResponse } from '@luxgrimoire/shared-types'
 import dynamic from 'next/dynamic'
@@ -121,6 +122,37 @@ function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSucc
   }} onCancel={onCancel} />
 }
 
+/** Pre-fills CreateBookEditionForm from an existing edition so admins can quickly spin off a
+ * variant (e.g. Black Edition from White Edition) without re-entering shared fields. */
+function DuplicateEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSuccess: (editionId?: string) => void; onCancel: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['edition-detail-duplicate', slug],
+    queryFn: () => authFetch<ApiBookEdition & { bookId: string }>(`/editions/${slug}/for-edit`),
+    staleTime: 0,
+  })
+  if (isLoading || !data) return <div className="py-12 text-center text-stone-400">Loading…</div>
+  return (
+    <CreateBookEditionForm
+      existingBookId={data.bookId}
+      sourceEditionId={data.id}
+      defaultCompanyId={data.bookBoxCompanyId ?? undefined}
+      defaultCollectionId={data.collectionId ?? undefined}
+      defaultCurrency={data.currency ?? undefined}
+      defaultPrice={data.basePrice ? Number(data.basePrice) : undefined}
+      defaultPublisher={data.publisher ?? undefined}
+      defaultPhotoCredit={(data as any).photoCredit ?? undefined}
+      defaultLanguage={data.language ?? undefined}
+      defaultFirstAccessDate={data.firstAccessDate ?? undefined}
+      defaultEarlyAccessDate={data.earlyAccessDate ?? undefined}
+      defaultGeneralSaleDate={data.generalSaleDate ?? undefined}
+      defaultArtists={(data.artists ?? []).map(a => ({ name: a.artist.name, role: a.role }))}
+      defaultFeatureTags={(data.featureTags ?? []).map(t => ({ rawValue: t.rawValue, categories: t.categories.map(c => c.slug) }))}
+      onSuccess={onSuccess}
+      onCancel={onCancel}
+    />
+  )
+}
+
 export default function AdminEditionsPage() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
@@ -129,6 +161,7 @@ export default function AdminEditionsPage() {
 
   const createModal = useModalState()
   const [editEditionSlug, setEditEditionSlug] = useState<string | null>(null)
+  const [duplicateEditionSlug, setDuplicateEditionSlug] = useState<string | null>(null)
   const [deleteEdition, setDeleteEdition] = useState<ApiBookEdition | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [retagResult, setRetagResult] = useState<{ total: number; done: number; failed: number } | null>(null)
@@ -244,8 +277,8 @@ export default function AdminEditionsPage() {
       render: (row: ApiBookEdition) => (
         <div>
           {row.book?.slug
-            ? <a href={`/books/${row.book.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 font-medium">{row.book.title}</a>
-            : <div className="text-stone-100 font-medium">{row.book?.title ?? '—'}</div>
+            ? <a href={`/books/${row.book.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 font-medium">{formatEditionDisplayTitle(row.book, row)}</a>
+            : <div className="text-stone-100 font-medium">{row.book ? formatEditionDisplayTitle(row.book, row) : '—'}</div>
           }
           {row.book?.seriesName && (
             <div className="text-stone-500 text-xs">
@@ -407,6 +440,7 @@ export default function AdminEditionsPage() {
             columns={columns}
             data={editions}
             onEdit={(row) => setEditEditionSlug(row.slug)}
+            onDuplicate={(row) => setDuplicateEditionSlug(row.slug)}
             onDelete={(row) => { setDeleteError(null); setDeleteEdition(row); }}
           />
           <Pagination page={page} totalPages={data?.totalPages ?? 1} onPageChange={setPage} />
@@ -431,6 +465,20 @@ export default function AdminEditionsPage() {
             slug={editEditionSlug}
             onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); setEditEditionSlug(null) }}
             onCancel={() => setEditEditionSlug(null)}
+          />
+        )}
+      </FormModal>
+
+      <FormModal
+        open={duplicateEditionSlug !== null}
+        title="Duplicate Edition as Variant"
+        onClose={() => setDuplicateEditionSlug(null)}
+      >
+        {duplicateEditionSlug && (
+          <DuplicateEditionLoader
+            slug={duplicateEditionSlug}
+            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); setDuplicateEditionSlug(null) }}
+            onCancel={() => setDuplicateEditionSlug(null)}
           />
         )}
       </FormModal>

@@ -8,6 +8,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { useCreateSaleGroup } from '@/hooks/useCreateSaleGroup'
 import { getSaleGroups, deleteSaleGroup } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
@@ -91,6 +92,7 @@ interface CollectionEntry {
     publisher: string | null
     additionalImages: string[]
     communityPhotoCover?: string | null
+    variantLabel?: string | null
     bookBoxCompany: { id: string; name: string; slug: string; brandColors?: string[] | null } | null
     book: {
       id: string
@@ -175,7 +177,7 @@ function AddSaleForm({
   const perBook = count > 0 ? (total / count).toFixed(2) : '0.00'
 
   const filteredEntries = entries.filter(e =>
-    e.edition.book.title.toLowerCase().includes(saleBookSearch.toLowerCase())
+    formatEditionDisplayTitle(e.edition.book, e.edition).toLowerCase().includes(saleBookSearch.toLowerCase())
   )
 
   // Always show selected entries + up to 20 non-selected when search is empty
@@ -302,7 +304,7 @@ function AddSaleForm({
               <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-stone-600">
                 {saleSelectedEntries.includes(e.id) ? '✓' : ''}
               </span>
-              <span className="flex-1 truncate">{e.edition.book.title}</span>
+              <span className="flex-1 truncate">{formatEditionDisplayTitle(e.edition.book, e.edition)}</span>
               {e.purchaseGroup && (
                 <span className="text-stone-500 text-xs shrink-0">
                   {(Number(e.purchaseGroup.totalAmount) + Number(e.purchaseGroup.shippingAmount ?? 0)).toFixed(2)} {e.purchaseGroup.currency}
@@ -345,7 +347,7 @@ function AddSaleForm({
                 if (!entry) return null
                 return (
                   <div key={eid} className="flex items-center gap-2">
-                    <span className="flex-1 text-sm text-stone-300 truncate">{entry.edition.book.title}</span>
+                    <span className="flex-1 text-sm text-stone-300 truncate">{formatEditionDisplayTitle(entry.edition.book, entry.edition)}</span>
                     <input
                       type="number"
                       step="0.01"
@@ -1257,7 +1259,7 @@ export default function CollectionPage() {
                       companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                       seriesName={entry.edition.book.seriesName}
                       volumeNumbers={entry.edition.book.volumeNumbers}
-                      title={entry.edition.book.title}
+                      title={formatEditionDisplayTitle(entry.edition.book, entry.edition)}
                       authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                       imageActions={
                         <button
@@ -1549,6 +1551,7 @@ export default function CollectionPage() {
                   {group.map((entry) => {
                     const cover = cloudinaryUrl(resolveEditionCoverRaw(entry.edition), 'w_80,h_120,c_fill,q_auto,f_auto')
                     const book = entry.edition.book
+                    const displayTitle = formatEditionDisplayTitle(book, entry.edition)
                     const authors = (book.authors as any[]).map(a => (a.author ?? a).name).join(', ')
                     const pg = entry.purchaseGroup
                     const dateLabel = pg?.purchasedAt
@@ -1565,7 +1568,7 @@ export default function CollectionPage() {
                         {/* Thumbnail */}
                         <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden">
                           {cover
-                            ? <img src={cover} alt={book.title} className="w-full h-full object-cover" />
+                            ? <img src={cover} alt={displayTitle} className="w-full h-full object-cover" />
                             : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}>
                                 <BookOpen size={14} />
                               </div>
@@ -1574,7 +1577,7 @@ export default function CollectionPage() {
 
                         {/* Main info */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-stone-100 truncate">{book.title}</p>
+                          <p className="text-sm font-medium text-stone-100 truncate">{displayTitle}</p>
                           {authors && <p className="text-xs text-stone-400 truncate">{authors}</p>}
                           {(book.seriesName || entry.edition.bookBoxCompany?.name) && (
                             <p className="text-[10px] text-stone-500 truncate">
@@ -2076,7 +2079,7 @@ function AddToCollectionSearch({
           bookEditionId: selected.id,
           ownershipStatus,
           acquiredAt: purchasedAt ? new Date(purchasedAt).toISOString() : undefined,
-          _entityName: selected.book.title,
+          _entityName: formatEditionDisplayTitle(selected.book, selected),
         }),
       })
       const entryId = res.id
@@ -2158,11 +2161,11 @@ function AddToCollectionSearch({
           </button>
           <div className="flex items-center gap-2 min-w-0">
             {selected.additionalImages?.[0] && (
-              <Image src={cloudinaryUrl(selected.additionalImages[0]) ?? ''} alt={selected.book.title} width={32} height={32}
+              <Image src={cloudinaryUrl(selected.additionalImages[0]) ?? ''} alt={formatEditionDisplayTitle(selected.book, selected)} width={32} height={32}
                 className="w-8 h-8 rounded object-cover shrink-0" unoptimized />
             )}
             <div className="min-w-0">
-              <p className="text-sm font-medium text-stone-100 truncate">{selected.book.title}</p>
+              <p className="text-sm font-medium text-stone-100 truncate">{formatEditionDisplayTitle(selected.book, selected)}</p>
               <p className="text-xs text-stone-500 truncate">
                 {[selected.bookBoxCompany?.name, selected.publisher].filter(Boolean).join(' · ')}
               </p>
@@ -2328,14 +2331,14 @@ function AddToCollectionSearch({
               <div key={edition.id} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-stone-800 transition-colors">
                 <div className="w-10 h-10 rounded-lg bg-stone-800 shrink-0 overflow-hidden">
                   {edition.additionalImages?.[0] ? (
-                    <Image src={cloudinaryUrl(edition.additionalImages[0]) ?? ''} alt={edition.book.title}
+                    <Image src={cloudinaryUrl(edition.additionalImages[0]) ?? ''} alt={formatEditionDisplayTitle(edition.book, edition)}
                       width={40} height={40} className="w-full h-full object-cover" unoptimized />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-700"><BookOpen size={14} /></div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-stone-100 truncate">{edition.book.title}</p>
+                  <p className="text-sm text-stone-100 truncate">{formatEditionDisplayTitle(edition.book, edition)}</p>
                   <p className="text-xs text-stone-500 truncate">
                     {[edition.bookBoxCompany?.name, edition.publisher].filter(Boolean).join(' · ')}
                   </p>

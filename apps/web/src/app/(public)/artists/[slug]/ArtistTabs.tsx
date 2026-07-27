@@ -21,6 +21,7 @@ function roleColor(_role: string) {
 
 interface EditionSnippet {
   id: string; slug: string; additionalImages: string[]
+  variantLabel?: string | null
   bookBoxCompany: { name: string; brandColors?: string[] | null } | null; communityPhotoCover?: string | null
 }
 
@@ -130,6 +131,11 @@ function EditionGrid({ artistSlug }: { artistSlug: string }) {
                       {company.name}
                     </span>
                   </div>
+                )}
+                {edition.variantLabel && (
+                  <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-tight bg-stone-800/90 text-stone-300 border border-stone-600 max-w-[calc(100%-0.75rem)] truncate">
+                    {edition.variantLabel}
+                  </span>
                 )}
               </div>
               <div className="p-3 flex flex-col gap-1 flex-1">
