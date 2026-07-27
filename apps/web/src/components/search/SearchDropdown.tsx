@@ -281,7 +281,8 @@ function ResultGroup({
 }) {
   if (!items.length) return null
 
-  const highlight = (text: string) => {
+  const highlight = (text: string | null | undefined) => {
+    if (!text) return <span>{text}</span>
     const idx = text.toLowerCase().indexOf(query.toLowerCase())
     if (idx === -1) return <span>{text}</span>
     return (
