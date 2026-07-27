@@ -27,10 +27,9 @@ const DEFAULT_SETTINGS: UserReminderSettingsLike = {
   saleDaysBefore: 0,
   saleMinutesBefore: 180,  // minutes before sale time; null also treated as 180min (3h)
   saleDigest: false,
-  // Unlike renewal/sale (opt-in, default false): missing a book choice has a real
-  // consequence (both books ship by default, see resolveMonthBooksForEntry), so it's
-  // active automatically as soon as a subscriber joins a subscription with an open choice.
-  bookChoiceEnabled: true,
+  // Opt-in like renewal/sale — a missed choice defaults to "both books ship, user
+  // self-corrects" (see resolveMonthBooksForEntry), so there's no need to force this on.
+  bookChoiceEnabled: false,
   bookChoiceDaysBefore: 3,
 };
 
@@ -195,10 +194,8 @@ export class ScheduledRemindersService {
 
   /**
    * Schedule (or reschedule) a book-choice reminder for one entry + choice group.
-   * Deadline is anchored to the choice group's own month (1st of the box month, or a
-   * configured day-of-previous-month) rather than the subscription's renewal-date
-   * machinery — deliberately simpler, since the choice deadline is a per-group business
-   * setting, not tied to billing.
+   * Deadline is anchored to the subscription's renewalDay (approximate — see
+   * computeChoiceDeadline), not the 1st of the box month.
    */
   async scheduleBookChoice(entryId: string, choiceGroupId: string): Promise<void> {
     const entry = await this.prisma.userSubscriptionEntry.findUnique({
@@ -216,12 +213,12 @@ export class ScheduledRemindersService {
         choiceDeadlineType: true,
         choiceDeadlineDaysBefore: true,
         choiceDeadlineDayOfMonth: true,
-        month: { select: { year: true, month: true } },
+        month: { select: { year: true, month: true, subscription: { select: { renewalDay: true } } } },
       },
     });
     if (!group) return;
 
-    const deadline = computeChoiceDeadline(group.month.year, group.month.month, group);
+    const deadline = computeChoiceDeadline(group.month.year, group.month.month, group.month.subscription.renewalDay ?? 1, group);
     const scheduledAt = new Date(deadline.getTime() - settings.bookChoiceDaysBefore * 24 * 60 * 60 * 1000);
     if (scheduledAt <= new Date()) return;
 

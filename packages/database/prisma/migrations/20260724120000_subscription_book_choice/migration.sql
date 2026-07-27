@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS "subscription_month_choice_groups" (
   "monthId" TEXT NOT NULL,
   "label" TEXT,
   "allowMultiple" BOOLEAN NOT NULL DEFAULT true,
-  "choiceDeadlineDaysBefore" INTEGER NOT NULL DEFAULT 0,
+  "choiceDeadlineDaysBefore" INTEGER NOT NULL DEFAULT 1,
   "choiceDeadlineType" TEXT NOT NULL DEFAULT 'DAYS_BEFORE',
   "choiceDeadlineDayOfMonth" INTEGER,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -132,11 +132,10 @@ END $$;
 ALTER TABLE "subscriptions" ADD COLUMN IF NOT EXISTS "hasBookChoiceMonths" BOOLEAN NOT NULL DEFAULT false;
 
 -- ── 5. user_reminder_settings: book-choice reminder fields ─────────────────────────────
--- bookChoiceEnabled defaults to true (unlike renewal/sale, which default false and are
--- opt-in) — a missed choice has a real consequence (both books ship by default, see
--- resolver), so it's active automatically as soon as a user joins a choice-enabled subscription.
+-- Opt-in like renewal/sale — a missed choice defaults to "both books ship, user
+-- self-corrects" rather than anything destructive, so there's no need to force this on.
 
-ALTER TABLE "user_reminder_settings" ADD COLUMN IF NOT EXISTS "bookChoiceEnabled" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "user_reminder_settings" ADD COLUMN IF NOT EXISTS "bookChoiceEnabled" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "user_reminder_settings" ADD COLUMN IF NOT EXISTS "bookChoiceInAppEnabled" BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE "user_reminder_settings" ADD COLUMN IF NOT EXISTS "bookChoicePushEnabled" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "user_reminder_settings" ADD COLUMN IF NOT EXISTS "bookChoiceDaysBefore" INTEGER NOT NULL DEFAULT 3;

@@ -995,8 +995,11 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
           const [monthId, editionId] = key.split(':')
           return { monthId, editionId, price: parseDecimalInput(v) }
         })
-      // First do the real join (creates entry), then backfill months
+      // First do the real join (creates entry), then record any book choices — the backfill
+      // call below resolves book entries against whatever choice already exists, so the
+      // choice must be saved BEFORE backfill runs, not after.
       if (onBeforeBackfill) await onBeforeBackfill()
+      await submitChoicePicks(subscriptionSlug, eligibleMonths, selectedMonthIds, choicePicks)
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1007,7 +1010,6 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
           ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
         }),
       })
-      await submitChoicePicks(subscriptionSlug, eligibleMonths, selectedMonthIds, choicePicks)
       onDone()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to backfill')
@@ -1548,6 +1550,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
         }
       })
       if (onBeforeBackfill) await onBeforeBackfill()
+      await submitChoicePicks(subscriptionSlug, eligibleMonths, selectedMonthIds, choicePicks)
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1559,7 +1562,6 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           ...(billingBatches.length > 0 && { billingBatches }),
         }),
       })
-      await submitChoicePicks(subscriptionSlug, eligibleMonths, selectedMonthIds, choicePicks)
       onDone()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed')
@@ -1604,6 +1606,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           }
         })
       if (onBeforeBackfill) await onBeforeBackfill()
+      await submitChoicePicks(subscriptionSlug, eligibleMonths, selectedMonthIds, choicePicks)
       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1615,7 +1618,6 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           ...(billingBatches.length > 0 && { billingBatches }),
         }),
       })
-      await submitChoicePicks(subscriptionSlug, eligibleMonths, selectedMonthIds, choicePicks)
       onDone()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed')
@@ -2173,12 +2175,12 @@ export default function JoinSubscriptionModal({
                       if (step1JoinPayload) {
                         await performRealJoin(step1JoinPayload)
                       }
+                      await submitChoicePicks(subscriptionSlug, joinResult?.eligibleMonths ?? [], data.selectedMonthIds, data.choicePicks)
                       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ selectedMonthIds: data.selectedMonthIds, skippedMonthIds, backfillOwnershipStatus: data.backfillOwnershipStatus }),
                       })
-                      await submitChoicePicks(subscriptionSlug, joinResult?.eligibleMonths ?? [], data.selectedMonthIds, data.choicePicks)
                     }
                     doJoinAndBackfill()
                       .then(() => { setStep('done'); onJoined() })
@@ -2223,9 +2225,9 @@ export default function JoinSubscriptionModal({
             <p className="text-stone-100 font-medium">You&apos;re subscribed!</p>
             {hasBookChoiceMonths && (
               <p className="text-xs text-stone-400 max-w-xs mx-auto">
-                Some months let you pick between book options — we&apos;ll remind you when one&apos;s open.{' '}
+                Some months let you pick between book options — reminders for that are off by default.{' '}
                 <Link href="/profile?tab=notifications" className="text-amber-400 hover:text-amber-300 underline">
-                  Check your reminder settings
+                  Turn them on
                 </Link>
               </p>
             )}

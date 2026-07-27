@@ -1016,7 +1016,7 @@ function NotificationsTab() {
     renewalDaysBefore: 1, renewalHour: null, renewalDigest: true,
     saleEnabled: false, saleInAppEnabled: true, salePushEnabled: false,
     saleDaysBefore: 0, saleMinutesBefore: 180, saleDigest: false,
-    bookChoiceEnabled: true, bookChoiceInAppEnabled: true, bookChoicePushEnabled: false, bookChoiceDaysBefore: 3,
+    bookChoiceEnabled: false, bookChoiceInAppEnabled: true, bookChoicePushEnabled: false, bookChoiceDaysBefore: 3,
     appNotifPushEnabled: false,
   }
 
@@ -1203,7 +1203,7 @@ function NotificationsTab() {
         <div className={TOGGLE_ROW}>
           <div>
             <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Book Choice Reminders</h3>
-            <p className={TOGGLE_SUBLABEL}>Get reminded when a subscription month lets you pick between book options. On by default — if you miss the deadline, both books are added and you can remove the one you don't want yourself.</p>
+            <p className={TOGGLE_SUBLABEL}>Get reminded when a subscription month lets you pick between book options. If you miss the deadline, both books are added and you can remove the one you don't want yourself.</p>
           </div>
           <Toggle checked={s.bookChoiceEnabled} onChange={(v) => update({ bookChoiceEnabled: v })} />
         </div>

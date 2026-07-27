@@ -45,7 +45,7 @@ export class ReminderSettingsService {
         saleMinutesBefore: null,
         // null means "use default" (180 minutes = 3h before)
         saleDigest: false,
-        bookChoiceEnabled: true,
+        bookChoiceEnabled: false,
         bookChoiceInAppEnabled: true,
         bookChoicePushEnabled: false,
         bookChoiceDaysBefore: 3,
@@ -72,7 +72,7 @@ export class ReminderSettingsService {
         saleDaysBefore: dto.saleDaysBefore ?? 0,
         saleMinutesBefore: dto.saleMinutesBefore ?? null,
         saleDigest: dto.saleDigest ?? false,
-        bookChoiceEnabled: dto.bookChoiceEnabled ?? true,
+        bookChoiceEnabled: dto.bookChoiceEnabled ?? false,
         bookChoiceInAppEnabled: dto.bookChoiceInAppEnabled ?? true,
         bookChoicePushEnabled: dto.bookChoicePushEnabled ?? false,
         bookChoiceDaysBefore: dto.bookChoiceDaysBefore ?? 3,

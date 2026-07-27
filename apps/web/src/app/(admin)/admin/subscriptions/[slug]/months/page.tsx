@@ -498,7 +498,7 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [label, setLabel] = useState('')
   const [allowMultiple, setAllowMultiple] = useState(true)
-  const [deadlineDays, setDeadlineDays] = useState('0')
+  const [deadlineDays, setDeadlineDays] = useState('1')
 
   const { data: groups } = useQuery({
     queryKey: qKey,
@@ -514,10 +514,10 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
         monthBookIds: selectedIds,
         label: label || undefined,
         allowMultiple,
-        choiceDeadlineDaysBefore: parseInt(deadlineDays, 10) || 0,
+        choiceDeadlineDaysBefore: parseInt(deadlineDays, 10) || 1,
       }),
     }),
-    onSuccess: () => { setSelectedIds([]); setLabel(''); setAllowMultiple(true); setDeadlineDays('0'); refresh() },
+    onSuccess: () => { setSelectedIds([]); setLabel(''); setAllowMultiple(true); setDeadlineDays('1'); refresh() },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
@@ -546,7 +546,7 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
                 </button>
               </div>
               <div className="text-xs text-stone-400">
-                Deadline: {g.choiceDeadlineDaysBefore} day(s) before box month
+                Deadline: {g.choiceDeadlineDaysBefore} day(s) before renewal
               </div>
               <div className="flex flex-wrap gap-2">
                 {g.options.map(o => (
@@ -580,7 +580,7 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
               Allow picking both
             </label>
             <label className="flex items-center gap-1.5 text-xs text-stone-400">
-              Deadline (days before box month)
+              Deadline (days before renewal)
               <input type="number" min={0} value={deadlineDays} onChange={e => setDeadlineDays(e.target.value)}
                 className="w-14 text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-200 focus:outline-none focus:border-amber-400" />
             </label>

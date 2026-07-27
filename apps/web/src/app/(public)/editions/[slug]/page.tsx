@@ -46,6 +46,7 @@ interface EditionMonthBook {
     books: Array<{
       sortOrder: number
       isMainBook: boolean
+      choiceGroupId: string | null
       book: { id: string; title: string; slug: string }
       edition: { id: string; slug: string } | null
     }>
@@ -469,9 +470,16 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 )}
                 {/* Subscription info */}
                 {monthBooks.map((mb) => {
-                  const siblings = mb.month.books.filter(
-                    (b) => !(b.edition?.slug === slug || (!b.edition && b.book.slug === edition.book?.slug))
-                  )
+                  const isCurrent = (b: EditionMonthBook['month']['books'][number]) =>
+                    b.edition?.slug === slug || (!b.edition && b.book.slug === edition.book?.slug)
+                  const currentBook = mb.month.books.find(isCurrent)
+                  const otherBooks = mb.month.books.filter((b) => !isCurrent(b))
+                  // Same choiceGroupId = mutually exclusive alternatives (a choice), not a bundle —
+                  // "set with" would wrongly imply the reader got both.
+                  const choiceSiblings = currentBook?.choiceGroupId
+                    ? otherBooks.filter((s) => s.choiceGroupId === currentBook.choiceGroupId)
+                    : []
+                  const siblings = otherBooks.filter((s) => !choiceSiblings.includes(s))
                   const sub = mb.month.subscription
                   // Last day of the book's month — variants started after this shouldn't show
                   const bookMonthLastDay = new Date(mb.month.year, mb.month.month, 0) // day 0 = last day of prev month trick
@@ -508,6 +516,31 @@ export default async function EditionPage({ params, searchParams }: Props) {
                           <span className="text-stone-400 text-xs ml-1">
                             · set with{' '}
                             {siblings.map((s, i) => (
+                              <span key={s.book.slug}>
+                                {i > 0 && ', '}
+                                {s.edition?.slug ? (
+                                  <Link
+                                    href={`/editions/${s.edition.slug}`}
+                                    className="text-amber-400/80 hover:text-amber-400 hover:underline transition-colors"
+                                  >
+                                    {s.book.title}
+                                  </Link>
+                                ) : (
+                                  <Link
+                                    href={`/books/${s.book.slug}`}
+                                    className="text-amber-400/80 hover:text-amber-400 hover:underline transition-colors"
+                                  >
+                                    {s.book.title}
+                                  </Link>
+                                )}
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                        {choiceSiblings.length > 0 && (
+                          <span className="text-stone-400 text-xs ml-1">
+                            · choice option with{' '}
+                            {choiceSiblings.map((s, i) => (
                               <span key={s.book.slug}>
                                 {i > 0 && ', '}
                                 {s.edition?.slug ? (

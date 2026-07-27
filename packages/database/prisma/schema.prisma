@@ -634,8 +634,10 @@ model SubscriptionMonthChoiceGroup {
   label          String?
   /// Whether a user may select more than one alternative (e.g. "both books").
   allowMultiple  Boolean   @default(true)
-  /// Deadline fields mirror SubscriptionSkipPolicy's shape for consistency.
-  choiceDeadlineDaysBefore Int    @default(0)
+  /// Deadline fields mirror SubscriptionSkipPolicy's shape for consistency. Anchored to the
+  /// box's renewal date (not the 1st of the month) — default 1 day before renewal, so the
+  /// deadline-resolution cron doesn't end up applying the default at/after renewal itself.
+  choiceDeadlineDaysBefore Int    @default(1)
   choiceDeadlineType       String @default("DAYS_BEFORE")
   choiceDeadlineDayOfMonth Int?
   createdAt      DateTime  @default(now())
@@ -1138,10 +1140,10 @@ model UserReminderSettings {
   saleMinutesBefore    Int?     @default(180)
   saleDigest           Boolean  @default(false)
 
-  /// Unlike renewal/sale (opt-in, default false), this defaults to true: missing a book
-  /// choice has a real consequence (both books ship, user must self-correct), so it's
-  /// active automatically as soon as a subscriber joins a subscription with an open choice.
-  bookChoiceEnabled       Boolean  @default(true)
+  /// Opt-in, same as renewal/sale — the default fallback (both books ship, user
+  /// self-corrects) makes a missed choice non-destructive, so there's no need to force
+  /// this on by default the way we first considered.
+  bookChoiceEnabled       Boolean  @default(false)
   bookChoiceInAppEnabled  Boolean  @default(true)
   bookChoicePushEnabled   Boolean  @default(false)
   bookChoiceDaysBefore    Int      @default(3)

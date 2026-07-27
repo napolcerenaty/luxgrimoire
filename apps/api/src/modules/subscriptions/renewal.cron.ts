@@ -865,14 +865,14 @@ export class RenewalCronService {
             year: true,
             month: true,
             subscriptionId: true,
-            subscription: { select: { name: true, slug: true } },
+            subscription: { select: { name: true, slug: true, renewalDay: true } },
           },
         },
       },
     });
 
     for (const group of groups) {
-      const deadline = computeChoiceDeadline(group.month.year, group.month.month, group);
+      const deadline = computeChoiceDeadline(group.month.year, group.month.month, group.month.subscription.renewalDay ?? 1, group);
       if (deadline > now) continue;
 
       const activeEntries = await this.prisma.userSubscriptionEntry.findMany({

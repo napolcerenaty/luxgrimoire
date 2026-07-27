@@ -1620,7 +1620,7 @@ export class SubscriptionsService {
           monthId: monthRecord.id,
           label: dto.label ?? null,
           allowMultiple: dto.allowMultiple ?? true,
-          choiceDeadlineDaysBefore: dto.choiceDeadlineDaysBefore ?? 0,
+          choiceDeadlineDaysBefore: dto.choiceDeadlineDaysBefore ?? 1,
           choiceDeadlineType: dto.choiceDeadlineType ?? 'DAYS_BEFORE',
           choiceDeadlineDayOfMonth: dto.choiceDeadlineDayOfMonth ?? null,
         },
@@ -1737,11 +1737,15 @@ export class SubscriptionsService {
       throw new NotFoundException('Choice group not found on this month');
     }
 
+    // Not filtered to active:true — this also serves the join-modal backfill flow for
+    // subscriptions the user has already cancelled (an "already cancelled" join records
+    // historical months against an inactive entry, choice included).
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
-      where: { userId, subscriptionId: subscription.id, active: true },
+      where: { userId, subscriptionId: subscription.id },
+      orderBy: [{ active: 'desc' }, { startDate: 'desc' }],
       select: { id: true },
     });
-    if (!entry) throw new NotFoundException('No active subscription entry found');
+    if (!entry) throw new NotFoundException('No subscription entry found');
 
     const choice = await persistMonthChoice(this.prisma, group, entry.id, dto.monthBookIds, 'user');
     // Resolved — no need to keep reminding this user about this specific choice group.
@@ -2863,12 +2867,12 @@ export class SubscriptionsService {
     // new entry too — otherwise only entries active at group-creation time would ever get
     // one (see createChoiceGroup, which only loops over then-active entries).
     if (!isCombo && (sub as any).hasBookChoiceMonths) {
-      this.scheduleBookChoiceForNewEntry(entry.id, monthsSubscriptionId).catch(() => {});
+      this.scheduleBookChoiceForNewEntry(entry.id, monthsSubscriptionId, renewalDay ?? 1).catch(() => {});
     }
     return { entry, eligibleMonths };
   }
 
-  private async scheduleBookChoiceForNewEntry(entryId: string, subscriptionId: string) {
+  private async scheduleBookChoiceForNewEntry(entryId: string, subscriptionId: string, renewalDay: number) {
     const groups = await this.prisma.subscriptionMonthChoiceGroup.findMany({
       where: { month: { subscriptionId } },
       select: {
@@ -2881,7 +2885,7 @@ export class SubscriptionsService {
     });
     const now = new Date();
     for (const group of groups) {
-      const deadline = computeChoiceDeadline(group.month.year, group.month.month, group);
+      const deadline = computeChoiceDeadline(group.month.year, group.month.month, renewalDay, group);
       if (deadline <= now) continue;
       this.scheduledReminders?.scheduleBookChoice(entryId, group.id).catch(() => {});
     }

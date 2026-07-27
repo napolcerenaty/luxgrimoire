@@ -42,16 +42,27 @@ export async function resolveMonthBooksForEntry<T extends { id: string; choiceGr
   });
 }
 
-/** Deadline for a choice group: 1st of the box month minus N days, or a fixed day of the previous month. */
+/**
+ * Deadline for a choice group: the box's renewal day minus N days (default 1), or a fixed
+ * day of the previous month when explicitly overridden.
+ *
+ * Anchored to the subscription's renewalDay rather than the 1st of the calendar month —
+ * renewal (and the book-choice resolver) fires on that day, not the 1st, so anchoring to
+ * the 1st could put the deadline well before or (worse) after renewal actually runs. This
+ * uses the subscription's nominal renewalDay as a reasonable approximation rather than the
+ * full settings-history-resolved renewal date used for billing — good enough for a reminder,
+ * not precise enough to be relied on for anything money-related.
+ */
 export function computeChoiceDeadline(
   year: number,
   month: number,
+  renewalDay: number,
   group: { choiceDeadlineType: string; choiceDeadlineDaysBefore: number; choiceDeadlineDayOfMonth: number | null },
 ): Date {
   if (group.choiceDeadlineType === 'DAY_OF_MONTH' && group.choiceDeadlineDayOfMonth) {
     return new Date(Date.UTC(year, month - 2, group.choiceDeadlineDayOfMonth));
   }
-  const deadline = new Date(Date.UTC(year, month - 1, 1));
+  const deadline = new Date(Date.UTC(year, month - 1, renewalDay));
   deadline.setUTCDate(deadline.getUTCDate() - group.choiceDeadlineDaysBefore);
   return deadline;
 }
