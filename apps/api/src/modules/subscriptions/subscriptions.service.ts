@@ -32,7 +32,6 @@ import {
   UpdateSettingsHistoryEffectiveFromDto,
   CreateChoiceGroupDto,
   SubmitMonthChoiceDto,
-  AdminBackfillChoiceDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
@@ -1746,37 +1745,6 @@ export class SubscriptionsService {
 
     const choice = await persistMonthChoice(this.prisma, group, entry.id, dto.monthBookIds, 'user');
     // Resolved — no need to keep reminding this user about this specific choice group.
-    this.scheduledReminders?.cancelBookChoice(entry.id, choiceGroupId).catch(() => {});
-    return choice;
-  }
-
-  /** An admin retroactively records which option a user received for a past month. */
-  async submitAdminBackfillChoice(
-    subscriptionSlug: string,
-    year: number,
-    month: number,
-    choiceGroupId: string,
-    dto: AdminBackfillChoiceDto,
-  ) {
-    const subscription = await this.getSubscriptionMonths(subscriptionSlug);
-    const monthRecord = await this.getMonth(subscription.id, year, month);
-
-    const group = await this.prisma.subscriptionMonthChoiceGroup.findUnique({
-      where: { id: choiceGroupId },
-      include: { options: { select: { id: true } } },
-    });
-    if (!group || group.monthId !== monthRecord.id) {
-      throw new NotFoundException('Choice group not found on this month');
-    }
-
-    const entry = await this.prisma.userSubscriptionEntry.findFirst({
-      where: { userId: dto.userId, subscriptionId: subscription.id },
-      orderBy: [{ active: 'desc' }, { startDate: 'desc' }],
-      select: { id: true },
-    });
-    if (!entry) throw new NotFoundException('No subscription entry found for this user');
-
-    const choice = await persistMonthChoice(this.prisma, group, entry.id, dto.monthBookIds, 'admin_backfill');
     this.scheduledReminders?.cancelBookChoice(entry.id, choiceGroupId).catch(() => {});
     return choice;
   }

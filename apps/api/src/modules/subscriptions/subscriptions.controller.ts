@@ -38,7 +38,6 @@ import {
   YearMonthQueryDto,
   CreateChoiceGroupDto,
   SubmitMonthChoiceDto,
-  AdminBackfillChoiceDto,
 } from './subscriptions.dto';
 import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -283,19 +282,6 @@ export class SubscriptionsController {
     @CurrentUser() user: CurrentUserType,
   ) {
     return this.subscriptionsService.submitMonthChoice(slug, parseInt(year, 10), parseInt(month, 10), choiceGroupId, user.id, dto);
-  }
-
-  @ApiBearerAuth()
-  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
-  @Post(':slug/months/:year/:month/choice-groups/:choiceGroupId/admin-choice')
-  submitAdminBackfillChoice(
-    @Param('slug') slug: string,
-    @Param('year') year: string,
-    @Param('month') month: string,
-    @Param('choiceGroupId') choiceGroupId: string,
-    @Body() dto: AdminBackfillChoiceDto,
-  ) {
-    return this.subscriptionsService.submitAdminBackfillChoice(slug, parseInt(year, 10), parseInt(month, 10), choiceGroupId, dto);
   }
 
   @ApiBearerAuth()

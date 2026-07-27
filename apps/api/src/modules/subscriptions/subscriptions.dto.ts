@@ -999,7 +999,3 @@ export class SubmitMonthChoiceDto {
   monthBookIds!: string[];
 }
 
-export class AdminBackfillChoiceDto extends SubmitMonthChoiceDto {
-  @IsString()
-  userId!: string;
-}

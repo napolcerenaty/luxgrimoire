@@ -59,15 +59,16 @@ export function computeChoiceDeadline(
 /**
  * Persists a resolved choice (1 or more selected options) for one subscription entry +
  * choice group, replacing any prior selection. Shared between SubscriptionsService (user
- * self-service pick, admin backfill) and the deadline-resolution cron (applying the
- * 'default' — both options — when a group's deadline passes with no explicit pick).
+ * self-service pick — including a joining user declaring what they received for a past
+ * month during join/backfill) and the deadline-resolution cron (applying the 'default' —
+ * both options — when a group's deadline passes with no explicit pick).
  */
 export async function persistMonthChoice(
   prisma: PrismaService,
   group: { id: string; allowMultiple: boolean; options: { id: string }[] },
   subscriptionEntryId: string,
   monthBookIds: string[],
-  source: 'user' | 'admin_backfill' | 'default',
+  source: 'user' | 'default',
 ) {
   const uniqueIds = [...new Set(monthBookIds)];
   if (uniqueIds.length === 0) {

@@ -499,7 +499,6 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
   const [label, setLabel] = useState('')
   const [allowMultiple, setAllowMultiple] = useState(true)
   const [deadlineDays, setDeadlineDays] = useState('0')
-  const [backfillState, setBackfillState] = useState<Record<string, { userId: string; picked: string[] }>>({})
 
   const { data: groups } = useQuery({
     queryKey: qKey,
@@ -529,77 +528,35 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
-  const backfillMutation = useMutation({
-    mutationFn: ({ choiceGroupId, userId, picked }: { choiceGroupId: string; userId: string; picked: string[] }) =>
-      authFetch(`/subscriptions/${slug}/months/${monthYear}/${monthMonth}/choice-groups/${choiceGroupId}/admin-choice`, {
-        method: 'POST',
-        body: JSON.stringify({ userId, monthBookIds: picked }),
-      }),
-    onSuccess: () => refresh(),
-    onError: (e: Error) => alert(`Error: ${e.message}`),
-  })
-
   const ungrouped = books.filter(b => !b.choiceGroupId)
 
   return (
     <div className="space-y-3">
       {groups && groups.length > 0 && (
         <div className="space-y-2">
-          {groups.map(g => {
-            const bf = backfillState[g.id] ?? { userId: '', picked: [] }
-            return (
-              <div key={g.id} className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-sky-300 text-sm font-medium">
-                    {g.label || 'Choice group'} {g.allowMultiple && <span className="text-xs text-sky-400/70">(both allowed)</span>}
-                  </div>
-                  <button onClick={() => deleteMutation.mutate(g.id)} disabled={deleteMutation.isPending}
-                    className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-500/20 transition-colors">
-                    Ungroup
-                  </button>
+          {groups.map(g => (
+            <div key={g.id} className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sky-300 text-sm font-medium">
+                  {g.label || 'Choice group'} {g.allowMultiple && <span className="text-xs text-sky-400/70">(both allowed)</span>}
                 </div>
-                <div className="text-xs text-stone-400">
-                  Deadline: {g.choiceDeadlineDaysBefore} day(s) before box month
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {g.options.map(o => (
-                    <span key={o.id} className="text-xs px-2 py-1 rounded bg-stone-800 text-stone-300">
-                      {formatEditionDisplayTitle(o.book, o.edition)}{o.edition ? ` — ${editionCompany(o.edition) ?? ''}` : ''}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Admin backfill: retroactively records what ONE SPECIFIC user actually received
-                    for this month (source: admin_backfill) — not a group-wide default. Each user
-                    needs their own entry here; there is no "set for everyone" action. */}
-                <div className="border-t border-sky-500/20 pt-2 mt-1 space-y-1.5">
-                  <div className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Admin backfill: record what this one user received</div>
-                  <p className="text-[11px] text-stone-500">Sets the pick for a single user by ID — repeat per user. Doesn't change the group's default for anyone else.</p>
-                  <input value={bf.userId} placeholder="User ID"
-                    onChange={e => setBackfillState(s => ({ ...s, [g.id]: { ...bf, userId: e.target.value } }))}
-                    className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1 text-stone-200 w-full focus:outline-none focus:border-amber-400" />
-                  <div className="flex flex-wrap gap-2">
-                    {g.options.map(o => (
-                      <label key={o.id} className="flex items-center gap-1 text-xs text-stone-300 cursor-pointer">
-                        <input type="checkbox" checked={bf.picked.includes(o.id)}
-                          onChange={e => setBackfillState(s => ({
-                            ...s,
-                            [g.id]: { ...bf, picked: e.target.checked ? [...bf.picked, o.id] : bf.picked.filter(id => id !== o.id) },
-                          }))} />
-                        {formatEditionDisplayTitle(o.book, o.edition)}
-                      </label>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => backfillMutation.mutate({ choiceGroupId: g.id, userId: bf.userId, picked: bf.picked })}
-                    disabled={backfillMutation.isPending || !bf.userId || bf.picked.length === 0}
-                    className="text-xs px-2 py-1 rounded bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 disabled:opacity-40 transition-colors">
-                    Save choice
-                  </button>
-                </div>
+                <button onClick={() => deleteMutation.mutate(g.id)} disabled={deleteMutation.isPending}
+                  className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-500/20 transition-colors">
+                  Ungroup
+                </button>
               </div>
-            )
-          })}
+              <div className="text-xs text-stone-400">
+                Deadline: {g.choiceDeadlineDaysBefore} day(s) before box month
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {g.options.map(o => (
+                  <span key={o.id} className="text-xs px-2 py-1 rounded bg-stone-800 text-stone-300">
+                    {formatEditionDisplayTitle(o.book, o.edition)}{o.edition ? ` — ${editionCompany(o.edition) ?? ''}` : ''}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

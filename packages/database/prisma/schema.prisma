@@ -655,8 +655,10 @@ model UserSubscriptionMonthChoice {
   id                   String   @id @default(uuid())
   subscriptionEntryId  String
   choiceGroupId        String
-  /// 'user' = self-service pick, 'admin_backfill' = retroactively set by an admin for a
-  /// past month, 'default' = deadline passed with no pick — both books resolved automatically.
+  /// 'user' = self-service pick — including a joining user declaring what they received
+  /// for a past month during join/backfill (no separate admin-set mechanism: admins don't
+  /// have an easy way to look up a user's ID from the admin UI, so this is user-driven).
+  /// 'default' = deadline passed with no pick — every option resolved automatically.
   source               String   @default("user")
   selectedAt           DateTime @default(now())
 

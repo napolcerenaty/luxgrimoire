@@ -41,10 +41,57 @@ function editionDisplayTitle(edition: BookEdition | null | undefined): string | 
   return formatEditionDisplayTitle(edition.book, edition) || edition.title
 }
 
+type ChoiceGroupMeta = { allowMultiple: boolean; label: string | null }
+
+/** Fetches allowMultiple/label for every choice group referenced by these months (one request per month that has one). */
+async function fetchChoiceGroupMeta(subscriptionSlug: string, months: SubscriptionMonth[]): Promise<Record<string, ChoiceGroupMeta>> {
+  const monthsWithGroups = months.filter(m => m.books.some(b => b.choiceGroupId))
+  if (monthsWithGroups.length === 0) return {}
+  const results = await Promise.all(
+    monthsWithGroups.map(m =>
+      authFetch<{ id: string; label: string | null; allowMultiple: boolean }[]>(
+        `/subscriptions/${subscriptionSlug}/months/${m.year}/${m.month}/choice-groups`,
+      ).catch(() => []),
+    ),
+  )
+  const meta: Record<string, ChoiceGroupMeta> = {}
+  for (const groups of results) {
+    for (const g of groups) meta[g.id] = { allowMultiple: g.allowMultiple, label: g.label }
+  }
+  return meta
+}
+
+/**
+ * Records the user's own picks for any choice group in a received (selected) past month —
+ * this is the self-service replacement for admin-set backfill choices: the joining user
+ * declares what they actually got, right here, instead of an admin looking up their user ID
+ * later. Best-effort: the join/backfill itself already succeeded by the time this runs, so a
+ * failure here shouldn't be reported as a failed join.
+ */
+async function submitChoicePicks(
+  subscriptionSlug: string,
+  months: SubscriptionMonth[],
+  selectedMonthIds: string[],
+  picks: Record<string, string[]>,
+) {
+  for (const [choiceGroupId, monthBookIds] of Object.entries(picks)) {
+    if (monthBookIds.length === 0) continue
+    const month = months.find(m => m.books.some(b => b.choiceGroupId === choiceGroupId))
+    if (!month || !selectedMonthIds.includes(month.id)) continue
+    await authFetch(`/subscriptions/${subscriptionSlug}/months/${month.year}/${month.month}/choice-groups/${choiceGroupId}/my-choice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ monthBookIds }),
+    }).catch(() => {})
+  }
+}
+
 interface MonthBook {
+  id: string
   editionId: string | null
   bookId: string | null
   isMainBook: boolean
+  choiceGroupId: string | null
   edition: BookEdition | null
 }
 
@@ -848,7 +895,7 @@ interface Step2Props {
   onDone: () => void
   onSkip: () => void
   onBack: () => void
-  onNextWithBilling?: (data: { selectedMonthIds: string[]; bookPrices: Record<string, string>; backfillOwnershipStatus: 'OWNED' | 'PREORDER' }) => void
+  onNextWithBilling?: (data: { selectedMonthIds: string[]; bookPrices: Record<string, string>; backfillOwnershipStatus: 'OWNED' | 'PREORDER'; choicePicks: Record<string, string[]> }) => void
   onBeforeBackfill?: () => Promise<void>
 }
 
@@ -877,8 +924,32 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [backfillOwnershipStatus, setBackfillOwnershipStatus] = useState<'OWNED' | 'PREORDER'>('OWNED')
+  // choiceGroupId → picked SubscriptionMonthBook id(s) — the user's own "which did I receive" answer
+  const [choicePicks, setChoicePicks] = useState<Record<string, string[]>>({})
+  const [choiceGroupMeta, setChoiceGroupMeta] = useState<Record<string, ChoiceGroupMeta>>({})
+
+  useEffect(() => {
+    fetchChoiceGroupMeta(subscriptionSlug, eligibleMonths).then(setChoiceGroupMeta)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const allSelected = eligibleMonths.every(m => choices[m.id] === 'selected')
+
+  // Every choice group in a received (selected) month must have a pick before continuing —
+  // this is what "forces" the choice instead of letting it silently default to both later.
+  const requiredChoiceGroupIds = Array.from(new Set(
+    eligibleMonths
+      .filter(m => choices[m.id] === 'selected')
+      .flatMap(m => m.books)
+      .map(b => b.choiceGroupId)
+      .filter((id): id is string => !!id),
+  ))
+  const unresolvedChoiceGroupIds = requiredChoiceGroupIds.filter(id => !choicePicks[id] || choicePicks[id].length === 0)
+  const hasUnresolvedChoices = unresolvedChoiceGroupIds.length > 0
+
+  function onChoicePick(groupId: string, monthBookIds: string[]) {
+    setChoicePicks(prev => ({ ...prev, [groupId]: monthBookIds }))
+  }
 
   function toggleAll() {
     const next: Record<string, 'selected' | 'skipped'> = {}
@@ -900,11 +971,15 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
   }
 
   async function submit() {
+    if (hasUnresolvedChoices) {
+      setError('Pick which book you received for the highlighted month(s) before continuing.')
+      return
+    }
     const selectedMonthIds = eligibleMonths.filter(m => choices[m.id] === 'selected').map(m => m.id)
 
     // If onNextWithBilling is provided, pass data upstream instead of calling API
     if (onNextWithBilling) {
-      onNextWithBilling({ selectedMonthIds, bookPrices, backfillOwnershipStatus })
+      onNextWithBilling({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePicks })
       return
     }
 
@@ -930,6 +1005,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
           ...(bookPricesPayload.length > 0 && { bookPrices: bookPricesPayload }),
         }),
       })
+      await submitChoicePicks(subscriptionSlug, eligibleMonths, selectedMonthIds, choicePicks)
       onDone()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to backfill')
@@ -1084,25 +1160,28 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
                   {series!.name}
                 </div>
                 {months.map(m => (
-                  <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} bookPrices={bookPrices} onPriceChange={(k, v) => setBookPrices(prev => ({ ...prev, [k]: v }))} />
+                  <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} bookPrices={bookPrices} onPriceChange={(k, v) => setBookPrices(prev => ({ ...prev, [k]: v }))} choicePicks={choicePicks} onChoicePick={onChoicePick} choiceGroupMeta={choiceGroupMeta} />
                 ))}
               </div>
             ))}
 
             {/* Standalone months */}
             {standalone.map(m => (
-              <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} bookPrices={bookPrices} onPriceChange={(k, v) => setBookPrices(prev => ({ ...prev, [k]: v }))} />
+              <MonthRow key={m.id} month={m} checked={choices[m.id] === 'selected'} onToggle={() => toggle(m.id)} bookPrices={bookPrices} onPriceChange={(k, v) => setBookPrices(prev => ({ ...prev, [k]: v }))} choicePicks={choicePicks} onChoicePick={onChoicePick} choiceGroupMeta={choiceGroupMeta} />
             ))}
           </>
         )}
       </div>
 
+      {hasUnresolvedChoices && (
+        <p className="text-xs text-amber-400">Pick which book you received for the highlighted month(s) above before continuing.</p>
+      )}
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="flex gap-3">
         <button
           onClick={submit}
-          disabled={submitting}
+          disabled={submitting || hasUnresolvedChoices}
           className="flex-1 py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-60 text-stone-100 text-sm font-medium transition-colors"
         >
           {submitting ? 'Saving…' : 'Confirm'}
@@ -1119,17 +1198,27 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
   )
 }
 
-function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
+function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choicePicks, onChoicePick, choiceGroupMeta }: {
   month: SubscriptionMonth
   checked: boolean
   onToggle: () => void
   bookPrices: Record<string, string>
   onPriceChange: (key: string, val: string) => void
+  choicePicks: Record<string, string[]>
+  onChoicePick: (groupId: string, monthBookIds: string[]) => void
+  choiceGroupMeta: Record<string, ChoiceGroupMeta>
 }) {
   const mainBook = month.books.find(b => b.isMainBook && b.edition) ?? month.books.find(b => b.edition)
   const allBooks = month.books.filter(b => b.edition)
   const authorName = mainBook?.edition?.book?.authors?.[0]?.author?.name
   const isMultiBook = allBooks.length > 1
+
+  const choiceGroups = new Map<string, MonthBook[]>()
+  for (const b of allBooks) {
+    if (!b.choiceGroupId) continue
+    if (!choiceGroups.has(b.choiceGroupId)) choiceGroups.set(b.choiceGroupId, [])
+    choiceGroups.get(b.choiceGroupId)!.push(b)
+  }
 
   return (
     <div className="border-b border-stone-700/40 last:border-0">
@@ -1171,6 +1260,44 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange }: {
         </div>
       </label>
 
+      {/* Choice groups: force the user to say which edition they actually received before
+          this month can be marked as selected — this is what replaces an admin having to
+          set it later (which required a user ID admins don't have easy access to). */}
+      {checked && choiceGroups.size > 0 && (
+        <div className="px-3 pb-3 space-y-2">
+          {Array.from(choiceGroups.entries()).map(([groupId, books]) => {
+            const meta = choiceGroupMeta[groupId]
+            const allowMultiple = meta?.allowMultiple ?? true
+            const picked = choicePicks[groupId] ?? []
+            const unresolved = picked.length === 0
+            return (
+              <div key={groupId} className={`rounded-lg border p-2 space-y-1 ${unresolved ? 'border-amber-500/60 bg-amber-500/5' : 'border-stone-700 bg-stone-800/40'}`}>
+                <p className="text-[10px] uppercase tracking-wider text-amber-400">
+                  {meta?.label || 'Which did you receive?'}
+                  {unresolved && <span className="text-amber-300 normal-case"> — required</span>}
+                </p>
+                {books.map(b => (
+                  <label key={b.id} className="flex items-center gap-2 text-xs text-stone-200 cursor-pointer">
+                    <input
+                      type={allowMultiple ? 'checkbox' : 'radio'}
+                      name={`choice-${groupId}`}
+                      checked={picked.includes(b.id)}
+                      onChange={e => onChoicePick(
+                        groupId,
+                        allowMultiple
+                          ? (e.target.checked ? [...picked, b.id] : picked.filter(id => id !== b.id))
+                          : [b.id],
+                      )}
+                    />
+                    {editionDisplayTitle(b.edition) ?? '—'}
+                  </label>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* Per-book price inputs for multi-book months (not shown for combo months — priced as a unit) */}
       {isMultiBook && checked && !month.isComboMonth && (
         <div className="px-3 pb-3 space-y-1.5">
@@ -1207,6 +1334,7 @@ interface Step3Props {
   selectedMonthIds: string[]
   bookPrices: Record<string, string>
   backfillOwnershipStatus?: 'OWNED' | 'PREORDER'
+  choicePicks: Record<string, string[]>
   selectedPrepayOption: { id: string; months: number; price: number | string; label: string | null } | null
   allPrepayOptions: { id: string; months: number; price: number | string; currency: string; validFrom?: string | null; validUntil?: string | null }[]
   subscriptionSlug: string
@@ -1220,7 +1348,7 @@ interface Step3Props {
   onBeforeBackfill?: () => Promise<void>
 }
 
-function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, selectedPrepayOption, allPrepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, initiallyChanged, onDone, onBack, onBeforeBackfill }: Step3Props) {
+function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePicks, selectedPrepayOption, allPrepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, initiallyChanged, onDone, onBack, onBeforeBackfill }: Step3Props) {
   const currency = entry.costCurrency ?? 'USD'
   const renewalDay = entry.renewalDay
 
@@ -1429,6 +1557,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, selected
           ...(billingBatches.length > 0 && { billingBatches }),
         }),
       })
+      await submitChoicePicks(subscriptionSlug, eligibleMonths, selectedMonthIds, choicePicks)
       onDone()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed')
@@ -1484,6 +1613,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, selected
           ...(billingBatches.length > 0 && { billingBatches }),
         }),
       })
+      await submitChoicePicks(subscriptionSlug, eligibleMonths, selectedMonthIds, choicePicks)
       onDone()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed')
@@ -1891,7 +2021,7 @@ export default function JoinSubscriptionModal({
 }: Props) {
   const [step, setStep] = useState<1 | 2 | 3 | 'done'>(1)
   const [joinResult, setJoinResult] = useState<JoinResult | null>(null)
-  const [step2Data, setStep2Data] = useState<{ selectedMonthIds: string[]; bookPrices: Record<string, string>; backfillOwnershipStatus: 'OWNED' | 'PREORDER' } | null>(null)
+  const [step2Data, setStep2Data] = useState<{ selectedMonthIds: string[]; bookPrices: Record<string, string>; backfillOwnershipStatus: 'OWNED' | 'PREORDER'; choicePicks: Record<string, string[]> } | null>(null)
   const [step1Fees, setStep1Fees] = useState<{ name: string; amount: string; currency: string }[]>([])
   const [step1PriceChanges, setStep1PriceChanges] = useState<PriceChange[]>([])
   const [step1SelectedPrepayOption, setStep1SelectedPrepayOption] = useState<{ id: string; months: number; price: number | string; label: string | null } | null>(null)
@@ -2045,6 +2175,7 @@ export default function JoinSubscriptionModal({
                         headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ selectedMonthIds: data.selectedMonthIds, skippedMonthIds, backfillOwnershipStatus: data.backfillOwnershipStatus }),
                       })
+                      await submitChoicePicks(subscriptionSlug, joinResult?.eligibleMonths ?? [], data.selectedMonthIds, data.choicePicks)
                     }
                     doJoinAndBackfill()
                       .then(() => { setStep('done'); onJoined() })
@@ -2067,6 +2198,7 @@ export default function JoinSubscriptionModal({
             selectedMonthIds={step2Data.selectedMonthIds}
             bookPrices={step2Data.bookPrices}
             backfillOwnershipStatus={step2Data.backfillOwnershipStatus}
+            choicePicks={step2Data.choicePicks}
             selectedPrepayOption={step1SelectedPrepayOption}
             allPrepayOptions={prepayOptions ?? []}
             subscriptionSlug={subscriptionSlug}
