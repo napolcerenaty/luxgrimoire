@@ -210,7 +210,7 @@ describe('ScheduledRemindersService', () => {
       await service.scheduleSale(USER_ID, ANN_ID, EA_TIER_ID);
 
       expect(createMock).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ tierId: EA_TIER_ID, tier: 'EA' }),
+        data: expect.objectContaining({ tierId: EA_TIER_ID }),
       }));
     });
   });

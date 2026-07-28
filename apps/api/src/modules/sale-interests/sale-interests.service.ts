@@ -9,14 +9,6 @@ export class SaleInterestsService {
     @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
   ) {}
 
-  /** Legacy tier VARCHAR(2) column is kept populated (best-effort) purely for older code paths
-   *  that haven't migrated to reading tierId/saleTier yet — it's no longer authoritative. */
-  private legacyTierCode(tierName: string): string {
-    if (tierName === 'First Access') return 'FA';
-    if (tierName === 'Early Access') return 'EA';
-    return 'GS';
-  }
-
   async upsert(
     userId: string,
     announcementId: string,
@@ -32,14 +24,12 @@ export class SaleInterestsService {
       create: {
         userId,
         announcementId,
-        tier: this.legacyTierCode(tier.name),
         tierId: tier.id,
         regionId: tier.regionId,
         selectedPrice: selectedPrice ?? null,
         selectedPriceCurrency: selectedPriceCurrency ?? null,
       },
       update: {
-        tier: this.legacyTierCode(tier.name),
         tierId: tier.id,
         regionId: tier.regionId,
         selectedPrice: selectedPrice ?? null,

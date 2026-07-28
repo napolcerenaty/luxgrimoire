@@ -135,14 +135,6 @@ export class ScheduledRemindersService {
     this.logger.debug(`[Reminders] Scheduled renewal reminder for entry ${entryId} at ${scheduledAt.toISOString()}`);
   }
 
-  /** Legacy tier VARCHAR(2) column is kept populated (best-effort) purely for older code paths
-   *  that haven't migrated to reading tierId directly — it's no longer authoritative. */
-  private legacyTierCode(tierName: string): string {
-    if (tierName === 'First Access') return 'FA';
-    if (tierName === 'Early Access') return 'EA';
-    return 'GS';
-  }
-
   /**
    * Schedule or reschedule a sale reminder for a user + announcement + tier.
    * A tier is now a concrete SaleTier row with its own real date — no FA/EA/GS
@@ -178,7 +170,6 @@ export class ScheduledRemindersService {
           scheduledAt,
           announcementId,
           tierId: tier.id,
-          tier: this.legacyTierCode(tier.name),
         },
       });
     });
