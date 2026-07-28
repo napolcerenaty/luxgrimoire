@@ -2892,7 +2892,7 @@ export class SubscriptionsService {
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
     if (paymentOnStartup && startDateObj && !isCombo && !dto.alreadyCancelled) {
-      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth, renewalDay, renewalMonthOffset, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1, eligibilitySubStartDate);
+      await this.recordFirstMonthAsPreorder(entry.id, userId, monthsSubscriptionId, effectiveStartDateObj!, entry, effectiveSignupIncludes, renewalDay, renewalMonthOffset, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1, eligibilitySubStartDate);
     }
 
     // Persist nextRenewalDate (will be null for cancelled entries)
