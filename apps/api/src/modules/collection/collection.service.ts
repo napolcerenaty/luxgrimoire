@@ -58,6 +58,7 @@ export class CollectionService {
                 id: true,
                 slug: true,
                 additionalImages: true,
+                variantLabel: true,
                 bookBoxCompany: { select: { id: true, name: true, slug: true, brandColors: true } },
                 communityImages: {
                   where: { status: 'APPROVED' },
@@ -130,6 +131,7 @@ export class CollectionService {
               slug: true,
               publisher: true,
               additionalImages: true,
+              variantLabel: true,
               bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true, brandColors: true } },
               communityImages: {
                 where: { status: 'APPROVED' },
@@ -382,7 +384,7 @@ export class CollectionService {
               notes: true,
               saleAnnouncementId: true,
               fees: {
-                select: { id: true, name: true, amount: true, currency: true, category: true, date: true },
+                select: { id: true, name: true, amount: true, currency: true, category: true, date: true, feeTemplateId: true },
                 orderBy: { createdAt: 'asc' },
               },
               discounts: {

@@ -124,6 +124,10 @@ export class CreateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
 
   @IsOptional()
   @IsBoolean()
+  hasBookChoiceMonths?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   paymentOnStartup?: boolean;
 
   @IsOptional()
@@ -255,6 +259,10 @@ export class UpdateSubscriptionDto extends BaseSubscriptionPriceCurrencyDto {
   @IsOptional()
   @IsBoolean()
   isBundleSubscription?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hasBookChoiceMonths?: boolean;
 
   @IsOptional()
   @IsBoolean()
@@ -453,9 +461,8 @@ export class AddMonthBookDto {
   @IsString()
   bookId!: string;
 
-  @IsOptional()
   @IsString()
-  editionId?: string;
+  editionId!: string;
 
   @IsOptional()
   @IsBoolean()
@@ -955,3 +962,40 @@ export class ManageSkipsDto {
   @IsIn(['OWNED', 'PREORDER'])
   ownershipStatusForUnskipped?: 'OWNED' | 'PREORDER';
 }
+
+export class CreateChoiceGroupDto {
+  /** SubscriptionMonthBook row ids (already attached to this month) to group as alternatives. */
+  @IsArray()
+  @IsString({ each: true })
+  monthBookIds!: string[];
+
+  @IsOptional()
+  @IsString()
+  label?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  allowMultiple?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  choiceDeadlineDaysBefore?: number;
+
+  @IsOptional()
+  @IsIn(['DAYS_BEFORE', 'DAY_OF_MONTH'])
+  choiceDeadlineType?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  choiceDeadlineDayOfMonth?: number;
+}
+
+export class SubmitMonthChoiceDto {
+  /** SubscriptionMonthBook row id(s) within the choice group being picked (1, or 2+ if allowMultiple). */
+  @IsArray()
+  @IsString({ each: true })
+  monthBookIds!: string[];
+}
+

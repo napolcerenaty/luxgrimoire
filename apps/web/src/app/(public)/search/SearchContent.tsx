@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { Search, Loader2, Megaphone, X } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverUrl } from '@/lib/editionCover'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { API_BASE } from '@/lib/authFetch'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 
@@ -191,14 +192,15 @@ export function SearchContent() {
                 {results.editions!.map((ed) => {
                   const cover = resolveEditionCoverUrl(ed, 'w_60,c_fill,q_auto,f_auto')
                   const isUpcoming = ed.generalSaleDate && new Date(ed.generalSaleDate) > new Date()
+                  const displayTitle = formatEditionDisplayTitle(ed.book, ed)
                   return (
                     <Link key={ed.id} href={`/editions/${ed.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
                       <div className="relative w-10 h-14 rounded overflow-hidden bg-stone-800 shrink-0">
-                        {cover ? <Image src={cover} alt={ed.book.title} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-800 flex items-center justify-center text-stone-600 text-[10px]">no img</div>}
+                        {cover ? <Image src={cover} alt={displayTitle} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-800 flex items-center justify-center text-stone-600 text-[10px]">no img</div>}
                         {isUpcoming && <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-amber-400 uppercase bg-black/60">soon</span>}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{ed.book.title}</p>
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{displayTitle}</p>
                         <p className="text-xs text-stone-500 truncate">
                           {[ed.bookBoxCompany?.name, ed.publisher].filter(Boolean).join(' · ')}
                         </p>

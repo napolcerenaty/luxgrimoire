@@ -98,6 +98,7 @@ function makePrismaForGetStatus(opts: {
   skipRecords?: ReturnType<typeof makeRecord>[];
   firstSkipDate?: Date | null;
   startDate?: string | null;
+  renewalDay?: number | null;
   state?: {
     windowKey: string | null;
     skipsInWindow: number;
@@ -117,6 +118,7 @@ function makePrismaForGetStatus(opts: {
     windowMonths: opts.windowMonths,
   });
 
+  const renewalDay = opts.renewalDay ?? null;
   const subscription = {
     id: 'sub-1',
     slug: 'test-sub',
@@ -135,7 +137,7 @@ function makePrismaForGetStatus(opts: {
         subscriptionId: 'sub-1',
         firstSkipDate: opts.firstSkipDate ?? null,
         startDate: opts.startDate ?? '2024-01-01',
-        renewalDay: null,
+        renewalDay,
         prepaidMonths: 1,
         skipRecords: opts.skipRecords ?? [],
       },
@@ -1590,6 +1592,75 @@ describe('SkipPolicyEngine — comprehensive', () => {
       // Live streak = 3, maxConsecutive = 3 → cannot skip
       expect(status.consecutiveSkips).toBe(3);
       expect(status.canSkip).toBe(false);
+    });
+
+    // Regression: a renewal (i.e. a decided month with no skip record) after the last skip
+    // must reset the streak to 0, even though no explicit "renewal" record exists to break the
+    // month-to-month adjacency chain. Requires a configured renewalDay to know which months are
+    // already decided vs. still open (see `renewalDay` guard in getStatus).
+    it('renewalDay configured, user renewed since last skip → streak resets to 0, no cancel warning', async () => {
+      // Skips: Mar, Apr, May 2026 (hit maxConsecutive=3 previously). Then renewed Jun, Jul 2026.
+      // Today: Aug 10 2026 (past renewalDay=5) → Jun, Jul, and Aug are all already-decided months
+      // with no skip record → the old streak must not carry forward.
+      jest.useFakeTimers().setSystemTime(new Date('2026-08-10T10:00:00Z'));
+      const skipRecords = [
+        makeRecord({ year: 2026, month: 3, windowKey: 'none', skippedAt: new Date('2026-03-10') }),
+        makeRecord({ year: 2026, month: 4, windowKey: 'none', skippedAt: new Date('2026-04-10') }),
+        makeRecord({ year: 2026, month: 5, windowKey: 'none', skippedAt: new Date('2026-05-10') }),
+      ];
+      const prisma = makePrismaForGetStatus({
+        policyType: 'UNLIMITED_MAX_CONSEC',
+        maxConsecutive: 3,
+        renewalDay: 5,
+        skipRecords,
+        firstSkipDate: new Date('2026-03-01'),
+        state: { windowKey: 'none', skipsInWindow: 3, consecutiveSkips: 3, totalSkips: 3 }, // stale: still says 3
+      });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      expect(status.consecutiveSkips).toBe(0);
+      expect(status.canSkip).toBe(true);
+      expect(status.warnings.some((w) => w.includes('cancel'))).toBe(false);
+    });
+
+    it('renewalDay configured, last skip is the most recently decided month → streak still active', async () => {
+      // Skips: Jun, Jul 2026 (consecutive). Today: Aug 3 2026, before renewalDay=5, so August's
+      // window is still open and July is the most recently decided month → streak stays live.
+      jest.useFakeTimers().setSystemTime(new Date('2026-08-03T10:00:00Z'));
+      const skipRecords = [
+        makeRecord({ year: 2026, month: 6, windowKey: 'none', skippedAt: new Date('2026-06-10') }),
+        makeRecord({ year: 2026, month: 7, windowKey: 'none', skippedAt: new Date('2026-07-10') }),
+      ];
+      const prisma = makePrismaForGetStatus({
+        policyType: 'UNLIMITED_MAX_CONSEC',
+        maxConsecutive: 3,
+        renewalDay: 5,
+        skipRecords,
+        firstSkipDate: new Date('2026-06-01'),
+        state: { windowKey: 'none', skipsInWindow: 2, consecutiveSkips: 2, totalSkips: 2 },
+      });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      expect(status.consecutiveSkips).toBe(2);
+      expect(status.canSkip).toBe(true);
+      expect(status.warnings.some((w) => w.includes('consecutive'))).toBe(true);
+    });
+
+    it('renewalDay configured, single renewal since last skip already breaks the streak', async () => {
+      // Skip: only May 2026. Renewed Jun 2026. Today: Jul 10 2026 (past renewalDay=5) → June
+      // and July are decided with no skip record → streak must be 0, not the stale DB value.
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-10T10:00:00Z'));
+      const skipRecords = [
+        makeRecord({ year: 2026, month: 5, windowKey: 'none', skippedAt: new Date('2026-05-10') }),
+      ];
+      const prisma = makePrismaForGetStatus({
+        policyType: 'UNLIMITED_MAX_CONSEC',
+        maxConsecutive: 3,
+        renewalDay: 5,
+        skipRecords,
+        firstSkipDate: new Date('2026-05-01'),
+        state: { windowKey: 'none', skipsInWindow: 1, consecutiveSkips: 1, totalSkips: 1 },
+      });
+      const status = await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+      expect(status.consecutiveSkips).toBe(0);
     });
   });
 });

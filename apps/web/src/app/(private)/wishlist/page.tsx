@@ -8,6 +8,7 @@ import { authFetch } from '@/lib/authFetch'
 import { apiFetch } from '@/lib/api'
 import { EditionCard } from '@/components/books/EditionCard'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { BookOpen, Megaphone, Tag, Trash2, MoveRight, ShoppingCart, X } from 'lucide-react'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -28,6 +29,7 @@ interface CollectionEntry {
     publisher: string | null
     additionalImages: string[]
     communityPhotoCover?: string | null
+    variantLabel?: string | null
     bookBoxCompany: { id: string; name: string; slug: string; brandColors?: string[] | null } | null
     book: {
       id: string
@@ -341,6 +343,7 @@ export default function WishlistPage() {
                 companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                 volumeNumbers={entry.edition.book.volumeNumbers}
                 title={entry.edition.book.title}
+                variantLabel={entry.edition.variantLabel}
                 authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                 imageActions={
                   <div className="absolute inset-0 bg-stone-950/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
@@ -602,7 +605,7 @@ export default function WishlistPage() {
         onClose={() => setMoveEntry(null)}
         title="Move to Collection"
         submitLabel="Move"
-        subtitle={moveEntry?.edition.book.title ?? null}
+        subtitle={moveEntry ? formatEditionDisplayTitle(moveEntry.edition.book, moveEntry.edition) : null}
         defaultOwnershipStatus="PREORDER"
         ownershipOptions={[...OWNERSHIP_OPTIONS]}
         submitting={moveMutation.isPending}

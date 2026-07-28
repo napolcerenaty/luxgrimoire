@@ -10,6 +10,7 @@ import { PersonPicker } from '@/components/admin/pickers/PersonPicker'
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { CURRENCIES } from '@/components/sale/SaleFormFields'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LABEL = 'block text-xs text-stone-400 mb-1'
@@ -42,6 +43,7 @@ function editionCompany(ed: EditionInfo): string | null {
 
 type EditionInfo = {
   id: string; slug: string; additionalImages: string[]
+  variantLabel?: string | null
   bookBoxCompanyCustomName: string | null
   bookBoxCompany: { id: string; name: string } | null
 }
@@ -50,9 +52,19 @@ type BookInfo = {
   authors: Array<{ author: { name: string } }>
 }
 type MonthBook = {
-  bookId: string; editionId: string | null; isMainBook: boolean
-  signatureType: string | null
+  id: string; bookId: string; editionId: string | null; isMainBook: boolean
+  signatureType: string | null; choiceGroupId: string | null
   book: BookInfo; edition: EditionInfo | null
+}
+type ChoiceGroupOption = {
+  id: string; bookId: string; editionId: string | null; signatureType: string | null
+  book: BookInfo; edition: EditionInfo | null
+}
+type ChoiceGroup = {
+  id: string; label: string | null; allowMultiple: boolean
+  choiceDeadlineDaysBefore: number; choiceDeadlineType: string; choiceDeadlineDayOfMonth: number | null
+  options: ChoiceGroupOption[]
+  myChoice: { source: string; monthBookIds: string[] } | null
 }
 type Month = {
   id: string; year: number; month: number
@@ -111,7 +123,7 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
   }
 
   const addBookMutation = useMutation({
-    mutationFn: ({ bookId, editionId }: { bookId: string; editionId?: string }) =>
+    mutationFn: ({ bookId, editionId }: { bookId: string; editionId: string }) =>
       authFetch(`/subscriptions/${slug}/months/${monthYear}/${monthMonth}/books`, {
         method: 'POST',
         body: JSON.stringify({ bookId, editionId }),
@@ -165,12 +177,10 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
 
         {/* Edition list */}
         <div className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Pick edition</div>
+        {editions.length === 0 && (
+          <div className="text-stone-500 text-xs px-2">No editions yet — create one below.</div>
+        )}
         <div className="space-y-1 max-h-52 overflow-y-auto">
-          <button type="button"
-            onClick={() => addBookMutation.mutate({ bookId: selectedBook.id })}
-            disabled={addBookMutation.isPending}
-            className="w-full text-left px-3 py-2 rounded bg-stone-800 hover:bg-stone-700 text-stone-400 text-xs italic"
-          >Link without specific edition</button>
           {editions.map(ed => (
             <button key={ed.id} type="button"
               onClick={() => addBookMutation.mutate({ bookId: selectedBook.id, editionId: ed.id })}
@@ -179,7 +189,10 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
             >
               <Cover id={ed.additionalImages?.[0]} size={36} />
               <div>
-                <div className="text-stone-100 text-xs">{editionCompany(ed) ?? ''}</div>
+                <div className="text-stone-100 text-xs">
+                  {editionCompany(ed) ?? ''}
+                  {ed.variantLabel && <span className="text-amber-400"> ({ed.variantLabel})</span>}
+                </div>
                 <div className="text-stone-500 text-xs">{ed.bookBoxCompanyCustomName ?? ''}</div>
               </div>
             </button>
@@ -276,15 +289,15 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   })
 
   const removeBookMutation = useMutation({
-    mutationFn: (bookId: string) =>
-      authFetch(`/subscriptions/${slug}/months/${month.year}/${month.month}/books/${bookId}`, { method: 'DELETE' }),
+    mutationFn: (monthBookId: string) =>
+      authFetch(`/subscriptions/${slug}/months/${month.year}/${month.month}/books/${monthBookId}`, { method: 'DELETE' }),
     onSuccess: () => refresh(),
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
   const updateBookSignatureMutation = useMutation({
-    mutationFn: ({ bookId, signatureType }: { bookId: string; signatureType: string | null }) =>
-      authFetch(`/subscriptions/${slug}/months/${month.year}/${month.month}/books/${bookId}`, {
+    mutationFn: ({ monthBookId, signatureType }: { monthBookId: string; signatureType: string | null }) =>
+      authFetch(`/subscriptions/${slug}/months/${month.year}/${month.month}/books/${monthBookId}`, {
         method: 'PATCH',
         body: JSON.stringify({ signatureType: signatureType || null }),
       }),
@@ -402,11 +415,11 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
           {month.books.length > 0 && (
             <div className="space-y-2">
               {month.books.map(mb => (
-                <div key={`${mb.bookId}-${mb.editionId}`}
+                <div key={mb.id}
                   className="flex items-center gap-3 bg-stone-800/60 rounded-xl px-3 py-2">
                   <Cover id={mb.edition?.additionalImages?.[0] ?? null} size={44} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-stone-100 text-sm font-medium truncate">{mb.book.title}</div>
+                    <div className="text-stone-100 text-sm font-medium truncate">{formatEditionDisplayTitle(mb.book, mb.edition)}</div>
                     {mb.edition
                       ? <div className="text-stone-400 text-xs">
                           {editionCompany(mb.edition) || null}
@@ -431,7 +444,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                   </div>
                   <select
                     value={mb.signatureType ?? ''}
-                    onChange={e => updateBookSignatureMutation.mutate({ bookId: mb.bookId, signatureType: e.target.value || null })}
+                    onChange={e => updateBookSignatureMutation.mutate({ monthBookId: mb.id, signatureType: e.target.value || null })}
                     className="text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-300 focus:outline-none focus:border-amber-400"
                     title="Signature type override for this book"
                   >
@@ -442,7 +455,12 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                     <option value="digitally_signed">🖨️ Digitally Signed</option>
                     <option value="signed_bookplate">🏷️ Bookplate</option>
                   </select>
-                  <button onClick={() => removeBookMutation.mutate(mb.bookId)}
+                  {mb.choiceGroupId && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300" title="Part of a choice group">
+                      choice option
+                    </span>
+                  )}
+                  <button onClick={() => removeBookMutation.mutate(mb.id)}
                     disabled={removeBookMutation.isPending}
                     className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-500/20 transition-colors disabled:opacity-50">
                     Remove
@@ -451,6 +469,9 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               ))}
             </div>
           )}
+
+          <ChoiceGroupsPanel slug={slug} monthYear={month.year} monthMonth={month.month}
+            books={month.books} onRefresh={refresh} />
 
           {/* Add book */}
           <div className="bg-stone-800/40 rounded-xl p-3 border border-stone-700 space-y-2">
@@ -462,6 +483,112 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               monthYear={month.year} monthMonth={month.month}
               onDone={() => { setBooksOpen(true); refresh() }} />
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Choice groups panel ────────────────────────────────────────────────────────
+function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
+  slug: string; monthYear: number; monthMonth: number; books: MonthBook[]; onRefresh: () => void
+}) {
+  const queryClient = useQueryClient()
+  const qKey = ['admin', 'subscriptions', slug, 'months', monthYear, monthMonth, 'choice-groups']
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [label, setLabel] = useState('')
+  const [allowMultiple, setAllowMultiple] = useState(true)
+  const [deadlineDays, setDeadlineDays] = useState('1')
+
+  const { data: groups } = useQuery({
+    queryKey: qKey,
+    queryFn: () => authFetch<ChoiceGroup[]>(`/subscriptions/${slug}/months/${monthYear}/${monthMonth}/choice-groups`),
+  })
+
+  const refresh = () => { queryClient.invalidateQueries({ queryKey: qKey }); onRefresh() }
+
+  const createMutation = useMutation({
+    mutationFn: () => authFetch(`/subscriptions/${slug}/months/${monthYear}/${monthMonth}/choice-groups`, {
+      method: 'POST',
+      body: JSON.stringify({
+        monthBookIds: selectedIds,
+        label: label || undefined,
+        allowMultiple,
+        choiceDeadlineDaysBefore: parseInt(deadlineDays, 10) || 1,
+      }),
+    }),
+    onSuccess: () => { setSelectedIds([]); setLabel(''); setAllowMultiple(true); setDeadlineDays('1'); refresh() },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (choiceGroupId: string) =>
+      authFetch(`/subscriptions/${slug}/months/${monthYear}/${monthMonth}/choice-groups/${choiceGroupId}`, { method: 'DELETE' }),
+    onSuccess: () => refresh(),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const ungrouped = books.filter(b => !b.choiceGroupId)
+
+  return (
+    <div className="space-y-3">
+      {groups && groups.length > 0 && (
+        <div className="space-y-2">
+          {groups.map(g => (
+            <div key={g.id} className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sky-300 text-sm font-medium">
+                  {g.label || 'Choice group'} {g.allowMultiple && <span className="text-xs text-sky-400/70">(both allowed)</span>}
+                </div>
+                <button onClick={() => deleteMutation.mutate(g.id)} disabled={deleteMutation.isPending}
+                  className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-500/20 transition-colors">
+                  Ungroup
+                </button>
+              </div>
+              <div className="text-xs text-stone-400">
+                Deadline: {g.choiceDeadlineDaysBefore} day(s) before renewal
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {g.options.map(o => (
+                  <span key={o.id} className="text-xs px-2 py-1 rounded bg-stone-800 text-stone-300">
+                    {formatEditionDisplayTitle(o.book, o.edition)}{o.edition ? ` — ${editionCompany(o.edition) ?? ''}` : ''}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {ungrouped.length >= 2 && (
+        <div className="bg-stone-800/40 rounded-xl p-3 border border-stone-700 space-y-2">
+          <div className="text-stone-400 text-xs font-semibold uppercase tracking-wide">Group books as a choice</div>
+          <div className="flex flex-wrap gap-2">
+            {ungrouped.map(b => (
+              <label key={b.id} className="flex items-center gap-1 text-xs text-stone-300 cursor-pointer">
+                <input type="checkbox" checked={selectedIds.includes(b.id)}
+                  onChange={e => setSelectedIds(ids => e.target.checked ? [...ids, b.id] : ids.filter(id => id !== b.id))} />
+                {formatEditionDisplayTitle(b.book, b.edition)}{b.edition ? ` — ${editionCompany(b.edition) ?? ''}` : ''}
+              </label>
+            ))}
+          </div>
+          <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label (optional)"
+            className="text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-200 w-full focus:outline-none focus:border-amber-400" />
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-xs text-stone-300 cursor-pointer">
+              <input type="checkbox" checked={allowMultiple} onChange={e => setAllowMultiple(e.target.checked)} />
+              Allow picking both
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-stone-400">
+              Deadline (days before renewal)
+              <input type="number" min={0} value={deadlineDays} onChange={e => setDeadlineDays(e.target.value)}
+                className="w-14 text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-200 focus:outline-none focus:border-amber-400" />
+            </label>
+          </div>
+          <button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || selectedIds.length < 2}
+            className="text-xs px-3 py-1.5 rounded bg-amber-400 text-stone-950 font-semibold hover:bg-amber-300 disabled:opacity-40 transition-colors">
+            Create choice group ({selectedIds.length} selected)
+          </button>
         </div>
       )}
     </div>

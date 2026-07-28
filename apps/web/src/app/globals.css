@@ -337,11 +337,11 @@ input[type=number] {
 }
 
 /* Filter-chip status dots for the 4 ownership buckets above — hardcoded to the exact same RGB
-   as the matching .edition-glow-* box-shadow, deliberately NOT using Tailwind bg-amber-*/bg-stone-*
-   utilities. Those palettes are remapped to this site's blue/navy brand accent (see @theme block
-   at the top of this file), so a class like "bg-amber-400" renders blue here, not amber/gold —
-   that mismatch previously showed a blue "have it" dot where gold was intended. Keeping dot and
-   glow colors defined once, in the same place, means they can't drift apart again. */
+   as the matching "edition-glow" box-shadow classes, deliberately NOT using Tailwind's amber or
+   stone background utilities. Those palettes are remapped to this site's blue/navy brand accent
+   (see @theme block at the top of this file), so a class like "bg-amber-400" renders blue here,
+   not amber/gold — that mismatch previously showed a blue "have it" dot where gold was intended.
+   Keeping dot and glow colors defined once, in the same place, means they can't drift apart again. */
 .status-dot-gold {
   background-color: rgb(212,175,55);
 }

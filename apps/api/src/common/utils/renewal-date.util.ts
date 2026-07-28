@@ -215,8 +215,19 @@ function findMostRecentFiredRenewalMonth(
 /**
  * For bundle subscriptions: finds the renewal month for the CURRENT bundle cycle.
  * "Current" means the renewal that defines the bundle the user is currently in or joining.
- * "Expired" = the renewal has passed AND refDay > renewalDay (strictly past) — if refDay === renewalDay,
- * the renewal fires today and we stay in the current cycle.
+ *
+ * The (baseAbs + k*intervalMonths) floor-division above already selects the cycle whose
+ * calendar-month window [candidate, candidate+intervalMonths) contains refDate — that's true
+ * regardless of how far refMonth has advanced past cMonth within the window (e.g. a bimonthly
+ * cycle starting May stays "current" all through June, not just on May itself). The ONLY
+ * day-level correction needed is at the window's OPENING month: if refDate is still in that
+ * exact month but hasn't reached renewalDay yet, the cycle hasn't actually started firing yet,
+ * so the true current cycle is the previous one — shift back by one interval.
+ *
+ * (Previously this also forced a forward shift whenever cMonth < refMonth, treating "later
+ * month in the same window" as "expired" — which broke every multi-month, non-boundary month:
+ * e.g. joining a bimonthly box mid-cycle always got bumped to the NEXT cycle instead of the
+ * one already running. See the Enchantasy bimonthly regression this was fixed for.)
  *
  * Used by computeFirstEligibleBoxMonth for bundle subscriptions.
  */
@@ -240,13 +251,10 @@ function findCurrentBundleRenewal(
   const refMonth = refDate.getMonth() + 1;
   const refDay = refDate.getDate();
 
-  const isExpired =
-    cYear < refYear ||
-    (cYear === refYear && cMonth < refMonth) ||
-    (cYear === refYear && cMonth === refMonth && refDay > renewalDay);
+  const cycleNotYetStarted = cYear === refYear && cMonth === refMonth && refDay < renewalDay;
 
-  if (isExpired) {
-    candidateAbs0 += intervalMonths;
+  if (cycleNotYetStarted) {
+    candidateAbs0 -= intervalMonths;
     cYear = Math.floor(candidateAbs0 / 12);
     cMonth = (candidateAbs0 % 12) + 1;
   }

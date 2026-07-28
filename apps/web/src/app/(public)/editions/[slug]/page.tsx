@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { formatVolumeNumbers } from '@/lib/volumeNumbers'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { Badge } from '@/components/ui/Badge'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import { EditionActionButtons } from '@/components/books/EditionActionButtons'
@@ -45,6 +46,7 @@ interface EditionMonthBook {
     books: Array<{
       sortOrder: number
       isMainBook: boolean
+      choiceGroupId: string | null
       book: { id: string; title: string; slug: string }
       edition: { id: string; slug: string } | null
     }>
@@ -104,6 +106,9 @@ interface EditionDetail {
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
   previousEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   nextEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
+  variantLabel?: string | null
+  variantGroupParentId?: string | null
+  variants?: Array<{ id: string; slug: string; variantLabel: string | null; additionalImages: string[]; bookBoxCompany: { name: string; slug: string } | null }>
   book?: {
     id: string; slug: string; title: string
     seriesName: string | null; volumeNumbers: number[]
@@ -146,7 +151,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const edition = await getEdition(slug)
     const book = edition.book
-    const title = [edition.bookBoxCompany?.name, book?.title].filter(Boolean).join(' · ')
+    const title = [edition.bookBoxCompany?.name, formatEditionDisplayTitle(book, edition)].filter(Boolean).join(' · ')
     const coverUrl = cloudinaryUrl(edition.additionalImages[0] ?? null, 'w_800,c_fill,q_auto,f_auto')
     return {
       title: title || 'Edition',
@@ -305,14 +310,20 @@ export default async function EditionPage({ params, searchParams }: Props) {
               </div>
 
               {/* Series */}
-              {book?.seriesName && (
+              {book?.series ? (
                 <Link
-                  href={`/series/${book.series?.slug ?? encodeURIComponent(book.seriesName)}`}
+                  href={`/series/${book.series.slug}`}
                   className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
                 >
                   {book.seriesName}{book.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
                 </Link>
-              )}
+              ) : book?.seriesName ? (
+                // Legacy plain-text series name with no linked BookSeries record — no series
+                // page exists to link to (see /series/[slug] 404s from books like this).
+                <p className="inline-block text-sm text-amber-500 mb-2 font-medium">
+                  {book.seriesName}{book.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
+                </p>
+              ) : null}
               {book?.seriesEntries && book.seriesEntries.filter(e => !e.isPrimary).length > 0 && (
                 <p className="text-xs text-stone-500 mb-2">
                   Also in{' '}
@@ -331,7 +342,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {book && (
                 <Link href={`/books/${book.slug}`} className="group">
                   <h1 className="text-4xl font-serif font-bold text-stone-100 mb-1 leading-tight group-hover:text-amber-400 transition-colors">
-                    {book.title}
+                    {formatEditionDisplayTitle(book, edition)}
                   </h1>
                 </Link>
               )}
@@ -369,7 +380,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               <div className="mb-6">
                 <EditionActionButtons
                   editionId={edition.id}
-                  bookTitle={book?.title ?? editionLabel}
+                  bookTitle={formatEditionDisplayTitle(book, edition) || editionLabel}
                   basePrice={edition.basePrice}
                   currency={edition.currency}
                   bundles={bundles.map(se => ({ id: se.announcement.id, title: se.announcement.title }))}
@@ -459,9 +470,16 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 )}
                 {/* Subscription info */}
                 {monthBooks.map((mb) => {
-                  const siblings = mb.month.books.filter(
-                    (b) => !(b.edition?.slug === slug || (!b.edition && b.book.slug === edition.book?.slug))
-                  )
+                  const isCurrent = (b: EditionMonthBook['month']['books'][number]) =>
+                    b.edition?.slug === slug || (!b.edition && b.book.slug === edition.book?.slug)
+                  const currentBook = mb.month.books.find(isCurrent)
+                  const otherBooks = mb.month.books.filter((b) => !isCurrent(b))
+                  // Same choiceGroupId = mutually exclusive alternatives (a choice), not a bundle —
+                  // "set with" would wrongly imply the reader got both.
+                  const choiceSiblings = currentBook?.choiceGroupId
+                    ? otherBooks.filter((s) => s.choiceGroupId === currentBook.choiceGroupId)
+                    : []
+                  const siblings = otherBooks.filter((s) => !choiceSiblings.includes(s))
                   const sub = mb.month.subscription
                   // Last day of the book's month — variants started after this shouldn't show
                   const bookMonthLastDay = new Date(mb.month.year, mb.month.month, 0) // day 0 = last day of prev month trick
@@ -498,6 +516,31 @@ export default async function EditionPage({ params, searchParams }: Props) {
                           <span className="text-stone-400 text-xs ml-1">
                             · set with{' '}
                             {siblings.map((s, i) => (
+                              <span key={s.book.slug}>
+                                {i > 0 && ', '}
+                                {s.edition?.slug ? (
+                                  <Link
+                                    href={`/editions/${s.edition.slug}`}
+                                    className="text-amber-400/80 hover:text-amber-400 hover:underline transition-colors"
+                                  >
+                                    {s.book.title}
+                                  </Link>
+                                ) : (
+                                  <Link
+                                    href={`/books/${s.book.slug}`}
+                                    className="text-amber-400/80 hover:text-amber-400 hover:underline transition-colors"
+                                  >
+                                    {s.book.title}
+                                  </Link>
+                                )}
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                        {choiceSiblings.length > 0 && (
+                          <span className="text-stone-400 text-xs ml-1">
+                            · choice option with{' '}
+                            {choiceSiblings.map((s, i) => (
                               <span key={s.book.slug}>
                                 {i > 0 && ', '}
                                 {s.edition?.slug ? (
@@ -655,6 +698,25 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   <span className="text-stone-500">→</span>
                 </Link>
               )}
+            </div>
+          </section>
+        )}
+
+        {/* ── Available Variants ───────────────────────────────────────────── */}
+        {edition.variants && edition.variants.length > 0 && (
+          <section>
+            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Available Variants</h2>
+            <div className="space-y-2">
+              {edition.variants.map((v) => (
+                <Link key={v.id} href={`/editions/${v.slug}`}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-stone-300 truncate">
+                      {v.variantLabel ?? v.bookBoxCompany?.name ?? v.slug}
+                    </span>
+                  </div>
+                </Link>
+              ))}
             </div>
           </section>
         )}

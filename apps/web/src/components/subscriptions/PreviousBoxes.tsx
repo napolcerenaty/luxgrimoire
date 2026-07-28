@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import MonthCard from './MonthCard'
 
 const MONTH_NAMES = [
@@ -21,7 +22,7 @@ interface PastMonth {
   books?: {
     isMainBook: boolean
     book: { id: string; title: string; slug: string }
-    edition?: { id: string; slug: string; additionalImages?: string[] | null } | null
+    edition?: { id: string; slug: string; additionalImages?: string[] | null; variantLabel?: string | null } | null
   }[]
 }
 
@@ -38,7 +39,7 @@ function getMainBook(m: PastMonth) {
   if (!mb) return null
   return {
     slug: mb.book.slug,
-    title: mb.book.title,
+    title: formatEditionDisplayTitle(mb.book, mb.edition),
     edition: mb.edition ? {
       slug: mb.edition.slug ?? null,
       coverImage: mb.edition.additionalImages?.[0] ?? null,

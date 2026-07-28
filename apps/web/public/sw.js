@@ -1,7 +1,34 @@
-// LuxGrimoire Service Worker — handles Web Push notifications
+// LuxGrimoire Service Worker — handles Web Push notifications + offline fallback
 
-// Minimal fetch handler required for PWA installability (Chrome 111+)
-self.addEventListener('fetch', function () {});
+const OFFLINE_CACHE = 'lux-offline-v1';
+const OFFLINE_URL = '/offline.html';
+
+self.addEventListener('install', function (event) {
+  event.waitUntil(
+    caches.open(OFFLINE_CACHE).then(function (cache) {
+      return cache.addAll([OFFLINE_URL, '/logo-light-text.png', '/logo-dark-text.png']);
+    }),
+  );
+});
+
+self.addEventListener('activate', function (event) {
+  event.waitUntil(
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.filter(function (k) { return k !== OFFLINE_CACHE; }).map(function (k) { return caches.delete(k); }));
+    }),
+  );
+});
+
+// Only navigations get a fallback — everything else (API calls, assets) passes through
+// untouched, since there's no cached data worth serving for a data-driven app like this.
+self.addEventListener('fetch', function (event) {
+  if (event.request.mode !== 'navigate') return;
+  event.respondWith(
+    fetch(event.request).catch(function () {
+      return caches.match(OFFLINE_URL);
+    }),
+  );
+});
 
 self.addEventListener('push', function (event) {
   if (!event.data) return;

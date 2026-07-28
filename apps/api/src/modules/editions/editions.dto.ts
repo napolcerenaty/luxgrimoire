@@ -96,6 +96,15 @@ export class CreateEditionDto extends BasePriceCurrencyDto {
   @IsOptional()
   @IsString()
   photoCredit?: string;
+
+  @IsOptional()
+  @IsString()
+  variantLabel?: string;
+
+  /** When set, the new edition is linked into this edition's variant group (resolved to the group's root server-side). */
+  @IsOptional()
+  @IsString()
+  sourceEditionId?: string;
 }
 
 export class UpdateEditionDto extends BasePriceCurrencyDto {
@@ -163,6 +172,10 @@ export class UpdateEditionDto extends BasePriceCurrencyDto {
   @IsOptional()
   @IsString()
   photoCredit?: string | null;
+
+  @IsOptional()
+  @IsString()
+  variantLabel?: string | null;
 }
 
 export class LinkEditionHistoryDto {
@@ -171,6 +184,11 @@ export class LinkEditionHistoryDto {
 }
 
 export class UnlinkEditionHistoryDto {}
+
+export class LinkVariantDto {
+  @IsString()
+  relatedEditionSlug!: string;
+}
 
 export class AddArtistDto {
   @IsString()

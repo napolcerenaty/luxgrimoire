@@ -164,12 +164,26 @@ export default async function BlogPostPage({
           <span className="truncate max-w-[220px]" style={{ color: 'var(--text-dim)' }}>{post.title}</span>
         </nav>
 
-        {/* Feature image — full width above grid */}
+        {/* Feature image — full width above grid. object-contain (not cover) so nothing gets
+            cropped out regardless of the source's aspect ratio — a squarish photo or a logo
+            graphic both show in full; the blurred backdrop copy fills the banner behind it
+            instead of leaving bare letterbox bars. */}
         {post.feature_image && (
           <div className="pt-4 pb-6">
             <div className="relative rounded-[24px] overflow-hidden" style={{ aspectRatio: '2.8 / 1' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={post.feature_image} alt={post.feature_image_alt ?? post.title} className="w-full h-full object-cover" />
+              <img
+                src={post.feature_image}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50"
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={post.feature_image}
+                alt={post.feature_image_alt ?? post.title}
+                className="relative w-full h-full object-contain"
+              />
             </div>
           </div>
         )}
@@ -219,6 +233,7 @@ export default async function BlogPostPage({
               <BlogShareButton
                 url={`${process.env.NEXT_PUBLIC_BASE_URL ?? 'https://luxgrimoire.com'}/blog/${post.slug}`}
                 title={post.title}
+                imageUrl={post.feature_image}
                 className="ml-auto"
               />
             </div>

@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { formatVolumeNumbers } from '@/lib/volumeNumbers'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import type { ApiBookBoxCollection, ApiBookEdition } from '@luxgrimoire/shared-types'
 
 interface CollectionWithEditions extends ApiBookBoxCollection {
@@ -85,6 +86,7 @@ export default async function CollectionPage({ params }: Props) {
             const authors = book?.authors?.map((a) => (a as { name: string }).name).join(', ') ?? null
             const customName = edition.bookBoxCompanyCustomName
             const href = `/editions/${edition.slug}`
+            const displayTitle = formatEditionDisplayTitle(book, edition)
 
             return (
               <Link
@@ -99,13 +101,13 @@ export default async function CollectionPage({ params }: Props) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={imgUrl}
-                      alt={book?.title ?? 'Edition'}
+                      alt={displayTitle || 'Edition'}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
                     <div className="relative w-full h-full flex items-center justify-center">
                       <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(collection.company?.brandColors)} />
-                      <span className="relative z-10 text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4 px-2">{book?.title ?? '?'}</span>
+                      <span className="relative z-10 text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4 px-2">{displayTitle || '?'}</span>
                     </div>
                   )}
                 </div>
@@ -114,7 +116,7 @@ export default async function CollectionPage({ params }: Props) {
                 <div className="px-2.5 pt-2 pb-2">
                   <div className="h-[2.25rem] overflow-hidden mb-1">
                     <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
-                      {book?.title ?? 'Unknown'}
+                      {displayTitle || 'Unknown'}
                     </p>
                   </div>
                   {customName && (

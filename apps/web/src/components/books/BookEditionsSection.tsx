@@ -34,6 +34,7 @@ export async function BookEditionsSection({ bookSlug }: Props) {
               companyBrandColors={(edition.bookBoxCompany as any)?.brandColors}
               unverified={!edition.verifiedAt}
               generalSaleDate={edition.generalSaleDate}
+              variantLabel={edition.variantLabel}
             />
           ))}
         </div>

@@ -129,6 +129,7 @@ export class BookSeriesService {
                 additionalImages: true,
                 verifiedAt: true,
                 generalSaleDate: true,
+                variantLabel: true,
                 bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
                 communityImages: {
                   where: { status: 'APPROVED' },
@@ -150,7 +151,7 @@ export class BookSeriesService {
         ...book,
         volumeNumbers,
         isPrimarySeries: isPrimary,
-        editions: (book.editions as Array<{ id: string; slug: string; additionalImages: string[]; verifiedAt: Date | null; generalSaleDate: string | null; bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null; communityImages?: Array<{ url: string }> }>).map((e) => {
+        editions: (book.editions as Array<{ id: string; slug: string; additionalImages: string[]; verifiedAt: Date | null; generalSaleDate: string | null; variantLabel: string | null; bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null; communityImages?: Array<{ url: string }> }>).map((e) => {
           const { communityImages, ...rest } = e;
           return {
             ...rest,

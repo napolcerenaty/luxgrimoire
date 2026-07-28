@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { authFetch } from '@/lib/authFetch'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 
-export interface FeeEntry { key: number; templateId: string; amount: string; currency: string }
+export interface FeeEntry { key: number; templateId: string; amount: string; currency: string; name: string; category: string }
 export interface DiscountEntry { key: number; name: string; amount: string; currency: string }
 export interface FeeTemplate {
   id: string
@@ -29,11 +29,11 @@ export function useRecordSaleGroup() {
         method: 'POST',
         body: JSON.stringify({
           feeTemplateId: template?.id,
-          name: template?.name ?? 'Fee',
+          name: template?.name ?? (fee.name.trim() || 'Fee'),
           amount,
           currency: fee.currency,
           date: feeDate,
-          category: template?.category ?? undefined,
+          category: template?.category ?? fee.category ?? undefined,
           ...(purchaseGroupId ? { purchaseGroupId } : {}),
         }),
       })

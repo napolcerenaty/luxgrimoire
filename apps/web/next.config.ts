@@ -21,6 +21,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https://res.cloudinary.com https://flagcdn.com https://i.ytimg.com https://img.youtube.com" + (isProd ? '' : ' http://localhost:2368'),
   "font-src 'self' https://fonts.gstatic.com",
+  "worker-src 'self' blob:",
   `connect-src 'self' ${apiOrigin} https://api.cloudinary.com`,
   "media-src 'self' https://www.youtube.com",
   "object-src 'none'",
@@ -86,8 +87,11 @@ const nextConfig: NextConfig = {
 };
 
 const sentryOptions = {
+  org: 'luxgrimoire',
+  project: 'luxgrimoire-web',
+  authToken: process.env.SENTRY_AUTH_TOKEN,
   tunnelRoute: '/monitoring',
-  sourcemaps: { disable: true },
+  sourcemaps: { disable: false },
   disableLogger: true,
   webpack: {
     autoInstrumentServerFunctions: false,

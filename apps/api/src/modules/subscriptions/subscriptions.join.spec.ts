@@ -602,7 +602,7 @@ describe('SubscriptionsService — joinSubscription', () => {
     async function getPreorderQuery(
       subOverrides: Record<string, unknown>,
       startDate: string,
-    ): Promise<{ yearGt?: number; monthGte?: number; yearGt2?: number } | undefined> {
+    ): Promise<{ yearGt?: number; monthGte?: number; yearGt2?: number; subscriptionId?: string } | undefined> {
       jest.clearAllMocks();
       const sub = makeSub({
         paymentOnStartup: true,
@@ -635,8 +635,36 @@ describe('SubscriptionsService — joinSubscription', () => {
         yearGt: yearGtClause?.year?.gt,
         monthGte: monthGteClause?.month?.gte,
         yearGt2: monthGteClause?.year,
+        subscriptionId: call?.where?.subscriptionId,
       };
     }
+
+    // ── which subscriptionId the preorder lookup queries against ──
+    //
+    // Regression: recordFirstMonthAsPreorder used to be called with the joined
+    // subscription's own `sub.id`, even when that subscription is a content-stream
+    // variant (e.g. "Illumicrate box" as a variant of an "Illumicrate" content
+    // stream). SubscriptionMonth rows for a variant live on the PARENT subscription
+    // (see scheduleBookChoiceForNewEntry / getEligibleMonths, which already used
+    // monthsSubscriptionId = parentSubscriptionId ?? sub.id). Because the preorder
+    // step queried the wrong id, subscriptionMonth.findFirst always found nothing,
+    // and the join silently created no preorder — the book never appeared in the
+    // collection even though paymentOnStartup was on and the month wasn't a
+    // book-choice month. Fixed by passing monthsSubscriptionId (and the matching
+    // effectiveStartDateObj/effectiveSignupIncludes) into recordFirstMonthAsPreorder.
+    describe('subscriptionId used for the preorder month lookup', () => {
+      it('uses the subscription\'s own id for a normal (non-variant) subscription', async () => {
+        const q = await getPreorderQuery({}, '2026-06-20');
+        expect(q?.subscriptionId).toBe(SUB_ID);
+      });
+
+      it('uses the PARENT content stream\'s id — not the variant\'s own id — when joining a content-stream variant', async () => {
+        const PARENT_ID = 'parent-content-stream-1';
+        const q = await getPreorderQuery({ parentSubscriptionId: PARENT_ID }, '2026-06-20');
+        expect(q?.subscriptionId).toBe(PARENT_ID);
+        expect(q?.subscriptionId).not.toBe(SUB_ID);
+      });
+    });
 
     // ── bimonthly (intervalMonths=2), renewalDay=15, signupIncludesCurrentMonth=true ──
     // This is the Enchantasy regression: startDate=01.06.2026
@@ -758,6 +786,115 @@ describe('SubscriptionsService — joinSubscription', () => {
           data: expect.objectContaining({ ownershipStatus: 'PREORDER' }),
         }),
       );
+    });
+
+    it('regression: adds the book to the collection when joining a content-stream variant (Illumicrate-box-style sub)', async () => {
+      jest.clearAllMocks();
+      const PARENT_ID = 'parent-content-stream-1';
+      const sub = makeSub({
+        paymentOnStartup: true,
+        signupIncludesCurrentMonth: true,
+        renewalDay: 15,
+        renewalMonthOffset: 0,
+        parentSubscriptionId: PARENT_ID,
+      });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionEntry.create as jest.Mock).mockResolvedValueOnce(
+        makeEntry({ startDate: '2026-06-01', renewalDay: null }),
+      );
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+
+      const augustMonth = { id: 'august-month', year: 2026, month: 8, signatureType: null, books: [{ editionId: 'ed-aug', bookId: 'book-aug', signatureType: null }] };
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue(augustMonth);
+      (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValue({ id: 'group-variant-1' });
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'be-aug' });
+      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValue({});
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+
+      // Looked up months on the PARENT stream, not the variant's own id
+      const findFirstCall = (prisma.subscriptionMonth.findFirst as jest.Mock).mock.calls[0]?.[0];
+      expect(findFirstCall?.where?.subscriptionId).toBe(PARENT_ID);
+
+      // ...and the book was actually added as a PREORDER
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ editionId: 'ed-aug', bookId: 'book-aug', ownershipStatus: 'PREORDER' }),
+        }),
+      );
+    });
+  });
+
+  // ── recordFirstMonthAsPreorder — combo subscriptions ──
+  //
+  // Combos have no SubscriptionMonth rows of their own (books live on each component
+  // subscription, aggregated at read time by getComboEligibleMonths). joinSubscription
+  // guards the preorder step with `!isCombo`, so recordFirstMonthAsPreorder must never
+  // run for a combo — even when paymentOnStartup is on, and even when one of the combo's
+  // components is itself a content-stream variant (the same shape as the variant bug
+  // above, just one level further removed). These tests lock in that the guard stays in
+  // place: if it were ever removed, recordFirstMonthAsPreorder would run its single-
+  // subscriptionId findFirst against a combo id that owns no months at all.
+  describe('recordFirstMonthAsPreorder — combo subscriptions (guarded out entirely)', () => {
+    it('does not attempt a preorder lookup for a combo subscription with a regular component', async () => {
+      jest.clearAllMocks();
+      const REGULAR_COMP_ID = 'regular-comp-1';
+      const combo = makeSub({
+        isCombo: true,
+        componentIds: [REGULAR_COMP_ID],
+        paymentOnStartup: true,
+        signupIncludesCurrentMonth: true,
+        renewalDay: 15,
+      });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(combo as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionEntry.create as jest.Mock).mockResolvedValueOnce(
+        makeEntry({ startDate: '2026-06-01', renewalDay: null }),
+      );
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+      // resolveEffectiveComponentIds (inside getComboEligibleMonths)
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValue([
+        { id: REGULAR_COMP_ID, parentSubscriptionId: null },
+      ]);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+
+      expect(prisma.subscriptionMonth.findFirst).not.toHaveBeenCalled();
+      expect(prisma.userPurchaseGroup.create).not.toHaveBeenCalled();
+    });
+
+    it('does not attempt a preorder lookup for a combo subscription whose component is a content-stream variant', async () => {
+      jest.clearAllMocks();
+      const VARIANT_COMP_ID = 'variant-comp-1';
+      const PARENT_ID = 'parent-content-stream-2';
+      const combo = makeSub({
+        isCombo: true,
+        componentIds: [VARIANT_COMP_ID],
+        paymentOnStartup: true,
+        signupIncludesCurrentMonth: true,
+        renewalDay: 15,
+      });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(combo as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionEntry.create as jest.Mock).mockResolvedValueOnce(
+        makeEntry({ startDate: '2026-06-01', renewalDay: null }),
+      );
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+      // resolveEffectiveComponentIds resolves the variant component to its parent stream
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValue([
+        { id: VARIANT_COMP_ID, parentSubscriptionId: PARENT_ID },
+      ]);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+
+      expect(prisma.subscriptionMonth.findFirst).not.toHaveBeenCalled();
+      expect(prisma.userPurchaseGroup.create).not.toHaveBeenCalled();
     });
   });
 });

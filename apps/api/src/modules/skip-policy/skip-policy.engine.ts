@@ -312,16 +312,34 @@ export class SkipPolicyEngine {
       .sort((a, b) => a.month.year !== b.month.year ? a.month.year - b.month.year : a.month.month - b.month.month);
     let liveConsecutive = 0;
     if (sortedAllSkips.length > 0) {
-      liveConsecutive = 1;
-      for (let i = sortedAllSkips.length - 2; i >= 0; i--) {
-        const curr = sortedAllSkips[i + 1].month;
-        const prev = sortedAllSkips[i].month;
-        const expectedPrevYear = curr.month === 1 ? curr.year - 1 : curr.year;
-        const expectedPrevMonth = curr.month === 1 ? 12 : curr.month - 1;
-        if (prev.year === expectedPrevYear && prev.month === expectedPrevMonth) {
-          liveConsecutive++;
-        } else {
-          break;
+      // The most recently DECIDED box month is the one right before the current skip candidate
+      // (candidateMonth/candidateYear is the earliest month still open for a skip decision).
+      // If that month was renewed rather than skipped, the streak was broken even though no
+      // skip record exists to record the break — so the trailing run must not carry forward.
+      // Only enforced when a renewalDay is actually configured: without one there's no reliable
+      // cutoff between "already decided" and "still open", so fall back to pure record-adjacency.
+      let latestSkipIsStillCurrent = true;
+      if (renewalDay) {
+        let lastDecidedMonth = candidateMonth - 1;
+        let lastDecidedYear = candidateYear;
+        if (lastDecidedMonth < 1) { lastDecidedMonth = 12; lastDecidedYear -= 1; }
+
+        const latestSkip = sortedAllSkips[sortedAllSkips.length - 1].month;
+        latestSkipIsStillCurrent = latestSkip.year === lastDecidedYear && latestSkip.month === lastDecidedMonth;
+      }
+
+      if (latestSkipIsStillCurrent) {
+        liveConsecutive = 1;
+        for (let i = sortedAllSkips.length - 2; i >= 0; i--) {
+          const curr = sortedAllSkips[i + 1].month;
+          const prev = sortedAllSkips[i].month;
+          const expectedPrevYear = curr.month === 1 ? curr.year - 1 : curr.year;
+          const expectedPrevMonth = curr.month === 1 ? 12 : curr.month - 1;
+          if (prev.year === expectedPrevYear && prev.month === expectedPrevMonth) {
+            liveConsecutive++;
+          } else {
+            break;
+          }
         }
       }
     }
@@ -1153,6 +1171,16 @@ export class SkipPolicyEngine {
     // signupIncludesCurrentMonth=true skips the "new subscriber" +intervalMonths shift, since
     // here we want the subscriber's own next occurrence, not a fresh joiner's first eligible one).
     let candidate = computeFirstEligibleBoxMonth(now, renewalDay ?? 1, offset, true, intervalMonths, startingMonth);
+
+    // Pure cycle math assumes the grid has always existed — if the subscription's actual first
+    // deliverable bundle starts LATER than what that math computes for "now" (e.g. the grid's
+    // nominal alignment predates the subscription's real launch), snap forward to it. There's no
+    // meaningful "in-flight cycle" before the first bundle ever shipped.
+    if (excludeBundleStart) {
+      const candidateAbs = candidate.year * 12 + candidate.month;
+      const excludeAbs = excludeBundleStart.year * 12 + excludeBundleStart.month;
+      if (candidateAbs < excludeAbs) candidate = excludeBundleStart;
+    }
 
     // Bounded walk forward over already-skipped bundles (mirrors the non-bundle candidate loop).
     for (let i = 0; i < 24; i++) {

@@ -46,6 +46,11 @@ export interface CreateBookEditionFormProps {
   bookOnly?: boolean
   /** If provided, skip step 1 and start at edition creation for an existing book */
   existingBookId?: string
+  /** When set, the created edition is linked into this edition's variant group (e.g. "Duplicate as variant"). */
+  sourceEditionId?: string
+  defaultVariantLabel?: string
+  /** Prefill manual sale dates from a source edition (e.g. "Duplicate as variant" carrying over shared dates). */
+  defaultSaleDates?: EditionSaleDateEntry[]
   onSuccess: (editionId?: string) => void
   /** Called after book creation in bookOnly mode — useful to chain into edition creation */
   onBookCreated?: (bookId: string, bookTitle: string) => void
@@ -55,7 +60,7 @@ export interface CreateBookEditionFormProps {
 export default function CreateBookEditionForm({
   subscriptionSlug, subscriptionId, defaultCurrency, defaultCompanyId,
   defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage,
-  monthYear, monthMonth, existingBookId, bookOnly,
+  monthYear, monthMonth, existingBookId, bookOnly, sourceEditionId, defaultVariantLabel, defaultSaleDates,
   defaultPublisher, defaultCollectionId, defaultPhotoCredit, defaultArtists, defaultFeatureTags,
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
@@ -85,11 +90,13 @@ export default function CreateBookEditionForm({
   const [publisher, setPublisher] = useState(defaultPublisher ?? '')
   const [photoCredit, setPhotoCredit] = useState(defaultPhotoCredit ?? '')
   const [saleDates, setSaleDates] = useState<EditionSaleDateEntry[]>(() => {
+    if (defaultSaleDates?.length) return defaultSaleDates
     const renewalDate = computeGeneralSaleDatePrefill(monthYear, monthMonth, renewalDay, renewalDayUserSet, renewalMonthOffset)
     return renewalDate ? [{ label: 'Subscription Renewal Day', date: renewalDate, order: 0 }] : []
   })
   const [allImages, setAllImages] = useState<string[]>([])
   const [language, setLanguage] = useState(resolveLanguage(defaultLanguage))
+  const [variantLabel, setVariantLabel] = useState(defaultVariantLabel ?? '')
   // Feature tags to POST after edition creation (filled by AI parser or bundle defaults)
   const [pendingFeatureTags, setPendingFeatureTags] = useState<Array<{ rawValue: string; categories: string[] }>>(defaultFeatureTags ?? [])
   const featurePreviewRef = useRef<FeaturePreviewHandle>(null)
@@ -99,7 +106,11 @@ export default function CreateBookEditionForm({
   // Duplicate detection
   const [duplicateBook, setDuplicateBook] = useState<{ id: string; slug: string; title: string; authors: { name: string }[] } | null>(null)
   const [duplicateEdition, setDuplicateEdition] = useState<{ id: string; slug: string; bookBoxCompany: { name: string } | null; collection: { name: string } | null } | null>(null)
-  const [bypassDuplicate, setBypassDuplicate] = useState(false)
+  // Duplicating an existing edition (via sourceEditionId) is expected to collide with the
+  // book+company duplicate check — skip that check entirely in this flow, since linking into
+  // the variant group already happens server-side at creation time via sourceEditionId.
+  const [bypassDuplicate, setBypassDuplicate] = useState(!!sourceEditionId)
+  const [linkMode, setLinkMode] = useState<'history' | 'variant'>('history')
   const [createdEditionSlug, setCreatedEditionSlug] = useState<string | null>(null)
   const [createdEditionId, setCreatedEditionId] = useState<string | null>(null)
   const [showLinkStep, setShowLinkStep] = useState(false)
@@ -328,6 +339,8 @@ export default function CreateBookEditionForm({
             ? saleDates.filter(d => d.label && d.date)
             : undefined,
           additionalImages: allImages.filter(Boolean),
+          variantLabel: variantLabel.trim() || undefined,
+          sourceEditionId: sourceEditionId || undefined,
         }),
       })
       // POST AI-parsed / staged feature tags via ref (flushChanges handles new, deleted and patched)
@@ -399,12 +412,13 @@ export default function CreateBookEditionForm({
     }
   }
 
-  // ── LINK HISTORY STEP ────────────────────────────────────────────────────
+  // ── LINK HISTORY / VARIANT STEP ──────────────────────────────────────────
   if (showLinkStep && createdEditionSlug && duplicateEdition) {
     const handleLink = async () => {
       setLinkBusy(true)
       try {
-        await authFetch(`/editions/${createdEditionSlug}/link-history`, {
+        const endpoint = linkMode === 'variant' ? 'link-variant' : 'link-history'
+        await authFetch(`/editions/${createdEditionSlug}/${endpoint}`, {
           method: 'POST',
           body: JSON.stringify({ relatedEditionSlug: duplicateEdition.slug }),
         })
@@ -420,7 +434,9 @@ export default function CreateBookEditionForm({
       <div className="space-y-4 p-4 bg-stone-800/60 rounded-xl border border-amber-700/30">
         <p className="text-sm text-stone-300 font-semibold">✓ New edition created!</p>
         <p className="text-sm text-stone-400">
-          Link it to the previous edition from the same company?
+          {linkMode === 'variant'
+            ? 'Link it as a variant of the existing edition (e.g. White/Black — released together)?'
+            : 'Link it to the previous edition from the same company (reissue)?'}
         </p>
         <div className="p-3 rounded-lg bg-stone-700/50 text-sm text-stone-200">
           {duplicateEdition.bookBoxCompany?.name ?? duplicateEdition.slug}
@@ -429,7 +445,7 @@ export default function CreateBookEditionForm({
         <div className="flex gap-2">
           <button type="button" disabled={linkBusy || linkDone} onClick={handleLink}
             className="px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-50 transition-colors">
-            {linkDone ? '✓ Linked!' : linkBusy ? 'Linking…' : 'Link as re-edition'}
+            {linkDone ? '✓ Linked!' : linkBusy ? 'Linking…' : linkMode === 'variant' ? 'Link as variant' : 'Link as re-edition'}
           </button>
           <button type="button" onClick={() => onSuccess(createdEditionId ?? undefined)}
             className="px-4 py-2 rounded-lg text-sm font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors">
@@ -601,6 +617,20 @@ export default function CreateBookEditionForm({
         collections={collections}
       />
 
+      <div>
+        <label className={LBL}>Variant label</label>
+        <input
+          type="text"
+          value={variantLabel}
+          onChange={e => setVariantLabel(e.target.value)}
+          placeholder="e.g. White Edition, Overlay Edition, Numbered — leave blank if this isn't a variant"
+          className={INP}
+        />
+        {sourceEditionId && (
+          <p className="text-xs text-amber-500/80 mt-1">This will be linked as a variant of the edition you duplicated from.</p>
+        )}
+      </div>
+
       <p className="text-xs text-stone-500 italic">If this is an omnibus edition, edit it after creation to set component books.</p>
 
       <div className="flex gap-2 pt-1">
@@ -637,10 +667,17 @@ export default function CreateBookEditionForm({
             </a>
             <button
               type="button"
-              onClick={() => { setBypassDuplicate(true); handleStep2(true) }}
+              onClick={() => { setLinkMode('history'); setBypassDuplicate(true); handleStep2(true) }}
               className="px-3 py-1.5 text-xs bg-amber-700 hover:bg-amber-600 text-amber-100 rounded-lg transition-colors"
             >
               Create anyway (re-edition)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setLinkMode('variant'); setBypassDuplicate(true); handleStep2(true) }}
+              className="px-3 py-1.5 text-xs bg-violet-700 hover:bg-violet-600 text-violet-100 rounded-lg transition-colors"
+            >
+              Create anyway (variant)
             </button>
           </div>
         </div>

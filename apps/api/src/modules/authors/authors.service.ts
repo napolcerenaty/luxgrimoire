@@ -156,6 +156,7 @@ export class AuthorsService {
                     additionalImages: true,
                     verifiedAt: true,
                     generalSaleDate: true,
+                    variantLabel: true,
                     bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
                     communityImages: {
                       where: { status: 'APPROVED' },

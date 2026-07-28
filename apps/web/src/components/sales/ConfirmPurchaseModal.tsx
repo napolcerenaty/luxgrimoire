@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, ShoppingBag, Loader2 } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
@@ -111,7 +112,7 @@ export function ConfirmPurchaseModal({ sale, onClose, onSuccess }: Props) {
                       }`}>
                         {checked && <span className="text-white text-[10px] font-bold">✓</span>}
                       </div>
-                      <span className="text-xs">{(edition as any).title ?? edition.book?.title ?? 'Edition'}</span>
+                      <span className="text-xs">{(edition as any).title || formatEditionDisplayTitle(edition.book, edition) || 'Edition'}</span>
                     </button>
                   )
                 })}

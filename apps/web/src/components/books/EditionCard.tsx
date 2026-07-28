@@ -17,6 +17,7 @@ interface EditionCardProps {
   authors?: Array<{ name: string }>
   unverified?: boolean
   generalSaleDate?: string | null
+  variantLabel?: string | null
   /** Rendered inside the image area (e.g. hover action buttons overlay) */
   imageActions?: React.ReactNode
   /** Rendered below authors */
@@ -49,9 +50,11 @@ export function EditionCard({
   imageActions,
   footer,
   highlight,
+  variantLabel,
 }: EditionCardProps) {
   const cover = cloudinaryUrl(coverImage, 'w_400,h_600,c_fill,q_auto,f_auto')
   const altText = title ?? companyName ?? 'Edition'
+  const fullTitle = title && variantLabel ? `${title} (${variantLabel})` : title
   const isUpcoming = generalSaleDate ? new Date(generalSaleDate) > new Date() : false
   const highlightClass = highlight ? (HIGHLIGHT_CLASS[highlight] ?? '') : ''
 
@@ -90,6 +93,12 @@ export function EditionCard({
           </div>
         )}
 
+        {variantLabel && (
+          <span className="absolute bottom-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-tight bg-stone-800/90 text-stone-300 border border-stone-600 max-w-[calc(100%-0.75rem)] truncate">
+            {variantLabel}
+          </span>
+        )}
+
         {imageActions}
       </div>
 
@@ -101,7 +110,7 @@ export function EditionCard({
               <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate min-h-[1em]">
                 {seriesName ? `${seriesName}${volumeNumbers?.length ? ` #${formatVolumeNumbers(volumeNumbers)}` : ''}` : '\u00A0'}
               </p>
-              <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
+              <p title={fullTitle} className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
                 {title}
               </p>
               {authors && authors.length > 0 && (

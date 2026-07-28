@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandTextClasses } from '@/lib/brandGradient'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { Badge } from '@/components/ui/Badge'
 import type { ApiSubscription, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
 import MonthCard from '@/components/subscriptions/MonthCard'
@@ -47,7 +48,7 @@ function getMainBook(monthData: ApiSubscriptionMonth) {
   if (!mb) return null
   return {
     slug: mb.book.slug,
-    title: mb.book.title,
+    title: formatEditionDisplayTitle(mb.book, mb.edition),
     edition: mb.edition ? {
       slug: mb.edition.slug ?? null,
       coverImage: mb.edition.additionalImages?.[0] ?? null,
@@ -88,6 +89,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
 
   // Bundle subscription: compute current and upcoming bundle windows
   const isBundleSubscription = (sub as unknown as { isBundleSubscription?: boolean }).isBundleSubscription ?? false
+  const hasBookChoiceMonths = (sub as unknown as { hasBookChoiceMonths?: boolean }).hasBookChoiceMonths ?? false
   const intervalMonths = sub.intervalMonths ?? 1
   const startingMonth = sub.startingMonth ?? 1
 
@@ -286,6 +288,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           currency={sub.currency}
           intervalMonths={sub.intervalMonths}
           isBundleSubscription={isBundleSubscription}
+          hasBookChoiceMonths={hasBookChoiceMonths}
           startingMonth={startingMonth}
           shipsInternationally={(sub as unknown as { shipsInternationally: boolean }).shipsInternationally ?? false}
           country={sub.company?.country ?? null}
