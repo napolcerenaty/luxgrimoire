@@ -1076,7 +1076,9 @@ export class SubscriptionsService {
   }
 
   /** Admin catalog scan: for the given (year, month), find every non-combo, non-multi-month-bundle
-   *  subscription due to ship that month and flag ones missing the month itself or missing books.
+   *  subscription due to ship that month and flag ones missing the month itself, missing books, or
+   *  whose book(s) have no features yet (some companies announce the title before the edition's
+   *  customization/features are finalized — this flags those so they get revisited later).
    *  Variants (parentSubscriptionId set) are never scanned directly — their months live on the
    *  parent, so checking the parent is sufficient. */
   async getMonthGaps(year: number, month: number) {
@@ -1117,7 +1119,7 @@ export class SubscriptionsService {
       companyName: string;
       companySlug: string;
       isContentStream: boolean;
-      status: 'missing_month' | 'missing_book';
+      status: 'missing_month' | 'missing_book' | 'missing_features';
     };
     let gaps: MonthGapItem[] = [];
 
@@ -1125,7 +1127,11 @@ export class SubscriptionsService {
       const dueIds = due.map((s) => s.id);
       const months = await this.prisma.subscriptionMonth.findMany({
         where: { subscriptionId: { in: dueIds }, year, month },
-        select: { subscriptionId: true, _count: { select: { books: true } } },
+        select: {
+          subscriptionId: true,
+          _count: { select: { books: true } },
+          books: { select: { edition: { select: { featureTags: { select: { id: true }, take: 1 } } } } },
+        },
       });
       const monthBySubId = new Map(months.map((m) => [m.subscriptionId, m]));
 
@@ -1141,6 +1147,8 @@ export class SubscriptionsService {
         };
         if (!m) return [{ ...base, status: 'missing_month' }];
         if (m._count.books === 0) return [{ ...base, status: 'missing_book' }];
+        const missingFeatures = m.books.some((b) => b.edition.featureTags.length === 0);
+        if (missingFeatures) return [{ ...base, status: 'missing_features' }];
         return [];
       });
     }
