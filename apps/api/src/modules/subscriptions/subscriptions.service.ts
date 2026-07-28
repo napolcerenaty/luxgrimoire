@@ -42,7 +42,7 @@ import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
 import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
-import { resolveMonthBooksForEntry, persistMonthChoice, computeChoiceDeadline } from './subscription-month-choice.util';
+import { resolveMonthBooksForEntry, persistMonthChoice, computeChoiceDeadline, materializeChoiceGroupBooks } from './subscription-month-choice.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 import { StatsService } from '../stats/stats.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
@@ -1670,12 +1670,37 @@ export class SubscriptionsService {
   }
 
   /** Choice groups for a month, with each option's book/edition info and (if userId given) the caller's own pick. */
+  /**
+   * Which "real" subscription(s) actually hold SubscriptionMonth rows for this subscription's
+   * calendar slot — itself for a normal subscription, its parent for a content-stream variant,
+   * or each component's effective (parent-resolved) subscription for a combo, since a combo
+   * has no SubscriptionMonth rows of its own at all. User-facing choice-group lookups need
+   * this (unlike admin month-management, which intentionally requires operating on the real
+   * subscription directly — see getSubscriptionMonths's "variant" guard).
+   */
+  private async resolveMonthHoldingSubscriptionIds(subscription: { id: string; isCombo?: boolean; parentSubscriptionId?: string | null }): Promise<string[]> {
+    if ((subscription as any).isCombo) {
+      const components = await this.prisma.subscriptionComboComponent.findMany({
+        where: { comboId: subscription.id },
+        select: { componentId: true },
+      });
+      return this.resolveEffectiveComponentIds(components.map((c) => c.componentId));
+    }
+    return [(subscription as any).parentSubscriptionId ?? subscription.id];
+  }
+
   async getMonthChoiceGroups(subscriptionSlug: string, year: number, month: number, userId?: string) {
-    const subscription = await this.getSubscriptionMonths(subscriptionSlug);
-    const monthRecord = await this.getMonth(subscription.id, year, month);
+    const subscription = await this.findBySlug(subscriptionSlug);
+    const holdingIds = await this.resolveMonthHoldingSubscriptionIds(subscription as any);
+    const monthRecords = await this.prisma.subscriptionMonth.findMany({
+      where: { subscriptionId: { in: holdingIds }, year, month },
+      select: { id: true },
+    });
+    if (monthRecords.length === 0) return [];
+    const monthIds = monthRecords.map((m) => m.id);
 
     const groups = await this.prisma.subscriptionMonthChoiceGroup.findMany({
-      where: { monthId: monthRecord.id },
+      where: { monthId: { in: monthIds } },
       include: {
         options: {
           select: {
@@ -1734,20 +1759,25 @@ export class SubscriptionsService {
     userId: string,
     dto: SubmitMonthChoiceDto,
   ) {
-    const subscription = await this.getSubscriptionMonths(subscriptionSlug);
-    const monthRecord = await this.getMonth(subscription.id, year, month);
+    const subscription = await this.findBySlug(subscriptionSlug);
+    const holdingIds = await this.resolveMonthHoldingSubscriptionIds(subscription as any);
+    const monthIds = (await this.prisma.subscriptionMonth.findMany({
+      where: { subscriptionId: { in: holdingIds }, year, month },
+      select: { id: true },
+    })).map((m) => m.id);
 
     const group = await this.prisma.subscriptionMonthChoiceGroup.findUnique({
       where: { id: choiceGroupId },
       include: { options: { select: { id: true } } },
     });
-    if (!group || group.monthId !== monthRecord.id) {
+    if (!group || !monthIds.includes(group.monthId)) {
       throw new NotFoundException('Choice group not found on this month');
     }
 
     // Not filtered to active:true — this also serves the join-modal backfill flow for
     // subscriptions the user has already cancelled (an "already cancelled" join records
-    // historical months against an inactive entry, choice included).
+    // historical months against an inactive entry, choice included). subscriptionId is the
+    // combo/variant subscription the user actually joined, not the month-holding one.
     const entry = await this.prisma.userSubscriptionEntry.findFirst({
       where: { userId, subscriptionId: subscription.id },
       orderBy: [{ active: 'desc' }, { startDate: 'desc' }],
@@ -1758,6 +1788,11 @@ export class SubscriptionsService {
     const choice = await persistMonthChoice(this.prisma, group, entry.id, dto.monthBookIds, 'user');
     // Resolved — no need to keep reminding this user about this specific choice group.
     this.scheduledReminders?.cancelBookChoice(entry.id, choiceGroupId).catch(() => {});
+    // Actually create the book entry/entries now — nothing else is guaranteed to revisit
+    // this exact month later (see materializeChoiceGroupBooks doc comment).
+    const now = new Date();
+    const isPastOrCurrentMonth = year < now.getUTCFullYear() || (year === now.getUTCFullYear() && month <= now.getUTCMonth() + 1);
+    await materializeChoiceGroupBooks(this.prisma, userId, entry.id, dto.monthBookIds, now, isPastOrCurrentMonth ? 'OWNED' : 'PREORDER');
     return choice;
   }
 
@@ -3103,10 +3138,16 @@ export class SubscriptionsService {
     if (!firstMonth || firstMonth.books.length === 0) return;
 
     const purchaseDate = new Date(Date.UTC(firstMonth.year, firstMonth.month - 1, renewalDay));
-    const monthBooks = await resolveMonthBooksForEntry(this.prisma, 
-      entryId,
-      firstMonth.books.filter(mb => mb.editionId && mb.bookId),
-    );
+    // Choice-grouped books are excluded outright here, not deadline-checked — this runs
+    // synchronously inside the join call itself, before the entry even exists from the
+    // frontend's point of view, so no choice could possibly have been submitted yet. A
+    // deadline check doesn't help either: this "first eligible month" is also always
+    // included in the same join-modal's backfill month list, whose deadline (anchored to
+    // that same month) has typically already elapsed by the time of a real-time signup —
+    // so the resolver would just default to "both" here regardless. Defer entirely to the
+    // backfill/self-service choice flow, which runs afterward in the same session and
+    // properly sequences the choice submission before creating entries.
+    const monthBooks = firstMonth.books.filter(mb => mb.editionId && mb.bookId && !mb.choiceGroupId);
 
     // Fetch fee templates for this entry (they were just saved before calling this function)
     const feeTemplateLinks = await this.prisma.userSubscriptionEntryFeeTemplate.findMany({
@@ -3352,18 +3393,18 @@ export class SubscriptionsService {
         // Fetch books from all component months for this year/month
         const componentMonths = await this.prisma.subscriptionMonth.findMany({
           where: { subscriptionId: { in: effectiveComponentIds }, year, month },
-          select: { books: { select: { bookId: true, editionId: true, signatureType: true } } },
+          select: { books: { select: { id: true, bookId: true, editionId: true, signatureType: true, choiceGroupId: true } } },
         });
         // Deduplicate books by editionId
-        const bookMap = new Map<string, { bookId: string; editionId: string; signatureType: $Enums.SignatureType | null }>();
+        const bookMap = new Map<string, { id: string; bookId: string; editionId: string; signatureType: $Enums.SignatureType | null; choiceGroupId: string | null }>();
         for (const m of componentMonths) {
           for (const b of m.books) {
             if (b.editionId && b.bookId && !bookMap.has(b.editionId)) {
-              bookMap.set(b.editionId, { bookId: b.bookId, editionId: b.editionId, signatureType: b.signatureType });
+              bookMap.set(b.editionId, { id: b.id, bookId: b.bookId, editionId: b.editionId, signatureType: b.signatureType, choiceGroupId: b.choiceGroupId });
             }
           }
         }
-        const monthBooks = Array.from(bookMap.values());
+        const monthBooks = await resolveMonthBooksForEntry(this.prisma, entry.id, Array.from(bookMap.values()));
         if (monthBooks.length === 0) continue;
 
         const comboSettings = resolveEffectiveSettings(settingsHistory, year, month, fallbackSettings);

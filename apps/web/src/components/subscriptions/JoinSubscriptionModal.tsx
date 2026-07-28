@@ -1302,32 +1302,10 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
         </div>
       )}
 
-      {/* Per-book price inputs for multi-book months (not shown for combo months — priced as a unit) */}
-      {isMultiBook && checked && !month.isComboMonth && (
-        <div className="px-3 pb-3 space-y-1.5">
-          <p className="text-[10px] text-stone-500 uppercase tracking-wider mb-1">Price per book</p>
-          {allBooks.map(b => {
-            if (!b.editionId) return null
-            const key = `${month.id}:${b.editionId}`
-            const title = editionDisplayTitle(b.edition) ?? b.editionId
-            return (
-              <div key={b.editionId} className="flex items-center gap-2">
-                <span className="text-xs text-stone-400 flex-1 truncate">{title}</span>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  placeholder="auto"
-                  value={bookPrices[key] ?? ''}
-                  onChange={e => onPriceChange(key, e.target.value)}
-                  className="w-20 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
-                />
-              </div>
-            )
-          })}
-          <p className="text-[10px] text-stone-600">Leave blank to split equally</p>
-        </div>
-      )}
+      {/* Per-book price inputs temporarily removed: they're misleading — all books in a month
+          share one UserPurchaseGroup/totalAmount, there's no real per-book price to set (see
+          project_backfill_per_book_price_bug memory). bookPrices state/payload wiring is left
+          in place since nothing can populate it without this UI; revisit once that's resolved. */}
     </div>
   )
 }

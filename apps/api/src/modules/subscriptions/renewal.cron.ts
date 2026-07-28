@@ -8,7 +8,7 @@ import { recordOwnershipHistory } from '../../common/utils/ownership-history.uti
 import { StatsService } from '../stats/stats.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { resolveMonthBooksForEntry, computeChoiceDeadline, persistMonthChoice } from './subscription-month-choice.util';
+import { resolveMonthBooksForEntry, computeChoiceDeadline, persistMonthChoice, materializeChoiceGroupBooks } from './subscription-month-choice.util';
 
 @Injectable()
 export class RenewalCronService {
@@ -890,9 +890,11 @@ export class RenewalCronService {
       if (unresolved.length === 0) continue;
 
       const monthLabel = `${group.month.year}/${String(group.month.month).padStart(2, '0')}`;
+      const allOptionIds = group.options.map((o) => o.id);
       for (const entry of unresolved) {
-        await persistMonthChoice(this.prisma, group, entry.id, group.options.map((o) => o.id), 'default').catch(() => null);
+        await persistMonthChoice(this.prisma, group, entry.id, allOptionIds, 'default').catch(() => null);
         this.scheduledReminders?.cancelBookChoice(entry.id, group.id).catch(() => {});
+        await materializeChoiceGroupBooks(this.prisma, entry.userId, entry.id, allOptionIds, now, 'OWNED').catch(() => {});
 
         const title = 'Book choice deadline passed';
         const body =
