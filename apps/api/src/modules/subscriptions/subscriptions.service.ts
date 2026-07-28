@@ -2368,9 +2368,19 @@ export class SubscriptionsService {
           ? (() => { const p = entry.cancellationDate!.split('-').map(Number); return { year: p[0], month: p[1] }; })()
           : null;
 
+        // entry.subscriptionId may be a combo or a content-stream variant — neither owns
+        // SubscriptionMonth rows directly (see resolveMonthHoldingSubscriptionIds).
+        const subscriptionForMonths = await this.prisma.subscription.findUnique({
+          where: { id: entry.subscriptionId },
+          select: { id: true, isCombo: true, parentSubscriptionId: true },
+        });
+        const holdingIds = subscriptionForMonths
+          ? await this.resolveMonthHoldingSubscriptionIds(subscriptionForMonths as any)
+          : [entry.subscriptionId];
+
         const monthsInRange = await this.prisma.subscriptionMonth.findMany({
           where: {
-            subscriptionId: entry.subscriptionId,
+            subscriptionId: { in: holdingIds },
             ...(rangeStart || rangeEnd ? {
               AND: [
                 ...(rangeStart ? [{ OR: [{ year: { gt: rangeStart.year } }, { year: rangeStart.year, month: { gte: rangeStart.month } }] }] : []),
