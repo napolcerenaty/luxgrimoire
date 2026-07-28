@@ -39,9 +39,20 @@ const TIER_ORDER: Record<LegacyField, number> = {
   generalSaleDate: 2,
 }
 
+// JS's Date parser is lenient enough to accept malformed strings like "20218-01-01" (a typo
+// for a 4-digit year) as a valid extended-year timestamp thousands of years in the future,
+// rather than failing — Number.isNaN(d.getTime()) alone doesn't catch this. Bound the accepted
+// range to something plausible for a book-sale date so typos like this are treated as
+// unparseable (filed as a bug report) instead of crashing on an out-of-range DB write.
+const MIN_YEAR = 1990
+const MAX_YEAR = 2100
+
 function parseLegacyDate(raw: string): Date | null {
   const d = new Date(raw)
-  return Number.isNaN(d.getTime()) ? null : d
+  if (Number.isNaN(d.getTime())) return null
+  const year = d.getUTCFullYear()
+  if (year < MIN_YEAR || year > MAX_YEAR) return null
+  return d
 }
 
 async function main() {
@@ -75,14 +86,22 @@ async function main() {
         unparseable++
         console.warn(`[backfill-edition-sale-dates] unparseable ${field}="${raw}" on edition ${e.slug} (${e.id})`)
         if (!DRY_RUN) {
-          await bugReports.create({
-            title: `Unparseable legacy ${field} on edition ${e.slug}`,
-            description:
-              `BookEdition ${e.id} (slug: ${e.slug}) has ${field} = ${JSON.stringify(raw)}, which could not ` +
-              `be parsed as a date during the sale-tier migration backfill. Please review and enter it manually ` +
-              `as a sale date on this edition.`,
-            category: 'data-migration',
-          })
+          // An edition whose only legacy dates are all unparseable never gets an EditionSaleDate
+          // row, so the top-level "already backfilled" check (existing > 0) never trips for it —
+          // without this dedup it would re-file a duplicate bug report on every single run
+          // (including every production deploy, since this script is auto-invoked each time).
+          const title = `Unparseable legacy ${field} on edition ${e.slug}`
+          const alreadyFiled = await prisma.bugReport.findFirst({ where: { category: 'data-migration', title } })
+          if (!alreadyFiled) {
+            await bugReports.create({
+              title,
+              description:
+                `BookEdition ${e.id} (slug: ${e.slug}) has ${field} = ${JSON.stringify(raw)}, which could not ` +
+                `be parsed as a date during the sale-tier migration backfill. Please review and enter it manually ` +
+                `as a sale date on this edition.`,
+              category: 'data-migration',
+            })
+          }
         }
         continue
       }
