@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo, useRef, type WheelEvent, typ
 import { EditionCard } from '@/components/books/EditionCard'
 import type { ApiCompanyEdition } from '@luxgrimoire/shared-types'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
-import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { API_BASE, authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -24,9 +23,6 @@ interface Props {
 
 const PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
-// Above this many groups, a plain tab row wraps into several lines before showing a single
-// book — past it, switch to a mobile scroll strip / desktop dropdown instead.
-const FEW_GROUPS_THRESHOLD = 3
 
 type OwnershipBucket = 'have-it' | 'coming' | 'gone'
 type StatusFilter = OwnershipBucket | 'skipped'
@@ -253,8 +249,6 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
     })
   }
 
-  const visibleGroupCount = groups.length - hiddenTabs.size
-
   // The chip strip hides its scrollbar for a cleaner look, which leaves desktop mouse users
   // (no touch/trackpad swipe) with no discoverable way to scroll it — a plain wheel only
   // scrolls the page vertically. Redirect vertical wheel input into horizontal scroll while
@@ -338,72 +332,45 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
         </div>
       </div>
 
-      {/* Tabs — few groups render as a plain tab row (fits on one line at any width). Beyond
-          that, wrapping ate a huge amount of vertical space (companies with many collections/
-          subscriptions could wrap 3+ lines before showing a single book). Past the threshold,
-          every breakpoint gets the same horizontal-scroll chip strip — one interaction pattern
-          instead of forking per device (see CLAUDE.md's responsive-design guidance): swipe is
-          the native mobile gesture, and desktop users can still scroll/shift+scroll it. */}
-      {visibleGroupCount <= FEW_GROUPS_THRESHOLD ? (
-        <div className="border-b border-stone-800 mb-6">
-          <div className="flex flex-wrap gap-0">
-            {groups.map((group, idx) => {
-              if (hiddenTabs.has(idx)) return null
-              return (
-                <button
-                  key={group.label}
-                  onClick={() => handleTabChange(idx)}
-                  className={`px-4 py-2.5 text-sm font-medium font-serif whitespace-nowrap transition-colors border-b-2 -mb-px ${
-                    activeTab === idx
-                      ? 'border-amber-600 text-amber-400'
-                      : 'border-transparent text-stone-400 hover:text-stone-200'
-                  }`}
-                >
-                  {group.label}
-                  {totals[idx] !== undefined && (
-                    <span className="ml-1.5 text-xs text-stone-500">({totals[idx]})</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      ) : (
-        // -mx-4/px-4 bleed to the true screen edge, which only makes sense in the single-column
-        // mobile layout — at lg: the two-column layout makes this the narrower main column
-        // (sharing width with the 320px sticky rail), so the bleed math was cutting chips off
-        // at the main column's edge instead of the real viewport edge. Reset to 0 at lg:.
-        <div
-          onWheel={handleChipStripWheel}
-          onPointerDown={handleChipStripPointerDown}
-          onPointerMove={handleChipStripPointerMove}
-          onPointerUp={handleChipStripPointerUp}
-          onPointerCancel={handleChipStripPointerUp}
-          className="mb-6 -mx-4 px-4 lg:mx-0 lg:px-0 flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
-        >
-          {groups.map((group, idx) => {
-            if (hiddenTabs.has(idx)) return null
-            return (
-              <button
-                key={group.label}
-                onClick={() => handleChipClick(idx)}
-                className={`shrink-0 snap-start whitespace-nowrap flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
-                  activeTab === idx
-                    ? 'bg-amber-900/30 border-amber-600 text-amber-400'
-                    : 'bg-stone-800 border-stone-700 text-stone-400'
-                }`}
-              >
-                {/* No truncation — several groups can share a long common prefix (e.g.
-                    "Signing Edition: X"), and truncating right where they diverge made chips
-                    indistinguishable from each other. The strip already scrolls/drags, so a
-                    wider chip costs nothing. */}
-                <span>{group.label}</span>
-                {totals[idx] !== undefined && <span className="text-stone-500">({totals[idx]})</span>}
-              </button>
-            )
-          })}
-        </div>
-      )}
+      {/* Tabs always render as the horizontal-scroll chip strip, regardless of group count —
+          a plain wrapping tab row for ≤3 groups used to look like a different component
+          switching in as soon as a 4th group appeared. One interaction pattern instead of
+          forking per count (see CLAUDE.md's responsive-design guidance): swipe is the native
+          mobile gesture, and desktop users can still scroll/shift+scroll it.
+          -mx-4/px-4 bleed to the true screen edge, which only makes sense in the single-column
+          mobile layout — at lg: the two-column layout makes this the narrower main column
+          (sharing width with the 320px sticky rail), so the bleed math was cutting chips off
+          at the main column's edge instead of the real viewport edge. Reset to 0 at lg:. */}
+      <div
+        onWheel={handleChipStripWheel}
+        onPointerDown={handleChipStripPointerDown}
+        onPointerMove={handleChipStripPointerMove}
+        onPointerUp={handleChipStripPointerUp}
+        onPointerCancel={handleChipStripPointerUp}
+        className="mb-6 -mx-4 px-4 lg:mx-0 lg:px-0 flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
+      >
+        {groups.map((group, idx) => {
+          if (hiddenTabs.has(idx)) return null
+          return (
+            <button
+              key={group.label}
+              onClick={() => handleChipClick(idx)}
+              className={`shrink-0 snap-start whitespace-nowrap flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
+                activeTab === idx
+                  ? 'bg-amber-900/30 border-amber-600 text-amber-400'
+                  : 'bg-stone-800 border-stone-700 text-stone-400'
+              }`}
+            >
+              {/* No truncation — several groups can share a long common prefix (e.g.
+                  "Signing Edition: X"), and truncating right where they diverge made chips
+                  indistinguishable from each other. The strip already scrolls/drags, so a
+                  wider chip costs nothing. */}
+              <span>{group.label}</span>
+              {totals[idx] !== undefined && <span className="text-stone-500">({totals[idx]})</span>}
+            </button>
+          )
+        })}
+      </div>
 
       {/* Ownership/skip filter chips — only appears once we know the logged-in user has at
           least one status to filter by, on the currently visible batch of editions. */}
@@ -441,7 +408,8 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
                 key={edition.id}
                 href={`/editions/${edition.slug}`}
                 coverImage={resolveEditionCoverRaw(edition)}
-                title={formatEditionDisplayTitle(edition.book, edition)}
+                title={edition.book.title}
+                variantLabel={edition.variantLabel}
                 seriesName={edition.book.seriesName}
                 volumeNumbers={edition.book.volumeNumbers}
                 authors={edition.book.authors.map((a) => ({ name: a.author.name }))}

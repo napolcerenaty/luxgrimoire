@@ -150,7 +150,7 @@ describe('SpendingStatsComputer', () => {
 
   it('has key "spending" and version 4', () => {
     expect(computer.key).toBe('spending');
-    expect(computer.version).toBe(4);
+    expect(computer.version).toBe(5);
   });
 
   // ── Empty state ────────────────────────────────────────────────────────────

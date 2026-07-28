@@ -309,14 +309,20 @@ export default async function EditionPage({ params, searchParams }: Props) {
               </div>
 
               {/* Series */}
-              {book?.seriesName && (
+              {book?.series ? (
                 <Link
-                  href={`/series/${book.series?.slug ?? encodeURIComponent(book.seriesName)}`}
+                  href={`/series/${book.series.slug}`}
                   className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
                 >
                   {book.seriesName}{book.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
                 </Link>
-              )}
+              ) : book?.seriesName ? (
+                // Legacy plain-text series name with no linked BookSeries record — no series
+                // page exists to link to (see /series/[slug] 404s from books like this).
+                <p className="inline-block text-sm text-amber-500 mb-2 font-medium">
+                  {book.seriesName}{book.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
+                </p>
+              ) : null}
               {book?.seriesEntries && book.seriesEntries.filter(e => !e.isPrimary).length > 0 && (
                 <p className="text-xs text-stone-500 mb-2">
                   Also in{' '}

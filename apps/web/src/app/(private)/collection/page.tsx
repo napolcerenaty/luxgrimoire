@@ -1259,7 +1259,8 @@ export default function CollectionPage() {
                       companyBrandColors={getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors}
                       seriesName={entry.edition.book.seriesName}
                       volumeNumbers={entry.edition.book.volumeNumbers}
-                      title={formatEditionDisplayTitle(entry.edition.book, entry.edition)}
+                      title={entry.edition.book.title}
+                      variantLabel={entry.edition.variantLabel}
                       authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                       imageActions={
                         <button

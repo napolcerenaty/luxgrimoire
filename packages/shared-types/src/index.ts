@@ -516,7 +516,7 @@ export interface ApiAuditLog {
 // FEES & TAXES
 // ─────────────────────────────────────────────
 
-export type FeeCategory = 'VAT' | 'CUSTOMS' | 'PROCESSING' | 'FORWARDING' | 'OTHER';
+export type FeeCategory = 'VAT' | 'CUSTOMS' | 'PROCESSING' | 'FORWARDING' | 'PRICE_ADJUSTMENT' | 'OTHER';
 
 export interface ApiFeeTemplate {
   id: string;

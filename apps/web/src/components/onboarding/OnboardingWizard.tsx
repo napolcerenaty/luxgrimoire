@@ -25,7 +25,7 @@ const COUNTRIES: [string, string][] = [
 ]
 
 // ── Fees data ─────────────────────────────────────────────────────────────────
-const FEE_CATEGORIES = ['VAT', 'CUSTOMS', 'PROCESSING', 'FORWARDING', 'OTHER']
+const FEE_CATEGORIES = ['VAT', 'CUSTOMS', 'PROCESSING', 'FORWARDING', 'PRICE_ADJUSTMENT', 'OTHER']
 
 interface FeeTemplate { id: string; name: string; category: string | null; defaultAmount: number | null; defaultCurrency: string | null }
 interface FeeTemplateForm { name: string; category: string; defaultAmount: string }

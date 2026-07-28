@@ -19,6 +19,7 @@ const CATEGORIES: { value: FeeCategory; label: string }[] = [
   { value: 'CUSTOMS', label: 'Customs' },
   { value: 'PROCESSING', label: 'Processing' },
   { value: 'FORWARDING', label: 'Forwarding' },
+  { value: 'PRICE_ADJUSTMENT', label: 'Price Adjustment' },
   { value: 'OTHER', label: 'Other' },
 ]
 
@@ -27,6 +28,7 @@ const CATEGORY_COLORS: Record<FeeCategory, string> = {
   CUSTOMS: 'bg-purple-900/60 text-purple-300',
   PROCESSING: 'bg-orange-900/60 text-orange-300',
   FORWARDING: 'bg-cyan-900/60 text-cyan-300',
+  PRICE_ADJUSTMENT: 'bg-rose-900/60 text-rose-300',
   OTHER: 'bg-stone-700 text-stone-300',
 }
 
