@@ -361,23 +361,54 @@ export class AnnouncementsService {
     if (upcoming.length === 0) return [];
     const upcomingIds = upcoming.map((a: { id: string }) => a.id);
 
-    // Minimum 2 interested users — a single follow is too little signal to call
-    // "trending", but low enough that this still surfaces results early on with a
-    // small user base rather than requiring an unreachable higher bar.
+    // Rank ALL upcoming announcements by interest count, including ones below the
+    // "trending" threshold — needed both to apply that threshold below AND to backfill
+    // with lower-interest ones when too few qualify, instead of showing an under-filled
+    // (or empty) section just because the user base hasn't caught up yet.
     const grouped = await this.prisma.userSaleInterest.groupBy({
       by: ['announcementId'],
       where: { announcementId: { in: upcomingIds } },
       _count: { announcementId: true },
-      having: { announcementId: { _count: { gte: 2 } } },
       orderBy: { _count: { announcementId: 'desc' } },
-      take: safeLimit,
     });
+    const countById = new Map(grouped.map((item) => [item.announcementId, item._count.announcementId]));
 
-    if (grouped.length === 0) return [];
+    // Minimum 2 interested users — a single follow is too little signal to call
+    // "trending" on its own, but low enough that this still surfaces results early on
+    // with a small user base rather than requiring an unreachable higher bar.
+    const selectedIds = grouped
+      .filter((item) => item._count.announcementId >= 2)
+      .map((item) => item.announcementId)
+      .slice(0, safeLimit);
 
-    const ids = grouped.map((item) => item.announcementId);
+    if (selectedIds.length < safeLimit) {
+      // Backfill with upcoming announcements below the threshold (1 follow, already
+      // sorted desc by count within `grouped`), then ones with zero follows at all
+      // (newest first) — so the section is never emptier than it needs to be.
+      const selectedSet = new Set(selectedIds);
+      for (const item of grouped) {
+        if (selectedIds.length >= safeLimit) break;
+        if (!selectedSet.has(item.announcementId)) selectedIds.push(item.announcementId);
+      }
+
+      if (selectedIds.length < safeLimit) {
+        const noInterestIds = upcomingIds.filter((id: string) => !countById.has(id));
+        if (noInterestIds.length > 0) {
+          const extra = await (this.prisma.saleAnnouncement as any).findMany({
+            where: { id: { in: noInterestIds } },
+            select: { id: true },
+            orderBy: { createdAt: 'desc' },
+            take: safeLimit - selectedIds.length,
+          });
+          selectedIds.push(...extra.map((a: { id: string }) => a.id));
+        }
+      }
+    }
+
+    if (selectedIds.length === 0) return [];
+
     const announcements = await (this.prisma.saleAnnouncement as any).findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: selectedIds } },
       include: {
         editions: editionsInclude,
         tiers: { orderBy: { date: 'asc' as const } },
@@ -385,23 +416,10 @@ export class AnnouncementsService {
       },
     });
 
-    const countsById = new Map(grouped.map((item, index) => [
-      item.announcementId,
-      { count: item._count.announcementId, index },
-    ]));
-
-    const result: any[] = announcements
-      .map((announcement: any) => {
-        const meta = countsById.get(announcement.id);
-        if (!meta) return null;
-        return {
-          ...announcement,
-          interestCount: meta.count,
-        };
-      })
-      .filter((announcement: any) => Boolean(announcement));
-
-    return result.sort((a, b) => countsById.get(a.id)!.index - countsById.get(b.id)!.index);
+    const orderIndex = new Map(selectedIds.map((id: string, index: number) => [id, index]));
+    return announcements
+      .map((announcement: any) => ({ ...announcement, interestCount: countById.get(announcement.id) ?? 0 }))
+      .sort((a: any, b: any) => orderIndex.get(a.id)! - orderIndex.get(b.id)!);
   }
 
   async adminFindAll(query: { page?: number; pageSize?: number; search?: string; companyId?: string }) {

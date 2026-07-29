@@ -1,13 +1,19 @@
 /**
  * Regression tests for AnnouncementsService.findTrending().
  *
- * Bug: the query used to rank ALL announcements by all-time interest count, take the
+ * Bug #1: the query used to rank ALL announcements by all-time interest count, take the
  * top N, and only afterward filter that top-N down to ones with an upcoming tier date.
  * Once the earliest (and therefore most-followed) announcements sold out, they'd crowd
  * out newer upcoming ones from the top-N entirely, and the post-filter would zero out
  * the whole result — even when other upcoming announcements had qualifying interest.
  * Fixed by resolving upcoming announcement ids first, then ranking interest only among
- * those, with an explicit minimum of 2 interested users to count as "trending".
+ * those.
+ *
+ * Design: a minimum of 2 interested users counts as "trending" on its own — but with a
+ * small user base that alone can still under-fill (or empty) the section, so it backfills
+ * down to 1-follow, then 0-follow (newest first) upcoming announcements to fill remaining
+ * slots, rather than showing fewer tiles than requested just because interest hasn't
+ * caught up yet.
  */
 
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
@@ -54,20 +60,6 @@ describe('AnnouncementsService — findTrending', () => {
     );
   });
 
-  it('excludes announcements with only 1 follow (below the trending minimum)', async () => {
-    (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'upcoming-1' }]);
-    // having: { _count: { gte: 2 } } means a single-follow announcement would never
-    // come back from a real DB — simulate that by returning an empty groupBy result.
-    (prisma.userSaleInterest.groupBy as jest.Mock).mockResolvedValueOnce([]);
-
-    const result = await service.findTrending(6);
-
-    expect(result).toEqual([]);
-    expect(prisma.userSaleInterest.groupBy).toHaveBeenCalledWith(
-      expect.objectContaining({ having: { announcementId: { _count: { gte: 2 } } } }),
-    );
-  });
-
   it('returns an empty list without querying interests when nothing is upcoming', async () => {
     (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValueOnce([]);
 
@@ -77,7 +69,7 @@ describe('AnnouncementsService — findTrending', () => {
     expect(prisma.userSaleInterest.groupBy).not.toHaveBeenCalled();
   });
 
-  it('sorts multiple qualifying upcoming announcements by interest count, most-followed first', async () => {
+  it('sorts multiple qualifying (>=2 follow) upcoming announcements by interest count, most-followed first', async () => {
     (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValueOnce([
       { id: 'up-a' }, { id: 'up-b' },
     ]);
@@ -95,5 +87,50 @@ describe('AnnouncementsService — findTrending', () => {
 
     expect(result.map((r: any) => r.id)).toEqual(['up-b', 'up-a']);
     expect(result.map((r: any) => r.interestCount)).toEqual([5, 3]);
+  });
+
+  it('backfills with a 1-follow announcement (ranked below the 2+ ones) when nothing else qualifies', async () => {
+    (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'up-a' }, { id: 'up-b' },
+    ]);
+    (prisma.userSaleInterest.groupBy as jest.Mock).mockResolvedValueOnce([
+      { announcementId: 'up-a', _count: { announcementId: 3 } },
+      { announcementId: 'up-b', _count: { announcementId: 1 } },
+    ]);
+    (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'up-a', title: 'A', editions: [], tiers: [], company: null },
+      { id: 'up-b', title: 'B', editions: [], tiers: [], company: null },
+    ]);
+
+    const result = await service.findTrending(6);
+
+    expect(result.map((r: any) => r.id)).toEqual(['up-a', 'up-b']);
+    expect(result.map((r: any) => r.interestCount)).toEqual([3, 1]);
+  });
+
+  it('backfills with zero-follow upcoming announcements, newest first, when still short of the requested limit', async () => {
+    (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'up-a' }, { id: 'up-b' }, { id: 'up-c' },
+    ]);
+    // Only up-a has ever been followed — up-b/up-c never appear in a real groupBy result.
+    (prisma.userSaleInterest.groupBy as jest.Mock).mockResolvedValueOnce([
+      { announcementId: 'up-a', _count: { announcementId: 5 } },
+    ]);
+    // Zero-interest backfill query: newest-first, limited to the remaining slots.
+    (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'up-c' }]);
+    (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'up-a', title: 'A', editions: [], tiers: [], company: null },
+      { id: 'up-c', title: 'C', editions: [], tiers: [], company: null },
+    ]);
+
+    const result = await service.findTrending(2);
+
+    expect(result.map((r: any) => r.id)).toEqual(['up-a', 'up-c']);
+    expect(result.map((r: any) => r.interestCount)).toEqual([5, 0]);
+
+    const backfillCall = (prisma.saleAnnouncement.findMany as jest.Mock).mock.calls[1][0];
+    expect(backfillCall.where.id.in.sort()).toEqual(['up-b', 'up-c']);
+    expect(backfillCall.orderBy).toEqual({ createdAt: 'desc' });
+    expect(backfillCall.take).toBe(1);
   });
 });
