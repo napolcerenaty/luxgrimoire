@@ -2,11 +2,12 @@
 
 const OFFLINE_CACHE = 'lux-offline-v1';
 const OFFLINE_URL = '/offline.html';
+const OFFLINE_ASSETS = ['/logo-light-text.png', '/logo-dark-text.png'];
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
     caches.open(OFFLINE_CACHE).then(function (cache) {
-      return cache.addAll([OFFLINE_URL, '/logo-light-text.png', '/logo-dark-text.png']);
+      return cache.addAll([OFFLINE_URL].concat(OFFLINE_ASSETS));
     }),
   );
 });
@@ -19,15 +20,28 @@ self.addEventListener('activate', function (event) {
   );
 });
 
-// Only navigations get a fallback — everything else (API calls, assets) passes through
-// untouched, since there's no cached data worth serving for a data-driven app like this.
+// Navigations get the offline fallback page. The page's own logo images need their own
+// fallback too — a failed <img> request isn't a navigation, so it would otherwise never
+// hit the cached copy precached above and just show a broken image. Everything else
+// (API calls, app assets) still passes through untouched — no broader caching strategy.
 self.addEventListener('fetch', function (event) {
-  if (event.request.mode !== 'navigate') return;
-  event.respondWith(
-    fetch(event.request).catch(function () {
-      return caches.match(OFFLINE_URL);
-    }),
-  );
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(function () {
+        return caches.match(OFFLINE_URL);
+      }),
+    );
+    return;
+  }
+
+  const url = new URL(event.request.url);
+  if (url.origin === self.location.origin && OFFLINE_ASSETS.indexOf(url.pathname) !== -1) {
+    event.respondWith(
+      fetch(event.request).catch(function () {
+        return caches.match(event.request);
+      }),
+    );
+  }
 });
 
 self.addEventListener('push', function (event) {
