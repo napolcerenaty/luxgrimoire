@@ -38,7 +38,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { getEarliestTierDate } from '@/lib/saleTiers'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Trash2 } from 'lucide-react'
 import { CURRENCIES } from '@/lib/currencies'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
@@ -734,6 +734,27 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
 }
 
 // ─── Form state ───────────────────────────────────────────────────────────────
+// Local (uncommitted) tier row used in the create form — same shape the tier endpoints take,
+// just held client-side until the announcement/region actually exists.
+interface LocalTierEntry {
+  name: string
+  date: string // datetime-local string
+}
+
+// Local (uncommitted) region used in the create form, with its own inline tier list. Only
+// meaningful for `isCreate` mode — after creation, regions are managed via
+// AnnouncementRegionsPanel, which each commit immediately.
+interface LocalRegionEntry {
+  name: string
+  countryCodes: string
+  isDefault: boolean
+  basePrice: string
+  currency: string
+  subscriberBasePrice: string
+  saleTimezone: string
+  tiers: LocalTierEntry[]
+}
+
 interface FormState {
   title: string
   companyId: string
@@ -750,6 +771,12 @@ interface FormState {
   saleType: SaleType
   isSoldOut: boolean
   notes: string
+  /** Create-mode only — the announcement's own default tiers, entered inline before the
+   *  announcement exists, created via the tier endpoints right after the announcement saves. */
+  tiers: LocalTierEntry[]
+  /** Create-mode only — regions (each with their own inline tiers) entered before the
+   *  announcement exists, created right after it saves. */
+  regions: LocalRegionEntry[]
 }
 
 const EMPTY_FORM: FormState = {
@@ -768,6 +795,8 @@ const EMPTY_FORM: FormState = {
   saleType: 'LIMITED_PREORDER',
   isSoldOut: false,
   notes: '',
+  tiers: [],
+  regions: [],
 }
 
 function announcementToForm(a: ApiSaleAnnouncement): FormState {
@@ -793,6 +822,10 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     saleType: a.saleType ?? 'LIMITED_PREORDER',
     isSoldOut: a.isSoldOut ?? false,
     notes: a.notes ?? '',
+    // Editing an existing announcement manages tiers/regions via the panels below the form
+    // (each commits immediately) — these inline fields are create-mode only, always empty here.
+    tiers: [],
+    regions: [],
   }
 }
 
@@ -818,12 +851,146 @@ function formToData(f: FormState): SaleAnnouncementFormData {
   }
 }
 
+// ─── Local (uncommitted) tier + region editors — create-mode only ─────────────
+// Same shape as TierListEditor/AnnouncementRegionsPanel below, but held in local component
+// state (no API calls) until the announcement itself is created, at which point the parent
+// creates each of these via the tier/region endpoints. Lets an admin (or the AI parser) fill
+// tiers in right away instead of saving first and reopening the entry to add them.
+function LocalTierRowsEditor({ tiers, onChange }: {
+  tiers: LocalTierEntry[]
+  onChange: (fn: (prev: LocalTierEntry[]) => LocalTierEntry[]) => void
+}) {
+  return (
+    <div className="space-y-2">
+      {tiers.map((t, i) => (
+        <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <input
+            className={`${INP} sm:flex-1`}
+            value={t.name}
+            placeholder="e.g. First Access, VIP, Flash Sale"
+            onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, name: e.target.value } : row))}
+          />
+          <div className="flex gap-2 items-center">
+            <input
+              type="datetime-local"
+              className={`${INP} flex-1 sm:flex-none sm:w-auto`}
+              value={t.date}
+              onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, date: e.target.value } : row))}
+            />
+            <button type="button" onClick={() => onChange(prev => prev.filter((_, j) => j !== i))}
+              aria-label="Remove tier"
+              className="p-2 rounded text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors flex-shrink-0">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+      ))}
+      <button type="button" onClick={() => onChange(prev => [...prev, { name: '', date: '' }])}
+        className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+        + Add tier
+      </button>
+    </div>
+  )
+}
+
+function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone }: {
+  regions: LocalRegionEntry[]
+  onChange: (fn: (prev: LocalRegionEntry[]) => LocalRegionEntry[]) => void
+  defaultTiers: LocalTierEntry[]
+  defaultTimezone: string
+}) {
+  return (
+    <div className="space-y-3">
+      {regions.map((r, i) => (
+        <div key={i} className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <div className="grid grid-cols-2 gap-2 flex-1">
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">Region Name *</label>
+                <input className={INP} value={r.name} placeholder="UK + International"
+                  onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, name: e.target.value } : row))} />
+              </div>
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">Country Codes <span className="text-stone-600">(comma-separated)</span></label>
+                <input className={INP} value={r.countryCodes} placeholder="GB, AU, DE, FR…"
+                  onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, countryCodes: e.target.value } : row))} />
+              </div>
+            </div>
+            <button type="button" onClick={() => onChange(prev => prev.filter((_, j) => j !== i))}
+              aria-label="Remove region" className="p-2 mt-5 rounded text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors flex-shrink-0">
+              <Trash2 size={16} />
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
+            <input type="checkbox" checked={r.isDefault} className="accent-amber-400"
+              onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, isDefault: e.target.checked } : row))} />
+            Default region (catch-all for unmatched countries)
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Price <span className="text-stone-600">(override)</span></label>
+              <input className={INP} value={r.basePrice} placeholder="Same as default"
+                onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, basePrice: e.target.value } : row))} />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Currency</label>
+              <input className={INP} list="region-currencies-inline" value={r.currency}
+                onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, currency: e.target.value } : row))} />
+              <datalist id="region-currencies-inline">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Timezone</label>
+            <ComboBox
+              value={r.saleTimezone || defaultTimezone}
+              options={TIMEZONE_OPTIONS}
+              placeholder="Select timezone…"
+              onChange={v => onChange(prev => prev.map((row, j) => j === i ? { ...row, saleTimezone: v } : row))}
+            />
+          </div>
+          <div className="pt-2 border-t border-stone-700/60">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-stone-500 uppercase tracking-wide">Tiers for this region</span>
+              {defaultTiers.length > 0 && (
+                <button type="button"
+                  onClick={() => onChange(prev => prev.map((row, j) => j === i ? { ...row, tiers: [...row.tiers, ...defaultTiers.map(t => ({ ...t }))] } : row))}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                  Copy from sale default
+                </button>
+              )}
+            </div>
+            {r.tiers.length === 0 && (
+              <p className="text-xs text-stone-600 italic mb-1">Inherits the sale's default tiers unless you add one here.</p>
+            )}
+            <LocalTierRowsEditor
+              tiers={r.tiers}
+              onChange={fn => onChange(prev => prev.map((row, j) => j === i ? { ...row, tiers: fn(row.tiers) } : row))}
+            />
+          </div>
+        </div>
+      ))}
+      <button type="button"
+        onClick={() => onChange(prev => [...prev, {
+          name: '', countryCodes: '', isDefault: prev.length === 0, basePrice: '', currency: '', subscriberBasePrice: '',
+          saleTimezone: defaultTimezone, tiers: [],
+        }])}
+        className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+        + Add Region
+      </button>
+    </div>
+  )
+}
+
 // ─── Form component ───────────────────────────────────────────────────────────
-function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
+function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCreate }: {
   initial: FormState
   onSubmit: (data: FormState) => void
   submitting: boolean
   submitLabel: string
+  /** Inline tier/region entry only makes sense before the announcement exists — once saved,
+   *  editing uses AnnouncementTiersPanel/AnnouncementRegionsPanel below instead (they commit
+   *  immediately, no separate submit step). */
+  isCreate?: boolean
 }) {
   const [form, setForm] = useState<FormState>(initial)
   const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -874,9 +1041,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         </div>
       </div>
 
-      {/* Ends At + Timezone. Sale tiers (First Access, VIP, General Sale, etc.) are managed
-          in the "Sale Tiers" panel once this announcement is saved — an arbitrary-length list
-          replaces the old fixed 3-date inputs. */}
+      {/* Ends At + Timezone */}
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
         <div>
           <label className={LBL}>Ends At <span className="text-stone-600 font-normal">(optional)</span></label>
@@ -892,6 +1057,28 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           />
         </div>
       </div>
+
+      {/* Sale Tiers — inline, create-mode only (edit mode uses AnnouncementTiersPanel below,
+          which commits each change immediately since the announcement already exists). */}
+      {isCreate && (
+        <div>
+          <label className={LBL}>Sale Tiers <span className="text-stone-600 font-normal normal-case tracking-normal">(First Access, VIP, General Sale, etc. — created right after this sale saves)</span></label>
+          <LocalTierRowsEditor tiers={form.tiers} onChange={fn => setForm(f => ({ ...f, tiers: fn(f.tiers) }))} />
+        </div>
+      )}
+
+      {/* Regions — inline, create-mode only (edit mode uses AnnouncementRegionsPanel below). */}
+      {isCreate && (
+        <div>
+          <label className={LBL}>Regions <span className="text-stone-600 font-normal normal-case tracking-normal">(optional — for region-specific pricing and/or tier dates)</span></label>
+          <LocalRegionsEditor
+            regions={form.regions}
+            onChange={fn => setForm(f => ({ ...f, regions: fn(f.regions) }))}
+            defaultTiers={form.tiers}
+            defaultTimezone={form.saleTimezone}
+          />
+        </div>
+      )}
 
       {/* Price + Currency + Subscriber Price — 3 cols */}
       <div className="grid sm:grid-cols-3 gap-3">
@@ -1273,6 +1460,12 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
             let codes: string[] = []
             try { codes = Array.isArray(r.countryCodes) ? r.countryCodes : JSON.parse(r.countryCodes) } catch {}
             const isEditing = editingRegion?.id === r.id
+            const regionTiers = (announcement.tiers ?? []).filter(t => t.regionId === r.id)
+            const defaultTiers = (announcement.tiers ?? []).filter(t => t.regionId === null)
+            // A region with no tiers of its own already falls back to the sale's default tiers
+            // everywhere a user picks a tier (getTiersForRegion) — this reflects that instead of
+            // showing a misleading empty list, and offers an explicit action to diverge.
+            const isInheriting = regionTiers.length === 0
 
             if (isEditing) {
               return <RegionFormUI key={r.id} form={editingRegion!} onSave={f => upsertMutation.mutate(f)} onCancel={() => setEditingRegion(null)} />
@@ -1307,27 +1500,44 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
                 <div className="mt-3 pt-3 border-t border-stone-700/60">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-stone-500 uppercase tracking-wide">Tiers for this region</span>
-                    {(announcement.tiers ?? []).some(t => t.regionId === null) && (
+                    {isInheriting && defaultTiers.length > 0 && (
                       <button type="button"
                         onClick={async () => {
-                          const defaults = (announcement.tiers ?? []).filter(t => t.regionId === null)
-                          await Promise.all(defaults.map((t, i) =>
+                          await Promise.all(defaultTiers.map((t, i) =>
                             adminUpsertAnnouncementTier(announcement.id, { name: t.name, date: t.date, order: i }, r.id),
                           ))
                           queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
                         }}
                         className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
                       >
-                        Copy from sale default
+                        Override tiers for this region
                       </button>
                     )}
                   </div>
-                  <TierListEditor
-                    saleId={announcement.id}
-                    regionId={r.id}
-                    tiers={(announcement.tiers ?? []).filter(t => t.regionId === r.id)}
-                    saleTimezone={r.saleTimezone ?? announcement.saleTimezone ?? 'UTC'}
-                  />
+                  {isInheriting ? (
+                    defaultTiers.length > 0 ? (
+                      <div className="space-y-1">
+                        <p className="text-xs text-stone-600 italic mb-1">Inherits the sale's default tiers — always matches them until overridden above.</p>
+                        {defaultTiers.map(t => (
+                          <div key={t.id} className="flex items-center gap-2 bg-stone-800/30 rounded-lg px-3 py-2 opacity-70">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-stone-300 truncate">{t.name}</div>
+                              <div className="text-xs text-stone-500">{fmtAdminDate(t.date, r.saleTimezone ?? announcement.saleTimezone ?? 'UTC')}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-stone-600 italic">No tiers set on the sale yet.</p>
+                    )
+                  ) : (
+                    <TierListEditor
+                      saleId={announcement.id}
+                      regionId={r.id}
+                      tiers={regionTiers}
+                      saleTimezone={r.saleTimezone ?? announcement.saleTimezone ?? 'UTC'}
+                    />
+                  )}
                 </div>
               </div>
             )
@@ -2085,11 +2295,6 @@ export default function AdminSaleAnnouncementsPage() {
   const { isOpen: showAiModal, setIsOpen: setShowAiModal } = useModalState()
   const [createInitial, setCreateInitial] = useState<FormState>(EMPTY_FORM)
   const [createFormKey, setCreateFormKey] = useState(0)
-  const pendingRegionsRef = useRef<AiSaleRegion[]>([])
-  // Only-one-region AI results flatten onto the announcement's own default tier set instead
-  // of creating a separate region (same "single region == no region" collapse the old code
-  // did for the 3 fixed date fields).
-  const pendingTiersRef = useRef<{ name: string; date: string }[]>([])
 
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 350)
@@ -2115,45 +2320,50 @@ export default function AdminSaleAnnouncementsPage() {
 
   const createMutation = useMutation({
     mutationFn: (form: FormState) => adminCreateSaleAnnouncement(formToData(form)),
-    onSuccess: (newAnnouncement) => {
+    onSuccess: async (newAnnouncement, form) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
       createModal.close()
       setCreateInitial(EMPTY_FORM)
       setCreateFormKey(k => k + 1)
-      const tiers = pendingTiersRef.current
-      const regions = pendingRegionsRef.current
+
+      const tz = form.saleTimezone || 'UTC'
       const jobs: Promise<unknown>[] = []
-      if (tiers.length > 0) {
-        pendingTiersRef.current = []
-        jobs.push(...tiers.map((t, i) =>
-          adminUpsertAnnouncementTier(newAnnouncement.id, { name: t.name, date: t.date, order: i }),
+
+      // Default (regionId=null) tiers entered inline in the create form
+      const validTiers = form.tiers.filter(t => t.name && t.date)
+      jobs.push(...validTiers.map((t, i) =>
+        adminUpsertAnnouncementTier(newAnnouncement.id, { name: t.name, date: tzLocalToUtcIso(t.date, tz), order: i }),
+      ))
+
+      // Regions (each with their own inline tiers) entered inline in the create form
+      const validRegions = form.regions.filter(r => r.name)
+      jobs.push(...validRegions.map(async r => {
+        const codes = r.countryCodes
+          ? r.countryCodes.split(/[,\s]+/).map(c => c.trim().toUpperCase()).filter(Boolean)
+          : []
+        const rTz = r.saleTimezone || tz
+        const createdRegion = await adminUpsertAnnouncementRegion(newAnnouncement.id, {
+          name: r.name,
+          countryCodes: codes.length > 0 ? JSON.stringify(codes) : undefined,
+          isDefault: r.isDefault,
+          saleTimezone: rTz,
+          basePrice: r.basePrice ? parseDecimalInput(r.basePrice) : null,
+          currency: r.currency || null,
+          subscriberBasePrice: r.subscriberBasePrice ? parseDecimalInput(r.subscriberBasePrice) : null,
+        })
+        const validRegionTiers = r.tiers.filter(t => t.name && t.date)
+        await Promise.all(validRegionTiers.map((t, i) =>
+          adminUpsertAnnouncementTier(newAnnouncement.id, { name: t.name, date: tzLocalToUtcIso(t.date, rTz), order: i }, createdRegion.id),
         ))
-      }
-      if (regions.length > 0) {
-        pendingRegionsRef.current = []
-        jobs.push(...regions.map(async r => {
-          const codes = r.countryCodes
-            ? r.countryCodes.split(',').map(c => c.trim().toUpperCase()).filter(Boolean)
-            : []
-          const createdRegion = await adminUpsertAnnouncementRegion(newAnnouncement.id, {
-            name: r.name,
-            countryCodes: codes.length > 0 ? JSON.stringify(codes) : undefined,
-            isDefault: r.isDefault,
-            saleTimezone: r.saleTimezone ?? null,
-            basePrice: r.price ?? null,
-            currency: r.currency ?? null,
-          })
-          if (r.tiers && r.tiers.length > 0) {
-            await Promise.all(r.tiers.map((t, i) =>
-              adminUpsertAnnouncementTier(newAnnouncement.id, { name: t.name, date: t.date, order: i }, createdRegion.id),
-            ))
-          }
-        }))
-      }
+      }))
+
       if (jobs.length > 0) {
-        Promise.all(jobs).then(() => {
+        try {
+          await Promise.all(jobs)
           queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
-        }).catch(e => alert(`Error applying AI-parsed tiers/regions: ${(e as Error).message}`))
+        } catch (e) {
+          alert(`Sale created, but some tiers/regions failed to save: ${(e as Error).message}`)
+        }
       }
     },
     onError: (e: Error) => alert(`Error: ${e.message}`),
@@ -2194,6 +2404,30 @@ export default function AdminSaleAnnouncementsPage() {
       if (match) resolvedCompanyId = match.id
     }
 
+    // A single parsed region's tiers become the announcement's own default tier set (regionId
+    // omitted); multiple regions are each created as real regions with their own tiers. Both
+    // land directly in the (now-visible, editable) form fields instead of a hidden queue, so
+    // the admin can review/adjust what the AI parsed before hitting Create.
+    const isSingleRegion = (result.regions?.length ?? 0) <= 1
+    const localTiers: LocalTierEntry[] = isSingleRegion
+      ? (defaultRegion?.tiers ?? []).map(t => ({ name: t.name, date: utcIsoToTzLocal(t.date, tz) }))
+      : []
+    const localRegions: LocalRegionEntry[] = isSingleRegion
+      ? []
+      : (result.regions ?? []).map(r => {
+        const rTz = r.saleTimezone || tz
+        return {
+          name: r.name,
+          countryCodes: r.countryCodes ?? '',
+          isDefault: r.isDefault,
+          basePrice: r.price != null ? String(r.price) : '',
+          currency: r.currency ?? '',
+          subscriberBasePrice: (r as any).subscriberBasePrice != null ? String((r as any).subscriberBasePrice) : '',
+          saleTimezone: rTz,
+          tiers: (r.tiers ?? []).map(t => ({ name: t.name, date: utcIsoToTzLocal(t.date, rTz) })),
+        }
+      })
+
     const newInitial: FormState = {
       ...EMPTY_FORM,
       title: result.title ?? '',
@@ -2211,14 +2445,11 @@ export default function AdminSaleAnnouncementsPage() {
       saleType: result.saleType ?? 'LIMITED_PREORDER',
       isSoldOut: false,
       notes: '',
+      tiers: localTiers,
+      regions: localRegions,
     }
     setCreateInitial(newInitial)
     setCreateFormKey(k => k + 1)
-    // A single parsed region's tiers become the announcement's own default tier set (regionId
-    // omitted); multiple regions are each created as real regions with their own tiers.
-    const isSingleRegion = (result.regions?.length ?? 0) <= 1
-    pendingTiersRef.current = isSingleRegion ? (defaultRegion?.tiers ?? []) : []
-    pendingRegionsRef.current = isSingleRegion ? [] : (result.regions ?? [])
     setEditItem(null)
     createModal.open()
   }
@@ -2238,8 +2469,6 @@ export default function AdminSaleAnnouncementsPage() {
               if (!createModal.isOpen) {
                 setCreateInitial(EMPTY_FORM)
                 setCreateFormKey(k => k + 1)
-                pendingRegionsRef.current = []
-                pendingTiersRef.current = []
               }
               createModal.toggle()
               setEditItem(null)
@@ -2261,6 +2490,7 @@ export default function AdminSaleAnnouncementsPage() {
             submitLabel="Create"
             submitting={createMutation.isPending}
             onSubmit={form => createMutation.mutate(form)}
+            isCreate
           />
         </div>
       )}
