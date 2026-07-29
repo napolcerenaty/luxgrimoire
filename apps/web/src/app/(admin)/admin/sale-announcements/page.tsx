@@ -1054,6 +1054,15 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
         </div>
       </div>
 
+      {/* Sale Tiers — inline, create-mode only (edit mode uses AnnouncementTiersPanel below,
+          which commits each change immediately since the announcement already exists). */}
+      {isCreate && (
+        <div>
+          <label className={LBL}>Sale Tiers <span className="text-stone-600 font-normal normal-case tracking-normal">(First Access, VIP, General Sale, etc. — created right after this sale saves)</span></label>
+          <LocalTierRowsEditor tiers={form.tiers} onChange={fn => setForm(f => ({ ...f, tiers: fn(f.tiers) }))} />
+        </div>
+      )}
+
       {/* Ends At + Timezone */}
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
         <div>
@@ -1071,28 +1080,6 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
         </div>
       </div>
 
-      {/* Sale Tiers — inline, create-mode only (edit mode uses AnnouncementTiersPanel below,
-          which commits each change immediately since the announcement already exists). */}
-      {isCreate && (
-        <div>
-          <label className={LBL}>Sale Tiers <span className="text-stone-600 font-normal normal-case tracking-normal">(First Access, VIP, General Sale, etc. — created right after this sale saves)</span></label>
-          <LocalTierRowsEditor tiers={form.tiers} onChange={fn => setForm(f => ({ ...f, tiers: fn(f.tiers) }))} />
-        </div>
-      )}
-
-      {/* Regions — inline, create-mode only (edit mode uses AnnouncementRegionsPanel below). */}
-      {isCreate && (
-        <div>
-          <label className={LBL}>Regions <span className="text-stone-600 font-normal normal-case tracking-normal">(optional — for region-specific pricing and/or tier dates)</span></label>
-          <LocalRegionsEditor
-            regions={form.regions}
-            onChange={fn => setForm(f => ({ ...f, regions: fn(f.regions) }))}
-            defaultTiers={form.tiers}
-            defaultTimezone={form.saleTimezone}
-          />
-        </div>
-      )}
-
       {/* Price + Currency + Subscriber Price — 3 cols */}
       <div className="grid sm:grid-cols-3 gap-3">
         <div>
@@ -1109,6 +1096,19 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
           <input type="text" step="0.01" min="0" className={INP} value={form.subscriberBasePrice} onChange={set('subscriberBasePrice')} placeholder="e.g. 22.00" />
         </div>
       </div>
+
+      {/* Regions — inline, create-mode only (edit mode uses AnnouncementRegionsPanel below). */}
+      {isCreate && (
+        <div>
+          <label className={LBL}>Regions <span className="text-stone-600 font-normal normal-case tracking-normal">(optional — for region-specific pricing and/or tier dates)</span></label>
+          <LocalRegionsEditor
+            regions={form.regions}
+            onChange={fn => setForm(f => ({ ...f, regions: fn(f.regions) }))}
+            defaultTiers={form.tiers}
+            defaultTimezone={form.saleTimezone}
+          />
+        </div>
+      )}
 
       {/* Expected Shipping + Source URL — 2 cols */}
       <div className="grid sm:grid-cols-2 gap-3">
