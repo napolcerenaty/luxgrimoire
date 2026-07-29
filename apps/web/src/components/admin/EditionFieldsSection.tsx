@@ -23,6 +23,19 @@ export type EditionCompany = { id: string; name: string; slug: string; defaultCu
  *  tiers instead (see resolvedSaleDate/isLinkedToAnnouncement) and don't use this list. */
 export type EditionSaleDateEntry = { label: string; date: string; order: number }
 export const SALE_DATE_LABEL_PRESETS = ['First Access', 'Early Access', 'General Sale', 'Subscription Renewal Day']
+
+/** Keeps the list chronological automatically (no manual reordering) — rows without a date
+ *  yet (still being filled in) sink to the bottom instead of sorting as "earliest". */
+function sortSaleDates(entries: EditionSaleDateEntry[]): EditionSaleDateEntry[] {
+  return [...entries]
+    .sort((a, b) => {
+      if (!a.date && !b.date) return 0
+      if (!a.date) return 1
+      if (!b.date) return -1
+      return a.date.localeCompare(b.date)
+    })
+    .map((entry, order) => ({ ...entry, order }))
+}
 export type FeatureTag = {
   id: string
   rawValue: string
@@ -754,7 +767,7 @@ export function EditionFieldsSection({
         </div>
       ) : (
         <div>
-          <label className={LBL}>Sale dates <span className="text-stone-600 font-normal normal-case tracking-normal">(date only, no time)</span></label>
+          <label className={LBL}>Sale dates <span className="text-stone-600 font-normal normal-case tracking-normal">(date only, no time — kept sorted automatically)</span></label>
           <div className="space-y-2">
             {saleDates.map((d, i) => (
               <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -763,16 +776,16 @@ export function EditionFieldsSection({
                   className={`${INP} sm:flex-1`}
                   value={d.label}
                   placeholder="e.g. First Access, General Sale, Subscription Renewal Day"
-                  onChange={e => onSaleDatesChange(prev => prev.map((row, j) => j === i ? { ...row, label: e.target.value } : row))}
+                  onChange={e => onSaleDatesChange(prev => sortSaleDates(prev.map((row, j) => j === i ? { ...row, label: e.target.value } : row)))}
                 />
                 <div className="flex gap-2 items-center">
                   <input
                     type="date"
                     className={`${INP} flex-1 sm:flex-none sm:w-auto`}
                     value={d.date}
-                    onChange={e => onSaleDatesChange(prev => prev.map((row, j) => j === i ? { ...row, date: e.target.value } : row))}
+                    onChange={e => onSaleDatesChange(prev => sortSaleDates(prev.map((row, j) => j === i ? { ...row, date: e.target.value } : row)))}
                   />
-                  <button type="button" onClick={() => onSaleDatesChange(prev => prev.filter((_, j) => j !== i))}
+                  <button type="button" onClick={() => onSaleDatesChange(prev => sortSaleDates(prev.filter((_, j) => j !== i)))}
                     aria-label="Remove sale date"
                     className="p-2 rounded text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors flex-shrink-0">
                     <Trash2 size={16} />
@@ -784,7 +797,7 @@ export function EditionFieldsSection({
               {SALE_DATE_LABEL_PRESETS.map(l => <option key={l} value={l} />)}
             </datalist>
             <button type="button"
-              onClick={() => onSaleDatesChange(prev => [...prev, { label: '', date: '', order: prev.length }])}
+              onClick={() => onSaleDatesChange(prev => sortSaleDates([...prev, { label: '', date: '', order: prev.length }]))}
               className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
               + Add sale date
             </button>
