@@ -22,7 +22,7 @@ export function HomeTrendingEditions({ editions }: Props) {
     author: edition.book?.authors?.map((author) => author.name).join(', ') ?? null,
     ribbon: edition.bookBoxCompany?.name ?? null,
     brandColors: edition.bookBoxCompany?.brandColors ?? null,
-    badge: `${edition.wishlistCount} wishlists`,
+    badge: `${edition.wishlistCount} ${edition.wishlistCount === 1 ? 'wishlist' : 'wishlists'}`,
   }))
 
   return (
