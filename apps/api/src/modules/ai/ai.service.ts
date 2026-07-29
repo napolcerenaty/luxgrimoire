@@ -311,10 +311,16 @@ REGION RULES:
 - If NO regions are mentioned (single global price/date), do NOT create a regions array
 - If only ONE region is mentioned (e.g. the whole announcement has one price/currency/date set), do NOT create a regions array — the data will be applied to the sale announcement defaults directly
 - Each region should have: name, price, currency, and tiers where available
+- EVERY region must get its own complete "tiers" array — when there are multiple regions, do not
+  fill in tiers for only the first/default region and omit or shorten them for the rest. All
+  regions are equally important; none is a lower priority than another.
 
 TIER RULES (each region's "tiers" array):
 - List EVERY distinct customer-access moment found in the source as its own tier entry, in chronological order — do NOT merge, collapse, or drop any of them, even if there are more than three (e.g. a company with "VIP Access", "First Access", "Early Access", "General Sale" gets all four as separate tiers)
 - Use the tier's name AS WRITTEN in the source (e.g. "VIP Access", "First Access", "Subscriber Early Access", "Flash Sale", "General Sale") — do NOT rename or normalize it to First/Early/General Access unless that is literally the name used
+- Do NOT shorten, summarize, or drop qualifying phrases from a tier name to save space — copy the FULL name verbatim, including "of X" / "who Y" clauses that describe exactly who the tier applies to. A shortened name that loses that context is wrong even if it sounds like a plausible tier name on its own.
+  - Example: source says "Previous purchasers of our Afterlight Seasonal Spirit Box" → tier name: "Previous purchasers of our Afterlight Seasonal Spirit Box" (kept in full — do NOT shorten to "Previous purchasers Presale" or similar)
+  - Example: source says "Silver/Gold Illumicrate Reward holders" → tier name: "Silver/Gold Illumicrate Reward holders" (kept in full — do NOT shorten to "Reward holders Presale" or similar)
 - For dates: output the LOCAL time exactly as stated in the announcement — do NOT convert to UTC
   - "10am BST" → "2025-07-15T10:00:00.000" (no Z suffix)
   - "9am ET" → "2025-07-15T09:00:00.000" (no Z suffix)
@@ -753,7 +759,12 @@ export class AiService {
       model: 'gpt-4o',
       messages,
       response_format: { type: 'json_object' },
-      max_tokens: 2000,
+      // 2000 was too tight for a multi-region announcement: 2+ regions each with several tiers
+      // that have long descriptive names ("Previous purchasers of our Afterlight Seasonal Spirit
+      // Box") left the model running low on budget and either shortening tier names or dropping
+      // a region's whole tiers array to fit — worked fine for single-region sales (less JSON
+      // needed) but silently degraded for multi-region ones. 4000 gives real headroom.
+      max_tokens: 4000,
     });
 
     try {
@@ -807,7 +818,12 @@ export class AiService {
       model: 'gpt-4o',
       messages,
       response_format: { type: 'json_object' },
-      max_tokens: 2000,
+      // 2000 was too tight for a multi-region announcement: 2+ regions each with several tiers
+      // that have long descriptive names ("Previous purchasers of our Afterlight Seasonal Spirit
+      // Box") left the model running low on budget and either shortening tier names or dropping
+      // a region's whole tiers array to fit — worked fine for single-region sales (less JSON
+      // needed) but silently degraded for multi-region ones. 4000 gives real headroom.
+      max_tokens: 4000,
     });
 
     try {
