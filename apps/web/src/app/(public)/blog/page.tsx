@@ -23,8 +23,15 @@ function HeroPanel({ post, large }: { post: GhostPost; large?: boolean }) {
       style={{ borderColor: post.featured ? 'rgba(212,175,55,0.6)' : 'var(--border)' }}
     >
       {post.feature_image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={post.feature_image} alt={post.feature_image_alt ?? post.title} className="absolute inset-0 w-full h-full object-cover" />
+        <>
+          {/* Blurred, oversized backdrop fills the panel behind the contained photo below —
+              hides the letterboxing that object-contain leaves for photos whose aspect ratio
+              doesn't match the panel, instead of cropping the photo itself (object-cover). */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={post.feature_image} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={post.feature_image} alt={post.feature_image_alt ?? post.title} className="absolute inset-0 w-full h-full object-contain" />
+        </>
       ) : null}
       <div className="absolute inset-0 blog-panel-overlay" />
       {/* Featured star */}
