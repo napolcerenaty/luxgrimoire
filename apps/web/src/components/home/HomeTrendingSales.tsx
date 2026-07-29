@@ -27,7 +27,7 @@ export function HomeTrendingSales({ announcements }: Props) {
       subtitle: formatSaleDate(getEarliestTierDate(sale)),
       ribbon: sale.company?.name ?? null,
       brandColors: sale.company?.brandColors ?? firstEdition?.bookBoxCompany?.brandColors ?? null,
-      badge: `${sale.interestCount} follows`,
+      badge: `${sale.interestCount} ${sale.interestCount === 1 ? 'follow' : 'follows'}`,
     }
   })
 
