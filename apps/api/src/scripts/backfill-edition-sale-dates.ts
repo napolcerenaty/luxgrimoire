@@ -1,11 +1,16 @@
 /**
- * Backfill script: migrates standalone BookEdition legacy date fields
- * (firstAccessDate/earlyAccessDate/generalSaleDate — free text) into EditionSaleDate rows.
+ * Backfill script: migrates BookEdition legacy date fields (firstAccessDate/earlyAccessDate/
+ * generalSaleDate — free text) into EditionSaleDate rows.
  *
- * Only applies to editions with NO linked SaleAnnouncement — those resolve their sale
- * date live from the announcement's SaleTier rows instead (see resolveEditionSaleDate
- * in EditionsService). Unparseable non-null legacy values are filed as a BugReport
- * (category 'data-migration') for manual admin follow-up, never dropped.
+ * Applies to EVERY edition with a legacy date, not just standalone ones — resolveEditionSaleDate
+ * combines the earliest manual EditionSaleDate row with any linked SaleAnnouncement's tiers (the
+ * earliest of the two wins; manual rows are never auto-deleted on link), specifically so a book's
+ * original sale/renewal date survives even after it later gets linked to an announcement. An
+ * earlier version of this script only processed editions with NO linked SaleAnnouncement, which
+ * silently dropped that original date for any edition linked before the backfill ran (confirmed
+ * locally: 27 subscription-linked editions had lost their renewal date this way). Unparseable
+ * non-null legacy values are filed as a BugReport (category 'data-migration') for manual admin
+ * follow-up, never dropped.
  *
  * The SaleTier backfill itself (from SaleAnnouncement/SaleAnnouncementRegion, and the
  * tierId backfill on UserSaleInterest/ScheduledReminder) is plain SQL and runs
@@ -63,7 +68,6 @@ async function main() {
   if (DRY_RUN) console.log('--- DRY RUN: no writes will be made ---')
 
   const editions = await prisma.bookEdition.findMany({
-    where: { saleEditions: { none: {} } },
     select: { id: true, slug: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true },
   })
 

@@ -18,8 +18,11 @@
  *
  * Idempotent — naturally so, not via an existence check: once a row is renamed to "Subscription
  * Renewal Day" it no longer matches the generic-name filter, so re-running is a safe no-op for it.
- * Not auto-invoked from docker-entrypoint.sh (unlike the original backfill) — this is a single
- * historical correction, not an ongoing migration step. Run manually:
+ * Run automatically from docker-entrypoint.sh, right after backfill-edition-sale-dates.js (it must
+ * run after, not before — it only catches rows that backfill already created). Also correctly
+ * catches rows created by the corrected backfill for editions that were already linked to a
+ * SaleAnnouncement at backfill time (see backfill-edition-sale-dates.ts's docstring — an earlier
+ * version silently skipped those). Can also be run manually:
  *   node dist/scripts/relabel-subscription-edition-sale-dates.js [--dry-run]
  */
 import { NestFactory } from '@nestjs/core'
