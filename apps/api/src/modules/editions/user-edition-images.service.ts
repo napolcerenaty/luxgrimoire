@@ -11,7 +11,7 @@ import { UploadService } from '../upload/upload.service';
 import { SubmitUserEditionImagesDto } from './user-edition-images.dto';
 
 
-const MAX_IMAGES_PER_EDITION = 5;
+const MAX_IMAGES_PER_EDITION = 8;
 
 @Injectable()
 export class UserEditionImagesService {
