@@ -748,6 +748,7 @@ interface LocalRegionEntry {
   name: string
   countryCodes: string
   isDefault: boolean
+  endsAt: string
   basePrice: string
   currency: string
   subscriberBasePrice: string
@@ -939,14 +940,26 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone }
               <datalist id="region-currencies-inline">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Ends At <span className="text-stone-600">(optional)</span></label>
+              <input type="datetime-local" className={INP} value={r.endsAt}
+                onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, endsAt: e.target.value } : row))} />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Timezone</label>
+              <ComboBox
+                value={r.saleTimezone || defaultTimezone}
+                options={TIMEZONE_OPTIONS}
+                placeholder="Select timezone…"
+                onChange={v => onChange(prev => prev.map((row, j) => j === i ? { ...row, saleTimezone: v } : row))}
+              />
+            </div>
+          </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Timezone</label>
-            <ComboBox
-              value={r.saleTimezone || defaultTimezone}
-              options={TIMEZONE_OPTIONS}
-              placeholder="Select timezone…"
-              onChange={v => onChange(prev => prev.map((row, j) => j === i ? { ...row, saleTimezone: v } : row))}
-            />
+            <label className="block text-xs text-stone-400 mb-1">Subscriber Price <span className="text-stone-600">(same currency, optional)</span></label>
+            <input className={INP} value={r.subscriberBasePrice} placeholder="Lower subscriber price"
+              onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, subscriberBasePrice: e.target.value } : row))} />
           </div>
           <div className="pt-2 border-t border-stone-700/60">
             <div className="flex items-center justify-between mb-1">
@@ -971,7 +984,7 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone }
       ))}
       <button type="button"
         onClick={() => onChange(prev => [...prev, {
-          name: '', countryCodes: '', isDefault: prev.length === 0, basePrice: '', currency: '', subscriberBasePrice: '',
+          name: '', countryCodes: '', isDefault: prev.length === 0, endsAt: '', basePrice: '', currency: '', subscriberBasePrice: '',
           saleTimezone: defaultTimezone, tiers: [],
         }])}
         className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
@@ -1300,32 +1313,15 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
 }
 
 function AnnouncementTiersPanel({ announcement }: { announcement: ApiSaleAnnouncement }) {
-  const [open, setOpen] = useState(false)
   const defaultTiers = (announcement.tiers ?? []).filter(t => t.regionId === null)
   return (
-    <div className="border-t border-stone-700">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-2 hover:bg-stone-800/40 transition-colors text-left"
-      >
-        <span className="flex items-center gap-2 text-sm text-stone-400">
-          Sale Tiers
-          {defaultTiers.length > 0 && (
-            <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">{defaultTiers.length}</span>
-          )}
-        </span>
-        <span className="text-stone-500 text-xs">{open ? '▲' : '▼'}</span>
-      </button>
-      {open && (
-        <div className="px-4 pb-4">
-          <TierListEditor
-            saleId={announcement.id}
-            tiers={defaultTiers}
-            saleTimezone={announcement.saleTimezone ?? 'UTC'}
-          />
-        </div>
-      )}
+    <div className="border-t border-stone-700 px-4 py-3">
+      <span className="block text-sm text-stone-400 mb-2">Sale Tiers</span>
+      <TierListEditor
+        saleId={announcement.id}
+        tiers={defaultTiers}
+        saleTimezone={announcement.saleTimezone ?? 'UTC'}
+      />
     </div>
   )
 }
@@ -2346,6 +2342,7 @@ export default function AdminSaleAnnouncementsPage() {
           name: r.name,
           countryCodes: codes.length > 0 ? JSON.stringify(codes) : undefined,
           isDefault: r.isDefault,
+          endsAt: r.endsAt ? tzLocalToUtcIso(r.endsAt, rTz) : null,
           saleTimezone: rTz,
           basePrice: r.basePrice ? parseDecimalInput(r.basePrice) : null,
           currency: r.currency || null,
@@ -2420,6 +2417,8 @@ export default function AdminSaleAnnouncementsPage() {
           name: r.name,
           countryCodes: r.countryCodes ?? '',
           isDefault: r.isDefault,
+          // AI parsing doesn't extract a per-region "ends at" — left for the admin to fill in.
+          endsAt: '',
           basePrice: r.price != null ? String(r.price) : '',
           currency: r.currency ?? '',
           subscriberBasePrice: (r as any).subscriberBasePrice != null ? String((r as any).subscriberBasePrice) : '',
