@@ -12,6 +12,17 @@
  * non-null legacy values are filed as a BugReport (category 'data-migration') for manual admin
  * follow-up, never dropped.
  *
+ * Editions belonging to a subscription box month (via the `monthBooks` relation — BookEdition ->
+ * SubscriptionMonthBook -> SubscriptionMonth, the authoritative FK-backed link) get their row
+ * labeled "Subscription Renewal Day" instead of the legacy field's literal name ("General Sale"
+ * etc.) — matching the label the *current* create-edition UI has always used for subscription
+ * editions (CreateBookEditionForm.tsx / computeGeneralSaleDatePrefill). Without this, editions
+ * added before the sale-tier redesign would read differently from ones added after it, even
+ * though both represent the same kind of date. (An earlier version of this migration was a
+ * separate relabel-subscription-edition-sale-dates.ts script run as a second pass after this one —
+ * merged in here since there was no real reason to keep them apart, just historical accident of
+ * when the subscription-labeling need was discovered relative to when this script was written.)
+ *
  * The SaleTier backfill itself (from SaleAnnouncement/SaleAnnouncementRegion, and the
  * tierId backfill on UserSaleInterest/ScheduledReminder) is plain SQL and runs
  * automatically as part of the `sale_tiers` migration via `prisma migrate deploy` —
@@ -43,6 +54,7 @@ const TIER_ORDER: Record<LegacyField, number> = {
   earlyAccessDate: 1,
   generalSaleDate: 2,
 }
+const SUBSCRIPTION_RENEWAL_LABEL = 'Subscription Renewal Day'
 
 // JS's Date parser is lenient enough to accept malformed strings like "20218-01-01" (a typo
 // for a 4-digit year) as a valid extended-year timestamp thousands of years in the future,
@@ -68,7 +80,14 @@ async function main() {
   if (DRY_RUN) console.log('--- DRY RUN: no writes will be made ---')
 
   const editions = await prisma.bookEdition.findMany({
-    select: { id: true, slug: true, firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true },
+    select: {
+      id: true,
+      slug: true,
+      firstAccessDate: true,
+      earlyAccessDate: true,
+      generalSaleDate: true,
+      monthBooks: { select: { id: true }, take: 1 },
+    },
   })
 
   let created = 0
@@ -81,6 +100,8 @@ async function main() {
       skipped++
       continue
     }
+
+    const isSubscriptionEdition = e.monthBooks.length > 0
 
     for (const field of LEGACY_FIELDS) {
       const raw = e[field]
@@ -110,9 +131,10 @@ async function main() {
         continue
       }
       created++
+      const label = isSubscriptionEdition ? SUBSCRIPTION_RENEWAL_LABEL : TIER_NAME[field]
       if (!DRY_RUN) {
         await prisma.editionSaleDate.create({
-          data: { editionId: e.id, label: TIER_NAME[field], date: parsed, order: TIER_ORDER[field] },
+          data: { editionId: e.id, label, date: parsed, order: TIER_ORDER[field] },
         })
       }
     }
