@@ -649,7 +649,6 @@ export interface EditionFieldsSectionProps {
    *  and will be auto-linked to it right after creation — same read-only display as
    *  isLinkedToAnnouncement, but showing a preview (the edition/link don't exist yet). */
   willLinkToAnnouncement?: boolean
-  previewSaleDate?: { label: string; date: string } | null
   allImages: string[]
   onImagesChange: (imgs: string[]) => void
   onAiResult: (r: AiParseResult) => void
@@ -681,7 +680,7 @@ export function EditionFieldsSection({
   language, onLanguageChange,
   saleDates, onSaleDatesChange,
   isLinkedToAnnouncement, resolvedSaleDate,
-  willLinkToAnnouncement, previewSaleDate,
+  willLinkToAnnouncement,
   allImages, onImagesChange,
   onAiResult,
   artists = [], onArtistsChange, onRemoveExistingArtist,
@@ -770,13 +769,11 @@ export function EditionFieldsSection({
                 ? (resolvedSaleDate
                   ? `${resolvedSaleDate.label} — ${new Date(resolvedSaleDate.date).toLocaleString()}`
                   : 'No sale date resolved yet')
-                : (previewSaleDate
-                  ? `${previewSaleDate.label} — ${new Date(previewSaleDate.date).toLocaleString()}`
-                  : 'No tiers set on this sale announcement yet')}
+                : 'All sale dates from this announcement will apply to this edition.'}
               <p className="text-xs text-stone-500 mt-1">
                 {isLinkedToAnnouncement
                   ? "Earliest of the linked sale announcement's tiers and any manual sale dates below."
-                  : "Will be the earliest of the sale announcement's tiers (once linked, right after creation) and any manual sale dates below."}
+                  : "This edition will link live to the sale announcement right after creation — no dates to copy, and it always follows the announcement's tiers as they change."}
               </p>
             </div>
           </div>

@@ -33,15 +33,3 @@ export function getEarliestTierDate(sale: { tiers?: ApiSaleTier[]; generalSaleDa
   if (defaultTiers.length === 0) return sale.generalSaleDate ?? null
   return defaultTiers.reduce((earliest, t) => (!earliest || t.date < earliest ? t.date : earliest), null as string | null)
 }
-
-/** Preview of what an edition would resolve to (via resolveEditionSaleDate on the backend) if
- *  linked to this announcement — same "default region if flagged, else the announcement's own
- *  tiers" precedence as the backend resolver, computed client-side from already-loaded data so
- *  the edition-creation form can show it before the edition (and its real link) exist yet. */
-export function getResolvedTierPreview(
-  sale: { tiers?: ApiSaleTier[]; regions?: { id: string; isDefault: boolean }[] },
-): { label: string; date: string } | null {
-  const defaultRegionId = sale.regions?.find(r => r.isDefault)?.id ?? null
-  const tiers = getTiersForRegion(sale.tiers, defaultRegionId)
-  return tiers[0] ? { label: tiers[0].name, date: tiers[0].date } : null
-}

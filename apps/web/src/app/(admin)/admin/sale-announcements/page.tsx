@@ -36,7 +36,7 @@ import { PublisherPicker } from '@/components/admin/pickers/PublisherPicker'
 import type { AiParseResult, EditionCompany } from '@/components/admin/EditionFieldsSection'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
-import { getEarliestTierDate, getResolvedTierPreview } from '@/lib/saleTiers'
+import { getEarliestTierDate } from '@/lib/saleTiers'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { Sparkles, Trash2 } from 'lucide-react'
 import { CURRENCIES } from '@/lib/currencies'
@@ -296,19 +296,18 @@ interface EditionInfo {
   bookBoxCompany?: { name: string } | null
 }
 
-function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency, defaultCompanyId, isBundle, bundleBasePrice, previewSaleDate }: {
+function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency, defaultCompanyId, isBundle, bundleBasePrice }: {
   linked: LinkedEdition[]
   onAdd: (e: LinkedEdition) => void
   onRemove: (editionId: string) => void
   // Editions created here are auto-linked to the announcement via onAdd immediately after
   // creation, so their sale date resolves live from the announcement's tiers — no
-  // default*AccessDate prefill props, but previewSaleDate shows what that resolution will be.
+  // default*AccessDate prefill props needed.
   defaultPrice?: number | null
   defaultCurrency?: string | null
   defaultCompanyId?: string | null
   isBundle?: boolean
   bundleBasePrice?: number | null
-  previewSaleDate?: { label: string; date: string } | null
 }){
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -453,7 +452,6 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
           defaultArtists={isBundle && bdArtists.length > 0 ? bdArtists : undefined}
           defaultFeatureTags={isBundle && bdFeatureTags.length > 0 ? bdFeatureTags : undefined}
           willLinkToAnnouncement
-          previewSaleDate={previewSaleDate}
           onSuccess={(editionId) => {
             if (editionId) {
               onAdd({
@@ -1813,7 +1811,6 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 defaultCompanyId={announcement.companyId ?? null}
                 isBundle={announcement.isBundle ?? false}
                 bundleBasePrice={announcement.basePrice ?? null}
-                previewSaleDate={getResolvedTierPreview(announcement)}
               />
               <button
                 type="button"
