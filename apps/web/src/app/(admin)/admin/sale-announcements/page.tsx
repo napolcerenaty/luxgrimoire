@@ -935,9 +935,12 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone }
             </div>
             <div>
               <label className="block text-xs text-stone-400 mb-1">Currency</label>
-              <input className={INP} list="region-currencies-inline" value={r.currency}
-                onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, currency: e.target.value } : row))} />
-              <datalist id="region-currencies-inline">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
+              <select className={INP} value={CURRENCIES.includes(r.currency) ? r.currency : ''}
+                onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, currency: e.target.value } : row))}>
+                <option value="">— select —</option>
+                {!CURRENCIES.includes(r.currency) && r.currency && <option value={r.currency}>{r.currency}</option>}
+                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -1247,6 +1250,9 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
   const [addingTier, setAddingTier] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDate, setNewDate] = useState('')
+  const [editingTierId, setEditingTierId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editDate, setEditDate] = useState('')
 
   const sorted = [...tiers].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
@@ -1258,6 +1264,7 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
       setAddingTier(false)
       setNewName('')
       setNewDate('')
+      setEditingTierId(null)
     },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
@@ -1268,19 +1275,52 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
 
+  const startEdit = (t: { id: string; name: string; date: string }) => {
+    setAddingTier(false)
+    setEditingTierId(t.id)
+    setEditName(t.name)
+    setEditDate(utcIsoToTzLocal(t.date, saleTimezone))
+  }
+
   return (
     <div className="space-y-2">
       {sorted.map(t => (
-        <div key={t.id} className="flex items-center gap-2 bg-stone-800/50 rounded-lg px-3 py-2">
-          <div className="flex-1 min-w-0">
-            <div className="text-sm text-stone-200 truncate">{t.name}</div>
-            <div className="text-xs text-stone-500">{fmtAdminDate(t.date, saleTimezone)}</div>
+        editingTierId === t.id ? (
+          <div key={t.id} className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-2">
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Tier Name *</label>
+              <input className={INP} value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. First Access, VIP, Flash Sale" />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Date & Time *</label>
+              <input type="datetime-local" className={INP} value={editDate} onChange={e => setEditDate(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <button type="button"
+                onClick={() => upsertMutation.mutate({ id: t.id, name: editName, date: tzLocalToUtcIso(editDate, saleTimezone), order: t.order })}
+                disabled={!editName || !editDate || upsertMutation.isPending}
+                className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
+                {upsertMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setEditingTierId(null)} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
+            </div>
           </div>
-          <button type="button" onClick={() => deleteMutation.mutate(t.id)}
-            className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-400/10 transition-colors">
-            Remove
-          </button>
-        </div>
+        ) : (
+          <div key={t.id} className="flex items-center gap-2 bg-stone-800/50 rounded-lg px-3 py-2">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm text-stone-200 truncate">{t.name}</div>
+              <div className="text-xs text-stone-500">{fmtAdminDate(t.date, saleTimezone)}</div>
+            </div>
+            <button type="button" onClick={() => startEdit(t)}
+              className="text-xs text-stone-400 hover:text-stone-200 px-2 py-1 rounded hover:bg-stone-700 transition-colors">
+              Edit
+            </button>
+            <button type="button" onClick={() => deleteMutation.mutate(t.id)}
+              className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-400/10 transition-colors">
+              Remove
+            </button>
+          </div>
+        )
       ))}
 
       {addingTier ? (
@@ -1304,7 +1344,7 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
           </div>
         </div>
       ) : (
-        <button type="button" onClick={() => setAddingTier(true)} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+        <button type="button" onClick={() => { setEditingTierId(null); setAddingTier(true) }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
           + Add Tier
         </button>
       )}
@@ -1416,8 +1456,11 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
           </div>
           <div>
             <label className="block text-xs text-stone-400 mb-1">Currency</label>
-            <input className={INP} list="region-currencies" value={f.currency} onChange={s('currency')} placeholder="GBP" />
-            <datalist id="region-currencies">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
+            <select className={INP} value={CURRENCIES.includes(f.currency) ? f.currency : ''} onChange={s('currency')}>
+              <option value="">— select —</option>
+              {!CURRENCIES.includes(f.currency) && f.currency && <option value={f.currency}>{f.currency}</option>}
+              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
         <div>
