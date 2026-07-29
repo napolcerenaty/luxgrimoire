@@ -761,27 +761,32 @@ export function EditionFieldsSection({
       </div>
 
       {/* Sale dates */}
-      {isLinkedToAnnouncement || willLinkToAnnouncement ? (
-        <div>
-          <label className={LBL}>Sale date</label>
-          <div className="bg-stone-800/60 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-300">
-            {isLinkedToAnnouncement
-              ? (resolvedSaleDate
-                ? `${resolvedSaleDate.label} — ${new Date(resolvedSaleDate.date).toLocaleString()}`
-                : 'No tiers set on the linked sale announcement yet')
-              : (previewSaleDate
-                ? `${previewSaleDate.label} — ${new Date(previewSaleDate.date).toLocaleString()}`
-                : 'No tiers set on this sale announcement yet')}
-            <p className="text-xs text-stone-500 mt-1">
+      <div className="space-y-3">
+        {(isLinkedToAnnouncement || willLinkToAnnouncement) && (
+          <div>
+            <label className={LBL}>Resolved Sale Date</label>
+            <div className="bg-stone-800/60 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-300">
               {isLinkedToAnnouncement
-                ? "Resolved live from the linked sale announcement's tiers — edit it there, not here."
-                : 'This edition will be linked to the sale announcement once created, and will resolve its date live from its tiers — edit them in the Sale Tiers section above, not here.'}
-            </p>
+                ? (resolvedSaleDate
+                  ? `${resolvedSaleDate.label} — ${new Date(resolvedSaleDate.date).toLocaleString()}`
+                  : 'No sale date resolved yet')
+                : (previewSaleDate
+                  ? `${previewSaleDate.label} — ${new Date(previewSaleDate.date).toLocaleString()}`
+                  : 'No tiers set on this sale announcement yet')}
+              <p className="text-xs text-stone-500 mt-1">
+                {isLinkedToAnnouncement
+                  ? "Earliest of the linked sale announcement's tiers and any manual sale dates below."
+                  : "Will be the earliest of the sale announcement's tiers (once linked, right after creation) and any manual sale dates below."}
+              </p>
+            </div>
           </div>
-        </div>
-      ) : (
+        )}
         <div>
-          <label className={LBL}>Sale dates <span className="text-stone-600 font-normal normal-case tracking-normal">(date only, no time — kept sorted automatically)</span></label>
+          <label className={LBL}>
+            Sale dates <span className="text-stone-600 font-normal normal-case tracking-normal">
+              (date only, no time — kept sorted automatically{(isLinkedToAnnouncement || willLinkToAnnouncement) ? '; contributes to the resolved date above, e.g. a subscription renewal day entered before this edition had a sale link' : ''})
+            </span>
+          </label>
           <div className="space-y-2">
             {saleDates.map((d, i) => (
               <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -817,7 +822,7 @@ export function EditionFieldsSection({
             </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Photo credit + Images */}
       <div>

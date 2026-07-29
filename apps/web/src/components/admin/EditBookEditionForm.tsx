@@ -349,9 +349,11 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           basePrice: price || undefined,
           currency: currency || undefined,
           language: language || undefined,
-          saleDates: edition.isLinkedToAnnouncement
-            ? undefined
-            : saleDates.filter(d => d.label && d.date),
+          // Manual dates contribute to resolveEditionSaleDate's earliest-overall calculation
+          // alongside any linked announcement's tiers (e.g. a subscription's "Subscription
+          // Renewal Day" often is the actual earliest availability) — always editable, not just
+          // for unlinked editions.
+          saleDates: saleDates.filter(d => d.label && d.date),
           additionalImages: allImages.filter(Boolean),
           variantLabel: variantLabel.trim() || null,
         }),

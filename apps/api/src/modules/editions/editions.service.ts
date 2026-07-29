@@ -310,17 +310,24 @@ export class EditionsService {
   }
 
   /**
-   * Resolves the single representative sale date for an edition:
-   * - if linked to one or more SaleAnnouncements, the earliest SaleTier across ALL of them
-   *   (each announcement's default-region tiers, or its top-level tiers if no default region) —
-   *   read live, never copied, so it always reflects the announcements' current tiers. An
-   *   edition can legitimately be linked to more than one announcement (e.g. an original sale
-   *   plus a later restock/reprint) — this must aggregate across every link, not just pick one,
-   *   otherwise adding a second link could silently be ignored or (non-deterministically)
-   *   replace the first depending on row order.
-   * - else the earliest manually-entered EditionSaleDate row (standalone editions)
-   * - else null (callers fall back to edition.createdAt, matching the previous
-   *   generalSaleDate-null behavior)
+   * Resolves the single representative sale date for an edition as the EARLIEST across every
+   * source that applies to it, combined:
+   * - the earliest SaleTier for each linked SaleAnnouncement (default-region tiers, or the
+   *   announcement's top-level tiers if no default region) — read live, never copied. An
+   *   edition can be linked to more than one announcement (e.g. an original sale plus a later
+   *   restock/reprint), so every link is considered, not just one.
+   * - the earliest manually-entered EditionSaleDate row (e.g. a subscription's "Subscription
+   *   Renewal Day", entered before the edition had any announcement link).
+   *
+   * These are combined, not mutually exclusive: an edition originally catalogued as
+   * subscription-only (manual renewal date) that later ALSO gets linked to a public sale
+   * announcement keeps its renewal date in the running — it's very often the actual earliest
+   * way the book became available, and deleting it on link would lose real information. It's
+   * up to the admin to remove a manual row later if it turns out to be genuinely redundant
+   * with an announcement's tiers.
+   *
+   * Returns null only when there is truly nothing to resolve from either source (callers fall
+   * back to edition.createdAt, matching the previous generalSaleDate-null behavior).
    *
    * Single-edition scoped — every current call site (linkEditionHistory, edition detail
    * reads) resolves at most a handful of editions, not a list. A future list/grid view
@@ -328,10 +335,14 @@ export class EditionsService {
    * calling this in a loop, to avoid N+1 queries.
    */
   async resolveEditionSaleDate(editionId: string): Promise<{ label: string; date: Date } | null> {
-    const links = await this.prisma.saleAnnouncementEdition.findMany({
-      where: { editionId },
-      select: { saleId: true },
-    });
+    const [links, earliestManual] = await Promise.all([
+      this.prisma.saleAnnouncementEdition.findMany({ where: { editionId }, select: { saleId: true } }),
+      this.prisma.editionSaleDate.findFirst({ where: { editionId }, orderBy: { date: 'asc' } }),
+    ]);
+
+    const candidates: { label: string; date: Date }[] = [];
+    if (earliestManual) candidates.push({ label: earliestManual.label, date: earliestManual.date });
+
     if (links.length > 0) {
       const perSaleEarliest = await Promise.all(links.map(async (link) => {
         const defaultRegion = await this.prisma.saleAnnouncementRegion.findFirst({
@@ -350,18 +361,13 @@ export class EditionsService {
           }))
         );
       }));
-      const earliest = perSaleEarliest
-        .filter((t): t is NonNullable<typeof t> => t !== null)
-        .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
-      // Linked to at least one announcement — dates always come from there, even if none of
-      // them have tiers yet (never falls through to manual EditionSaleDate rows).
-      return earliest ? { label: earliest.name, date: earliest.date } : null;
+      for (const t of perSaleEarliest) {
+        if (t) candidates.push({ label: t.name, date: t.date });
+      }
     }
-    const manual = await this.prisma.editionSaleDate.findFirst({
-      where: { editionId },
-      orderBy: { date: 'asc' },
-    });
-    return manual ? { label: manual.label, date: manual.date } : null;
+
+    if (candidates.length === 0) return null;
+    return candidates.sort((a, b) => a.date.getTime() - b.date.getTime())[0];
   }
 
   private async invalidateEditionCountCaches(companySlug: string, subscriptionId?: string | null, collectionId?: string | null) {
