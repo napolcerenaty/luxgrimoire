@@ -768,9 +768,6 @@ export async function adminUpsertAnnouncementRegion(saleId: string, data: {
   name: string;
   countryCodes?: string;
   isDefault?: boolean;
-  generalSaleDate?: string | null;
-  firstAccessDate?: string | null;
-  earlyAccessDate?: string | null;
   endsAt?: string | null;
   isSoldOut?: boolean;
   saleTimezone?: string | null;

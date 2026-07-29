@@ -1182,9 +1182,6 @@ interface RegionFormData {
   name: string
   countryCodes: string
   isDefault: boolean
-  generalSaleDate: string
-  firstAccessDate: string
-  earlyAccessDate: string
   endsAt: string
   isSoldOut: boolean
   saleTimezone: string
@@ -1195,7 +1192,7 @@ interface RegionFormData {
 
 const EMPTY_REGION: RegionFormData = {
   name: '', countryCodes: '', isDefault: false,
-  generalSaleDate: '', firstAccessDate: '', earlyAccessDate: '', endsAt: '',
+  endsAt: '',
   isSoldOut: false,
   saleTimezone: 'UTC', basePrice: '', currency: '', subscriberBasePrice: '',
 }
@@ -1204,9 +1201,6 @@ function announcementToDefaultRegion(a: ApiSaleAnnouncement): RegionFormData {
   const tz = (a as any).saleTimezone ?? 'UTC'
   return {
     ...EMPTY_REGION,
-    generalSaleDate: utcIsoToTzLocal(a.generalSaleDate, tz),
-    firstAccessDate: utcIsoToTzLocal(a.firstAccessDate, tz),
-    earlyAccessDate: utcIsoToTzLocal(a.earlyAccessDate, tz),
     endsAt: utcIsoToTzLocal(a.endsAt, tz),
     saleTimezone: tz,
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
@@ -1225,9 +1219,6 @@ function regionToForm(r: NonNullable<ApiSaleAnnouncement['regions']>[0]): Region
     name: r.name,
     countryCodes: codes.join(', '),
     isDefault: r.isDefault,
-    generalSaleDate: utcIsoToTzLocal(r.generalSaleDate, tz),
-    firstAccessDate: utcIsoToTzLocal(r.firstAccessDate, tz),
-    earlyAccessDate: utcIsoToTzLocal(r.earlyAccessDate, tz),
     endsAt: utcIsoToTzLocal(r.endsAt, tz),
     isSoldOut: r.isSoldOut ?? false,
     saleTimezone: tz,
@@ -1386,9 +1377,6 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         name: form.name,
         countryCodes: JSON.stringify(codes),
         isDefault: form.isDefault,
-        generalSaleDate: form.generalSaleDate ? tzLocalToUtcIso(form.generalSaleDate, rTz) : null,
-        firstAccessDate: form.firstAccessDate ? tzLocalToUtcIso(form.firstAccessDate, rTz) : null,
-        earlyAccessDate: form.earlyAccessDate ? tzLocalToUtcIso(form.earlyAccessDate, rTz) : null,
         endsAt: form.endsAt ? tzLocalToUtcIso(form.endsAt, rTz) : null,
         isSoldOut: form.isSoldOut,
         saleTimezone: form.saleTimezone || null,

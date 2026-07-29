@@ -14,18 +14,6 @@ export class CreateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
 
   @IsOptional()
   @IsString()
-  generalSaleDate?: string;
-
-  @IsOptional()
-  @IsString()
-  firstAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
-  earlyAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
   endsAt?: string;
 
   @IsOptional()
@@ -87,18 +75,6 @@ export class UpdateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
   @IsOptional()
   @IsString()
   companyId?: string;
-
-  @IsOptional()
-  @IsString()
-  generalSaleDate?: string | null;
-
-  @IsOptional()
-  @IsString()
-  firstAccessDate?: string | null;
-
-  @IsOptional()
-  @IsString()
-  earlyAccessDate?: string | null;
 
   @IsOptional()
   @IsString()

@@ -233,10 +233,10 @@ export class AnnouncementsService {
         take: pageSize,
         // NOTE: sorting still keys off the legacy generalSaleDate column, not the tiers relation —
         // Prisma's orderBy can't sort by an aggregate (e.g. MIN(tiers.date)) without a raw query.
-        // Sales created/edited through the legacy 3-field form keep generalSaleDate populated
-        // (see syncLegacyTiers), so this stays accurate for now; a sale defined ONLY through the
-        // new dynamic tier CRUD with no "General Sale"-named tier would sort as if dateless.
-        // Revisit with a raw correlated subquery if/when that becomes common.
+        // Every sale created/edited since the dynamic tier redesign has this column null, so
+        // "date"/"date-desc" sort is degraded to sorting those as dateless (only historical
+        // sales backfilled from the legacy fields still sort correctly). Needs a raw correlated
+        // subquery against SaleTier to fix properly — tracked as a follow-up, not yet done.
         orderBy: query.sort === 'date' ? { generalSaleDate: 'asc' }
           : query.sort === 'date-desc' ? { generalSaleDate: 'desc' }
           : { createdAt: 'desc' },
@@ -541,38 +541,6 @@ export class AnnouncementsService {
     });
   }
 
-  /** Bridges the legacy 3-fixed-field inputs (still accepted by CreateSaleAnnouncementDto/
-   *  UpdateSaleAnnouncementDto/adminUpsertRegion, since the admin UI hasn't fully switched to the
-   *  dynamic tier editor yet) onto the new SaleTier model: whenever one of the 3 legacy fields is
-   *  provided, its corresponding named tier is created/updated/removed to match. Tiers created
-   *  directly via adminUpsertTier (arbitrary names, not one of these 3) are left untouched.
-   *  `date === undefined` means "field not present in this request" — skip. `date === null` means
-   *  "explicitly cleared" — remove that tier. */
-  private async syncLegacyTiers(
-    saleId: string,
-    regionId: string | null,
-    dates: { firstAccessDate?: Date | null; earlyAccessDate?: Date | null; generalSaleDate?: Date | null },
-  ) {
-    const entries: [string, Date | null | undefined, number][] = [
-      ['First Access', dates.firstAccessDate, 0],
-      ['Early Access', dates.earlyAccessDate, 1],
-      ['General Sale', dates.generalSaleDate, 2],
-    ];
-    for (const [name, date, order] of entries) {
-      if (date === undefined) continue;
-      if (date === null) {
-        await this.prisma.saleTier.deleteMany({ where: { saleId, regionId, name } });
-        continue;
-      }
-      const existing = await this.prisma.saleTier.findFirst({ where: { saleId, regionId, name } });
-      if (existing) {
-        await this.prisma.saleTier.update({ where: { id: existing.id }, data: { date } });
-      } else {
-        await this.prisma.saleTier.create({ data: { saleId, regionId, name, date, order } });
-      }
-    }
-  }
-
   async create(dto: CreateSaleAnnouncementDto) {
     const { editionIds, extraImages, ...data } = dto;
     const imageAsset = data.imageUrl ? await this.mediaAssetsService.ensureForPublicId(data.imageUrl) : null;
@@ -581,9 +549,6 @@ export class AnnouncementsService {
       data: {
         title: data.title,
         companyId: data.companyId ?? null,
-        generalSaleDate: data.generalSaleDate ? new Date(data.generalSaleDate) : null,
-        firstAccessDate: data.firstAccessDate ? new Date(data.firstAccessDate) : null,
-        earlyAccessDate: data.earlyAccessDate ? new Date(data.earlyAccessDate) : null,
         endsAt: data.endsAt ? new Date(data.endsAt) : null,
         saleType: data.saleType ?? 'LIMITED_PREORDER',
         isSoldOut: data.isSoldOut ?? false,
@@ -602,11 +567,6 @@ export class AnnouncementsService {
       },
     });
     await this.syncExtraImageAssets(announcement.id, extraImages ?? []);
-    await this.syncLegacyTiers(announcement.id, null, {
-      firstAccessDate: data.firstAccessDate ? new Date(data.firstAccessDate) : undefined,
-      earlyAccessDate: data.earlyAccessDate ? new Date(data.earlyAccessDate) : undefined,
-      generalSaleDate: data.generalSaleDate ? new Date(data.generalSaleDate) : undefined,
-    });
 
     if (editionIds && editionIds.length > 0) {
       await this.prisma.saleAnnouncementEdition.createMany({
@@ -631,15 +591,6 @@ export class AnnouncementsService {
     const updateData: Record<string, unknown> = {
       ...(data.title !== undefined && { title: data.title }),
       ...(data.companyId !== undefined && { companyId: data.companyId }),
-      ...(data.generalSaleDate !== undefined && {
-        generalSaleDate: data.generalSaleDate ? new Date(data.generalSaleDate) : null,
-      }),
-      ...(data.firstAccessDate !== undefined && {
-        firstAccessDate: data.firstAccessDate ? new Date(data.firstAccessDate) : null,
-      }),
-      ...(data.earlyAccessDate !== undefined && {
-        earlyAccessDate: data.earlyAccessDate ? new Date(data.earlyAccessDate) : null,
-      }),
       ...(data.endsAt !== undefined && {
         endsAt: data.endsAt ? new Date(data.endsAt) : null,
       }),
@@ -668,13 +619,9 @@ export class AnnouncementsService {
       where: { id },
       data: updateData,
     });
-    await this.syncLegacyTiers(id, null, {
-      firstAccessDate: data.firstAccessDate !== undefined ? (data.firstAccessDate ? new Date(data.firstAccessDate) : null) : undefined,
-      earlyAccessDate: data.earlyAccessDate !== undefined ? (data.earlyAccessDate ? new Date(data.earlyAccessDate) : null) : undefined,
-      generalSaleDate: data.generalSaleDate !== undefined ? (data.generalSaleDate ? new Date(data.generalSaleDate) : null) : undefined,
-    });
-    // If dates changed, recalculate all pending sale reminders for this announcement
-    const dateChanged = data.generalSaleDate !== undefined || data.firstAccessDate !== undefined || data.earlyAccessDate !== undefined || data.endsAt !== undefined;
+    // If endsAt changed, recalculate all pending sale reminders for this announcement
+    // (tier date/time changes are handled by adminUpsertTier/adminDeleteTier directly)
+    const dateChanged = data.endsAt !== undefined;
     if (dateChanged) {
       this.scheduledReminders?.recalculateForAnnouncement(id).catch(() => {});
     }
@@ -915,9 +862,6 @@ export class AnnouncementsService {
     name: string;
     countryCodes?: string;
     isDefault?: boolean;
-    generalSaleDate?: string | null;
-    firstAccessDate?: string | null;
-    earlyAccessDate?: string | null;
     endsAt?: string | null;
     isSoldOut?: boolean;
     saleTimezone?: string | null;
@@ -931,9 +875,6 @@ export class AnnouncementsService {
       name: fields.name,
       countryCodes: fields.countryCodes ? JSON.parse(fields.countryCodes) : [],
       isDefault: fields.isDefault ?? false,
-      generalSaleDate: fields.generalSaleDate ? new Date(fields.generalSaleDate) : null,
-      firstAccessDate: fields.firstAccessDate ? new Date(fields.firstAccessDate) : null,
-      earlyAccessDate: fields.earlyAccessDate ? new Date(fields.earlyAccessDate) : null,
       endsAt: fields.endsAt ? new Date(fields.endsAt) : null,
       isSoldOut: fields.isSoldOut ?? false,
       saleTimezone: fields.saleTimezone ?? null,
@@ -944,11 +885,6 @@ export class AnnouncementsService {
     const region = id
       ? await this.prisma.saleAnnouncementRegion.update({ where: { id }, data: payload })
       : await this.prisma.saleAnnouncementRegion.create({ data: payload });
-    await this.syncLegacyTiers(saleId, region.id, {
-      firstAccessDate: payload.firstAccessDate,
-      earlyAccessDate: payload.earlyAccessDate,
-      generalSaleDate: payload.generalSaleDate,
-    });
     this.scheduledReminders?.recalculateForAnnouncement(saleId).catch(() => {});
     return region;
   }

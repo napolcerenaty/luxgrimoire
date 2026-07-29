@@ -48,18 +48,6 @@ export class CreateEditionDto extends BasePriceCurrencyDto {
   @IsBoolean()
   isSpecial?: boolean;
 
-  @IsOptional()
-  @IsString()
-  firstAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
-  earlyAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
-  generalSaleDate?: string;
-
   /** Manual sale dates for a standalone edition (no linked SaleAnnouncement).
    *  Ignored for editions linked to an announcement — those resolve live from its tiers. */
   @IsOptional()
@@ -124,18 +112,6 @@ export class UpdateEditionDto extends BasePriceCurrencyDto {
   @IsOptional()
   @IsBoolean()
   isSpecial?: boolean;
-
-  @IsOptional()
-  @IsString()
-  firstAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
-  earlyAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
-  generalSaleDate?: string;
 
   /** Manual sale dates for a standalone edition (no linked SaleAnnouncement).
    *  Ignored for editions linked to an announcement — those resolve live from its tiers. */

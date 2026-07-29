@@ -510,9 +510,6 @@ export class EditionsService {
         isSpecial: dto.isSpecial ?? false,
         basePrice: dto.basePrice ? dto.basePrice : undefined,
         currency: dto.currency,
-        firstAccessDate: dto.firstAccessDate,
-        earlyAccessDate: dto.earlyAccessDate,
-        generalSaleDate: dto.generalSaleDate,
         bookBoxCompanyId: dto.bookBoxCompanyId,
         bookBoxCompanyCustomName: dto.bookBoxCompanyCustomName,
         subscriptionId: dto.subscriptionId,
@@ -977,9 +974,6 @@ export class EditionsService {
       }
     }
     if (dto.currency !== undefined) data.currency = dto.currency;
-    if (dto.firstAccessDate !== undefined) data.firstAccessDate = dto.firstAccessDate;
-    if (dto.earlyAccessDate !== undefined) data.earlyAccessDate = dto.earlyAccessDate;
-    if (dto.generalSaleDate !== undefined) data.generalSaleDate = dto.generalSaleDate;
     if (dto.bookBoxCompanyId !== undefined) data.bookBoxCompanyId = dto.bookBoxCompanyId;
     if (dto.bookBoxCompanyCustomName !== undefined) data.bookBoxCompanyCustomName = dto.bookBoxCompanyCustomName;
     if (dto.subscriptionId !== undefined) data.subscriptionId = dto.subscriptionId;
