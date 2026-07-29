@@ -37,7 +37,7 @@ describe('EditionsService.resolveEditionSaleDate', () => {
   });
 
   it('returns null for an edition with no announcement link and no manual dates', async () => {
-    (prisma.saleAnnouncementEdition.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.saleAnnouncementEdition.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.editionSaleDate.findFirst as jest.Mock).mockResolvedValue(null);
 
     const result = await service.resolveEditionSaleDate('edition-1');
@@ -46,7 +46,7 @@ describe('EditionsService.resolveEditionSaleDate', () => {
   });
 
   it('resolves the earliest manual EditionSaleDate for a standalone edition', async () => {
-    (prisma.saleAnnouncementEdition.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.saleAnnouncementEdition.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.editionSaleDate.findFirst as jest.Mock).mockResolvedValue({
       id: 'esd-1', editionId: 'edition-1', label: 'General Sale', date: daysFromNow(1), order: 0,
     });
@@ -58,7 +58,7 @@ describe('EditionsService.resolveEditionSaleDate', () => {
   });
 
   it('resolves live from the linked announcement\'s default tiers when there is no default region', async () => {
-    (prisma.saleAnnouncementEdition.findFirst as jest.Mock).mockResolvedValue({ saleId: 'sale-1' });
+    (prisma.saleAnnouncementEdition.findMany as jest.Mock).mockResolvedValue([{ saleId: 'sale-1' }]);
     (prisma.saleAnnouncementRegion.findFirst as jest.Mock).mockResolvedValue(null);
     const earliestTier = { id: 'tier-1', name: 'First Access', date: daysFromNow(2) };
     (prisma.saleTier.findFirst as jest.Mock).mockResolvedValue(earliestTier);
@@ -71,7 +71,7 @@ describe('EditionsService.resolveEditionSaleDate', () => {
   });
 
   it('prefers the default region\'s own tiers over the announcement\'s top-level tiers when both exist', async () => {
-    (prisma.saleAnnouncementEdition.findFirst as jest.Mock).mockResolvedValue({ saleId: 'sale-1' });
+    (prisma.saleAnnouncementEdition.findMany as jest.Mock).mockResolvedValue([{ saleId: 'sale-1' }]);
     (prisma.saleAnnouncementRegion.findFirst as jest.Mock).mockResolvedValue({ id: 'region-1' });
     const regionTier = { id: 'tier-region', name: 'Region Early Access', date: daysFromNow(1) };
     (prisma.saleTier.findFirst as jest.Mock).mockResolvedValueOnce(regionTier);
@@ -85,13 +85,48 @@ describe('EditionsService.resolveEditionSaleDate', () => {
   });
 
   it('returns null when linked but the announcement has no tiers yet', async () => {
-    (prisma.saleAnnouncementEdition.findFirst as jest.Mock).mockResolvedValue({ saleId: 'sale-1' });
+    (prisma.saleAnnouncementEdition.findMany as jest.Mock).mockResolvedValue([{ saleId: 'sale-1' }]);
     (prisma.saleAnnouncementRegion.findFirst as jest.Mock).mockResolvedValue(null);
     (prisma.saleTier.findFirst as jest.Mock).mockResolvedValue(null);
 
     const result = await service.resolveEditionSaleDate('edition-1');
 
     expect(result).toBeNull();
+  });
+
+  it('aggregates across multiple linked announcements and picks the earliest tier overall', async () => {
+    // Edition linked to both an original sale (later tier) and a newly-added restock sale
+    // (earlier tier) — must consider both, not arbitrarily pick just one.
+    (prisma.saleAnnouncementEdition.findMany as jest.Mock).mockResolvedValue([
+      { saleId: 'sale-original' },
+      { saleId: 'sale-restock' },
+    ]);
+    (prisma.saleAnnouncementRegion.findFirst as jest.Mock).mockResolvedValue(null);
+    const originalTier = { id: 'tier-original', name: 'General Sale', date: daysFromNow(10) };
+    const restockTier = { id: 'tier-restock', name: 'Restock', date: daysFromNow(3) };
+    (prisma.saleTier.findFirst as jest.Mock)
+      .mockResolvedValueOnce(originalTier)
+      .mockResolvedValueOnce(restockTier);
+
+    const result = await service.resolveEditionSaleDate('edition-1');
+
+    expect(result).toEqual({ label: 'Restock', date: restockTier.date });
+  });
+
+  it('still resolves from the one announcement with tiers when linked to a second with none yet', async () => {
+    (prisma.saleAnnouncementEdition.findMany as jest.Mock).mockResolvedValue([
+      { saleId: 'sale-with-tiers' },
+      { saleId: 'sale-without-tiers' },
+    ]);
+    (prisma.saleAnnouncementRegion.findFirst as jest.Mock).mockResolvedValue(null);
+    const tier = { id: 'tier-1', name: 'General Sale', date: daysFromNow(5) };
+    (prisma.saleTier.findFirst as jest.Mock)
+      .mockResolvedValueOnce(tier)
+      .mockResolvedValueOnce(null);
+
+    const result = await service.resolveEditionSaleDate('edition-1');
+
+    expect(result).toEqual({ label: 'General Sale', date: tier.date });
   });
 });
 

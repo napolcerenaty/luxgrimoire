@@ -645,6 +645,11 @@ export interface EditionFieldsSectionProps {
    *  from that announcement's tiers, so the manual editor is replaced with a read-only display. */
   isLinkedToAnnouncement?: boolean
   resolvedSaleDate?: { label: string; date: string } | null
+  /** True when this edition is being created from within a sale announcement (e.g. EditionPicker)
+   *  and will be auto-linked to it right after creation — same read-only display as
+   *  isLinkedToAnnouncement, but showing a preview (the edition/link don't exist yet). */
+  willLinkToAnnouncement?: boolean
+  previewSaleDate?: { label: string; date: string } | null
   allImages: string[]
   onImagesChange: (imgs: string[]) => void
   onAiResult: (r: AiParseResult) => void
@@ -676,6 +681,7 @@ export function EditionFieldsSection({
   language, onLanguageChange,
   saleDates, onSaleDatesChange,
   isLinkedToAnnouncement, resolvedSaleDate,
+  willLinkToAnnouncement, previewSaleDate,
   allImages, onImagesChange,
   onAiResult,
   artists = [], onArtistsChange, onRemoveExistingArtist,
@@ -755,14 +761,22 @@ export function EditionFieldsSection({
       </div>
 
       {/* Sale dates */}
-      {isLinkedToAnnouncement ? (
+      {isLinkedToAnnouncement || willLinkToAnnouncement ? (
         <div>
           <label className={LBL}>Sale date</label>
           <div className="bg-stone-800/60 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-300">
-            {resolvedSaleDate
-              ? `${resolvedSaleDate.label} — ${new Date(resolvedSaleDate.date).toLocaleString()}`
-              : 'No tiers set on the linked sale announcement yet'}
-            <p className="text-xs text-stone-500 mt-1">Resolved live from the linked sale announcement's tiers — edit it there, not here.</p>
+            {isLinkedToAnnouncement
+              ? (resolvedSaleDate
+                ? `${resolvedSaleDate.label} — ${new Date(resolvedSaleDate.date).toLocaleString()}`
+                : 'No tiers set on the linked sale announcement yet')
+              : (previewSaleDate
+                ? `${previewSaleDate.label} — ${new Date(previewSaleDate.date).toLocaleString()}`
+                : 'No tiers set on this sale announcement yet')}
+            <p className="text-xs text-stone-500 mt-1">
+              {isLinkedToAnnouncement
+                ? "Resolved live from the linked sale announcement's tiers — edit it there, not here."
+                : 'This edition will be linked to the sale announcement once created, and will resolve its date live from its tiers — edit them in the Sale Tiers section above, not here.'}
+            </p>
           </div>
         </div>
       ) : (

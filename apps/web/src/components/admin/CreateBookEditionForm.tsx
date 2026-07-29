@@ -51,6 +51,10 @@ export interface CreateBookEditionFormProps {
   defaultVariantLabel?: string
   /** Prefill manual sale dates from a source edition (e.g. "Duplicate as variant" carrying over shared dates). */
   defaultSaleDates?: EditionSaleDateEntry[]
+  /** True when this edition is being created from within a sale announcement (e.g. EditionPicker)
+   *  and will be auto-linked to it right after creation. */
+  willLinkToAnnouncement?: boolean
+  previewSaleDate?: { label: string; date: string } | null
   onSuccess: (editionId?: string) => void
   /** Called after book creation in bookOnly mode — useful to chain into edition creation */
   onBookCreated?: (bookId: string, bookTitle: string) => void
@@ -61,6 +65,7 @@ export default function CreateBookEditionForm({
   subscriptionSlug, subscriptionId, defaultCurrency, defaultCompanyId,
   defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage,
   monthYear, monthMonth, existingBookId, bookOnly, sourceEditionId, defaultVariantLabel, defaultSaleDates,
+  willLinkToAnnouncement, previewSaleDate,
   defaultPublisher, defaultCollectionId, defaultPhotoCredit, defaultArtists, defaultFeatureTags,
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
@@ -605,6 +610,8 @@ export default function CreateBookEditionForm({
         onLanguageChange={setLanguage}
         saleDates={saleDates}
         onSaleDatesChange={setSaleDates}
+        willLinkToAnnouncement={willLinkToAnnouncement}
+        previewSaleDate={previewSaleDate}
         allImages={allImages}
         onImagesChange={setAllImages}
         onAiResult={applyAiResult}

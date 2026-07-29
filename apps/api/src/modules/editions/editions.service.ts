@@ -311,8 +311,13 @@ export class EditionsService {
 
   /**
    * Resolves the single representative sale date for an edition:
-   * - if linked to a SaleAnnouncement, the earliest SaleTier for that announcement/region —
-   *   read live, never copied, so it always reflects the announcement's current tiers
+   * - if linked to one or more SaleAnnouncements, the earliest SaleTier across ALL of them
+   *   (each announcement's default-region tiers, or its top-level tiers if no default region) —
+   *   read live, never copied, so it always reflects the announcements' current tiers. An
+   *   edition can legitimately be linked to more than one announcement (e.g. an original sale
+   *   plus a later restock/reprint) — this must aggregate across every link, not just pick one,
+   *   otherwise adding a second link could silently be ignored or (non-deterministically)
+   *   replace the first depending on row order.
    * - else the earliest manually-entered EditionSaleDate row (standalone editions)
    * - else null (callers fall back to edition.createdAt, matching the previous
    *   generalSaleDate-null behavior)
@@ -323,26 +328,34 @@ export class EditionsService {
    * calling this in a loop, to avoid N+1 queries.
    */
   async resolveEditionSaleDate(editionId: string): Promise<{ label: string; date: Date } | null> {
-    const link = await this.prisma.saleAnnouncementEdition.findFirst({
+    const links = await this.prisma.saleAnnouncementEdition.findMany({
       where: { editionId },
       select: { saleId: true },
     });
-    if (link) {
-      const defaultRegion = await this.prisma.saleAnnouncementRegion.findFirst({
-        where: { saleId: link.saleId, isDefault: true },
-        select: { id: true },
-      });
-      const tier =
-        (defaultRegion &&
+    if (links.length > 0) {
+      const perSaleEarliest = await Promise.all(links.map(async (link) => {
+        const defaultRegion = await this.prisma.saleAnnouncementRegion.findFirst({
+          where: { saleId: link.saleId, isDefault: true },
+          select: { id: true },
+        });
+        return (
+          (defaultRegion &&
+            (await this.prisma.saleTier.findFirst({
+              where: { saleId: link.saleId, regionId: defaultRegion.id },
+              orderBy: { date: 'asc' },
+            }))) ||
           (await this.prisma.saleTier.findFirst({
-            where: { saleId: link.saleId, regionId: defaultRegion.id },
+            where: { saleId: link.saleId, regionId: null },
             orderBy: { date: 'asc' },
-          }))) ||
-        (await this.prisma.saleTier.findFirst({
-          where: { saleId: link.saleId, regionId: null },
-          orderBy: { date: 'asc' },
-        }));
-      return tier ? { label: tier.name, date: tier.date } : null;
+          }))
+        );
+      }));
+      const earliest = perSaleEarliest
+        .filter((t): t is NonNullable<typeof t> => t !== null)
+        .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+      // Linked to at least one announcement — dates always come from there, even if none of
+      // them have tiers yet (never falls through to manual EditionSaleDate rows).
+      return earliest ? { label: earliest.name, date: earliest.date } : null;
     }
     const manual = await this.prisma.editionSaleDate.findFirst({
       where: { editionId },
