@@ -347,9 +347,28 @@ export class AnnouncementsService {
 
   async findTrending(limit = 6) {
     const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(limit, 24)) : 6;
+
+    // Resolve which announcements are actually upcoming FIRST — ranking by all-time
+    // interest count and only filtering for "upcoming" afterward (on just the top
+    // `safeLimit` most-followed ones) meant that once the earliest, most-followed
+    // announcements sold out, they'd crowd out newer upcoming ones from the top-N
+    // and the post-filter would zero out the whole result, even when other upcoming
+    // announcements did have qualifying interest.
+    const upcoming = await (this.prisma.saleAnnouncement as any).findMany({
+      where: { tiers: { some: { date: { gte: new Date() } } } },
+      select: { id: true },
+    });
+    if (upcoming.length === 0) return [];
+    const upcomingIds = upcoming.map((a: { id: string }) => a.id);
+
+    // Minimum 2 interested users — a single follow is too little signal to call
+    // "trending", but low enough that this still surfaces results early on with a
+    // small user base rather than requiring an unreachable higher bar.
     const grouped = await this.prisma.userSaleInterest.groupBy({
       by: ['announcementId'],
+      where: { announcementId: { in: upcomingIds } },
       _count: { announcementId: true },
+      having: { announcementId: { _count: { gte: 2 } } },
       orderBy: { _count: { announcementId: 'desc' } },
       take: safeLimit,
     });
@@ -358,10 +377,7 @@ export class AnnouncementsService {
 
     const ids = grouped.map((item) => item.announcementId);
     const announcements = await (this.prisma.saleAnnouncement as any).findMany({
-      where: {
-        id: { in: ids },
-        tiers: { some: { date: { gte: new Date() } } },
-      },
+      where: { id: { in: ids } },
       include: {
         editions: editionsInclude,
         tiers: { orderBy: { date: 'asc' as const } },
