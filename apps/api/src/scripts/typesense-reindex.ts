@@ -103,6 +103,10 @@ async function main() {
 
   console.log('Reindexing subscriptions...')
   const subscriptions = await prisma.subscription.findMany({
+    // Content streams are parent containers, not directly joinable — only their variants
+    // are. Matches the per-item indexSubscription guard (subscriptions.service.ts), which
+    // excludes/removes content streams from the index; this bulk path was missing it.
+    where: { isContentStream: false },
     select: {
       id: true,
       slug: true,
@@ -131,6 +135,20 @@ async function main() {
     })
   }
   console.log(`  → ${subscriptions.length} subscriptions indexed`)
+
+  // Clean up any content streams left over from a previous reindex run (before the
+  // `where` filter above existed) — they were wrongly upserted and never removed, since
+  // upsert-only reindexing doesn't drop documents that fall out of the query.
+  const contentStreams = await prisma.subscription.findMany({
+    where: { isContentStream: true },
+    select: { id: true },
+  })
+  for (const cs of contentStreams) {
+    await typesense.deleteDocument('subscriptions', cs.id).catch(() => {})
+  }
+  if (contentStreams.length > 0) {
+    console.log(`  → removed ${contentStreams.length} content stream(s) from the index`)
+  }
 
   console.log('Reindexing companies...')
   const companies = await prisma.bookBoxCompany.findMany({
