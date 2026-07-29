@@ -81,7 +81,7 @@ export function SaleCountdownBanner({ announcements }: { announcements: ApiSaleA
 
           {/* Countdown boxes */}
           <div className="flex items-end gap-2">
-            {countdown.days > 0 && <CountdownBox value={countdown.days} label="days" />}
+            {countdown.days > 0 && <CountdownBox value={countdown.days} label={countdown.days === 1 ? 'day' : 'days'} />}
             <CountdownBox value={countdown.hours} label="hrs" />
             <CountdownBox value={countdown.minutes} label="min" />
             <CountdownBox value={countdown.seconds} label="sec" />

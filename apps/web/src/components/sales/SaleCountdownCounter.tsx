@@ -50,7 +50,7 @@ export function SaleCountdownCounter({ date, tier, title, personalized }: Props)
         <p className="text-lg font-serif text-amber-400">It&apos;s here!</p>
       ) : (
         <div className="flex items-center gap-4">
-          <Segment value={countdown.days} label="Days" />
+          <Segment value={countdown.days} label={countdown.days === 1 ? 'Day' : 'Days'} />
           <Segment value={countdown.hours} label="Hrs" />
           <Segment value={countdown.minutes} label="Min" />
           <Segment value={countdown.seconds} label="Sec" />

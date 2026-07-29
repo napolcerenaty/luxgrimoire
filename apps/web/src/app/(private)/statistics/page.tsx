@@ -1030,7 +1030,7 @@ export default function SpendingPage() {
                   <StatCard
                     label="Shipping Pipeline"
                     value={fmt(collection.shippingValue, currency)}
-                    sub={`${collection.shippingCount} books shipping`}
+                    sub={`${collection.shippingCount} ${collection.shippingCount === 1 ? 'book' : 'books'} shipping`}
                     icon={Truck}
                   />
                 </div>
@@ -1565,7 +1565,7 @@ export default function SpendingPage() {
                     <StatCard
                       label="Avg ROI"
                       value={`${avgROI >= 0 ? '+' : ''}${avgROI.toFixed(1)}%`}
-                      sub={`${sales.salesWithROI.length} sales tracked`}
+                      sub={`${sales.salesWithROI.length} sale${sales.salesWithROI.length !== 1 ? 's' : ''} tracked`}
                       icon={TrendingUp}
                       color={avgROI >= 0 ? 'text-emerald-400' : 'text-red-400'}
                     />
