@@ -128,7 +128,6 @@ interface Props {
   editionId: string
   initialEntryId?: string | null
   saleEditions?: SaleEditionOption[]
-  editionGeneralSaleDate?: string | null
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -327,7 +326,7 @@ function AddReadingHistoryForm({ onSave, onCancel, saving }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions = [], editionGeneralSaleDate }: Props) {
+export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions = [] }: Props) {
   const { user, loading: authLoading } = useAuth()
   const queryClient = useQueryClient()
   const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])

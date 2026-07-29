@@ -63,6 +63,7 @@ interface EditionSaleEdition {
     generalSaleDate?: string | null
     earlyAccessDate?: string | null
     firstAccessDate?: string | null
+    tiers?: { name: string; date: string }[]
   }
 }
 
@@ -94,6 +95,8 @@ interface EditionDetail {
   firstAccessDate?: string | null
   earlyAccessDate?: string | null
   generalSaleDate?: string | null
+  saleDates?: { id: string; label: string; date: string; order: number }[]
+  resolvedSaleDate?: { label: string; date: string } | null
   verifiedAt: string | null
   submittedByUserId: string | null
   photoCredit?: string | null
@@ -384,7 +387,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   basePrice={edition.basePrice}
                   currency={edition.currency}
                   bundles={bundles.map(se => ({ id: se.announcement.id, title: se.announcement.title }))}
-                  generalSaleDate={edition.generalSaleDate}
+                  generalSaleDate={edition.resolvedSaleDate?.date ?? null}
                   saleAnnouncementId={mainSaleAnnouncementId}
                 />
               </div>
@@ -394,21 +397,22 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 <CollectionEntryPanel
                   editionId={edition.id}
                   initialEntryId={initialEntryId ?? null}
-                  editionGeneralSaleDate={edition.generalSaleDate ?? null}
                   saleEditions={saleEditions.map(se => ({
                     id: se.id,
                     isReprint: se.isReprint ?? false,
                     announcement: {
                       id: se.announcement.id,
                       title: se.announcement.title,
-                      generalSaleDate: se.announcement.generalSaleDate ?? null,
+                      // Announcement's own earliest tier if it has one (pre-sorted server-side),
+                      // else the legacy generalSaleDate for historical un-backfilled records.
+                      generalSaleDate: se.announcement.tiers?.[0]?.date ?? se.announcement.generalSaleDate ?? null,
                     },
                   }))}
                 />
               </div>
 
-              {/* Community stats — only show after general sale date has passed */}
-              {(!edition.generalSaleDate || new Date(edition.generalSaleDate) <= new Date()) && (
+              {/* Community stats — only show after the sale date has passed */}
+              {(!edition.resolvedSaleDate || new Date(edition.resolvedSaleDate.date) <= new Date()) && (
               <div className="mb-6">
                 <EditionCommunityStats
                   editionSlug={slug}
@@ -450,22 +454,10 @@ export default async function EditionPage({ params, searchParams }: Props) {
                     <dd className="text-stone-200">{edition.language.charAt(0).toUpperCase() + edition.language.slice(1).toLowerCase()}</dd>
                   </>
                 )}
-                {edition.firstAccessDate && (
+                {edition.resolvedSaleDate && (
                   <>
-                    <dt className="text-stone-500">First Access</dt>
-                    <dd className="text-stone-200">{formatDate(edition.firstAccessDate)}</dd>
-                  </>
-                )}
-                {edition.earlyAccessDate && (
-                  <>
-                    <dt className="text-stone-500">Early Access</dt>
-                    <dd className="text-stone-200">{formatDate(edition.earlyAccessDate)}</dd>
-                  </>
-                )}
-                {edition.generalSaleDate && (
-                  <>
-                    <dt className="text-stone-500">Sale Date</dt>
-                    <dd className="text-stone-200">{formatDate(edition.generalSaleDate)}</dd>
+                    <dt className="text-stone-500">{edition.resolvedSaleDate.label}</dt>
+                    <dd className="text-stone-200">{formatDate(edition.resolvedSaleDate.date)}</dd>
                   </>
                 )}
                 {/* Subscription info */}
@@ -729,8 +721,11 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {saleEditions.map((se, i) => {
                 const sa = se.announcement
                 const isFirst = i === 0
-                const dateStr = sa.generalSaleDate
-                  ? new Date(sa.generalSaleDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                // Announcement's own earliest tier if it has one (pre-sorted server-side),
+                // else the legacy generalSaleDate for historical un-backfilled records.
+                const saDate = sa.tiers?.[0]?.date ?? sa.generalSaleDate
+                const dateStr = saDate
+                  ? new Date(saDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                   : null
                 return (
                   <Link
