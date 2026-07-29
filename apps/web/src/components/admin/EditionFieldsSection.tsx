@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle, type Ref } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { Trash2 } from 'lucide-react'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { PublisherPicker } from './pickers/PublisherPicker'
 import MultiImageUpload from './MultiImageUpload'
@@ -756,24 +757,27 @@ export function EditionFieldsSection({
           <label className={LBL}>Sale dates <span className="text-stone-600 font-normal normal-case tracking-normal">(date only, no time)</span></label>
           <div className="space-y-2">
             {saleDates.map((d, i) => (
-              <div key={i} className="flex gap-2 items-center">
+              <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <input
                   list="sale-date-label-presets"
-                  className={`${INP} flex-1`}
+                  className={`${INP} sm:flex-1`}
                   value={d.label}
                   placeholder="e.g. First Access, General Sale, Subscription Renewal Day"
                   onChange={e => onSaleDatesChange(prev => prev.map((row, j) => j === i ? { ...row, label: e.target.value } : row))}
                 />
-                <input
-                  type="date"
-                  className={INP}
-                  value={d.date}
-                  onChange={e => onSaleDatesChange(prev => prev.map((row, j) => j === i ? { ...row, date: e.target.value } : row))}
-                />
-                <button type="button" onClick={() => onSaleDatesChange(prev => prev.filter((_, j) => j !== i))}
-                  className="text-xs text-red-400 hover:text-red-300 px-2 py-2 rounded hover:bg-red-400/10 transition-colors flex-shrink-0">
-                  Remove
-                </button>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="date"
+                    className={`${INP} flex-1 sm:flex-none sm:w-auto`}
+                    value={d.date}
+                    onChange={e => onSaleDatesChange(prev => prev.map((row, j) => j === i ? { ...row, date: e.target.value } : row))}
+                  />
+                  <button type="button" onClick={() => onSaleDatesChange(prev => prev.filter((_, j) => j !== i))}
+                    aria-label="Remove sale date"
+                    className="p-2 rounded text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors flex-shrink-0">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             ))}
             <datalist id="sale-date-label-presets">
