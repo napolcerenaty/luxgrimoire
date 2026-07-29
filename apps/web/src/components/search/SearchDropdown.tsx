@@ -167,7 +167,7 @@ export function SearchDropdown() {
                   label: formatEditionDisplayTitle(e.book, e),
                   sub: [e.bookBoxCompany?.name, e.publisher].filter(Boolean).join(' · ') || null,
                   image: resolveEditionCoverUrl(e),
-                  badge: e.generalSaleDate && new Date(e.generalSaleDate) > new Date() ? 'Upcoming' : null,
+                  badge: e.resolvedSaleDate?.date && new Date(e.resolvedSaleDate.date) > new Date() ? 'Upcoming' : null,
                   href: `/editions/${e.slug}`,
                 }))}
                 onNavigate={navigate}

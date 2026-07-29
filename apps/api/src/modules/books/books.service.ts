@@ -4,6 +4,7 @@ import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { BookSeriesService } from '../book-series/book-series.service';
+import { EditionsService } from '../editions/editions.service';
 import {
   CreateBookDto,
   UpdateBookDto,
@@ -29,6 +30,7 @@ export class BooksService {
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly typesense: TypesenseService,
     private readonly bookSeriesService: BookSeriesService,
+    private readonly editionsService: EditionsService,
   ) {}
 
   async create(dto: CreateBookDto) {
@@ -417,13 +419,17 @@ export class BooksService {
       },
     });
 
+    const resolvedDates = await this.editionsService.resolveEditionSaleDates(editions.map((e) => e.id));
+
     return editions.map((e) => {
       const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
+      const resolved = resolvedDates.get(e.id) ?? null;
       return {
         ...rest,
         communityPhotoCover: (e.additionalImages as string[]).length === 0
           ? (communityImages?.[0]?.url ?? null)
           : null,
+        resolvedSaleDate: resolved ? { label: resolved.label, date: resolved.date } : null,
       };
     });
   }

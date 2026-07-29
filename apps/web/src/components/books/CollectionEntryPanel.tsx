@@ -95,6 +95,7 @@ interface CollectionEntry {
       id: string
       title: string
       generalSaleDate: string | null
+      tiers?: { name: string; date: string }[]
     }
   } | null
 }
@@ -1792,7 +1793,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               ? '📗 Original print'
               : entry.saleAnnouncementEdition
                 ? (() => {
-                    const saDate = entry.saleAnnouncementEdition.announcement.generalSaleDate
+                    const saDate = entry.saleAnnouncementEdition.announcement.tiers?.[0]?.date ?? entry.saleAnnouncementEdition.announcement.generalSaleDate
                     const sa = saDate ? new Date(saDate) : null
                     const dateStr = sa ? sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : null
                     return dateStr ? `🔁 Reprint · ${dateStr}` : `🔁 Reprint — ${entry.saleAnnouncementEdition.announcement.title}`

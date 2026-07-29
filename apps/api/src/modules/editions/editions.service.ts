@@ -329,10 +329,10 @@ export class EditionsService {
    * Returns null only when there is truly nothing to resolve from either source (callers fall
    * back to edition.createdAt, matching the previous generalSaleDate-null behavior).
    *
-   * Single-edition scoped — every current call site (linkEditionHistory, edition detail
-   * reads) resolves at most a handful of editions, not a list. A future list/grid view
-   * showing many editions' dates at once should batch across edition IDs instead of
-   * calling this in a loop, to avoid N+1 queries.
+   * Single-edition scoped — call sites resolving at most a handful of editions at once
+   * (linkEditionHistory, edition detail reads) use this. List/grid views resolving many
+   * editions at once (author page, series page, search) must use the batched
+   * resolveEditionSaleDates([...]) below instead, to avoid N+1 queries.
    */
   async resolveEditionSaleDate(editionId: string): Promise<{ label: string; date: Date } | null> {
     const [links, earliestManual] = await Promise.all([
@@ -368,6 +368,83 @@ export class EditionsService {
 
     if (candidates.length === 0) return null;
     return candidates.sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+  }
+
+  /**
+   * Batched version of resolveEditionSaleDate for list/grid views (author page, series page,
+   * search results, etc.) — same precedence (earliest of manual EditionSaleDate rows and linked
+   * announcements' default-region-aware earliest tier), but resolves an arbitrary number of
+   * editions with a constant number of queries instead of one round-trip per edition.
+   */
+  async resolveEditionSaleDates(editionIds: string[]): Promise<Map<string, { label: string; date: Date } | null>> {
+    const result = new Map<string, { label: string; date: Date } | null>();
+    if (editionIds.length === 0) return result;
+
+    const [links, manualDates] = await Promise.all([
+      this.prisma.saleAnnouncementEdition.findMany({
+        where: { editionId: { in: editionIds } },
+        select: { editionId: true, saleId: true },
+      }),
+      this.prisma.editionSaleDate.findMany({
+        where: { editionId: { in: editionIds } },
+        orderBy: { date: 'asc' },
+      }),
+    ]);
+
+    const earliestManualByEdition = new Map<string, { label: string; date: Date }>();
+    for (const d of manualDates) {
+      if (!earliestManualByEdition.has(d.editionId)) {
+        earliestManualByEdition.set(d.editionId, { label: d.label, date: d.date });
+      }
+    }
+
+    const saleIds = [...new Set(links.map((l) => l.saleId))];
+    const earliestTierBySale = new Map<string, { name: string; date: Date }>();
+    if (saleIds.length > 0) {
+      const [defaultRegions, allTiers] = await Promise.all([
+        this.prisma.saleAnnouncementRegion.findMany({
+          where: { saleId: { in: saleIds }, isDefault: true },
+          select: { id: true, saleId: true },
+        }),
+        this.prisma.saleTier.findMany({
+          where: { saleId: { in: saleIds } },
+          orderBy: { date: 'asc' },
+          select: { saleId: true, regionId: true, name: true, date: true },
+        }),
+      ]);
+      const defaultRegionIdBySale = new Map(defaultRegions.map((r) => [r.saleId, r.id]));
+      for (const saleId of saleIds) {
+        const defaultRegionId = defaultRegionIdBySale.get(saleId) ?? null;
+        const tiersForSale = allTiers.filter((t) => t.saleId === saleId);
+        const tier =
+          (defaultRegionId && tiersForSale.find((t) => t.regionId === defaultRegionId)) ||
+          tiersForSale.find((t) => t.regionId === null);
+        if (tier) earliestTierBySale.set(saleId, { name: tier.name, date: tier.date });
+      }
+    }
+
+    const saleIdsByEdition = new Map<string, string[]>();
+    for (const l of links) {
+      const arr = saleIdsByEdition.get(l.editionId) ?? [];
+      arr.push(l.saleId);
+      saleIdsByEdition.set(l.editionId, arr);
+    }
+
+    for (const editionId of editionIds) {
+      const candidates: { label: string; date: Date }[] = [];
+      const manual = earliestManualByEdition.get(editionId);
+      if (manual) candidates.push(manual);
+      for (const saleId of saleIdsByEdition.get(editionId) ?? []) {
+        const t = earliestTierBySale.get(saleId);
+        if (t) candidates.push({ label: t.name, date: t.date });
+      }
+      result.set(
+        editionId,
+        candidates.length === 0 ? null : candidates.sort((a, b) => a.date.getTime() - b.date.getTime())[0],
+      );
+    }
+
+    return result;
   }
 
   private async invalidateEditionCountCaches(companySlug: string, subscriptionId?: string | null, collectionId?: string | null) {

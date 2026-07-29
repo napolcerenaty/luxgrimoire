@@ -1,4 +1,5 @@
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
+import { getTiersForRegion } from './saleTiers'
 
 export interface TierDates {
   FA: string | null
@@ -91,15 +92,18 @@ export function formatTierDate(isoDate: string | null | undefined, hour12?: bool
 }
 
 /**
- * Returns true when the latest sale tier date (GS → EA → FA) is in the past.
+ * Returns true when the latest tier date for this region is in the past — the dynamic-tier
+ * successor to comparing GS/EA/FA. Falls back to the legacy fixed fields only for historical
+ * announcements that predate the tier system and were never backfilled.
  * Used to switch from "Interested?" to "Add to Collection".
  */
 export function isSalePast(
   sale: ApiSaleAnnouncement,
   regionId?: string | null,
 ): boolean {
+  const tiers = getTiersForRegion(sale.tiers, regionId ?? null)
   const { FA, EA, GS } = resolveSaleDates(sale, regionId)
-  const latest = GS ?? EA ?? FA
+  const latest = tiers.length > 0 ? tiers[tiers.length - 1].date : (GS ?? EA ?? FA)
   if (!latest) return false
   return Date.now() > new Date(latest).getTime()
 }
@@ -107,8 +111,9 @@ export function isOpenForPurchase(
   sale: ApiSaleAnnouncement,
   regionId?: string | null,
 ): boolean {
+  const tiers = getTiersForRegion(sale.tiers, regionId ?? null)
   const { FA, EA, GS } = resolveSaleDates(sale, regionId)
-  const earliest = FA ?? EA ?? GS
+  const earliest = tiers.length > 0 ? tiers[0].date : (FA ?? EA ?? GS)
   if (!earliest) return false
   return Date.now() >= new Date(earliest).getTime()
 }

@@ -461,6 +461,7 @@ export interface ApiSearchEdition {
   communityPhotoCover: string | null;
   publisher: string | null;
   generalSaleDate: string | null;
+  resolvedSaleDate?: { label: string; date: string } | null;
   variantLabel?: string | null;
   bookBoxCompany: { name: string; slug: string; logoUrl: string | null } | null;
   book: {
@@ -478,6 +479,7 @@ export interface ApiSearchSale {
   title: string;
   imageUrl: string | null;
   generalSaleDate: string | null;
+  tiers?: ApiSaleTier[];
   isBundle: boolean;
   availableForPurchase: boolean;
   company: { name: string; slug: string; logoUrl: string | null } | null;

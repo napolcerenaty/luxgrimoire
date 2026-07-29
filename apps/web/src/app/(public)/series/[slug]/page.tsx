@@ -21,6 +21,7 @@ interface RawEdition {
   bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null
   verifiedAt: string | null
   generalSaleDate: string | null
+  resolvedSaleDate?: { label: string; date: string } | null
   variantLabel?: string | null
 }
 
@@ -153,7 +154,7 @@ function SeriesBookSection({ book }: { book: RawBook }) {
               companySlug={edition.bookBoxCompany?.slug}
               companyBrandColors={edition.bookBoxCompany?.brandColors}
               unverified={!edition.verifiedAt}
-              generalSaleDate={edition.generalSaleDate}
+              generalSaleDate={edition.resolvedSaleDate?.date ?? null}
               variantLabel={edition.variantLabel}
             />
           ))}

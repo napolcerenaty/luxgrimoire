@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { TypesenseService } from '../typesense/typesense.service'
+import { EditionsService } from '../editions/editions.service'
 
 const LIMIT_PER_GROUP = 6
 
@@ -37,6 +38,7 @@ export class SearchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
+    private readonly editionsService: EditionsService,
   ) {}
 
   async search(q: string, filter = 'all') {
@@ -208,14 +210,18 @@ export class SearchService {
               isBundle: true,
               availableForPurchase: true,
               company: { select: { name: true, slug: true, logoUrl: true } },
+              tiers: { where: { regionId: null }, orderBy: { date: 'asc' as const }, take: 1, select: { name: true, date: true } },
             },
           })
         : [],
     ])
 
+    const resolvedEditionDates = await this.editionsService.resolveEditionSaleDates(editions.map((e) => e.id))
+
     return { books, editions: editions.map((e: any) => {
       const { communityImages, ...rest } = e;
-      return { ...rest, communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null };
+      const resolved = resolvedEditionDates.get(e.id) ?? null;
+      return { ...rest, communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null, resolvedSaleDate: resolved ? { label: resolved.label, date: resolved.date } : null };
     }), authors, artists, subscriptions: subscriptions.map((s: any) => {
       const { intervalMonths, ...rest } = s;
       return { ...rest, type: formatSearchInterval(intervalMonths ?? 1) };
@@ -356,6 +362,7 @@ export class SearchService {
               isBundle: true,
               availableForPurchase: true,
               company: { select: { name: true, slug: true, logoUrl: true } },
+              tiers: { where: { regionId: null }, orderBy: { date: 'asc' as const }, take: 1, select: { name: true, date: true } },
             },
             orderBy: { generalSaleDate: 'desc' as const },
             take,
@@ -363,9 +370,12 @@ export class SearchService {
         : [],
     ])
 
+    const resolvedEditionDates = await this.editionsService.resolveEditionSaleDates((editions as any[]).map((e) => e.id))
+
     return { books, editions: (editions as any[]).map((e) => {
       const { communityImages, ...rest } = e;
-      return { ...rest, communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null };
+      const resolved = resolvedEditionDates.get(e.id) ?? null;
+      return { ...rest, communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null, resolvedSaleDate: resolved ? { label: resolved.label, date: resolved.date } : null };
     }), authors, artists, subscriptions: (subscriptions as any[]).map((s) => {
       const { intervalMonths, ...rest } = s;
       return { ...rest, type: formatSearchInterval(intervalMonths ?? 1) };

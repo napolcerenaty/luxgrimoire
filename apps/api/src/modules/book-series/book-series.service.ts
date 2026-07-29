@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { BookSeriesQueryDto, CreateBookSeriesDto, UpdateBookSeriesDto } from './book-series.dto';
+import { EditionsService } from '../editions/editions.service';
 
 /** Postgres compares Float[] columns element-by-element (lexicographic); Prisma can't
  * express `orderBy` on a scalar list field, so the same comparison is replicated here
@@ -38,7 +39,10 @@ function normalizeSeriesName(name: string): string {
 
 @Injectable()
 export class BookSeriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly editionsService: EditionsService,
+  ) {}
 
   async findAll(query: BookSeriesQueryDto) {
     const { skip, take: pageSize, page } = parsePagination(query);
@@ -146,6 +150,9 @@ export class BookSeriesService {
       },
     });
 
+    const allEditionIds = entries.flatMap((entry) => entry.book.editions.map((e) => e.id));
+    const resolvedDates = await this.editionsService.resolveEditionSaleDates(allEditionIds);
+
     const mapped = entries
       .map(({ book, volumeNumbers, isPrimary }) => ({
         ...book,
@@ -153,11 +160,13 @@ export class BookSeriesService {
         isPrimarySeries: isPrimary,
         editions: (book.editions as Array<{ id: string; slug: string; additionalImages: string[]; verifiedAt: Date | null; generalSaleDate: string | null; variantLabel: string | null; bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null; communityImages?: Array<{ url: string }> }>).map((e) => {
           const { communityImages, ...rest } = e;
+          const resolved = resolvedDates.get(e.id) ?? null;
           return {
             ...rest,
             communityPhotoCover: e.additionalImages.length === 0
               ? (communityImages?.[0]?.url ?? null)
               : null,
+            resolvedSaleDate: resolved ? { label: resolved.label, date: resolved.date } : null,
           };
         }),
       }));
