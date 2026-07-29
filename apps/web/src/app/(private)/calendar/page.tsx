@@ -153,16 +153,22 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
     if (year < subStartYear || (year === subStartYear && month0 < subStartMonth0)) return null
   }
 
+  const offset = sub.renewalMonthOffset ?? 0
+
   const interval = sub.intervalMonths ?? 1
   if (interval > 1) {
     const step = interval
-    const startMonthIdx = ((sub.startingMonth ?? 1) - 1) % step
+    // startingMonth is always a box (content) month — shift it back by the offset to get
+    // the actual renewal-month alignment before computing the step cycle. Mirrors the
+    // backend's getRenewalAlignmentBaseMonth (renewal-date.util.ts); missing this shift
+    // showed the renewal pill in the box month instead of the real (offset) billing month.
+    const alignBase = (((sub.startingMonth ?? 1) - offset - 1 + 1200) % 12) + 1
+    const startMonthIdx = (alignBase - 1) % step
     if (((month0 - startMonthIdx) % step + step) % step !== 0) return null
   }
 
   // A renewal in calendar month (year, month0) pays for box month = renewal month + offset.
   // If that box month is skipped, no renewal fires for this calendar month.
-  const offset = sub.renewalMonthOffset ?? 0
   if (offset !== 0 || (entry.skipRecords?.length ?? 0) > 0) {
     const rawBox = month0 + 1 + offset  // 1-indexed, may exceed 12
     const boxYear = year + Math.floor((rawBox - 1) / 12)
