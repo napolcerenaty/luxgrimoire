@@ -456,8 +456,8 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 )}
                 {edition.resolvedSaleDate && (
                   <>
-                    <dt className="text-stone-500">{edition.resolvedSaleDate.label}</dt>
-                    <dd className="text-stone-200">{formatDate(edition.resolvedSaleDate.date)}</dd>
+                    <dt className="text-stone-500">Available from</dt>
+                    <dd className="text-stone-200">{formatDate(edition.resolvedSaleDate.date)} ({edition.resolvedSaleDate.label})</dd>
                   </>
                 )}
                 {/* Subscription info */}
