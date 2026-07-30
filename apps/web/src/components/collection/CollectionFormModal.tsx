@@ -300,40 +300,52 @@ export function CollectionFormModal({
             <div className="space-y-2">
               {feeEntries.map(fee => (
                 <div key={fee.key} className="flex flex-col gap-2 border border-stone-800 rounded-xl p-2">
-                  <div className="flex gap-2">
-                    <select value={fee.templateId}
-                      onChange={e => {
-                        const tpl = feeTemplates.find(t => t.id === e.target.value)
-                        setFeeEntries(prev => prev.map(f => f.key === fee.key ? {
-                          ...f, templateId: e.target.value,
-                          amount: tpl?.defaultAmount != null ? String(tpl.defaultAmount) : f.amount,
-                          currency: tpl?.defaultCurrency ?? f.currency,
-                        } : f))
-                      }}
-                      className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors">
-                      <option value="">— Custom (no template) —</option>
+                  {/* Fee template pills — same pattern as the collection entry's Edit Costs panel */}
+                  {feeTemplates.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
                       {feeTemplates.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}{t.category ? ` (${t.category})` : ''}</option>
+                        <button key={t.id} type="button"
+                          onClick={() => setFeeEntries(prev => prev.map(f => f.key === fee.key ? {
+                            ...f, templateId: t.id, name: t.name,
+                            amount: t.defaultAmount != null ? String(t.defaultAmount) : f.amount,
+                            currency: t.defaultCurrency ?? f.currency,
+                            category: t.category ?? f.category,
+                          } : f))}
+                          className={`px-2 py-0.5 rounded text-xs border transition-colors ${fee.templateId === t.id ? 'border-amber-500/60 text-amber-400' : 'border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400'}`}
+                        >
+                          {t.name}
+                        </button>
                       ))}
-                    </select>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    {fee.templateId ? (
+                      <div className="flex-1 min-w-0 flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-xl border border-stone-700 text-stone-300">
+                        <span className="flex-1 truncate">{fee.name}</span>
+                        <span className="text-stone-500 shrink-0">{FEE_CATEGORIES.find(c => c.value === fee.category)?.label ?? fee.category}</span>
+                        <button type="button" onClick={() => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, templateId: '', name: '', category: 'OTHER' } : f))}
+                          className="text-stone-500 hover:text-red-400 transition-colors shrink-0">
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <input type="text" value={fee.name}
+                          onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, name: e.target.value } : f))}
+                          placeholder="Fee name"
+                          className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors" />
+                        <select value={fee.category}
+                          onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, category: e.target.value } : f))}
+                          className="w-32 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors">
+                          {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                        </select>
+                      </>
+                    )}
                     <button type="button" onClick={() => setFeeEntries(prev => prev.filter(f => f.key !== fee.key))}
                       className="p-2 text-stone-500 hover:text-red-400 transition-colors shrink-0">
                       <X size={14} />
                     </button>
                   </div>
-                  {!fee.templateId && (
-                    <div className="flex gap-2">
-                      <input type="text" value={fee.name}
-                        onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, name: e.target.value } : f))}
-                        placeholder="Fee name"
-                        className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors" />
-                      <select value={fee.category}
-                        onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, category: e.target.value } : f))}
-                        className="w-32 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors">
-                        {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                      </select>
-                    </div>
-                  )}
                   <div className="flex gap-2">
                     <input type="text" value={fee.amount}
                       onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, amount: e.target.value } : f))}
