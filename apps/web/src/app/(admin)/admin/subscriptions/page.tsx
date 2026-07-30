@@ -12,6 +12,7 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import ImageUpload from '@/components/admin/ImageUpload'
 import { GenreTagsPicker } from '@/components/admin/pickers/GenreTagsPicker'
 import { Pagination } from '@/components/admin/Pagination'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 
 const INPUT_CLASS =
   'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
@@ -589,7 +590,13 @@ function SubscriptionForm({
   ).filter((s) => !form.componentIds.includes(s.id) && !s.isContentStream)
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit(form) }} className="space-y-6">
+    <form onSubmit={(e) => {
+      e.preventDefault()
+      if (form.startDate && !isValidCalendarDate(form.startDate)) return alert('Start Date is not a valid date')
+      if (form.endDate && !isValidCalendarDate(form.endDate)) return alert('End Date is not a valid date')
+      if (form.settingsEffectiveFrom && !isValidCalendarDate(form.settingsEffectiveFrom)) return alert('Settings Effective From is not a valid date')
+      onSubmit(form)
+    }} className="space-y-6">
 
       {/* ── 2-column main grid — only at xl+ so fields aren't cramped ── */}
       <div className="grid xl:grid-cols-2 gap-x-8 gap-y-4">
@@ -987,8 +994,12 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
 
   const handleEditSave = async (r: SettingsHistoryRecord) => {
     if (!editState) return
-    setSaving(true)
     const isSentinel = isInitialSentinel(r.effectiveFrom)
+    if (!isSentinel && !isValidCalendarDate(editState.effectiveFrom)) {
+      alert('Effective From is not a valid date')
+      return
+    }
+    setSaving(true)
     try {
       const body: Record<string, unknown> = {
         notes: editState.notes || undefined,
@@ -1224,6 +1235,12 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
   const [editForm, setEditForm] = useState({ months: '', price: '', currency: '', label: '', validFrom: '', validUntil: '' })
   const [adding, setAdding] = useState(false)
 
+  const validDates = (validFrom: string, validUntil: string): boolean => {
+    if (validFrom && !isValidCalendarDate(validFrom)) { alert('Valid From is not a valid date'); return false }
+    if (validUntil && !isValidCalendarDate(validUntil)) { alert('Valid Until is not a valid date'); return false }
+    return true
+  }
+
   const { data: options = [], isLoading } = useQuery<PrepayOption[]>({
     queryKey: ['prepay-options', slug],
     queryFn: () => authFetch<PrepayOption[]>(`/subscriptions/${slug}/prepay-options`),
@@ -1350,7 +1367,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
             </div>
             <div className="flex gap-2 mt-4">
               <button type="button" disabled={updateMutation.isPending}
-                onClick={() => updateMutation.mutate(o.id)}
+                onClick={() => { if (validDates(editForm.validFrom, editForm.validUntil)) updateMutation.mutate(o.id) }}
                 className="text-xs bg-amber-400 text-stone-950 px-3 py-1.5 rounded hover:bg-amber-300 disabled:opacity-50">
                 {updateMutation.isPending ? 'Saving…' : 'Save'}
               </button>
@@ -1421,7 +1438,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
           </div>
           <div className="flex gap-2 mt-4">
             <button type="button" disabled={createMutation.isPending || !newForm.months || !newForm.price}
-              onClick={() => createMutation.mutate()}
+              onClick={() => { if (validDates(newForm.validFrom, newForm.validUntil)) createMutation.mutate() }}
               className="text-xs bg-amber-400 text-stone-950 px-3 py-1.5 rounded hover:bg-amber-300 disabled:opacity-50">
               {createMutation.isPending ? 'Adding…' : 'Add'}
             </button>

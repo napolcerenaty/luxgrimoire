@@ -11,6 +11,7 @@ import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { GoodreadsParser, SeriesEntriesEditor, seriesEntriesToPayload, StagedComponentsEditor, type AiBookResult, type SeriesEntryFormState, type StagedComponent } from './BookForm'
 import { INP, LBL, BTN_PRIMARY, BTN_GHOST } from '@/lib/adminFormStyles'
 import { computeGeneralSaleDatePrefill } from '@/lib/generalSalePrefill'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const ISO_TO_LANGUAGE: Record<string, string> = {
@@ -310,6 +311,8 @@ export default function CreateBookEditionForm({
 
   // ── Step 2 submit ────────────────────────────────────────────────────────
   const handleStep2 = async (forceBypass?: boolean) => {
+    const badSaleDate = saleDates.find(d => d.label && d.date && !isValidCalendarDate(d.date))
+    if (badSaleDate) return alert(`Sale date "${badSaleDate.label}" is not a valid date`)
     setBusy(true)
     const shouldBypass = forceBypass ?? bypassDuplicate
     // Only clear the duplicate warning when we're re-checking (not bypassing).

@@ -8,6 +8,7 @@ import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type Editio
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const BTN_DANGER = 'px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/50 text-red-300 hover:bg-red-800/50 transition-colors'
@@ -333,6 +334,8 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   }
 
   const handleSubmit = async () => {
+    const badSaleDate = saleDates.find(d => d.label && d.date && !isValidCalendarDate(d.date))
+    if (badSaleDate) return alert(`Sale date "${badSaleDate.label}" is not a valid date`)
     setBusy(true)
     try {
       // 0. Flush staged feature-tag changes (add/edit/delete/pending)

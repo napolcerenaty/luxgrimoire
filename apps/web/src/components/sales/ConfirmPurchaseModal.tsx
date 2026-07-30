@@ -7,6 +7,7 @@ import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 
 interface Props {
   sale: ApiSaleAnnouncement
@@ -27,6 +28,7 @@ export function ConfirmPurchaseModal({ sale, onClose, onSuccess }: Props) {
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dateInvalid, setDateInvalid] = useState(false)
 
   const toggleEdition = (id: string) => {
     setSelectedEditionIds(prev =>
@@ -34,9 +36,12 @@ export function ConfirmPurchaseModal({ sale, onClose, onSuccess }: Props) {
     )
   }
 
+  const handlePurchasedAtChange = (v: string) => { setPurchasedAt(v); if (dateInvalid) { setDateInvalid(false); setError(null) } }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedEditionIds.length === 0) { setError('Select at least one edition'); return }
+    if (!isValidCalendarDate(purchasedAt)) { setDateInvalid(true); setError('Enter a valid purchase date'); return }
     if (!totalAmount || parseDecimalInput(totalAmount) <= 0) { setError('Enter a valid total amount'); return }
 
     setLoading(true)
@@ -127,8 +132,8 @@ export function ConfirmPurchaseModal({ sale, onClose, onSuccess }: Props) {
               <input
                 type="date"
                 value={purchasedAt}
-                onChange={e => setPurchasedAt(e.target.value)}
-                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-violet-500"
+                onChange={e => handlePurchasedAtChange(e.target.value)}
+                className={`w-full bg-stone-800 border rounded-lg px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-violet-500 ${dateInvalid ? 'border-red-500/70' : 'border-stone-700'}`}
               />
             </div>
             <div>
