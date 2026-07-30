@@ -23,13 +23,21 @@ export function resolveInterestDate(interest: { saleTier?: { date: string } | nu
   return interest.saleTier?.date ?? null
 }
 
-/** Earliest tier date across the sale's own default tier set (regionId: null) — used for
- *  card/badge displays (homepage carousels, company lists) that previously read the single
- *  fixed generalSaleDate column. Falls back to the legacy generalSaleDate for historical
- *  announcements that haven't been backfilled with tiers (shouldn't happen post-migration,
- *  but keeps old cached/SSR data from going blank). */
-export function getEarliestTierDate(sale: { tiers?: ApiSaleTier[]; generalSaleDate?: string | null }): string | null {
-  const defaultTiers = (sale.tiers ?? []).filter(t => t.regionId === null)
-  if (defaultTiers.length === 0) return sale.generalSaleDate ?? null
-  return defaultTiers.reduce((earliest, t) => (!earliest || t.date < earliest ? t.date : earliest), null as string | null)
+/** Earliest tier date for card/badge displays (homepage carousels, company lists, search results)
+ *  that previously read the single fixed generalSaleDate column. Same "default region if flagged,
+ *  else the announcement's own regionId:null tier set" precedence as getTiersForRegion/the backend
+ *  resolveEditionSaleDate — a sale with tiers only on its regions (no top-level default set, e.g.
+ *  every region has its own distinct dates) still resolves correctly instead of coming back empty.
+ *  Falls back to the legacy generalSaleDate for historical announcements that haven't been
+ *  backfilled with tiers (shouldn't happen post-migration, but keeps old cached/SSR data from
+ *  going blank). */
+export function getEarliestTierDate(sale: {
+  tiers?: ApiSaleTier[]
+  generalSaleDate?: string | null
+  regions?: { id: string; isDefault: boolean }[]
+}): string | null {
+  const defaultRegionId = sale.regions?.find(r => r.isDefault)?.id ?? null
+  const tiers = getTiersForRegion(sale.tiers, defaultRegionId)
+  if (tiers.length === 0) return sale.generalSaleDate ?? null
+  return tiers[0]!.date
 }

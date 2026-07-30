@@ -480,6 +480,7 @@ export interface ApiSearchSale {
   imageUrl: string | null;
   generalSaleDate: string | null;
   tiers?: ApiSaleTier[];
+  regions?: { id: string; isDefault: boolean }[];
   isBundle: boolean;
   availableForPurchase: boolean;
   company: { name: string; slug: string; logoUrl: string | null } | null;
@@ -763,6 +764,7 @@ export interface ApiTrendingSaleAnnouncement {
   company?: { name: string; slug?: string | null; brandColors?: string[] } | null;
   editions?: ApiSaleAnnouncement['editions'];
   tiers?: ApiSaleTier[];
+  regions?: { id: string; isDefault: boolean }[];
   interestCount: number;
 }
 

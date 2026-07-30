@@ -210,7 +210,12 @@ export class SearchService {
               isBundle: true,
               availableForPurchase: true,
               company: { select: { name: true, slug: true, logoUrl: true } },
-              tiers: { where: { regionId: null }, orderBy: { date: 'asc' as const }, take: 1, select: { name: true, date: true } },
+              // Selects every tier (not just regionId: null) plus each region's isDefault flag so
+              // getEarliestTierDate can resolve client-side via the default region, the same
+              // fallback resolveEditionSaleDate uses server-side — a sale with tiers only on its
+              // regions (no top-level default set) still resolves instead of coming back empty.
+              tiers: { orderBy: { date: 'asc' as const }, select: { name: true, date: true, regionId: true } },
+              regions: { select: { id: true, isDefault: true } },
             },
           })
         : [],
@@ -362,7 +367,12 @@ export class SearchService {
               isBundle: true,
               availableForPurchase: true,
               company: { select: { name: true, slug: true, logoUrl: true } },
-              tiers: { where: { regionId: null }, orderBy: { date: 'asc' as const }, take: 1, select: { name: true, date: true } },
+              // Selects every tier (not just regionId: null) plus each region's isDefault flag so
+              // getEarliestTierDate can resolve client-side via the default region, the same
+              // fallback resolveEditionSaleDate uses server-side — a sale with tiers only on its
+              // regions (no top-level default set) still resolves instead of coming back empty.
+              tiers: { orderBy: { date: 'asc' as const }, select: { name: true, date: true, regionId: true } },
+              regions: { select: { id: true, isDefault: true } },
             },
             orderBy: { generalSaleDate: 'desc' as const },
             take,

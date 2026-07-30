@@ -412,6 +412,7 @@ export class AnnouncementsService {
       include: {
         editions: editionsInclude,
         tiers: { orderBy: { date: 'asc' as const } },
+        regions: { select: { id: true, isDefault: true } },
         company: { select: { name: true, slug: true, brandColors: true } },
       },
     });
