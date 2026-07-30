@@ -37,9 +37,15 @@ interface Props {
   subscriberBasePrice?: number | null
   currency?: string | null
   compact?: boolean
+  /** When set, clicking registers/removes interest directly against this tier instead of opening
+   *  the region/tier picker dropdown — for use where a region/tier selector already exists on the
+   *  page (SaleAnnouncementContent), so the admin/user isn't asked to pick the same thing twice.
+   *  The picker dropdown stays the default behavior everywhere else (e.g. the bell icon on a card
+   *  in a list, which has no selector of its own). */
+  directTier?: ApiSaleTier | null
 }
 
-export function SaleInterestButton({ sale, subscriberBasePrice, currency, compact = false }: Props) {
+export function SaleInterestButton({ sale, subscriberBasePrice, currency, compact = false, directTier }: Props) {
   const { user } = useAuth()
   const router = useRouter()
   const hour12 = user?.timeFormat === '12h'
@@ -118,6 +124,11 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
       router.push(`/login?returnTo=${returnTo}`)
       return
     }
+    if (directTier) {
+      if (isInterested) removeInterest()
+      else pickTier(directTier)
+      return
+    }
     if (onlyOneTier && !hasRegions && !hasSubscriberPrice) {
       const onlyTier = availableTiers[0]
       if (isInterested) removeInterest()
@@ -144,9 +155,13 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
   }
 
   const pickTier = async (t: ApiSaleTier) => {
+    // Resolve price from the tier's own region rather than the button's independently-tracked
+    // effectiveRegion — matters for directTier, whose region may differ from whatever this
+    // button's own (unrelated) region picker last resolved to.
+    const tierRegion = regions.find(r => r.id === t.regionId) ?? effectiveRegion
     // Save actual price: subscriber price when subscriber mode, base price when regular
     // null means "never set" — using actual regular price lets SaleInterestSection distinguish the two
-    const regularPrice = (effectiveRegion as typeof effectiveRegion & { basePrice?: number | null })?.basePrice ?? sale.basePrice
+    const regularPrice = (tierRegion as typeof effectiveRegion & { basePrice?: number | null })?.basePrice ?? sale.basePrice
     const price = hasSubscriberPrice
       ? (priceMode === 'subscriber' ? effectiveSubscriberPrice : (regularPrice ?? null))
       : null
@@ -212,7 +227,9 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
         ref={btnRef}
         type="button"
         onClick={handleClick}
-        title={isInterested ? `Interested (${tierName}) — click to change` : 'Mark as interested'}
+        title={isInterested
+          ? (directTier ? `Interested (${tierName}) — click to remove` : `Interested (${tierName}) — click to change`)
+          : 'Mark as interested'}
         className={`
           flex items-center gap-1.5 rounded-full transition-all duration-150
           ${compact ? 'p-1.5' : 'px-3 py-1.5 text-xs font-medium'}

@@ -16,6 +16,10 @@ interface Props {
     currency: string | null
   }
   userCountry?: string | null
+  /** Notifies the parent of the currently-resolved tier whenever region/tier selection changes,
+   *  so "Interested?" can register directly against it instead of asking the user to pick again
+   *  in its own dropdown. */
+  onSelectionChange?: (tier: ApiSaleTier | null) => void
 }
 
 function findRegion(regions: Region[], countryCode: string | null | undefined, currency?: string | null): Region | null {
@@ -81,7 +85,7 @@ function Countdown({ ms }: { ms: number | null }) {
   )
 }
 
-export default function SaleDateSelector({ regions, tiers, fallback, userCountry }: Props) {
+export default function SaleDateSelector({ regions, tiers, fallback, userCountry, onSelectionChange }: Props) {
   const { user } = useAuth()
   const hour12 = user?.timeFormat === '12h'
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
@@ -114,6 +118,11 @@ export default function SaleDateSelector({ regions, tiers, fallback, userCountry
   useEffect(() => {
     setSelectedTierId(null)
   }, [effectiveRegionId])
+
+  useEffect(() => {
+    onSelectionChange?.(selectedTier)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTier?.id])
 
   const targetDate = selectedTier?.date ?? null
   const countdown = useCountdown(targetDate)

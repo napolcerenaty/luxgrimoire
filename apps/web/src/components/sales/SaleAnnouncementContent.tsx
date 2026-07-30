@@ -1,8 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
-import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
+import type { ApiSaleAnnouncement, ApiSaleTier } from '@luxgrimoire/shared-types'
 import SaleDateSelector from '@/app/(public)/sale-announcements/[id]/SaleDateSelector'
 import { SaleInterestSection } from '@/app/(public)/sale-announcements/[id]/SaleInterestSection'
 import { SaleEditionsGrid } from '@/components/sales/SaleEditionsGrid'
@@ -32,6 +33,11 @@ interface Props {
 
 export function SaleAnnouncementContent({ sale, compact = false, showPageLink = false, onLinkClick }: Props) {
   const editions = sale.editions ?? []
+  // The tier currently selected in SaleDateSelector below — passed to SaleInterestSection so
+  // "Interested?" registers directly against it instead of opening its own region/tier picker
+  // (that picker only makes sense when there's no on-page selector already, e.g. the bell icon
+  // on a card in a list).
+  const [selectedTier, setSelectedTier] = useState<ApiSaleTier | null>(null)
 
   const heading = compact
     ? <h2 className="text-lg sm:text-xl font-serif font-bold text-stone-100 leading-tight mb-2 pr-6">{sale.title}</h2>
@@ -146,11 +152,12 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
             currency: sale.currency,
           }}
           userCountry={null}
+          onSelectionChange={setSelectedTier}
         />
       </div>
 
       {/* Interest / add to collection */}
-      <SaleInterestSection sale={sale} compact={compact} />
+      <SaleInterestSection sale={sale} compact={compact} directTier={selectedTier} />
 
       {/* Editions */}
       {editions.length > 0 && (
