@@ -18,3 +18,15 @@ export function isValidCalendarDate(dateStr: string | null | undefined): boolean
   const d = new Date(year, month - 1, day)
   return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day
 }
+
+/**
+ * Same check as isValidCalendarDate, but for the "YYYY-MM-DDTHH:mm" format native
+ * <input type="datetime-local"> commits (used for sale-tier dates, "ends at" fields, etc.).
+ * Only the date portion needs the calendar-validity check — any HH:mm the input produces
+ * is already a real time.
+ */
+export function isValidCalendarDateTime(dateTimeStr: string | null | undefined): boolean {
+  if (!dateTimeStr) return false
+  const datePart = dateTimeStr.split('T')[0]
+  return isValidCalendarDate(datePart)
+}

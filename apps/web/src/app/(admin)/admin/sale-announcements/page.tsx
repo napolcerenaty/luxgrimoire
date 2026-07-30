@@ -38,10 +38,13 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { getEarliestTierDate } from '@/lib/saleTiers'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
+import { isValidCalendarDateTime } from '@/lib/dateValidation'
 import { Sparkles, Trash2 } from 'lucide-react'
 import { CURRENCIES } from '@/lib/currencies'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+/** Swaps the border color of an INP-based class string to flag an invalid field. */
+const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
 const LBL = 'block text-sm text-stone-400 mb-1'
 
 // UTC offsets in minutes for each timezone abbreviation
@@ -858,9 +861,12 @@ function formToData(f: FormState): SaleAnnouncementFormData {
 // state (no API calls) until the announcement itself is created, at which point the parent
 // creates each of these via the tier/region endpoints. Lets an admin (or the AI parser) fill
 // tiers in right away instead of saving first and reopening the entry to add them.
-function LocalTierRowsEditor({ tiers, onChange }: {
+function LocalTierRowsEditor({ tiers, onChange, invalidIndices }: {
   tiers: LocalTierEntry[]
   onChange: (fn: (prev: LocalTierEntry[]) => LocalTierEntry[]) => void
+  /** Row indices whose date failed validation on the last submit attempt — flagged red
+   *  until that row's date is edited again. */
+  invalidIndices?: Set<number>
 }) {
   return (
     <div className="space-y-2">
@@ -875,7 +881,7 @@ function LocalTierRowsEditor({ tiers, onChange }: {
           <div className="flex gap-2 items-center">
             <input
               type="datetime-local"
-              className={`${INP} flex-1 sm:flex-none sm:w-auto`}
+              className={inpErr(`${INP} flex-1 sm:flex-none sm:w-auto`, invalidIndices?.has(i) ?? false)}
               value={t.date}
               onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, date: e.target.value } : row))}
             />
@@ -895,11 +901,15 @@ function LocalTierRowsEditor({ tiers, onChange }: {
   )
 }
 
-function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone }: {
+function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone, invalidEndsAt, invalidTiers }: {
   regions: LocalRegionEntry[]
   onChange: (fn: (prev: LocalRegionEntry[]) => LocalRegionEntry[]) => void
   defaultTiers: LocalTierEntry[]
   defaultTimezone: string
+  /** Region indices whose "ends at" failed validation on the last submit attempt. */
+  invalidEndsAt?: Set<number>
+  /** Region index → tier row indices whose date failed validation on the last submit attempt. */
+  invalidTiers?: Map<number, Set<number>>
 }) {
   return (
     <div className="space-y-3">
@@ -947,7 +957,7 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone }
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-xs text-stone-400 mb-1">Ends At <span className="text-stone-600">(optional)</span></label>
-              <input type="datetime-local" className={INP} value={r.endsAt}
+              <input type="datetime-local" className={inpErr(INP, invalidEndsAt?.has(i) ?? false)} value={r.endsAt}
                 onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, endsAt: e.target.value } : row))} />
             </div>
             <div>
@@ -982,6 +992,7 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone }
             <LocalTierRowsEditor
               tiers={r.tiers}
               onChange={fn => onChange(prev => prev.map((row, j) => j === i ? { ...row, tiers: fn(row.tiers) } : row))}
+              invalidIndices={invalidTiers?.get(i)}
             />
           </div>
         </div>
@@ -1010,10 +1021,58 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
   isCreate?: boolean
 }) {
   const [form, setForm] = useState<FormState>(initial)
-  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(f => ({ ...f, [key]: e.target.value }))
+    if (key === 'endsAt' && endsAtInvalid) { setEndsAtInvalid(false); setFormError(null) }
+  }
   const setCheck = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [key]: e.target.checked }))
+
+  const [formError, setFormError] = useState<string | null>(null)
+  const [endsAtInvalid, setEndsAtInvalid] = useState(false)
+  const [invalidTierIndices, setInvalidTierIndices] = useState<Set<number>>(new Set())
+  const [invalidRegionEndsAt, setInvalidRegionEndsAt] = useState<Set<number>>(new Set())
+  const [invalidRegionTiers, setInvalidRegionTiers] = useState<Map<number, Set<number>>>(new Map())
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const nextEndsAtInvalid = Boolean(form.endsAt) && !isValidCalendarDateTime(form.endsAt)
+    const nextInvalidTierIndices = new Set(
+      form.tiers
+        .map((t, i) => ({ t, i }))
+        .filter(({ t }) => t.name.trim() || t.date)
+        .filter(({ t }) => !isValidCalendarDateTime(t.date))
+        .map(({ i }) => i),
+    )
+    const nextInvalidRegionEndsAt = new Set(
+      form.regions.map((r, i) => ({ r, i })).filter(({ r }) => r.endsAt && !isValidCalendarDateTime(r.endsAt)).map(({ i }) => i),
+    )
+    const nextInvalidRegionTiers = new Map<number, Set<number>>()
+    form.regions.forEach((r, ri) => {
+      const bad = new Set(
+        r.tiers
+          .map((t, i) => ({ t, i }))
+          .filter(({ t }) => t.name.trim() || t.date)
+          .filter(({ t }) => !isValidCalendarDateTime(t.date))
+          .map(({ i }) => i),
+      )
+      if (bad.size > 0) nextInvalidRegionTiers.set(ri, bad)
+    })
+
+    setEndsAtInvalid(nextEndsAtInvalid)
+    setInvalidTierIndices(nextInvalidTierIndices)
+    setInvalidRegionEndsAt(nextInvalidRegionEndsAt)
+    setInvalidRegionTiers(nextInvalidRegionTiers)
+
+    if (nextEndsAtInvalid) { setFormError('Enter a valid "Ends At" date & time.'); return }
+    if (nextInvalidTierIndices.size > 0) { setFormError('One or more sale tiers has an invalid date & time.'); return }
+    if (nextInvalidRegionEndsAt.size > 0) { setFormError('One or more regions has an invalid "Ends At" date & time.'); return }
+    if (nextInvalidRegionTiers.size > 0) { setFormError('One or more region tiers has an invalid date & time.'); return }
+    setFormError(null)
+
+    onSubmit(form)
+  }
 
   const { data: companiesResp } = useQuery({
     queryKey: ['admin', 'companies'],
@@ -1025,7 +1084,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
   const companyOptions = allCompanies.map(c => ({ value: c.id, label: c.name }))
 
   return (
-    <form onSubmit={e => { e.preventDefault(); onSubmit(form) }} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
       {/* Title */}
       <div>
@@ -1063,7 +1122,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
       {isCreate && (
         <div>
           <label className={LBL}>Sale Tiers <span className="text-stone-600 font-normal normal-case tracking-normal">(First Access, VIP, General Sale, etc. — created right after this sale saves)</span></label>
-          <LocalTierRowsEditor tiers={form.tiers} onChange={fn => setForm(f => ({ ...f, tiers: fn(f.tiers) }))} />
+          <LocalTierRowsEditor tiers={form.tiers} onChange={fn => setForm(f => ({ ...f, tiers: fn(f.tiers) }))} invalidIndices={invalidTierIndices} />
         </div>
       )}
 
@@ -1071,7 +1130,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
         <div>
           <label className={LBL}>Ends At <span className="text-stone-600 font-normal">(optional)</span></label>
-          <input type="datetime-local" className={INP} value={form.endsAt} onChange={set('endsAt')} />
+          <input type="datetime-local" className={inpErr(INP, endsAtInvalid)} value={form.endsAt} onChange={set('endsAt')} />
         </div>
         <div className="sm:col-span-2 md:col-span-2">
           <label className={LBL}>Timezone</label>
@@ -1110,6 +1169,8 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
             onChange={fn => setForm(f => ({ ...f, regions: fn(f.regions) }))}
             defaultTiers={form.tiers}
             defaultTimezone={form.saleTimezone}
+            invalidEndsAt={invalidRegionEndsAt}
+            invalidTiers={invalidRegionTiers}
           />
         </div>
       )}
@@ -1166,6 +1227,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
         <p className="mt-1 text-xs text-stone-600">Link: <code className="text-stone-500">{`<a href="URL" target="_blank">text</a>`}</code></p>
       </div>
 
+      {formError && <p className="text-xs text-red-400">{formError}</p>}
       <button type="submit" disabled={submitting}
         className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors">
         {submitting ? 'Saving…' : submitLabel}
@@ -1245,6 +1307,10 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
   const [editingTierId, setEditingTierId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editDate, setEditDate] = useState('')
+  const [newTierError, setNewTierError] = useState<string | null>(null)
+  const [newTierErrorField, setNewTierErrorField] = useState<'name' | 'date' | null>(null)
+  const [editTierError, setEditTierError] = useState<string | null>(null)
+  const [editTierErrorField, setEditTierErrorField] = useState<'name' | 'date' | null>(null)
 
   const sorted = [...tiers].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
@@ -1272,6 +1338,22 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
     setEditingTierId(t.id)
     setEditName(t.name)
     setEditDate(utcIsoToTzLocal(t.date, saleTimezone))
+    setEditTierError(null)
+    setEditTierErrorField(null)
+  }
+
+  const submitNewTier = () => {
+    if (!newName.trim()) { setNewTierError('Tier name is required.'); setNewTierErrorField('name'); return }
+    if (!isValidCalendarDateTime(newDate)) { setNewTierError('Enter a valid date & time.'); setNewTierErrorField('date'); return }
+    setNewTierError(null); setNewTierErrorField(null)
+    upsertMutation.mutate({ name: newName, date: tzLocalToUtcIso(newDate, saleTimezone), order: sorted.length })
+  }
+
+  const submitEditTier = (t: { id: string; order: number }) => {
+    if (!editName.trim()) { setEditTierError('Tier name is required.'); setEditTierErrorField('name'); return }
+    if (!isValidCalendarDateTime(editDate)) { setEditTierError('Enter a valid date & time.'); setEditTierErrorField('date'); return }
+    setEditTierError(null); setEditTierErrorField(null)
+    upsertMutation.mutate({ id: t.id, name: editName, date: tzLocalToUtcIso(editDate, saleTimezone), order: t.order })
   }
 
   return (
@@ -1281,20 +1363,21 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
           <div key={t.id} className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-2">
             <div>
               <label className="block text-xs text-stone-400 mb-1">Tier Name *</label>
-              <input className={INP} value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. First Access, VIP, Flash Sale" />
+              <input className={inpErr(INP, editTierErrorField === 'name')} value={editName} onChange={e => { setEditName(e.target.value); if (editTierErrorField === 'name') { setEditTierError(null); setEditTierErrorField(null) } }} placeholder="e.g. First Access, VIP, Flash Sale" />
             </div>
             <div>
               <label className="block text-xs text-stone-400 mb-1">Date & Time *</label>
-              <input type="datetime-local" className={INP} value={editDate} onChange={e => setEditDate(e.target.value)} />
+              <input type="datetime-local" className={inpErr(INP, editTierErrorField === 'date')} value={editDate} onChange={e => { setEditDate(e.target.value); if (editTierErrorField === 'date') { setEditTierError(null); setEditTierErrorField(null) } }} />
             </div>
+            {editTierError && <p className="text-xs text-red-400">{editTierError}</p>}
             <div className="flex gap-2">
               <button type="button"
-                onClick={() => upsertMutation.mutate({ id: t.id, name: editName, date: tzLocalToUtcIso(editDate, saleTimezone), order: t.order })}
-                disabled={!editName || !editDate || upsertMutation.isPending}
+                onClick={() => submitEditTier(t)}
+                disabled={upsertMutation.isPending}
                 className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
                 {upsertMutation.isPending ? 'Saving…' : 'Save'}
               </button>
-              <button type="button" onClick={() => setEditingTierId(null)} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
+              <button type="button" onClick={() => { setEditingTierId(null); setEditTierError(null); setEditTierErrorField(null) }} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
             </div>
           </div>
         ) : (
@@ -1319,24 +1402,25 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
         <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-2">
           <div>
             <label className="block text-xs text-stone-400 mb-1">Tier Name *</label>
-            <input className={INP} value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. First Access, VIP, Flash Sale" />
+            <input className={inpErr(INP, newTierErrorField === 'name')} value={newName} onChange={e => { setNewName(e.target.value); if (newTierErrorField === 'name') { setNewTierError(null); setNewTierErrorField(null) } }} placeholder="e.g. First Access, VIP, Flash Sale" />
           </div>
           <div>
             <label className="block text-xs text-stone-400 mb-1">Date & Time *</label>
-            <input type="datetime-local" className={INP} value={newDate} onChange={e => setNewDate(e.target.value)} />
+            <input type="datetime-local" className={inpErr(INP, newTierErrorField === 'date')} value={newDate} onChange={e => { setNewDate(e.target.value); if (newTierErrorField === 'date') { setNewTierError(null); setNewTierErrorField(null) } }} />
           </div>
+          {newTierError && <p className="text-xs text-red-400">{newTierError}</p>}
           <div className="flex gap-2">
             <button type="button"
-              onClick={() => upsertMutation.mutate({ name: newName, date: tzLocalToUtcIso(newDate, saleTimezone), order: sorted.length })}
-              disabled={!newName || !newDate || upsertMutation.isPending}
+              onClick={submitNewTier}
+              disabled={upsertMutation.isPending}
               className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
               {upsertMutation.isPending ? 'Saving…' : 'Add Tier'}
             </button>
-            <button type="button" onClick={() => setAddingTier(false)} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
+            <button type="button" onClick={() => { setAddingTier(false); setNewTierError(null); setNewTierErrorField(null) }} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
           </div>
         </div>
       ) : (
-        <button type="button" onClick={() => { setEditingTierId(null); setAddingTier(true) }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+        <button type="button" onClick={() => { setEditingTierId(null); setAddingTier(true); setNewTierError(null); setNewTierErrorField(null) }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
           + Add Tier
         </button>
       )}
@@ -1403,8 +1487,19 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
     onCancel: () => void
   }) => {
     const [f, setF] = useState(form)
-    const s = (key: keyof RegionFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    const [endsAtInvalid, setEndsAtInvalid] = useState(false)
+    const [regionError, setRegionError] = useState<string | null>(null)
+    const s = (key: keyof RegionFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       setF(prev => ({ ...prev, [key]: e.target.value }))
+      if (key === 'endsAt' && endsAtInvalid) { setEndsAtInvalid(false); setRegionError(null) }
+    }
+    const submit = () => {
+      if (f.endsAt && !isValidCalendarDateTime(f.endsAt)) {
+        setEndsAtInvalid(true); setRegionError('Enter a valid ends-at date & time.'); return
+      }
+      setEndsAtInvalid(false); setRegionError(null)
+      onSave(f)
+    }
     return (
       <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-3">
         <div className="grid grid-cols-2 gap-2">
@@ -1427,7 +1522,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         </label>
         <div>
           <label className="block text-xs text-stone-400 mb-1">Ends At <span className="text-stone-600">(when this region's sale closes — tiers are managed separately, below, once the region is saved)</span></label>
-          <input type="datetime-local" className={INP} value={f.endsAt} onChange={s('endsAt')} />
+          <input type="datetime-local" className={inpErr(INP, endsAtInvalid)} value={f.endsAt} onChange={s('endsAt')} />
         </div>
         <div>
           <label className="block text-xs text-stone-400 mb-1">Timezone</label>
@@ -1456,8 +1551,9 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
           <label className="block text-xs text-stone-400 mb-1">Subscriber Price <span className="text-stone-600">(same currency)</span></label>
           <input type="text" step="0.01" className={INP} value={f.subscriberBasePrice} onChange={s('subscriberBasePrice')} placeholder="Lower subscriber price" />
         </div>
+        {regionError && <p className="text-xs text-red-400">{regionError}</p>}
         <div className="flex gap-2">
-          <button type="button" onClick={() => onSave(f)} disabled={!f.name || upsertMutation.isPending}
+          <button type="button" onClick={submit} disabled={!f.name || upsertMutation.isPending}
             className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
             {upsertMutation.isPending ? 'Saving…' : 'Save'}
           </button>
