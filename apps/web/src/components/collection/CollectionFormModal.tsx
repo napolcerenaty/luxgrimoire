@@ -5,12 +5,15 @@ import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { type FeeEntry, type DiscountEntry, type FeeTemplate } from '@/hooks/useRecordSaleGroup'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 import { X, Plus, MoveRight } from 'lucide-react'
 
 export type { FeeEntry, DiscountEntry, FeeTemplate }
 
 const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
+/** Swaps the border color of an input class string to flag an invalid field. */
+const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
 
 const SIGNATURE_LABELS: Record<string, string> = {
   unsigned: 'Unsigned',
@@ -117,6 +120,16 @@ export function CollectionFormModal({
   const feeKeyRef = useRef(0)
   const discountKeyRef = useRef(0)
 
+  // Client-side validation — mirrors backend's @Min(0) on fee/discount amounts and catches
+  // dates that don't exist (e.g. 30 Feb) which native <input type="date"> doesn't always
+  // reject on its own, so a bad entry doesn't just silently fail without explanation.
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const [dateInvalid, setDateInvalid] = useState(false)
+  const [totalInvalid, setTotalInvalid] = useState(false)
+  const [shippingInvalid, setShippingInvalid] = useState(false)
+  const [invalidFeeKeys, setInvalidFeeKeys] = useState<Set<number>>(new Set())
+  const [invalidDiscountKeys, setInvalidDiscountKeys] = useState<Set<number>>(new Set())
+
   const { data: feeTemplates = [] } = useQuery<FeeTemplate[]>({
     queryKey: ['fee-templates'],
     queryFn: () => authFetch<FeeTemplate[]>('/fees/templates?activeOnly=true'),
@@ -135,6 +148,12 @@ export function CollectionFormModal({
     setSourcePlatform('')
     setFeeEntries([])
     setDiscountEntries([])
+    setValidationError(null)
+    setDateInvalid(false)
+    setTotalInvalid(false)
+    setShippingInvalid(false)
+    setInvalidFeeKeys(new Set())
+    setInvalidDiscountKeys(new Set())
     const initVariants: Record<string, string> = {}
     for (const ed of editions) {
       if (ed.variants.length >= 1) {
@@ -150,6 +169,30 @@ export function CollectionFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const nextInvalidFeeKeys = new Set(
+      feeEntries.filter(f => f.amount !== '' && (isNaN(parseFloat(f.amount)) || parseFloat(f.amount) < 0)).map(f => f.key),
+    )
+    const nextInvalidDiscountKeys = new Set(
+      discountEntries.filter(d => d.amount !== '' && (isNaN(parseFloat(d.amount)) || parseFloat(d.amount) < 0)).map(d => d.key),
+    )
+    const nextDateInvalid = !isValidCalendarDate(purchasedAt)
+    const nextTotalInvalid = totalAmount !== '' && (isNaN(parseFloat(totalAmount)) || parseFloat(totalAmount) < 0)
+    const nextShippingInvalid = shippingAmount !== '' && (isNaN(parseFloat(shippingAmount)) || parseFloat(shippingAmount) < 0)
+
+    setDateInvalid(nextDateInvalid)
+    setTotalInvalid(nextTotalInvalid)
+    setShippingInvalid(nextShippingInvalid)
+    setInvalidFeeKeys(nextInvalidFeeKeys)
+    setInvalidDiscountKeys(nextInvalidDiscountKeys)
+
+    if (nextDateInvalid) { setValidationError('Enter a valid purchase date.'); return }
+    if (nextTotalInvalid) { setValidationError('Price must be 0 or greater.'); return }
+    if (nextShippingInvalid) { setValidationError('Shipping must be 0 or greater.'); return }
+    if (nextInvalidFeeKeys.size > 0) { setValidationError('Fee amounts must be 0 or greater.'); return }
+    if (nextInvalidDiscountKeys.size > 0) { setValidationError('Discount amounts must be 0 or greater.'); return }
+    setValidationError(null)
+
     await onSubmit({
       ownershipStatus,
       purchasedAt,
@@ -201,7 +244,7 @@ export function CollectionFormModal({
           {/* Purchase date */}
           <div>
             <label className={LABEL}>Purchase date</label>
-            <input type="date" value={purchasedAt} onChange={e => setPurchasedAt(e.target.value)} className={INPUT} />
+            <input type="date" value={purchasedAt} onChange={e => { setPurchasedAt(e.target.value); if (dateInvalid) { setDateInvalid(false); setValidationError(null) } }} className={inpErr(INPUT, dateInvalid)} />
           </div>
 
           {/* Edition selection (multi-select when > 1 edition) */}
@@ -272,11 +315,11 @@ export function CollectionFormModal({
           <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
             <div>
               <label className={LABEL}>Price paid (optional)</label>
-              <input type="text" value={totalAmount} onChange={e => setTotalAmount(e.target.value)} placeholder="0.00" className={INPUT} />
+              <input type="text" value={totalAmount} onChange={e => { setTotalAmount(e.target.value); if (totalInvalid) { setTotalInvalid(false); setValidationError(null) } }} placeholder="0.00" className={inpErr(INPUT, totalInvalid)} />
             </div>
             <div>
               <label className={LABEL}>Shipping (optional)</label>
-              <input type="text" value={shippingAmount} onChange={e => setShippingAmount(e.target.value)} placeholder="0.00" className={INPUT} />
+              <input type="text" value={shippingAmount} onChange={e => { setShippingAmount(e.target.value); if (shippingInvalid) { setShippingInvalid(false); setValidationError(null) } }} placeholder="0.00" className={inpErr(INPUT, shippingInvalid)} />
             </div>
             <div>
               <label className={LABEL}>Currency</label>
@@ -348,9 +391,12 @@ export function CollectionFormModal({
                   </div>
                   <div className="flex gap-2">
                     <input type="text" value={fee.amount}
-                      onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, amount: e.target.value } : f))}
+                      onChange={e => {
+                        setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, amount: e.target.value } : f))
+                        if (invalidFeeKeys.has(fee.key)) { setInvalidFeeKeys(prev => { const next = new Set(prev); next.delete(fee.key); return next }); setValidationError(null) }
+                      }}
                       placeholder="0.00"
-                      className="w-24 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors" />
+                      className={inpErr('w-24 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors', invalidFeeKeys.has(fee.key))} />
                     <select value={fee.currency}
                       onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, currency: e.target.value } : f))}
                       className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors">
@@ -381,9 +427,12 @@ export function CollectionFormModal({
                     placeholder="e.g. Promo code, loyalty…"
                     className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors" />
                   <input type="text" value={disc.amount}
-                    onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, amount: e.target.value } : d))}
+                    onChange={e => {
+                      setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, amount: e.target.value } : d))
+                      if (invalidDiscountKeys.has(disc.key)) { setInvalidDiscountKeys(prev => { const next = new Set(prev); next.delete(disc.key); return next }); setValidationError(null) }
+                    }}
                     placeholder="0.00"
-                    className="w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors" />
+                    className={inpErr('w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors', invalidDiscountKeys.has(disc.key))} />
                   <select value={disc.currency}
                     onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, currency: e.target.value } : d))}
                     className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors">
@@ -422,6 +471,7 @@ export function CollectionFormModal({
           </div>
 
           {note && <p className="text-xs text-stone-500">{note}</p>}
+          {validationError && <p className="text-xs text-red-400">{validationError}</p>}
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           <div className="flex gap-2 pt-1">
