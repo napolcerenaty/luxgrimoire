@@ -885,15 +885,15 @@ export default function CollectionPage() {
 
   const activeFilterChips = useMemo(() => {
     const chips: { key: string; label: string; onRemove: () => void }[] = []
-    if (sigFilter !== 'ALL') chips.push({ key: 'sig', label: SIG_FILTER_LABEL[sigFilter] ?? sigFilter, onRemove: () => setSigFilter('ALL') })
-    if (statusFilter !== 'ALL') chips.push({ key: 'status', label: STATUS_FILTER_LABEL[statusFilter] ?? statusFilter, onRemove: () => setStatusFilter('ALL') })
     if (companyFilter !== 'ALL') chips.push({ key: 'company', label: companyFilter, onRemove: () => setCompanyFilter('ALL') })
-    if (tagFilter !== 'ALL') chips.push({ key: 'tag', label: tagFilter, onRemove: () => setTagFilter('ALL') })
-    if (readingFilter !== 'ALL') chips.push({ key: 'reading', label: READING_FILTER_LABEL[readingFilter] ?? readingFilter, onRemove: () => setReadingFilter('ALL') })
     if (subFilter !== 'ALL') {
       const sub = subFilterOptions.find((s) => s.id === subFilter)
       chips.push({ key: 'sub', label: sub?.name ?? subFilter, onRemove: () => setSubFilter('ALL') })
     }
+    if (statusFilter !== 'ALL') chips.push({ key: 'status', label: STATUS_FILTER_LABEL[statusFilter] ?? statusFilter, onRemove: () => setStatusFilter('ALL') })
+    if (tagFilter !== 'ALL') chips.push({ key: 'tag', label: tagFilter, onRemove: () => setTagFilter('ALL') })
+    if (sigFilter !== 'ALL') chips.push({ key: 'sig', label: SIG_FILTER_LABEL[sigFilter] ?? sigFilter, onRemove: () => setSigFilter('ALL') })
+    if (readingFilter !== 'ALL') chips.push({ key: 'reading', label: READING_FILTER_LABEL[readingFilter] ?? readingFilter, onRemove: () => setReadingFilter('ALL') })
     return chips
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sigFilter, statusFilter, companyFilter, tagFilter, readingFilter, subFilter, subFilterOptions])
@@ -1096,20 +1096,29 @@ export default function CollectionPage() {
 
         {/* Filter selects — collapsed behind the Filters button on mobile, always visible from sm: up */}
         <div className={`${filtersOpen ? 'flex' : 'hidden'} sm:flex gap-2 flex-wrap items-center mb-2`}>
-            {/* Signature */}
-            <select
-              value={sigFilter}
-              onChange={e => setSigFilter(e.target.value as typeof sigFilter)}
-              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${sigFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
-            >
-              <option value="ALL">Signature: Any</option>
-              <option value="UNSIGNED">Unsigned</option>
-              <option value="SIGNED">✍️ Signed</option>
-              <option value="AUTOPEN">✒️ Autopen</option>
-              <option value="DIGITALLY_SIGNED">🖨️ Digitally Signed</option>
-              <option value="SIGNED_BOOKPLATE">🏷️ Signed Bookplate</option>
-              <option value="STAMPED">🕹️ Stamped</option>
-            </select>
+            {/* Company (Box) */}
+            {companies.length > 0 && (
+              <select
+                value={companyFilter}
+                onChange={e => setCompanyFilter(e.target.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+              >
+                <option value="ALL">Box: Any</option>
+                {companies.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+
+            {/* Subscription filter */}
+            {subFilterOptions.length > 0 && (
+              <select
+                value={subFilter}
+                onChange={e => setSubFilter(e.target.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${subFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+              >
+                <option value="ALL">Sub: Any</option>
+                {subFilterOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            )}
 
             {/* Ownership status */}
             <select
@@ -1127,18 +1136,6 @@ export default function CollectionPage() {
               <option value="GIFTED_AWAY" disabled hidden>Gifted Away</option>
             </select>
 
-            {/* Company */}
-            {companies.length > 0 && (
-              <select
-                value={companyFilter}
-                onChange={e => setCompanyFilter(e.target.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
-              >
-                <option value="ALL">Box: Any</option>
-                {companies.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            )}
-
             {/* Tag filter */}
             {allUserTags.length > 0 && (
               <select
@@ -1150,6 +1147,21 @@ export default function CollectionPage() {
                 {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             )}
+
+            {/* Signature */}
+            <select
+              value={sigFilter}
+              onChange={e => setSigFilter(e.target.value as typeof sigFilter)}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${sigFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            >
+              <option value="ALL">Signature: Any</option>
+              <option value="UNSIGNED">Unsigned</option>
+              <option value="SIGNED">✍️ Signed</option>
+              <option value="AUTOPEN">✒️ Autopen</option>
+              <option value="DIGITALLY_SIGNED">🖨️ Digitally Signed</option>
+              <option value="SIGNED_BOOKPLATE">🏷️ Signed Bookplate</option>
+              <option value="STAMPED">🕹️ Stamped</option>
+            </select>
 
             {/* Reading status filter */}
             <select
@@ -1163,18 +1175,6 @@ export default function CollectionPage() {
               <option value="READ">✅ Read</option>
               <option value="DNF">❌ DNF</option>
             </select>
-
-            {/* Subscription filter */}
-            {subFilterOptions.length > 0 && (
-              <select
-                value={subFilter}
-                onChange={e => setSubFilter(e.target.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${subFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
-              >
-                <option value="ALL">Sub: Any</option>
-                {subFilterOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            )}
 
           </div>
 

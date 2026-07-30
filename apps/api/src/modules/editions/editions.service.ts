@@ -708,6 +708,7 @@ export class EditionsService {
                   select: {
                     sortOrder: true,
                     isMainBook: true,
+                    choiceGroupId: true,
                     book: { select: { id: true, title: true, slug: true } },
                     edition: { select: { id: true, slug: true } },
                   },

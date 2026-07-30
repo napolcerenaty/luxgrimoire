@@ -23,6 +23,7 @@ interface Props {
   currency: string
   intervalMonths: number
   isBundleSubscription?: boolean
+  hasBookChoiceMonths?: boolean
   startingMonth?: number
   shipsInternationally: boolean
   country: string | null
@@ -104,6 +105,7 @@ export default function SubscriptionInfoPanel({
   currency,
   intervalMonths,
   isBundleSubscription,
+  hasBookChoiceMonths,
   startingMonth,
   shipsInternationally,
   country,
@@ -584,6 +586,7 @@ export default function SubscriptionInfoPanel({
           subscriptionEndDate={subscriptionEndDate}
           signupIncludesCurrentMonth={signupIncludesCurrentMonth}
           isBundleSubscription={isBundleSubscription}
+          hasBookChoiceMonths={hasBookChoiceMonths}
           intervalMonths={intervalMonths}
           startingMonth={startingMonth}
           onJoined={() => {

@@ -14,7 +14,7 @@ interface GapItem {
   companyName: string
   companySlug: string
   isContentStream: boolean
-  status: 'missing_month' | 'missing_book'
+  status: 'missing_month' | 'missing_book' | 'missing_features'
 }
 interface GapsResponse {
   year: number
@@ -55,7 +55,7 @@ export default function SubscriptionMonthGapsPage() {
       <div>
         <h1 className="text-2xl font-bold text-stone-100">Subscription Month Gaps</h1>
         <p className="mt-1 text-sm text-stone-400">
-          Content-stream and direct-month subscriptions (no combos, no multi-month bundles) missing a month or missing books for the selected month.
+          Content-stream and direct-month subscriptions (no combos, no multi-month bundles) missing a month, missing books, or missing features on their book(s) for the selected month.
         </p>
       </div>
 
@@ -105,10 +105,12 @@ export default function SubscriptionMonthGapsPage() {
                 className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
                   g.status === 'missing_month'
                     ? 'bg-red-500/15 text-red-400'
-                    : 'bg-amber-500/15 text-amber-400'
+                    : g.status === 'missing_book'
+                    ? 'bg-amber-500/15 text-amber-400'
+                    : 'bg-violet-500/15 text-violet-400'
                 }`}
               >
-                {g.status === 'missing_month' ? 'Missing month' : 'Missing books'}
+                {g.status === 'missing_month' ? 'Missing month' : g.status === 'missing_book' ? 'Missing books' : 'Missing features'}
               </span>
             </Link>
           ))}

@@ -15,6 +15,7 @@ import { SubListThumbnail } from '@/components/subscriptions/SubListThumbnail'
 import { Ban, ChevronDown, ChevronUp, LayoutGrid, List, Trash2, XCircle } from 'lucide-react'
 import SkipStatusCompact from '@/components/SkipStatusCompact'
 import { bundleRangeLabel } from '@/lib/bundleHelpers'
+import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 
 const PREFS_KEY = 'my_subscriptions_prefs'
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -62,6 +63,7 @@ interface MySubscriptionEntry {
     price: string | null
     isDiscontinued: boolean
     isBundleSubscription: boolean
+    hasBookChoiceMonths: boolean
     intervalMonths: number
     startingMonth: number
     company: { name: string; slug: string; brandColors?: string[] | null }
@@ -415,6 +417,101 @@ function InlineCostsEditor({
   )
 }
 
+type MyChoiceGroupOption = {
+  id: string; book: { title: string }; edition: { additionalImages: string[]; variantLabel?: string | null } | null
+}
+type MyChoiceGroup = {
+  id: string; label: string | null; allowMultiple: boolean
+  options: MyChoiceGroupOption[]
+  myChoice: { source: string; monthBookIds: string[] } | null
+}
+
+/** "Book Choice" section — a peer to Costs/Skips/Next Box in the joined-subscription details view. */
+function BookChoiceSection({ subscriptionSlug, year, month }: { subscriptionSlug: string; year: number; month: number }) {
+  const queryClient = useQueryClient()
+  const qKey = ['sub-choice-groups', subscriptionSlug, year, month]
+  const [open, setOpen] = useState<string | null>(null)
+  const [picked, setPicked] = useState<string[]>([])
+
+  const { data: groups, isLoading } = useQuery<MyChoiceGroup[]>({
+    queryKey: qKey,
+    queryFn: () => authFetch(`/subscriptions/${subscriptionSlug}/months/${year}/${month}/choice-groups`),
+  })
+
+  const submitMutation = useMutation({
+    mutationFn: ({ choiceGroupId, monthBookIds }: { choiceGroupId: string; monthBookIds: string[] }) =>
+      authFetch(`/subscriptions/${subscriptionSlug}/months/${year}/${month}/choice-groups/${choiceGroupId}/my-choice`, {
+        method: 'POST',
+        body: JSON.stringify({ monthBookIds }),
+      }),
+    onSuccess: () => { setOpen(null); setPicked([]); queryClient.invalidateQueries({ queryKey: qKey }) },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const pending = (groups ?? []).filter(g => !g.myChoice)
+
+  return (
+    <section className="space-y-3">
+      <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Book Choice</h4>
+
+      {isLoading ? (
+        <OverviewLoadingBlock lines={3} />
+      ) : pending.length === 0 ? (
+        <p className="text-sm text-stone-500">No pending book choice for this box.</p>
+      ) : (
+        <div className="space-y-2">
+          {pending.map(g => (
+            <div key={g.id} className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="text-xs text-amber-200">
+                  <span className="font-medium">{g.label || 'Choose your book'}</span>
+                  {' — '}pick {g.allowMultiple ? 'one or both' : 'one'} before the deadline, or both will be added automatically.
+                </div>
+                <button
+                  onClick={() => { setOpen(open === g.id ? null : g.id); setPicked([]) }}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-amber-400 text-stone-950 font-semibold hover:bg-amber-300 transition-colors shrink-0"
+                >
+                  {open === g.id ? 'Close' : 'Choose'}
+                </button>
+              </div>
+              {open === g.id && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex flex-wrap gap-2">
+                    {g.options.map(o => (
+                      <label key={o.id} className="flex items-center gap-1.5 text-xs text-amber-100 bg-stone-900/40 rounded-lg px-2 py-1 cursor-pointer">
+                        <input
+                          type={g.allowMultiple ? 'checkbox' : 'radio'}
+                          name={`choice-${g.id}`}
+                          checked={picked.includes(o.id)}
+                          onChange={(e) => {
+                            if (g.allowMultiple) {
+                              setPicked(ids => e.target.checked ? [...ids, o.id] : ids.filter(id => id !== o.id))
+                            } else {
+                              setPicked([o.id])
+                            }
+                          }}
+                        />
+                        {formatEditionDisplayTitle(o.book, o.edition)}
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => submitMutation.mutate({ choiceGroupId: g.id, monthBookIds: picked })}
+                    disabled={submitMutation.isPending || picked.length === 0}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-amber-400 text-stone-950 font-semibold hover:bg-amber-300 disabled:opacity-40 transition-colors"
+                  >
+                    Confirm choice
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
 function SubscriptionOverviewPanel({
   entry,
   isExpanded,
@@ -462,7 +559,7 @@ function SubscriptionOverviewPanel({
 
   return (
     <div className="border-t border-stone-700/50 bg-stone-800/30 px-4 py-4">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className={`grid gap-4 ${entry.subscription.hasBookChoiceMonths ? 'sm:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Costs</h4>
@@ -531,6 +628,10 @@ function SubscriptionOverviewPanel({
             onSkipSuccess={() => void queryClient.invalidateQueries({ queryKey: ['my-subscriptions'] })}
           />
         </section>
+
+        {boxMonth && entry.subscription.hasBookChoiceMonths && (
+          <BookChoiceSection subscriptionSlug={subscriptionSlug} year={boxMonth.year} month={boxMonth.month} />
+        )}
 
         <section className="space-y-3">
           <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Next Box</h4>

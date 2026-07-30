@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { computeChoiceDeadline } from '../subscriptions/subscription-month-choice.util';
 
-export type ReminderType = 'renewal' | 'sale';
+export type ReminderType = 'renewal' | 'sale' | 'book_choice';
 
 interface UserReminderSettingsLike {
   renewalEnabled: boolean;
@@ -13,6 +14,8 @@ interface UserReminderSettingsLike {
   saleDaysBefore: number;
   saleMinutesBefore: number | null;
   saleDigest: boolean;
+  bookChoiceEnabled: boolean;
+  bookChoiceDaysBefore: number;
 }
 
 const DEFAULT_SETTINGS: UserReminderSettingsLike = {
@@ -24,6 +27,10 @@ const DEFAULT_SETTINGS: UserReminderSettingsLike = {
   saleDaysBefore: 0,
   saleMinutesBefore: 180,  // minutes before sale time; null also treated as 180min (3h)
   saleDigest: false,
+  // Opt-in like renewal/sale — a missed choice defaults to "both books ship, user
+  // self-corrects" (see resolveMonthBooksForEntry), so there's no need to force this on.
+  bookChoiceEnabled: false,
+  bookChoiceDaysBefore: 3,
 };
 
 @Injectable()
@@ -186,11 +193,66 @@ export class ScheduledRemindersService {
   }
 
   /**
-   * Cancel all pending renewal reminders for an entry (subscription cancelled/deleted).
+   * Schedule (or reschedule) a book-choice reminder for one entry + choice group.
+   * Deadline is anchored to the subscription's renewalDay (approximate — see
+   * computeChoiceDeadline), not the 1st of the box month.
+   */
+  async scheduleBookChoice(entryId: string, choiceGroupId: string): Promise<void> {
+    const entry = await this.prisma.userSubscriptionEntry.findUnique({
+      where: { id: entryId },
+      select: { id: true, userId: true, active: true },
+    });
+    if (!entry || !entry.active) return;
+
+    const settings = await this.getOrDefaultSettings(entry.userId);
+    if (!settings.bookChoiceEnabled) return;
+
+    const group = await this.prisma.subscriptionMonthChoiceGroup.findUnique({
+      where: { id: choiceGroupId },
+      select: {
+        choiceDeadlineType: true,
+        choiceDeadlineDaysBefore: true,
+        choiceDeadlineDayOfMonth: true,
+        month: { select: { year: true, month: true, subscription: { select: { renewalDay: true } } } },
+      },
+    });
+    if (!group) return;
+
+    const deadline = computeChoiceDeadline(group.month.year, group.month.month, group.month.subscription.renewalDay ?? 1, group);
+    const scheduledAt = new Date(deadline.getTime() - settings.bookChoiceDaysBefore * 24 * 60 * 60 * 1000);
+    if (scheduledAt <= new Date()) return;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.scheduledReminder.updateMany({
+        where: { entryId, choiceGroupId, type: 'book_choice', sentAt: null, cancelledAt: null },
+        data: { cancelledAt: new Date() },
+      });
+      await tx.scheduledReminder.create({
+        data: { userId: entry.userId, type: 'book_choice', scheduledAt, entryId, choiceGroupId },
+      });
+    });
+
+    this.logger.debug(`[Reminders] Scheduled book-choice reminder for entry ${entryId} group ${choiceGroupId} at ${scheduledAt.toISOString()}`);
+  }
+
+  /**
+   * Cancel the pending book-choice reminder for one specific entry + choice group
+   * (the choice was resolved — no need to keep nagging about that particular group;
+   * other choice groups still open for the same entry are untouched).
+   */
+  async cancelBookChoice(entryId: string, choiceGroupId: string): Promise<void> {
+    await this.prisma.scheduledReminder.updateMany({
+      where: { entryId, choiceGroupId, type: 'book_choice', sentAt: null, cancelledAt: null },
+      data: { cancelledAt: new Date() },
+    });
+  }
+
+  /**
+   * Cancel all pending renewal + book-choice reminders for an entry (subscription cancelled/deleted).
    */
   async cancelByEntry(entryId: string): Promise<void> {
     await this.prisma.scheduledReminder.updateMany({
-      where: { entryId, type: 'renewal', sentAt: null, cancelledAt: null },
+      where: { entryId, type: { in: ['renewal', 'book_choice'] }, sentAt: null, cancelledAt: null },
       data: { cancelledAt: new Date() },
     });
   }
@@ -283,6 +345,8 @@ export class ScheduledRemindersService {
       saleDaysBefore: s.saleDaysBefore,
       saleMinutesBefore: s.saleMinutesBefore,
       saleDigest: s.saleDigest,
+      bookChoiceEnabled: s.bookChoiceEnabled,
+      bookChoiceDaysBefore: s.bookChoiceDaysBefore,
     };
   }
 }

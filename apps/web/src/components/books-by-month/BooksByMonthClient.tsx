@@ -127,6 +127,7 @@ export function BooksByMonthClient() {
   // not the earlier single-select segmented control this replaced.
   const [highlightFilters, setHighlightFilters] = useState<Set<HighlightFilterValue>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
+  const [hideUnannounced, setHideUnannounced] = useState(false)
 
   const toggleHighlightFilter = (value: HighlightFilterValue) => {
     setHighlightFilters((prev) => {
@@ -147,15 +148,17 @@ export function BooksByMonthClient() {
 
   const items = data?.items ?? []
   const hasAnyHighlight = items.some((i) => i.highlight != null)
+  const hasAnyUnannounced = items.some((i) => i.isPlaceholder)
 
   const filteredItems = useMemo(() => {
     let result = items
+    if (hideUnannounced) result = result.filter((i) => !i.isPlaceholder)
     if (highlightFilters.size > 0) {
       result = result.filter((i) => highlightFilters.has(i.highlight ?? 'other'))
     }
     if (searchQuery.trim()) result = result.filter((i) => matchesSearch(i, searchQuery))
     return result
-  }, [items, highlightFilters, searchQuery])
+  }, [items, hideUnannounced, highlightFilters, searchQuery])
 
   const groups = useMemo((): BookGroup[] | null => {
     if (viewMode === 'flat') return null
@@ -193,6 +196,22 @@ export function BooksByMonthClient() {
           className={`${SEARCH_INPUT} lg:flex-1`}
           aria-label="Search books by month"
         />
+        {hasAnyUnannounced && (
+          <label className="flex items-center gap-2 shrink-0 text-xs text-stone-400 cursor-pointer select-none">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={hideUnannounced}
+              onClick={() => setHideUnannounced((v) => !v)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${hideUnannounced ? 'bg-amber-500' : 'bg-stone-700'}`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${hideUnannounced ? 'translate-x-4' : 'translate-x-0'}`}
+              />
+            </button>
+            Hide unannounced
+          </label>
+        )}
         <div className={SEGMENT_WRAP}>
           <button onClick={() => setViewMode('flat')} className={`${SEGMENT_BTN} ${viewMode === 'flat' ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}>
             Flat
@@ -246,7 +265,7 @@ export function BooksByMonthClient() {
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="text-stone-500 text-center py-12 bg-stone-900/50 rounded-2xl border border-stone-800">
-          No matches for your search{highlightFilters.size > 0 ? ' and filters' : ''}.
+          No matches for your search{(highlightFilters.size > 0 || hideUnannounced) ? ' and filters' : ''}.
         </div>
       ) : viewMode === 'flat' ? (
         <div className={CARD_GRID}>

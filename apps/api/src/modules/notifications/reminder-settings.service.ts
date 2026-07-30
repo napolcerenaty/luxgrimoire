@@ -16,6 +16,11 @@ export interface ReminderSettingsDto {
   saleMinutesBefore?: number | null;
   saleDigest?: boolean;
 
+  bookChoiceEnabled?: boolean;
+  bookChoiceInAppEnabled?: boolean;
+  bookChoicePushEnabled?: boolean;
+  bookChoiceDaysBefore?: number;
+
   appNotifPushEnabled?: boolean;
 }
 
@@ -40,6 +45,10 @@ export class ReminderSettingsService {
         saleMinutesBefore: null,
         // null means "use default" (180 minutes = 3h before)
         saleDigest: false,
+        bookChoiceEnabled: false,
+        bookChoiceInAppEnabled: true,
+        bookChoicePushEnabled: false,
+        bookChoiceDaysBefore: 3,
         appNotifPushEnabled: false,
       };
     }
@@ -63,6 +72,10 @@ export class ReminderSettingsService {
         saleDaysBefore: dto.saleDaysBefore ?? 0,
         saleMinutesBefore: dto.saleMinutesBefore ?? null,
         saleDigest: dto.saleDigest ?? false,
+        bookChoiceEnabled: dto.bookChoiceEnabled ?? false,
+        bookChoiceInAppEnabled: dto.bookChoiceInAppEnabled ?? true,
+        bookChoicePushEnabled: dto.bookChoicePushEnabled ?? false,
+        bookChoiceDaysBefore: dto.bookChoiceDaysBefore ?? 3,
         appNotifPushEnabled: dto.appNotifPushEnabled ?? false,
       },
       update: {
@@ -78,6 +91,10 @@ export class ReminderSettingsService {
         ...(dto.saleDaysBefore !== undefined && { saleDaysBefore: dto.saleDaysBefore }),
         ...(Object.prototype.hasOwnProperty.call(dto, 'saleMinutesBefore') && { saleMinutesBefore: dto.saleMinutesBefore }),
         ...(dto.saleDigest !== undefined && { saleDigest: dto.saleDigest }),
+        ...(dto.bookChoiceEnabled !== undefined && { bookChoiceEnabled: dto.bookChoiceEnabled }),
+        ...(dto.bookChoiceInAppEnabled !== undefined && { bookChoiceInAppEnabled: dto.bookChoiceInAppEnabled }),
+        ...(dto.bookChoicePushEnabled !== undefined && { bookChoicePushEnabled: dto.bookChoicePushEnabled }),
+        ...(dto.bookChoiceDaysBefore !== undefined && { bookChoiceDaysBefore: dto.bookChoiceDaysBefore }),
         ...(dto.appNotifPushEnabled !== undefined && { appNotifPushEnabled: dto.appNotifPushEnabled }),
       },
     });

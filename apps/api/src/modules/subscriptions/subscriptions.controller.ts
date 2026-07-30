@@ -36,6 +36,8 @@ import {
   UpdateSettingsHistoryEffectiveFromDto,
   ManageSkipsDto,
   YearMonthQueryDto,
+  CreateChoiceGroupDto,
+  SubmitMonthChoiceDto,
 } from './subscriptions.dto';
 import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -209,27 +211,77 @@ export class SubscriptionsController {
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
-  @Delete(':slug/months/:year/:month/books/:bookId')
+  @Delete(':slug/months/:year/:month/books/:monthBookId')
   removeBookFromMonth(
     @Param('slug') slug: string,
     @Param('year') year: string,
     @Param('month') month: string,
-    @Param('bookId') bookId: string,
+    @Param('monthBookId') monthBookId: string,
   ) {
-    return this.subscriptionsService.removeBookFromMonth(slug, parseInt(year, 10), parseInt(month, 10), bookId);
+    return this.subscriptionsService.removeBookFromMonth(slug, parseInt(year, 10), parseInt(month, 10), monthBookId);
   }
 
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
-  @Patch(':slug/months/:year/:month/books/:bookId')
+  @Patch(':slug/months/:year/:month/books/:monthBookId')
   updateMonthBook(
     @Param('slug') slug: string,
     @Param('year') year: string,
     @Param('month') month: string,
-    @Param('bookId') bookId: string,
+    @Param('monthBookId') monthBookId: string,
     @Body() dto: UpdateMonthBookDto,
   ) {
-    return this.subscriptionsService.updateMonthBook(slug, parseInt(year, 10), parseInt(month, 10), bookId, dto);
+    return this.subscriptionsService.updateMonthBook(slug, parseInt(year, 10), parseInt(month, 10), monthBookId, dto);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Post(':slug/months/:year/:month/choice-groups')
+  createChoiceGroup(
+    @Param('slug') slug: string,
+    @Param('year') year: string,
+    @Param('month') month: string,
+    @Body() dto: CreateChoiceGroupDto,
+  ) {
+    return this.subscriptionsService.createChoiceGroup(slug, parseInt(year, 10), parseInt(month, 10), dto);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  @Delete(':slug/months/:year/:month/choice-groups/:choiceGroupId')
+  deleteChoiceGroup(
+    @Param('slug') slug: string,
+    @Param('year') year: string,
+    @Param('month') month: string,
+    @Param('choiceGroupId') choiceGroupId: string,
+  ) {
+    return this.subscriptionsService.deleteChoiceGroup(slug, parseInt(year, 10), parseInt(month, 10), choiceGroupId);
+  }
+
+  /** Public + optional auth: anyone can see a month's choice groups; a logged-in user also gets their own pick. */
+  @OptionalAuth()
+  @Get(':slug/months/:year/:month/choice-groups')
+  getMonthChoiceGroups(
+    @Param('slug') slug: string,
+    @Param('year') year: string,
+    @Param('month') month: string,
+    @Request() req: any,
+  ) {
+    const userId = req.user?.id ?? undefined;
+    return this.subscriptionsService.getMonthChoiceGroups(slug, parseInt(year, 10), parseInt(month, 10), userId);
+  }
+
+  @ApiBearerAuth()
+  @Post(':slug/months/:year/:month/choice-groups/:choiceGroupId/my-choice')
+  submitMonthChoice(
+    @Param('slug') slug: string,
+    @Param('year') year: string,
+    @Param('month') month: string,
+    @Param('choiceGroupId') choiceGroupId: string,
+    @Body() dto: SubmitMonthChoiceDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.subscriptionsService.submitMonthChoice(slug, parseInt(year, 10), parseInt(month, 10), choiceGroupId, user.id, dto);
   }
 
   @ApiBearerAuth()
