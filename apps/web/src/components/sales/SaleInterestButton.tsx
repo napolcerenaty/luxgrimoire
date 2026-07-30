@@ -275,16 +275,16 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                       type="button"
                       onClick={() => pickTier(t)}
                       className={`
-                        w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-sm transition-colors
+                        w-full flex items-start justify-between gap-3 px-4 py-3.5 rounded-xl text-sm transition-colors
                         ${tierId === t.id && isInterested
                           ? 'bg-violet-800/60 text-violet-200 border border-violet-600'
                           : 'bg-stone-800 text-stone-300 border border-stone-700 active:bg-stone-700'}
                       `}
                     >
-                      <span className="font-medium">{t.name}</span>
+                      <span className="font-medium text-left">{t.name}</span>
                       {formattedDate
-                        ? <span className="text-xs text-stone-400 font-mono tabular-nums">{formattedDate}</span>
-                        : <span className="text-xs text-stone-600 font-mono">–</span>
+                        ? <span className="text-xs text-stone-400 font-mono tabular-nums whitespace-nowrap shrink-0 pt-0.5">{formattedDate}</span>
+                        : <span className="text-xs text-stone-600 font-mono shrink-0 pt-0.5">–</span>
                       }
                     </button>
                   )
@@ -383,16 +383,16 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                       type="button"
                       onClick={() => pickTier(t)}
                       className={`
-                        w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors
+                        w-full flex items-start justify-between gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors
                         ${tierId === t.id && isInterested
                           ? 'bg-violet-800/60 text-violet-200'
                           : 'hover:bg-stone-800 text-stone-300'}
                       `}
                     >
-                      <span className="font-medium">{t.name}</span>
+                      <span className="font-medium text-left">{t.name}</span>
                       {formattedDate
-                        ? <span className="text-xs text-stone-400 font-mono tabular-nums">{formattedDate}</span>
-                        : <span className="text-xs text-stone-600 font-mono">–</span>
+                        ? <span className="text-xs text-stone-400 font-mono tabular-nums whitespace-nowrap shrink-0 pt-0.5">{formattedDate}</span>
+                        : <span className="text-xs text-stone-600 font-mono shrink-0 pt-0.5">–</span>
                       }
                     </button>
                   )
