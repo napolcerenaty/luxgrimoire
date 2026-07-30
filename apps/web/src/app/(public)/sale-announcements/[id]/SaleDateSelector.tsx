@@ -8,6 +8,11 @@ import { getTiersForRegion } from '@/lib/saleTiers'
 type Region = NonNullable<ApiSaleAnnouncement['regions']>[0]
 
 interface Props {
+  /** Used to scope the remembered-region localStorage key to this specific sale — without it,
+   *  every sale rendered on the same page/pathname (e.g. modals opened from the homepage, where
+   *  the URL never changes) would share one key and a region picked for one sale could silently
+   *  leak into another that doesn't have a region with that id, breaking tier resolution. */
+  saleId: string
   regions: Region[]
   tiers: ApiSaleTier[]
   fallback: {
@@ -85,7 +90,7 @@ function Countdown({ ms }: { ms: number | null }) {
   )
 }
 
-export default function SaleDateSelector({ regions, tiers, fallback, userCountry, onSelectionChange }: Props) {
+export default function SaleDateSelector({ saleId, regions, tiers, fallback, userCountry, onSelectionChange }: Props) {
   const { user } = useAuth()
   const hour12 = user?.timeFormat === '12h'
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
@@ -94,14 +99,19 @@ export default function SaleDateSelector({ regions, tiers, fallback, userCountry
 
   useEffect(() => {
     try { setUserTz(Intl.DateTimeFormat().resolvedOptions().timeZone) } catch {}
-    const saved = localStorage.getItem(`sale-region-${window.location.pathname}`)
+    const saved = localStorage.getItem(`sale-region-${saleId}`)
     if (saved) setSelectedRegionId(saved)
-  }, [])
+  }, [saleId])
 
   const hasRegions = regions.length > 0
 
+  // Ignore a remembered region id that doesn't actually belong to this sale (stale data from a
+  // key collision, or a region that's since been removed) — falling through to auto-detection
+  // beats resolving to a region-with-no-tiers-for-this-sale and silently showing nothing.
+  const validSelectedRegionId = selectedRegionId && regions.some(r => r.id === selectedRegionId) ? selectedRegionId : null
+
   const autoRegion = findRegion(regions, user?.shippingCountry ?? userCountry, user?.preferredCurrency)
-  const effectiveRegionId = selectedRegionId ?? autoRegion?.id ?? regions.find(r => r.isDefault)?.id ?? regions[0]?.id ?? null
+  const effectiveRegionId = validSelectedRegionId ?? autoRegion?.id ?? regions.find(r => r.isDefault)?.id ?? regions[0]?.id ?? null
   const region = regions.find(r => r.id === effectiveRegionId) ?? null
 
   // Tiers are pre-sorted chronologically — the earliest one is the sensible default selection
@@ -140,7 +150,7 @@ export default function SaleDateSelector({ regions, tiers, fallback, userCountry
             value={effectiveRegionId ?? ''}
             onChange={e => {
               setSelectedRegionId(e.target.value)
-              localStorage.setItem(`sale-region-${window.location.pathname}`, e.target.value)
+              localStorage.setItem(`sale-region-${saleId}`, e.target.value)
             }}
             className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm"
           >
