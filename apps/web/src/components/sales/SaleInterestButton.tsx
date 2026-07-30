@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Bell, BellOff, Loader2, MapPin, Tag } from 'lucide-react'
+import { Bell, Loader2, MapPin, Tag } from 'lucide-react'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
 import { useAuth } from '@/components/AuthProvider'
 import { formatTierDate } from '@/lib/saleDates'
@@ -124,15 +124,21 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
       router.push(`/login?returnTo=${returnTo}`)
       return
     }
+    // Already interested — remove directly, regardless of how many tiers/regions this sale has.
+    // Re-opening the picker just to offer a "Remove interest" button buried at the bottom was a
+    // pointless extra step; picking a *different* tier is a remove-then-re-add now, same as the
+    // single-tier shortcut below already did.
+    if (isInterested) {
+      removeInterest()
+      return
+    }
     if (directTier) {
-      if (isInterested) removeInterest()
-      else pickTier(directTier)
+      pickTier(directTier)
       return
     }
     if (onlyOneTier && !hasRegions && !hasSubscriberPrice) {
       const onlyTier = availableTiers[0]
-      if (isInterested) removeInterest()
-      else if (onlyTier) setInterest(onlyTier.id, onlyTier.name, onlyTier.regionId)
+      if (onlyTier) setInterest(onlyTier.id, onlyTier.name, onlyTier.regionId)
       return
     }
     if (!isMobile && btnRef.current) {
@@ -227,9 +233,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
         ref={btnRef}
         type="button"
         onClick={handleClick}
-        title={isInterested
-          ? (directTier ? `Interested (${tierName}) — click to remove` : `Interested (${tierName}) — click to change`)
-          : 'Mark as interested'}
+        title={isInterested ? `Interested (${tierName}) — click to remove` : 'Mark as interested'}
         className={`
           flex items-center gap-1.5 rounded-full transition-all duration-150
           ${compact ? 'p-1.5' : 'px-3 py-1.5 text-xs font-medium'}
@@ -307,20 +311,6 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                   )
                 })}
               </div>
-
-              {isInterested && (
-                <>
-                  <div className="my-3 border-t border-stone-700" />
-                  <button
-                    type="button"
-                    onClick={async () => { await removeInterest(); setOpen(false) }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm text-red-400 bg-stone-800 border border-stone-700 active:bg-stone-700 transition-colors"
-                  >
-                    <BellOff size={14} />
-                    Remove interest
-                  </button>
-                </>
-              )}
             </div>
           ) : (
             /* Positioned dropdown on desktop */
@@ -414,20 +404,6 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                     </button>
                   )
                 })}
-
-                {isInterested && (
-                  <>
-                    <div className="my-1.5 border-t border-stone-700" />
-                    <button
-                      type="button"
-                      onClick={async () => { await removeInterest(); setOpen(false) }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-stone-800 transition-colors"
-                    >
-                      <BellOff size={13} />
-                      Remove interest
-                    </button>
-                  </>
-                )}
               </div>
             )
           )}
