@@ -21,7 +21,14 @@ function HeroPanel({ post, large, bgColor }: { post: GhostPost; large?: boolean;
   return (
     <article
       className={`relative overflow-hidden rounded-[28px] border transition-all duration-[220ms] cursor-pointer blog-panel-card group ${large ? 'min-h-[458px]' : 'min-h-[220px]'} ${post.featured ? 'blog-featured-glow' : ''}`}
-      style={{ borderColor: post.featured ? 'rgba(212,175,55,0.6)' : 'var(--border)', backgroundColor: bgColor }}
+      style={{
+        borderColor: post.featured ? 'rgba(212,175,55,0.6)' : 'var(--border)',
+        // .blog-panel-card's own `background` shorthand (globals.css) paints gradient layers
+        // on top of any background-color, so it has to be cancelled explicitly here — otherwise
+        // it hides the sampled backdrop color wherever the image doesn't cover it.
+        backgroundImage: 'none',
+        backgroundColor: bgColor,
+      }}
     >
       {post.feature_image ? (
         // Panel background is sampled from the image's own corner color (see
