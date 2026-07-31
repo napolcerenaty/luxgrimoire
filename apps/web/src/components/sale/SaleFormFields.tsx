@@ -7,6 +7,8 @@ export { CURRENCIES, SALE_PLATFORMS }
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
+/** Swaps the border color of an INP-based class string to flag an invalid field. */
+const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
 
 interface SaleFormFieldsProps {
   title: string
@@ -21,6 +23,8 @@ interface SaleFormFieldsProps {
   setCurrency: (v: string) => void
   soldAt: string
   setSoldAt: (v: string) => void
+  /** Flags the sale-date field red — set by the caller after validating on submit attempt. */
+  soldAtInvalid?: boolean
   notes: string
   setNotes: (v: string) => void
   /** If true, the total field is hidden (e.g. custom distribution in edit mode) */
@@ -39,7 +43,7 @@ export function SaleFormFields({
   customPlatform, setCustomPlatform,
   total, setTotal,
   currency, setCurrency,
-  soldAt, setSoldAt,
+  soldAt, setSoldAt, soldAtInvalid,
   notes, setNotes,
   hideTotalField = false,
   afterCurrencyRow,
@@ -81,7 +85,7 @@ export function SaleFormFields({
       {afterCurrencyRow}
       <div>
         <label className={LBL}>Sale date *</label>
-        <input required type="date" className={INP} value={soldAt} onChange={e => setSoldAt(e.target.value)} />
+        <input required type="date" className={inpErr(INP, soldAtInvalid ?? false)} value={soldAt} onChange={e => setSoldAt(e.target.value)} />
       </div>
       <div>
         <label className={LBL}>Notes</label>

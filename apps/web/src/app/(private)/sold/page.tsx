@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Plus, Pencil, Trash2, ShoppingBag, LayoutGrid, List, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 import { SaleFormFields, SALE_PLATFORMS, CURRENCIES } from '@/components/sale/SaleFormFields'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
@@ -77,6 +78,7 @@ function RecordSaleModal({
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({})
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [soldAtInvalid, setSoldAtInvalid] = useState(false)
   const [pending, setPending] = useState(false)
   const [success, setSuccess] = useState(false)
 
@@ -88,12 +90,14 @@ function RecordSaleModal({
 
   const toggle = (id: string) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
+  const handleSoldAtChange = (v: string) => { setSoldAt(v); if (soldAtInvalid) { setSoldAtInvalid(false); setError(null) } }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     if (selected.length === 0) { setError('Select at least one book'); return }
     if (!total || totalNum <= 0) { setError('Enter a valid total amount'); return }
-    if (!soldAt) { setError('Enter the sale date'); return }
+    if (!isValidCalendarDate(soldAt)) { setSoldAtInvalid(true); setError('Enter a valid sale date'); return }
     const plat = platform === 'other' ? customPlatform : platform
     const customs = distribution === 'CUSTOM'
       ? Object.fromEntries(Object.entries(customAmounts).map(([k, v]) => [k, parseDecimalInput(v)]))
@@ -141,7 +145,7 @@ function RecordSaleModal({
             customPlatform={customPlatform} setCustomPlatform={setCustomPlatform}
             total={total} setTotal={setTotal}
             currency={currency} setCurrency={setCurrency}
-            soldAt={soldAt} setSoldAt={setSoldAt}
+            soldAt={soldAt} setSoldAt={handleSoldAtChange} soldAtInvalid={soldAtInvalid}
             notes={notes} setNotes={setNotes}
             pending={pending}
             submitLabel="Record Sale"
@@ -230,11 +234,14 @@ function EditSaleModal({
   const [soldAt, setSoldAt] = useState('')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [soldAtInvalid, setSoldAtInvalid] = useState(false)
   const [pending, setPending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({})
 
   const isCustom = saleGroup?.priceDistribution === 'CUSTOM'
+
+  const handleSoldAtChange = (v: string) => { setSoldAt(v); if (soldAtInvalid) { setSoldAtInvalid(false); setError(null) } }
 
   // Populate fields when the target sale group changes
   useEffect(() => {
@@ -249,6 +256,7 @@ function EditSaleModal({
     setSoldAt(saleGroup.soldAt ? saleGroup.soldAt.slice(0, 10) : '')
     setNotes(saleGroup.notes ?? '')
     setError(null)
+    setSoldAtInvalid(false)
     setSuccess(false)
     // Pre-fill custom amounts from existing allocations
     const amounts: Record<string, string> = {}
@@ -273,7 +281,7 @@ function EditSaleModal({
     if (!saleGroup) return
     setError(null)
     if (totalNum <= 0) { setError('Total must be greater than 0'); return }
-    if (!soldAt) { setError('Enter the sale date'); return }
+    if (!isValidCalendarDate(soldAt)) { setSoldAtInvalid(true); setError('Enter a valid sale date'); return }
     if (isCustom) {
       const missing = saleGroup.entries.some(e => !customAmounts[e.id] || parseDecimalInput(customAmounts[e.id]) <= 0)
       if (missing) { setError('Enter a valid amount for each book'); return }
@@ -404,7 +412,7 @@ function EditSaleModal({
               customPlatform={customPlatform} setCustomPlatform={setCustomPlatform}
               total={total} setTotal={isCustom ? undefined : setTotal}
               currency={currency} setCurrency={setCurrency}
-              soldAt={soldAt} setSoldAt={setSoldAt}
+              soldAt={soldAt} setSoldAt={handleSoldAtChange} soldAtInvalid={soldAtInvalid}
               notes={notes} setNotes={setNotes}
               hideTotalField={isCustom}
               pending={pending}

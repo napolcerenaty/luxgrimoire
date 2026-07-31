@@ -9,6 +9,7 @@ import {
   UpdateEditionDto,
   AddArtistDto,
   EditionQueryDto,
+  EditionSaleDateInputDto,
 } from './editions.dto';
 import { generateSlugFromParts } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
@@ -295,6 +296,157 @@ export class EditionsService {
     return deleteCloudinaryImages(ids, this.uploadService);
   }
 
+  private async replaceEditionSaleDates(editionId: string, saleDates: EditionSaleDateInputDto[]) {
+    await this.prisma.editionSaleDate.deleteMany({ where: { editionId } });
+    if (saleDates.length === 0) return;
+    await this.prisma.editionSaleDate.createMany({
+      data: saleDates.map((d, i) => ({
+        editionId,
+        label: d.label,
+        date: new Date(d.date),
+        order: d.order ?? i,
+      })),
+    });
+  }
+
+  /**
+   * Resolves the single representative sale date for an edition as the EARLIEST across every
+   * source that applies to it, combined:
+   * - the earliest SaleTier for each linked SaleAnnouncement (default-region tiers, or the
+   *   announcement's top-level tiers if no default region) — read live, never copied. An
+   *   edition can be linked to more than one announcement (e.g. an original sale plus a later
+   *   restock/reprint), so every link is considered, not just one.
+   * - the earliest manually-entered EditionSaleDate row (e.g. a subscription's "Subscription
+   *   Renewal Day", entered before the edition had any announcement link).
+   *
+   * These are combined, not mutually exclusive: an edition originally catalogued as
+   * subscription-only (manual renewal date) that later ALSO gets linked to a public sale
+   * announcement keeps its renewal date in the running — it's very often the actual earliest
+   * way the book became available, and deleting it on link would lose real information. It's
+   * up to the admin to remove a manual row later if it turns out to be genuinely redundant
+   * with an announcement's tiers.
+   *
+   * Returns null only when there is truly nothing to resolve from either source (callers fall
+   * back to edition.createdAt, matching the previous generalSaleDate-null behavior).
+   *
+   * Single-edition scoped — call sites resolving at most a handful of editions at once
+   * (linkEditionHistory, edition detail reads) use this. List/grid views resolving many
+   * editions at once (author page, series page, search) must use the batched
+   * resolveEditionSaleDates([...]) below instead, to avoid N+1 queries.
+   */
+  async resolveEditionSaleDate(editionId: string): Promise<{ label: string; date: Date } | null> {
+    const [links, earliestManual] = await Promise.all([
+      this.prisma.saleAnnouncementEdition.findMany({ where: { editionId }, select: { saleId: true } }),
+      this.prisma.editionSaleDate.findFirst({ where: { editionId }, orderBy: { date: 'asc' } }),
+    ]);
+
+    const candidates: { label: string; date: Date }[] = [];
+    if (earliestManual) candidates.push({ label: earliestManual.label, date: earliestManual.date });
+
+    if (links.length > 0) {
+      const perSaleEarliest = await Promise.all(links.map(async (link) => {
+        const defaultRegion = await this.prisma.saleAnnouncementRegion.findFirst({
+          where: { saleId: link.saleId, isDefault: true },
+          select: { id: true },
+        });
+        return (
+          (defaultRegion &&
+            (await this.prisma.saleTier.findFirst({
+              where: { saleId: link.saleId, regionId: defaultRegion.id },
+              orderBy: { date: 'asc' },
+            }))) ||
+          (await this.prisma.saleTier.findFirst({
+            where: { saleId: link.saleId, regionId: null },
+            orderBy: { date: 'asc' },
+          }))
+        );
+      }));
+      for (const t of perSaleEarliest) {
+        if (t) candidates.push({ label: t.name, date: t.date });
+      }
+    }
+
+    if (candidates.length === 0) return null;
+    return candidates.sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+  }
+
+  /**
+   * Batched version of resolveEditionSaleDate for list/grid views (author page, series page,
+   * search results, etc.) — same precedence (earliest of manual EditionSaleDate rows and linked
+   * announcements' default-region-aware earliest tier), but resolves an arbitrary number of
+   * editions with a constant number of queries instead of one round-trip per edition.
+   */
+  async resolveEditionSaleDates(editionIds: string[]): Promise<Map<string, { label: string; date: Date } | null>> {
+    const result = new Map<string, { label: string; date: Date } | null>();
+    if (editionIds.length === 0) return result;
+
+    const [links, manualDates] = await Promise.all([
+      this.prisma.saleAnnouncementEdition.findMany({
+        where: { editionId: { in: editionIds } },
+        select: { editionId: true, saleId: true },
+      }),
+      this.prisma.editionSaleDate.findMany({
+        where: { editionId: { in: editionIds } },
+        orderBy: { date: 'asc' },
+      }),
+    ]);
+
+    const earliestManualByEdition = new Map<string, { label: string; date: Date }>();
+    for (const d of manualDates) {
+      if (!earliestManualByEdition.has(d.editionId)) {
+        earliestManualByEdition.set(d.editionId, { label: d.label, date: d.date });
+      }
+    }
+
+    const saleIds = [...new Set(links.map((l) => l.saleId))];
+    const earliestTierBySale = new Map<string, { name: string; date: Date }>();
+    if (saleIds.length > 0) {
+      const [defaultRegions, allTiers] = await Promise.all([
+        this.prisma.saleAnnouncementRegion.findMany({
+          where: { saleId: { in: saleIds }, isDefault: true },
+          select: { id: true, saleId: true },
+        }),
+        this.prisma.saleTier.findMany({
+          where: { saleId: { in: saleIds } },
+          orderBy: { date: 'asc' },
+          select: { saleId: true, regionId: true, name: true, date: true },
+        }),
+      ]);
+      const defaultRegionIdBySale = new Map(defaultRegions.map((r) => [r.saleId, r.id]));
+      for (const saleId of saleIds) {
+        const defaultRegionId = defaultRegionIdBySale.get(saleId) ?? null;
+        const tiersForSale = allTiers.filter((t) => t.saleId === saleId);
+        const tier =
+          (defaultRegionId && tiersForSale.find((t) => t.regionId === defaultRegionId)) ||
+          tiersForSale.find((t) => t.regionId === null);
+        if (tier) earliestTierBySale.set(saleId, { name: tier.name, date: tier.date });
+      }
+    }
+
+    const saleIdsByEdition = new Map<string, string[]>();
+    for (const l of links) {
+      const arr = saleIdsByEdition.get(l.editionId) ?? [];
+      arr.push(l.saleId);
+      saleIdsByEdition.set(l.editionId, arr);
+    }
+
+    for (const editionId of editionIds) {
+      const candidates: { label: string; date: Date }[] = [];
+      const manual = earliestManualByEdition.get(editionId);
+      if (manual) candidates.push(manual);
+      for (const saleId of saleIdsByEdition.get(editionId) ?? []) {
+        const t = earliestTierBySale.get(saleId);
+        if (t) candidates.push({ label: t.name, date: t.date });
+      }
+      result.set(
+        editionId,
+        candidates.length === 0 ? null : candidates.sort((a, b) => a.date.getTime() - b.date.getTime())[0],
+      );
+    }
+
+    return result;
+  }
+
   private async invalidateEditionCountCaches(companySlug: string, subscriptionId?: string | null, collectionId?: string | null) {
     await this.cache.del(companyEditionsAllCountKey(companySlug));
     if (subscriptionId) await this.cache.del(companyEditionsSubCountKey(companySlug, subscriptionId));
@@ -358,9 +510,6 @@ export class EditionsService {
         isSpecial: dto.isSpecial ?? false,
         basePrice: dto.basePrice ? dto.basePrice : undefined,
         currency: dto.currency,
-        firstAccessDate: dto.firstAccessDate,
-        earlyAccessDate: dto.earlyAccessDate,
-        generalSaleDate: dto.generalSaleDate,
         bookBoxCompanyId: dto.bookBoxCompanyId,
         bookBoxCompanyCustomName: dto.bookBoxCompanyCustomName,
         subscriptionId: dto.subscriptionId,
@@ -375,6 +524,7 @@ export class EditionsService {
       },
     });
     await this.syncEditionMediaAssets(edition.id, dto.additionalImages ?? []);
+    if (dto.saleDates !== undefined) await this.replaceEditionSaleDates(edition.id, dto.saleDates);
     await this.indexEdition(edition.id);
     if (companySlug) await this.invalidateEditionCountCaches(companySlug, dto.subscriptionId, dto.collectionId);
     // Tag features asynchronously (artist roles not yet available at create time)
@@ -617,23 +767,38 @@ export class EditionsService {
           },
           orderBy: [{ sortOrder: 'asc' as const }],
         },
+        saleEditions: { select: { id: true } },
+        saleDates: {
+          select: { id: true, label: true, date: true, order: true },
+          orderBy: { order: 'asc' as const },
+        },
         previousEdition: {
           select: {
-            slug: true, generalSaleDate: true,
+            id: true, slug: true,
             bookBoxCompany: { select: { name: true } },
           },
         },
         nextEdition: {
           select: {
-            slug: true, generalSaleDate: true,
+            id: true, slug: true,
             bookBoxCompany: { select: { name: true } },
           },
         },
       },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    const [resolvedSaleDate, previousResolved, nextResolved] = await Promise.all([
+      this.resolveEditionSaleDate(edition.id),
+      edition.previousEdition ? this.resolveEditionSaleDate(edition.previousEdition.id) : null,
+      edition.nextEdition ? this.resolveEditionSaleDate(edition.nextEdition.id) : null,
+    ]);
     return {
       ...edition,
+      // linked to an announcement => dates are resolved live from its tiers, not editable here
+      isLinkedToAnnouncement: edition.saleEditions.length > 0,
+      resolvedSaleDate,
+      previousEdition: edition.previousEdition ? { ...edition.previousEdition, resolvedSaleDate: previousResolved } : null,
+      nextEdition: edition.nextEdition ? { ...edition.nextEdition, resolvedSaleDate: nextResolved } : null,
       featureTags: await this.enrichTagsWithCategories(edition.featureTags as any),
       variants: await this.getVariantSiblings(edition),
     };
@@ -649,6 +814,10 @@ export class EditionsService {
         additionalImages: true, language: true,
         basePrice: true, currency: true, features: true,
         firstAccessDate: true, earlyAccessDate: true, generalSaleDate: true,
+        saleDates: {
+          select: { id: true, label: true, date: true, order: true },
+          orderBy: { order: 'asc' as const },
+        },
         verifiedAt: true, submittedByUserId: true, photoCredit: true,
         variantLabel: true, variantGroupParentId: true,
         book: {
@@ -719,7 +888,6 @@ export class EditionsService {
           },
         },
         saleEditions: {
-          orderBy: { announcement: { generalSaleDate: 'asc' as const } },
           select: {
             id: true,
             isReprint: true,
@@ -727,6 +895,7 @@ export class EditionsService {
               select: {
                 id: true, title: true, isBundle: true,
                 generalSaleDate: true, earlyAccessDate: true, firstAccessDate: true,
+                tiers: { select: { name: true, date: true }, orderBy: { date: 'asc' as const }, take: 1 },
               },
             },
           },
@@ -734,7 +903,7 @@ export class EditionsService {
         previousEdition: {
           select: {
             id: true, slug: true, additionalImages: true,
-            generalSaleDate: true, createdAt: true,
+            createdAt: true,
             bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
             collection: { select: { id: true, name: true, slug: true } },
           },
@@ -742,7 +911,7 @@ export class EditionsService {
         nextEdition: {
           select: {
             id: true, slug: true, additionalImages: true,
-            generalSaleDate: true, createdAt: true,
+            createdAt: true,
             bookBoxCompany: { select: { name: true, slug: true, brandColors: true } },
             collection: { select: { id: true, name: true, slug: true } },
           },
@@ -750,9 +919,27 @@ export class EditionsService {
       },
     });
     if (!edition) throw new NotFoundException(`Edition '${slug}' not found`);
+    // Sort sale editions by their announcement's earliest tier date (was: announcement.generalSaleDate,
+    // a single fixed column — announcements now carry an arbitrary-length tiers list instead).
+    const saleEditions = [...edition.saleEditions].sort((a, b) => {
+      const dateA = a.announcement.tiers[0]?.date ?? a.announcement.generalSaleDate;
+      const dateB = b.announcement.tiers[0]?.date ?? b.announcement.generalSaleDate;
+      if (!dateA) return dateB ? 1 : 0;
+      if (!dateB) return -1;
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+    const [resolvedSaleDate, previousResolved, nextResolved] = await Promise.all([
+      this.resolveEditionSaleDate(edition.id),
+      edition.previousEdition ? this.resolveEditionSaleDate(edition.previousEdition.id) : null,
+      edition.nextEdition ? this.resolveEditionSaleDate(edition.nextEdition.id) : null,
+    ]);
     // Flatten authors on nested book
     return {
       ...edition,
+      saleEditions,
+      resolvedSaleDate,
+      previousEdition: edition.previousEdition ? { ...edition.previousEdition, resolvedSaleDate: previousResolved } : null,
+      nextEdition: edition.nextEdition ? { ...edition.nextEdition, resolvedSaleDate: nextResolved } : null,
       featureTags: await this.enrichTagsWithCategories(edition.featureTags as any),
       variants: await this.getVariantSiblings(edition),
       book: edition.book
@@ -787,9 +974,6 @@ export class EditionsService {
       }
     }
     if (dto.currency !== undefined) data.currency = dto.currency;
-    if (dto.firstAccessDate !== undefined) data.firstAccessDate = dto.firstAccessDate;
-    if (dto.earlyAccessDate !== undefined) data.earlyAccessDate = dto.earlyAccessDate;
-    if (dto.generalSaleDate !== undefined) data.generalSaleDate = dto.generalSaleDate;
     if (dto.bookBoxCompanyId !== undefined) data.bookBoxCompanyId = dto.bookBoxCompanyId;
     if (dto.bookBoxCompanyCustomName !== undefined) data.bookBoxCompanyCustomName = dto.bookBoxCompanyCustomName;
     if (dto.subscriptionId !== undefined) data.subscriptionId = dto.subscriptionId;
@@ -800,6 +984,7 @@ export class EditionsService {
     if (dto.variantLabel !== undefined) data.variantLabel = dto.variantLabel;
 
     const edition = await this.prisma.bookEdition.update({ where: { slug }, data });
+    if (dto.saleDates !== undefined) await this.replaceEditionSaleDates(edition.id, dto.saleDates);
     if (dto.additionalImages !== undefined) {
       await this.syncEditionMediaAssets(edition.id, dto.additionalImages ?? []);
     }
@@ -891,30 +1076,34 @@ export class EditionsService {
     const [a, b] = await Promise.all([
       this.prisma.bookEdition.findUnique({
         where: { slug: slugA },
-        select: { id: true, slug: true, bookId: true, generalSaleDate: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, generalSaleDate: true, createdAt: true } } },
+        select: { id: true, slug: true, bookId: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, createdAt: true } } },
       }),
       this.prisma.bookEdition.findUnique({
         where: { slug: slugB },
-        select: { id: true, slug: true, bookId: true, generalSaleDate: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, generalSaleDate: true, createdAt: true } } },
+        select: { id: true, slug: true, bookId: true, createdAt: true, previousEditionId: true, nextEdition: { select: { id: true, slug: true, createdAt: true } } },
       }),
     ]);
     if (!a) throw new NotFoundException(`Edition '${slugA}' not found`);
     if (!b) throw new NotFoundException(`Edition '${slugB}' not found`);
     if (a.bookId !== b.bookId) throw new BadRequestException('Editions must belong to the same book');
 
-    const dateA = a.generalSaleDate ? new Date(a.generalSaleDate) : a.createdAt;
-    const dateB = b.generalSaleDate ? new Date(b.generalSaleDate) : b.createdAt;
+    const resolvedA = await this.resolveEditionSaleDate(a.id);
+    const resolvedB = await this.resolveEditionSaleDate(b.id);
+    const dateA = resolvedA?.date ?? a.createdAt;
+    const dateB = resolvedB?.date ?? b.createdAt;
 
     // Determine older/newer
     const [older, newer] = dateA <= dateB ? [a, b] : [b, a];
+    const olderResolvedDate = older.id === a.id ? resolvedA?.date ?? null : resolvedB?.date ?? null;
+    const newerResolvedDate = newer.id === a.id ? resolvedA?.date ?? null : resolvedB?.date ?? null;
 
     let wasRerouted = false;
 
     // Detect chain re-linking: older already has a nextEdition (C) that is newer than `newer`
     const existingNext = older.nextEdition;
     if (existingNext) {
-      const dateExisting = existingNext.generalSaleDate ? new Date(existingNext.generalSaleDate) : null;
-      const dateNewer = newer.generalSaleDate ? new Date(newer.generalSaleDate) : null;
+      const dateExisting = (await this.resolveEditionSaleDate(existingNext.id))?.date ?? null;
+      const dateNewer = newerResolvedDate;
       if (dateExisting && dateNewer && dateNewer < dateExisting) {
         // Insert newer between older and existingNext: older→newer→existingNext
         await this.prisma.$transaction([
@@ -929,9 +1118,9 @@ export class EditionsService {
           newer: { id: newer.id, slug: newer.slug },
           wasRerouted,
           chain: [
-            { slug: older.slug, date: older.generalSaleDate ? new Date(older.generalSaleDate) : null },
-            { slug: newer.slug, date: newer.generalSaleDate ? new Date(newer.generalSaleDate) : null },
-            { slug: existingNext.slug, date: existingNext.generalSaleDate ? new Date(existingNext.generalSaleDate) : null },
+            { slug: older.slug, date: olderResolvedDate },
+            { slug: newer.slug, date: newerResolvedDate },
+            { slug: existingNext.slug, date: dateExisting },
           ],
         };
       }
@@ -948,8 +1137,8 @@ export class EditionsService {
       newer: { id: newer.id, slug: newer.slug },
       wasRerouted: false,
       chain: [
-        { slug: older.slug, date: older.generalSaleDate ? new Date(older.generalSaleDate) : null },
-        { slug: newer.slug, date: newer.generalSaleDate ? new Date(newer.generalSaleDate) : null },
+        { slug: older.slug, date: olderResolvedDate },
+        { slug: newer.slug, date: newerResolvedDate },
       ],
     };
   }

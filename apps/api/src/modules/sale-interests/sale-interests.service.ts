@@ -1,16 +1,6 @@
-import { Injectable, Optional } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
-
-type AnnouncementDates = {
-  saleType: string;
-  firstAccessDate: Date | string | null;
-  earlyAccessDate: Date | string | null;
-  generalSaleDate: Date | string | null;
-  endsAt: Date | string | null;
-  regions?: { id: string; isDefault: boolean; firstAccessDate: Date | string | null; earlyAccessDate: Date | string | null; generalSaleDate: Date | string | null; endsAt: Date | string | null }[];
-};
 
 @Injectable()
 export class SaleInterestsService {
@@ -22,31 +12,33 @@ export class SaleInterestsService {
   async upsert(
     userId: string,
     announcementId: string,
-    tier: string,
-    regionId?: string | null,
+    tierId: string,
     selectedPrice?: number | null,
     selectedPriceCurrency?: string | null,
   ) {
+    const tier = await this.prisma.saleTier.findFirst({ where: { id: tierId, saleId: announcementId } });
+    if (!tier) throw new NotFoundException('Tier not found on this announcement');
+
     const result = await this.prisma.userSaleInterest.upsert({
       where: { userId_announcementId: { userId, announcementId } },
       create: {
         userId,
         announcementId,
-        tier,
-        regionId: regionId ?? null,
+        tierId: tier.id,
+        regionId: tier.regionId,
         selectedPrice: selectedPrice ?? null,
         selectedPriceCurrency: selectedPriceCurrency ?? null,
       },
       update: {
-        tier,
-        regionId: regionId ?? null,
+        tierId: tier.id,
+        regionId: tier.regionId,
         selectedPrice: selectedPrice ?? null,
         selectedPriceCurrency: selectedPriceCurrency ?? null,
       },
     });
-    // Schedule (or reschedule) sale reminder
+    // Schedule (or reschedule) sale reminder — resolves straight off tier.date, no fallback chain
     this.scheduledReminders?.cancelBySaleInterest(userId, announcementId)
-      .then(() => this.scheduledReminders?.scheduleSale(userId, announcementId, tier))
+      .then(() => this.scheduledReminders?.scheduleSale(userId, announcementId, tier.id))
       .catch(() => {});
     return result;
   }
@@ -89,6 +81,7 @@ export class SaleInterestsService {
             regions: { select: this.regionSelect },
           },
         },
+        saleTier: { select: { id: true, name: true, date: true, regionId: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -98,6 +91,7 @@ export class SaleInterestsService {
   async findOne(userId: string, announcementId: string) {
     return this.prisma.userSaleInterest.findUnique({
       where: { userId_announcementId: { userId, announcementId } },
+      include: { saleTier: { select: { id: true, name: true, date: true, regionId: true } } },
     });
   }
 
@@ -110,72 +104,17 @@ export class SaleInterestsService {
     endsAt: true,
   } as const;
 
-  // Sales with country-specific dates (SaleAnnouncementRegion) can leave the announcement's
-  // own FA/EA/GS fields null — the dates only exist per-region. The old WHERE only checked the
-  // top-level fields, so those sales never matched at the DB level and were dropped before
-  // code-level filtering even ran. Broaden it: match if EITHER the top-level fields OR any
-  // region's fields have an upcoming date.
-  private upcomingDateWhere(today: Date): Prisma.SaleAnnouncementWhereInput {
-    const topLevelOr: Prisma.SaleAnnouncementWhereInput[] = [
-      { generalSaleDate: { gte: today } },
-      { earlyAccessDate: { gte: today } },
-      { firstAccessDate: { gte: today } },
-    ];
-    // Same conditions, applied to SaleAnnouncementRegion instead — a different (but
-    // field-name-identical) Prisma filter type, hence the separate literal array.
-    const regionOr: Prisma.SaleAnnouncementRegionWhereInput[] = [
-      { generalSaleDate: { gte: today } },
-      { earlyAccessDate: { gte: today } },
-      { firstAccessDate: { gte: today } },
-    ];
-    return { OR: [...topLevelOr, { regions: { some: { OR: regionOr } } }] };
-  }
-
-  private pickRegion<R extends { id: string; isDefault: boolean }>(regions: R[] | undefined, regionId: string | null | undefined): R | null {
-    const list = regions ?? [];
-    return (regionId ? list.find(r => r.id === regionId) : null)
-      ?? (list.length > 0 ? (list.find(r => r.isDefault) ?? list[0]) : null);
-  }
-
-  // FA/EA fall forward to whichever later tier date is known — but GS previously had no
-  // fallback at all, so a followed sale with tier GS and no generalSaleDate set yet (only
-  // FA/EA announced so far) resolved to a null tierDate and got silently dropped from
-  // "upcoming sales". Every tier now falls back to *any* known date on the announcement, so a
-  // followed sale always surfaces once at least one date is known, regardless of which tier the
-  // user picked.
-  //
-  // Also mirrors resolveSaleDates on the frontend (apps/web/src/lib/saleDates.ts): the user's
-  // selected region (or the sale's default region) takes priority over the top-level dates,
-  // since sales with per-country dates leave the top-level fields null entirely.
-  //
-  // Resolves the FA/EA/GS "opens at" date only, uniformly for every saleType — this widget never
-  // shows saleType to the user, it's purely "when's my next sale." An earlier version
-  // special-cased OPEN_PREORDER to use endsAt instead, which pushed a followed OPEN_PREORDER with
-  // no endsAt set to the literal end of time whenever FA/EA/GS were unset too.
-  private resolveTierDate(ann: AnnouncementDates, tier: string | null, regionId?: string | null): Date | null {
-    const region = this.pickRegion(ann.regions, regionId);
-    const pick = (regionDate: Date | string | null | undefined, annDate: Date | string | null) => {
-      const d = regionDate ?? annDate;
-      return d ? new Date(d) : null;
-    };
-    const fa = pick(region?.firstAccessDate, ann.firstAccessDate);
-    const ea = pick(region?.earlyAccessDate, ann.earlyAccessDate);
-    const gs = pick(region?.generalSaleDate, ann.generalSaleDate);
-    if (tier === 'FA') return fa ?? ea ?? gs;
-    if (tier === 'EA') return ea ?? gs ?? fa;
-    return gs ?? ea ?? fa;
-  }
-
+  /** A user's interest now points directly at one concrete SaleTier row — its `date` IS the
+   *  resolved date, no FA/EA/GS fallback-chain resolution needed (every tier is a real row with
+   *  a real date, unlike the old fixed 3-slot columns where a tier's own date could be null and
+   *  had to fall back to the next slot down). Filtering and sorting both happen at the DB level
+   *  via the saleTier relation instead of a fetch-then-reduce-in-JS pass. */
   async getUpcoming(userId: string, limit = 3) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    // Broad first-pass: fetch any interest where at least one date (top-level or per-region) is
-    // still upcoming. We then filter in code to respect the user's chosen tier and region.
+
     const rows = await this.prisma.userSaleInterest.findMany({
-      where: {
-        userId,
-        announcement: this.upcomingDateWhere(today),
-      },
+      where: { userId, saleTier: { date: { gte: today } } },
       include: {
         announcement: {
           select: {
@@ -188,21 +127,14 @@ export class SaleInterestsService {
             endsAt: true,
             imageUrl: true,
             company: { select: { name: true, slug: true } },
-            regions: { select: this.regionSelect },
           },
         },
+        saleTier: { select: { id: true, name: true, date: true } },
       },
+      orderBy: { saleTier: { date: 'asc' } },
+      take: limit,
     });
 
-    // Resolve the tier-relevant date for each row, filter out sales whose tier date is past,
-    // then sort by that date and take limit.
-    const resolved = rows
-      .map(row => ({ row, tierDate: this.resolveTierDate(row.announcement, row.tier, row.regionId) }))
-      .filter(({ tierDate }) => tierDate != null && tierDate >= today)
-      .sort((a, b) => a.tierDate!.getTime() - b.tierDate!.getTime())
-      .slice(0, limit)
-      .map(({ row }) => row);
-
-    return resolved;
+    return rows;
   }
 }

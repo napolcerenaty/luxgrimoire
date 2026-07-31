@@ -3,7 +3,7 @@ import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatsService } from '../stats/stats.service';
-import { CreatePurchaseGroupDto, UpdatePurchaseGroupDto, ConfirmSalePurchaseDto } from './purchase-groups.dto';
+import { CreatePurchaseGroupDto, UpdatePurchaseGroupDto } from './purchase-groups.dto';
 
 @Injectable()
 export class PurchaseGroupsService {
@@ -148,67 +148,6 @@ export class PurchaseGroupsService {
 
     this.statsService.markStatsStale(userId);
     return updated;
-  }
-
-  async confirmSalePurchase(userId: string, announcementId: string, dto: ConfirmSalePurchaseDto) {
-    const sale = await this.prisma.saleAnnouncement.findUnique({
-      where: { id: announcementId },
-      select: { id: true, title: true },
-    });
-    if (!sale) throw new NotFoundException('Sale announcement not found');
-
-    if (dto.editionIds.length === 0) {
-      throw new BadRequestException('At least one edition is required');
-    }
-
-    const editions = await this.prisma.bookEdition.findMany({
-      where: { id: { in: dto.editionIds } },
-      select: { id: true, bookId: true },
-    });
-
-    if (editions.length !== dto.editionIds.length) {
-      throw new BadRequestException('Some edition IDs are invalid');
-    }
-
-    const result = await this.prisma.$transaction(async (tx) => {
-      const group = await tx.userPurchaseGroup.create({
-        data: {
-          userId,
-          saleAnnouncementId: announcementId,
-          title: sale.title,
-          totalAmount: dto.totalAmount,
-          currency: dto.currency,
-          shippingAmount: dto.shippingAmount ?? null,
-          purchasedAt: new Date(dto.purchasedAt),
-          notes: dto.notes ?? null,
-        },
-      });
-
-      const bookEntries = await Promise.all(
-        editions.map((edition) =>
-          tx.userBookEntry.create({
-            data: {
-              userId,
-              bookId: edition.bookId,
-              editionId: edition.id,
-              purchaseGroupId: group.id,
-              ownershipStatus: 'PREORDER',
-            },
-          })
-        )
-      );
-
-      // Record initial ownership history for each entry
-      await recordOwnershipHistory(tx, bookEntries, 'PREORDER');
-
-      // Remove interest after confirming purchase
-      await tx.userSaleInterest.deleteMany({ where: { userId, announcementId } });
-
-      return { group, bookEntries };
-    });
-
-    this.statsService.markStatsStale(userId, [new Date(dto.purchasedAt).getFullYear()]);
-    return result;
   }
 
   async createGroupForEntry(userId: string, entryId: string, dto: UpdatePurchaseGroupDto & { totalAmount: number; currency: string; purchasedAt: string }) {

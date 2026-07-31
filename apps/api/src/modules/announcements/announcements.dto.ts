@@ -14,18 +14,6 @@ export class CreateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
 
   @IsOptional()
   @IsString()
-  generalSaleDate?: string;
-
-  @IsOptional()
-  @IsString()
-  firstAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
-  earlyAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
   endsAt?: string;
 
   @IsOptional()
@@ -87,18 +75,6 @@ export class UpdateSaleAnnouncementDto extends BaseNumericPriceCurrencyDto {
   @IsOptional()
   @IsString()
   companyId?: string;
-
-  @IsOptional()
-  @IsString()
-  generalSaleDate?: string | null;
-
-  @IsOptional()
-  @IsString()
-  firstAccessDate?: string | null;
-
-  @IsOptional()
-  @IsString()
-  earlyAccessDate?: string | null;
 
   @IsOptional()
   @IsString()
@@ -168,4 +144,23 @@ export class AssignEditionToItemDto {
   @IsOptional()
   @IsString()
   itemId?: string | null;
+}
+
+/** One named access tier (e.g. "First Access", "VIP Access", "Flash Sale") for a sale
+ *  announcement or one of its regions — replaces the old fixed firstAccessDate/
+ *  earlyAccessDate/generalSaleDate slots with an arbitrary-length ordered list. */
+export class UpsertSaleTierDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @IsString()
+  name: string = '';
+
+  @IsString()
+  date: string = '';
+
+  @IsOptional()
+  @IsInt()
+  order?: number;
 }

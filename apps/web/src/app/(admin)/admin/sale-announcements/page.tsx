@@ -18,6 +18,8 @@ import {
   adminSetAllAnnouncementEditionsReprint,
   adminUpsertAnnouncementRegion,
   adminDeleteAnnouncementRegion,
+  adminUpsertAnnouncementTier,
+  adminDeleteAnnouncementTier,
   adminDuplicateSaleAnnouncement,
   adminCreateAnnouncementItem,
   adminUpdateAnnouncementItem,
@@ -34,11 +36,15 @@ import { PublisherPicker } from '@/components/admin/pickers/PublisherPicker'
 import type { AiParseResult, EditionCompany } from '@/components/admin/EditionFieldsSection'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { getEarliestTierDate } from '@/lib/saleTiers'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
-import { Sparkles } from 'lucide-react'
+import { isValidCalendarDateTime } from '@/lib/dateValidation'
+import { Sparkles, Trash2 } from 'lucide-react'
 import { CURRENCIES } from '@/lib/currencies'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+/** Swaps the border color of an INP-based class string to flag an invalid field. */
+const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
 const LBL = 'block text-sm text-stone-400 mb-1'
 
 // UTC offsets in minutes for each timezone abbreviation
@@ -293,13 +299,13 @@ interface EditionInfo {
   bookBoxCompany?: { name: string } | null
 }
 
-function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate, defaultPrice, defaultCurrency, defaultCompanyId, isBundle, bundleBasePrice }: {
+function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency, defaultCompanyId, isBundle, bundleBasePrice }: {
   linked: LinkedEdition[]
   onAdd: (e: LinkedEdition) => void
   onRemove: (editionId: string) => void
-  defaultFirstAccessDate?: string | null
-  defaultEarlyAccessDate?: string | null
-  defaultGeneralSaleDate?: string | null
+  // Editions created here are auto-linked to the announcement via onAdd immediately after
+  // creation, so their sale date resolves live from the announcement's tiers — no
+  // default*AccessDate prefill props needed.
   defaultPrice?: number | null
   defaultCurrency?: string | null
   defaultCompanyId?: string | null
@@ -439,9 +445,6 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
         <CreateBookEditionForm
           key={`create-edition-${selectedBook.id}`}
           existingBookId={selectedBook.id}
-          defaultFirstAccessDate={defaultFirstAccessDate}
-          defaultEarlyAccessDate={defaultEarlyAccessDate}
-          defaultGeneralSaleDate={defaultGeneralSaleDate}
           defaultPrice={isBundle && perBookPrice != null ? perBookPrice : defaultPrice}
           defaultCurrency={defaultCurrency}
           defaultCompanyId={bdCompanyId || defaultCompanyId}
@@ -451,6 +454,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
           defaultPhotoCredit={isBundle && bdPhotoCredit ? bdPhotoCredit : undefined}
           defaultArtists={isBundle && bdArtists.length > 0 ? bdArtists : undefined}
           defaultFeatureTags={isBundle && bdFeatureTags.length > 0 ? bdFeatureTags : undefined}
+          willLinkToAnnouncement
           onSuccess={(editionId) => {
             if (editionId) {
               onAdd({
@@ -734,12 +738,31 @@ function EditionPicker({ linked, onAdd, onRemove, defaultFirstAccessDate, defaul
 }
 
 // ─── Form state ───────────────────────────────────────────────────────────────
+// Local (uncommitted) tier row used in the create form — same shape the tier endpoints take,
+// just held client-side until the announcement/region actually exists.
+interface LocalTierEntry {
+  name: string
+  date: string // datetime-local string
+}
+
+// Local (uncommitted) region used in the create form, with its own inline tier list. Only
+// meaningful for `isCreate` mode — after creation, regions are managed via
+// AnnouncementRegionsPanel, which each commit immediately.
+interface LocalRegionEntry {
+  name: string
+  countryCodes: string
+  isDefault: boolean
+  endsAt: string
+  basePrice: string
+  currency: string
+  subscriberBasePrice: string
+  saleTimezone: string
+  tiers: LocalTierEntry[]
+}
+
 interface FormState {
   title: string
   companyId: string
-  generalSaleDate: string
-  firstAccessDate: string
-  earlyAccessDate: string
   endsAt: string
   saleTimezone: string
   basePrice: string
@@ -753,14 +776,17 @@ interface FormState {
   saleType: SaleType
   isSoldOut: boolean
   notes: string
+  /** Create-mode only — the announcement's own default tiers, entered inline before the
+   *  announcement exists, created via the tier endpoints right after the announcement saves. */
+  tiers: LocalTierEntry[]
+  /** Create-mode only — regions (each with their own inline tiers) entered before the
+   *  announcement exists, created right after it saves. */
+  regions: LocalRegionEntry[]
 }
 
 const EMPTY_FORM: FormState = {
   title: '',
   companyId: '',
-  generalSaleDate: '',
-  firstAccessDate: '',
-  earlyAccessDate: '',
   endsAt: '',
   saleTimezone: 'UTC',
   basePrice: '',
@@ -774,6 +800,8 @@ const EMPTY_FORM: FormState = {
   saleType: 'LIMITED_PREORDER',
   isSoldOut: false,
   notes: '',
+  tiers: [],
+  regions: [],
 }
 
 function announcementToForm(a: ApiSaleAnnouncement): FormState {
@@ -786,9 +814,6 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
   return {
     title: a.title,
     companyId: a.companyId ?? '',
-    generalSaleDate: utcIsoToTzLocal(a.generalSaleDate, tz),
-    firstAccessDate: utcIsoToTzLocal(a.firstAccessDate, tz),
-    earlyAccessDate: utcIsoToTzLocal(a.earlyAccessDate, tz),
     endsAt: utcIsoToTzLocal(a.endsAt, tz),
     saleTimezone: a.saleTimezone ?? 'UTC',
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
@@ -802,6 +827,10 @@ function announcementToForm(a: ApiSaleAnnouncement): FormState {
     saleType: a.saleType ?? 'LIMITED_PREORDER',
     isSoldOut: a.isSoldOut ?? false,
     notes: a.notes ?? '',
+    // Editing an existing announcement manages tiers/regions via the panels below the form
+    // (each commits immediately) — these inline fields are create-mode only, always empty here.
+    tiers: [],
+    regions: [],
   }
 }
 
@@ -810,9 +839,6 @@ function formToData(f: FormState): SaleAnnouncementFormData {
   return {
     title: f.title,
     companyId: f.companyId || undefined,
-    generalSaleDate: f.generalSaleDate ? tzLocalToUtcIso(f.generalSaleDate, tz) : null,
-    firstAccessDate: f.firstAccessDate ? tzLocalToUtcIso(f.firstAccessDate, tz) : null,
-    earlyAccessDate: f.earlyAccessDate ? tzLocalToUtcIso(f.earlyAccessDate, tz) : null,
     endsAt: f.endsAt ? tzLocalToUtcIso(f.endsAt, tz) : null,
     saleTimezone: f.saleTimezone || undefined,
     basePrice: f.basePrice ? parseDecimalInput(f.basePrice) : undefined,
@@ -830,18 +856,223 @@ function formToData(f: FormState): SaleAnnouncementFormData {
   }
 }
 
+// ─── Local (uncommitted) tier + region editors — create-mode only ─────────────
+// Same shape as TierListEditor/AnnouncementRegionsPanel below, but held in local component
+// state (no API calls) until the announcement itself is created, at which point the parent
+// creates each of these via the tier/region endpoints. Lets an admin (or the AI parser) fill
+// tiers in right away instead of saving first and reopening the entry to add them.
+function LocalTierRowsEditor({ tiers, onChange, invalidIndices }: {
+  tiers: LocalTierEntry[]
+  onChange: (fn: (prev: LocalTierEntry[]) => LocalTierEntry[]) => void
+  /** Row indices whose date failed validation on the last submit attempt — flagged red
+   *  until that row's date is edited again. */
+  invalidIndices?: Set<number>
+}) {
+  return (
+    <div className="space-y-2">
+      {tiers.map((t, i) => (
+        <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <input
+            className={`${INP} sm:flex-1`}
+            value={t.name}
+            placeholder="e.g. First Access, VIP, Flash Sale"
+            onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, name: e.target.value } : row))}
+          />
+          <div className="flex gap-2 items-center">
+            <input
+              type="datetime-local"
+              className={inpErr(`${INP} flex-1 sm:flex-none sm:w-auto`, invalidIndices?.has(i) ?? false)}
+              value={t.date}
+              onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, date: e.target.value } : row))}
+            />
+            <button type="button" onClick={() => onChange(prev => prev.filter((_, j) => j !== i))}
+              aria-label="Remove tier"
+              className="p-2 rounded text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors flex-shrink-0">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+      ))}
+      <button type="button" onClick={() => onChange(prev => [...prev, { name: '', date: '' }])}
+        className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+        + Add tier
+      </button>
+    </div>
+  )
+}
+
+function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone, invalidEndsAt, invalidTiers }: {
+  regions: LocalRegionEntry[]
+  onChange: (fn: (prev: LocalRegionEntry[]) => LocalRegionEntry[]) => void
+  defaultTiers: LocalTierEntry[]
+  defaultTimezone: string
+  /** Region indices whose "ends at" failed validation on the last submit attempt. */
+  invalidEndsAt?: Set<number>
+  /** Region index → tier row indices whose date failed validation on the last submit attempt. */
+  invalidTiers?: Map<number, Set<number>>
+}) {
+  return (
+    <div className="space-y-3">
+      {regions.map((r, i) => (
+        <div key={i} className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <div className="grid grid-cols-2 gap-2 flex-1">
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">Region Name *</label>
+                <input className={INP} value={r.name} placeholder="UK + International"
+                  onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, name: e.target.value } : row))} />
+              </div>
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">Country Codes <span className="text-stone-600">(comma-separated)</span></label>
+                <input className={INP} value={r.countryCodes} placeholder="GB, AU, DE, FR…"
+                  onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, countryCodes: e.target.value } : row))} />
+              </div>
+            </div>
+            <button type="button" onClick={() => onChange(prev => prev.filter((_, j) => j !== i))}
+              aria-label="Remove region" className="p-2 mt-5 rounded text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors flex-shrink-0">
+              <Trash2 size={16} />
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
+            <input type="checkbox" checked={r.isDefault} className="accent-amber-400"
+              onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, isDefault: e.target.checked } : row))} />
+            Default region (catch-all for unmatched countries)
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Price <span className="text-stone-600">(override)</span></label>
+              <input className={INP} value={r.basePrice} placeholder="Same as default"
+                onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, basePrice: e.target.value } : row))} />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Currency</label>
+              <select className={INP} value={CURRENCIES.includes(r.currency) ? r.currency : ''}
+                onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, currency: e.target.value } : row))}>
+                <option value="">— select —</option>
+                {!CURRENCIES.includes(r.currency) && r.currency && <option value={r.currency}>{r.currency}</option>}
+                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Ends At <span className="text-stone-600">(optional)</span></label>
+              <input type="datetime-local" className={inpErr(INP, invalidEndsAt?.has(i) ?? false)} value={r.endsAt}
+                onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, endsAt: e.target.value } : row))} />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Timezone</label>
+              <ComboBox
+                value={r.saleTimezone || defaultTimezone}
+                options={TIMEZONE_OPTIONS}
+                placeholder="Select timezone…"
+                onChange={v => onChange(prev => prev.map((row, j) => j === i ? { ...row, saleTimezone: v } : row))}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Subscriber Price <span className="text-stone-600">(same currency, optional)</span></label>
+            <input className={INP} value={r.subscriberBasePrice} placeholder="Lower subscriber price"
+              onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, subscriberBasePrice: e.target.value } : row))} />
+          </div>
+          <div className="pt-2 border-t border-stone-700/60">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-stone-500 uppercase tracking-wide">Tiers for this region</span>
+              {defaultTiers.length > 0 && (
+                <button type="button"
+                  onClick={() => onChange(prev => prev.map((row, j) => j === i ? { ...row, tiers: [...row.tiers, ...defaultTiers.map(t => ({ ...t }))] } : row))}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                  Copy from sale default
+                </button>
+              )}
+            </div>
+            {r.tiers.length === 0 && (
+              <p className="text-xs text-stone-600 italic mb-1">Inherits the sale's default tiers unless you add one here.</p>
+            )}
+            <LocalTierRowsEditor
+              tiers={r.tiers}
+              onChange={fn => onChange(prev => prev.map((row, j) => j === i ? { ...row, tiers: fn(row.tiers) } : row))}
+              invalidIndices={invalidTiers?.get(i)}
+            />
+          </div>
+        </div>
+      ))}
+      <button type="button"
+        onClick={() => onChange(prev => [...prev, {
+          name: '', countryCodes: '', isDefault: prev.length === 0, endsAt: '', basePrice: '', currency: '', subscriberBasePrice: '',
+          saleTimezone: defaultTimezone, tiers: [],
+        }])}
+        className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+        + Add Region
+      </button>
+    </div>
+  )
+}
+
 // ─── Form component ───────────────────────────────────────────────────────────
-function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
+function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCreate }: {
   initial: FormState
   onSubmit: (data: FormState) => void
   submitting: boolean
   submitLabel: string
+  /** Inline tier/region entry only makes sense before the announcement exists — once saved,
+   *  editing uses AnnouncementTiersPanel/AnnouncementRegionsPanel below instead (they commit
+   *  immediately, no separate submit step). */
+  isCreate?: boolean
 }) {
   const [form, setForm] = useState<FormState>(initial)
-  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(f => ({ ...f, [key]: e.target.value }))
+    if (key === 'endsAt' && endsAtInvalid) { setEndsAtInvalid(false); setFormError(null) }
+  }
   const setCheck = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [key]: e.target.checked }))
+
+  const [formError, setFormError] = useState<string | null>(null)
+  const [endsAtInvalid, setEndsAtInvalid] = useState(false)
+  const [invalidTierIndices, setInvalidTierIndices] = useState<Set<number>>(new Set())
+  const [invalidRegionEndsAt, setInvalidRegionEndsAt] = useState<Set<number>>(new Set())
+  const [invalidRegionTiers, setInvalidRegionTiers] = useState<Map<number, Set<number>>>(new Map())
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const nextEndsAtInvalid = Boolean(form.endsAt) && !isValidCalendarDateTime(form.endsAt)
+    const nextInvalidTierIndices = new Set(
+      form.tiers
+        .map((t, i) => ({ t, i }))
+        .filter(({ t }) => t.name.trim() || t.date)
+        .filter(({ t }) => !isValidCalendarDateTime(t.date))
+        .map(({ i }) => i),
+    )
+    const nextInvalidRegionEndsAt = new Set(
+      form.regions.map((r, i) => ({ r, i })).filter(({ r }) => r.endsAt && !isValidCalendarDateTime(r.endsAt)).map(({ i }) => i),
+    )
+    const nextInvalidRegionTiers = new Map<number, Set<number>>()
+    form.regions.forEach((r, ri) => {
+      const bad = new Set(
+        r.tiers
+          .map((t, i) => ({ t, i }))
+          .filter(({ t }) => t.name.trim() || t.date)
+          .filter(({ t }) => !isValidCalendarDateTime(t.date))
+          .map(({ i }) => i),
+      )
+      if (bad.size > 0) nextInvalidRegionTiers.set(ri, bad)
+    })
+
+    setEndsAtInvalid(nextEndsAtInvalid)
+    setInvalidTierIndices(nextInvalidTierIndices)
+    setInvalidRegionEndsAt(nextInvalidRegionEndsAt)
+    setInvalidRegionTiers(nextInvalidRegionTiers)
+
+    if (nextEndsAtInvalid) { setFormError('Enter a valid "Ends At" date & time.'); return }
+    if (nextInvalidTierIndices.size > 0) { setFormError('One or more sale tiers has an invalid date & time.'); return }
+    if (nextInvalidRegionEndsAt.size > 0) { setFormError('One or more regions has an invalid "Ends At" date & time.'); return }
+    if (nextInvalidRegionTiers.size > 0) { setFormError('One or more region tiers has an invalid date & time.'); return }
+    setFormError(null)
+
+    onSubmit(form)
+  }
 
   const { data: companiesResp } = useQuery({
     queryKey: ['admin', 'companies'],
@@ -853,7 +1084,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
   const companyOptions = allCompanies.map(c => ({ value: c.id, label: c.name }))
 
   return (
-    <form onSubmit={e => { e.preventDefault(); onSubmit(form) }} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
       {/* Title */}
       <div>
@@ -886,23 +1117,20 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         </div>
       </div>
 
-      {/* Dates — 3 cols on md+, 1 col on mobile */}
+      {/* Sale Tiers — inline, create-mode only (edit mode uses AnnouncementTiersPanel below,
+          which commits each change immediately since the announcement already exists). */}
+      {isCreate && (
+        <div>
+          <label className={LBL}>Sale Tiers <span className="text-stone-600 font-normal normal-case tracking-normal">(First Access, VIP, General Sale, etc. — created right after this sale saves)</span></label>
+          <LocalTierRowsEditor tiers={form.tiers} onChange={fn => setForm(f => ({ ...f, tiers: fn(f.tiers) }))} invalidIndices={invalidTierIndices} />
+        </div>
+      )}
+
+      {/* Ends At + Timezone */}
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
         <div>
-          <label className={LBL}>First Access</label>
-          <input type="datetime-local" className={INP} value={form.firstAccessDate} onChange={set('firstAccessDate')} />
-        </div>
-        <div>
-          <label className={LBL}>Early Access</label>
-          <input type="datetime-local" className={INP} value={form.earlyAccessDate} onChange={set('earlyAccessDate')} />
-        </div>
-        <div>
-          <label className={LBL}>General Sale *</label>
-          <input required type="datetime-local" className={INP} value={form.generalSaleDate} onChange={set('generalSaleDate')} />
-        </div>
-        <div>
           <label className={LBL}>Ends At <span className="text-stone-600 font-normal">(optional)</span></label>
-          <input type="datetime-local" className={INP} value={form.endsAt} onChange={set('endsAt')} />
+          <input type="datetime-local" className={inpErr(INP, endsAtInvalid)} value={form.endsAt} onChange={set('endsAt')} />
         </div>
         <div className="sm:col-span-2 md:col-span-2">
           <label className={LBL}>Timezone</label>
@@ -931,6 +1159,21 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
           <input type="text" step="0.01" min="0" className={INP} value={form.subscriberBasePrice} onChange={set('subscriberBasePrice')} placeholder="e.g. 22.00" />
         </div>
       </div>
+
+      {/* Regions — inline, create-mode only (edit mode uses AnnouncementRegionsPanel below). */}
+      {isCreate && (
+        <div>
+          <label className={LBL}>Regions <span className="text-stone-600 font-normal normal-case tracking-normal">(optional — for region-specific pricing and/or tier dates)</span></label>
+          <LocalRegionsEditor
+            regions={form.regions}
+            onChange={fn => setForm(f => ({ ...f, regions: fn(f.regions) }))}
+            defaultTiers={form.tiers}
+            defaultTimezone={form.saleTimezone}
+            invalidEndsAt={invalidRegionEndsAt}
+            invalidTiers={invalidRegionTiers}
+          />
+        </div>
+      )}
 
       {/* Expected Shipping + Source URL — 2 cols */}
       <div className="grid sm:grid-cols-2 gap-3">
@@ -984,6 +1227,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel }: {
         <p className="mt-1 text-xs text-stone-600">Link: <code className="text-stone-500">{`<a href="URL" target="_blank">text</a>`}</code></p>
       </div>
 
+      {formError && <p className="text-xs text-red-400">{formError}</p>}
       <button type="submit" disabled={submitting}
         className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors">
         {submitting ? 'Saving…' : submitLabel}
@@ -998,9 +1242,6 @@ interface RegionFormData {
   name: string
   countryCodes: string
   isDefault: boolean
-  generalSaleDate: string
-  firstAccessDate: string
-  earlyAccessDate: string
   endsAt: string
   isSoldOut: boolean
   saleTimezone: string
@@ -1011,7 +1252,7 @@ interface RegionFormData {
 
 const EMPTY_REGION: RegionFormData = {
   name: '', countryCodes: '', isDefault: false,
-  generalSaleDate: '', firstAccessDate: '', earlyAccessDate: '', endsAt: '',
+  endsAt: '',
   isSoldOut: false,
   saleTimezone: 'UTC', basePrice: '', currency: '', subscriberBasePrice: '',
 }
@@ -1020,9 +1261,6 @@ function announcementToDefaultRegion(a: ApiSaleAnnouncement): RegionFormData {
   const tz = (a as any).saleTimezone ?? 'UTC'
   return {
     ...EMPTY_REGION,
-    generalSaleDate: utcIsoToTzLocal(a.generalSaleDate, tz),
-    firstAccessDate: utcIsoToTzLocal(a.firstAccessDate, tz),
-    earlyAccessDate: utcIsoToTzLocal(a.earlyAccessDate, tz),
     endsAt: utcIsoToTzLocal(a.endsAt, tz),
     saleTimezone: tz,
     basePrice: a.basePrice != null ? String(a.basePrice) : '',
@@ -1041,9 +1279,6 @@ function regionToForm(r: NonNullable<ApiSaleAnnouncement['regions']>[0]): Region
     name: r.name,
     countryCodes: codes.join(', '),
     isDefault: r.isDefault,
-    generalSaleDate: utcIsoToTzLocal(r.generalSaleDate, tz),
-    firstAccessDate: utcIsoToTzLocal(r.firstAccessDate, tz),
-    earlyAccessDate: utcIsoToTzLocal(r.earlyAccessDate, tz),
     endsAt: utcIsoToTzLocal(r.endsAt, tz),
     isSoldOut: r.isSoldOut ?? false,
     saleTimezone: tz,
@@ -1054,6 +1289,159 @@ function regionToForm(r: NonNullable<ApiSaleAnnouncement['regions']>[0]): Region
 }
 
 // ─── Announcement Regions Panel ───────────────────────────────────────────────
+// ─── Tier list editor ─────────────────────────────────────────────────────────
+// Dynamic named tiers (e.g. "First Access", "VIP Access", "Flash Sale") — replaces the old
+// fixed firstAccessDate/earlyAccessDate/generalSaleDate inputs with an arbitrary-length list.
+// Used both for the sale's own default tier set (regionId omitted) and for a single region's
+// tiers (regionId passed) — same shape, different scoping endpoint under the hood.
+function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
+  saleId: string
+  regionId?: string
+  tiers: { id: string; name: string; date: string; order: number }[]
+  saleTimezone: string
+}) {
+  const queryClient = useQueryClient()
+  const [addingTier, setAddingTier] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newDate, setNewDate] = useState('')
+  const [editingTierId, setEditingTierId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [newTierError, setNewTierError] = useState<string | null>(null)
+  const [newTierErrorField, setNewTierErrorField] = useState<'name' | 'date' | null>(null)
+  const [editTierError, setEditTierError] = useState<string | null>(null)
+  const [editTierErrorField, setEditTierErrorField] = useState<'name' | 'date' | null>(null)
+
+  const sorted = [...tiers].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  const upsertMutation = useMutation({
+    mutationFn: (data: { id?: string; name: string; date: string; order?: number }) =>
+      adminUpsertAnnouncementTier(saleId, data, regionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
+      setAddingTier(false)
+      setNewName('')
+      setNewDate('')
+      setEditingTierId(null)
+    },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (tierId: string) => adminDeleteAnnouncementTier(saleId, tierId, regionId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] }),
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const startEdit = (t: { id: string; name: string; date: string }) => {
+    setAddingTier(false)
+    setEditingTierId(t.id)
+    setEditName(t.name)
+    setEditDate(utcIsoToTzLocal(t.date, saleTimezone))
+    setEditTierError(null)
+    setEditTierErrorField(null)
+  }
+
+  const submitNewTier = () => {
+    if (!newName.trim()) { setNewTierError('Tier name is required.'); setNewTierErrorField('name'); return }
+    if (!isValidCalendarDateTime(newDate)) { setNewTierError('Enter a valid date & time.'); setNewTierErrorField('date'); return }
+    setNewTierError(null); setNewTierErrorField(null)
+    upsertMutation.mutate({ name: newName, date: tzLocalToUtcIso(newDate, saleTimezone), order: sorted.length })
+  }
+
+  const submitEditTier = (t: { id: string; order: number }) => {
+    if (!editName.trim()) { setEditTierError('Tier name is required.'); setEditTierErrorField('name'); return }
+    if (!isValidCalendarDateTime(editDate)) { setEditTierError('Enter a valid date & time.'); setEditTierErrorField('date'); return }
+    setEditTierError(null); setEditTierErrorField(null)
+    upsertMutation.mutate({ id: t.id, name: editName, date: tzLocalToUtcIso(editDate, saleTimezone), order: t.order })
+  }
+
+  return (
+    <div className="space-y-2">
+      {sorted.map(t => (
+        editingTierId === t.id ? (
+          <div key={t.id} className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-2">
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Tier Name *</label>
+              <input className={inpErr(INP, editTierErrorField === 'name')} value={editName} onChange={e => { setEditName(e.target.value); if (editTierErrorField === 'name') { setEditTierError(null); setEditTierErrorField(null) } }} placeholder="e.g. First Access, VIP, Flash Sale" />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">Date & Time *</label>
+              <input type="datetime-local" className={inpErr(INP, editTierErrorField === 'date')} value={editDate} onChange={e => { setEditDate(e.target.value); if (editTierErrorField === 'date') { setEditTierError(null); setEditTierErrorField(null) } }} />
+            </div>
+            {editTierError && <p className="text-xs text-red-400">{editTierError}</p>}
+            <div className="flex gap-2">
+              <button type="button"
+                onClick={() => submitEditTier(t)}
+                disabled={upsertMutation.isPending}
+                className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
+                {upsertMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => { setEditingTierId(null); setEditTierError(null); setEditTierErrorField(null) }} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div key={t.id} className="flex items-center gap-2 bg-stone-800/50 rounded-lg px-3 py-2">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm text-stone-200 truncate">{t.name}</div>
+              <div className="text-xs text-stone-500">{fmtAdminDate(t.date, saleTimezone)}</div>
+            </div>
+            <button type="button" onClick={() => startEdit(t)}
+              className="text-xs text-stone-400 hover:text-stone-200 px-2 py-1 rounded hover:bg-stone-700 transition-colors">
+              Edit
+            </button>
+            <button type="button" onClick={() => deleteMutation.mutate(t.id)}
+              className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-400/10 transition-colors">
+              Remove
+            </button>
+          </div>
+        )
+      ))}
+
+      {addingTier ? (
+        <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-2">
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Tier Name *</label>
+            <input className={inpErr(INP, newTierErrorField === 'name')} value={newName} onChange={e => { setNewName(e.target.value); if (newTierErrorField === 'name') { setNewTierError(null); setNewTierErrorField(null) } }} placeholder="e.g. First Access, VIP, Flash Sale" />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">Date & Time *</label>
+            <input type="datetime-local" className={inpErr(INP, newTierErrorField === 'date')} value={newDate} onChange={e => { setNewDate(e.target.value); if (newTierErrorField === 'date') { setNewTierError(null); setNewTierErrorField(null) } }} />
+          </div>
+          {newTierError && <p className="text-xs text-red-400">{newTierError}</p>}
+          <div className="flex gap-2">
+            <button type="button"
+              onClick={submitNewTier}
+              disabled={upsertMutation.isPending}
+              className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
+              {upsertMutation.isPending ? 'Saving…' : 'Add Tier'}
+            </button>
+            <button type="button" onClick={() => { setAddingTier(false); setNewTierError(null); setNewTierErrorField(null) }} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => { setEditingTierId(null); setAddingTier(true); setNewTierError(null); setNewTierErrorField(null) }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+          + Add Tier
+        </button>
+      )}
+    </div>
+  )
+}
+
+function AnnouncementTiersPanel({ announcement }: { announcement: ApiSaleAnnouncement }) {
+  const defaultTiers = (announcement.tiers ?? []).filter(t => t.regionId === null)
+  return (
+    <div className="border-t border-stone-700 px-4 py-3">
+      <span className="block text-sm text-stone-400 mb-2">Sale Tiers</span>
+      <TierListEditor
+        saleId={announcement.id}
+        tiers={defaultTiers}
+        saleTimezone={announcement.saleTimezone ?? 'UTC'}
+      />
+    </div>
+  )
+}
+
 function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnouncement }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -1071,9 +1459,6 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         name: form.name,
         countryCodes: JSON.stringify(codes),
         isDefault: form.isDefault,
-        generalSaleDate: form.generalSaleDate ? tzLocalToUtcIso(form.generalSaleDate, rTz) : null,
-        firstAccessDate: form.firstAccessDate ? tzLocalToUtcIso(form.firstAccessDate, rTz) : null,
-        earlyAccessDate: form.earlyAccessDate ? tzLocalToUtcIso(form.earlyAccessDate, rTz) : null,
         endsAt: form.endsAt ? tzLocalToUtcIso(form.endsAt, rTz) : null,
         isSoldOut: form.isSoldOut,
         saleTimezone: form.saleTimezone || null,
@@ -1102,8 +1487,19 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
     onCancel: () => void
   }) => {
     const [f, setF] = useState(form)
-    const s = (key: keyof RegionFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    const [endsAtInvalid, setEndsAtInvalid] = useState(false)
+    const [regionError, setRegionError] = useState<string | null>(null)
+    const s = (key: keyof RegionFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       setF(prev => ({ ...prev, [key]: e.target.value }))
+      if (key === 'endsAt' && endsAtInvalid) { setEndsAtInvalid(false); setRegionError(null) }
+    }
+    const submit = () => {
+      if (f.endsAt && !isValidCalendarDateTime(f.endsAt)) {
+        setEndsAtInvalid(true); setRegionError('Enter a valid ends-at date & time.'); return
+      }
+      setEndsAtInvalid(false); setRegionError(null)
+      onSave(f)
+    }
     return (
       <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-3">
         <div className="grid grid-cols-2 gap-2">
@@ -1124,23 +1520,9 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
           <input type="checkbox" checked={f.isSoldOut} onChange={e => setF(p => ({ ...p, isSoldOut: e.target.checked }))} className="accent-red-400" />
           Sold out in this region
         </label>
-        <div className="space-y-2">
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">First Access</label>
-            <input type="datetime-local" className={INP} value={f.firstAccessDate} onChange={s('firstAccessDate')} />
-          </div>
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">Early Access</label>
-            <input type="datetime-local" className={INP} value={f.earlyAccessDate} onChange={s('earlyAccessDate')} />
-          </div>
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">General Sale</label>
-            <input type="datetime-local" className={INP} value={f.generalSaleDate} onChange={s('generalSaleDate')} />
-          </div>
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">Ends At</label>
-            <input type="datetime-local" className={INP} value={f.endsAt} onChange={s('endsAt')} />
-          </div>
+        <div>
+          <label className="block text-xs text-stone-400 mb-1">Ends At <span className="text-stone-600">(when this region's sale closes — tiers are managed separately, below, once the region is saved)</span></label>
+          <input type="datetime-local" className={inpErr(INP, endsAtInvalid)} value={f.endsAt} onChange={s('endsAt')} />
         </div>
         <div>
           <label className="block text-xs text-stone-400 mb-1">Timezone</label>
@@ -1158,16 +1540,20 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
           </div>
           <div>
             <label className="block text-xs text-stone-400 mb-1">Currency</label>
-            <input className={INP} list="region-currencies" value={f.currency} onChange={s('currency')} placeholder="GBP" />
-            <datalist id="region-currencies">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
+            <select className={INP} value={CURRENCIES.includes(f.currency) ? f.currency : ''} onChange={s('currency')}>
+              <option value="">— select —</option>
+              {!CURRENCIES.includes(f.currency) && f.currency && <option value={f.currency}>{f.currency}</option>}
+              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
         <div>
           <label className="block text-xs text-stone-400 mb-1">Subscriber Price <span className="text-stone-600">(same currency)</span></label>
           <input type="text" step="0.01" className={INP} value={f.subscriberBasePrice} onChange={s('subscriberBasePrice')} placeholder="Lower subscriber price" />
         </div>
+        {regionError && <p className="text-xs text-red-400">{regionError}</p>}
         <div className="flex gap-2">
-          <button type="button" onClick={() => onSave(f)} disabled={!f.name || upsertMutation.isPending}
+          <button type="button" onClick={submit} disabled={!f.name || upsertMutation.isPending}
             className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
             {upsertMutation.isPending ? 'Saving…' : 'Save'}
           </button>
@@ -1198,6 +1584,12 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
             let codes: string[] = []
             try { codes = Array.isArray(r.countryCodes) ? r.countryCodes : JSON.parse(r.countryCodes) } catch {}
             const isEditing = editingRegion?.id === r.id
+            const regionTiers = (announcement.tiers ?? []).filter(t => t.regionId === r.id)
+            const defaultTiers = (announcement.tiers ?? []).filter(t => t.regionId === null)
+            // A region with no tiers of its own already falls back to the sale's default tiers
+            // everywhere a user picks a tier (getTiersForRegion) — this reflects that instead of
+            // showing a misleading empty list, and offers an explicit action to diverge.
+            const isInheriting = regionTiers.length === 0
 
             if (isEditing) {
               return <RegionFormUI key={r.id} form={editingRegion!} onSave={f => upsertMutation.mutate(f)} onCancel={() => setEditingRegion(null)} />
@@ -1219,9 +1611,6 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
                       </div>
                     )}
                     <div className="text-xs text-stone-500 mt-1 space-y-0.5">
-                      {r.firstAccessDate && <div>First Access: {fmtAdminDate(r.firstAccessDate, r.saleTimezone ?? 'UTC')}</div>}
-                      {r.earlyAccessDate && <div>Early Access: {fmtAdminDate(r.earlyAccessDate, r.saleTimezone ?? 'UTC')}</div>}
-                      {r.generalSaleDate && <div>General Sale: {fmtAdminDate(r.generalSaleDate, r.saleTimezone ?? 'UTC')}</div>}
                       {r.basePrice != null && <div className="text-amber-500/70">{r.basePrice} {r.currency}</div>}
                     </div>
                   </div>
@@ -1231,6 +1620,48 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
                     <button type="button" onClick={() => deleteMutation.mutate(r.id)}
                       className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-400/10 transition-colors">Delete</button>
                   </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-stone-700/60">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-stone-500 uppercase tracking-wide">Tiers for this region</span>
+                    {isInheriting && defaultTiers.length > 0 && (
+                      <button type="button"
+                        onClick={async () => {
+                          await Promise.all(defaultTiers.map((t, i) =>
+                            adminUpsertAnnouncementTier(announcement.id, { name: t.name, date: t.date, order: i }, r.id),
+                          ))
+                          queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
+                        }}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        Override tiers for this region
+                      </button>
+                    )}
+                  </div>
+                  {isInheriting ? (
+                    defaultTiers.length > 0 ? (
+                      <div className="space-y-1">
+                        <p className="text-xs text-stone-600 italic mb-1">Inherits the sale's default tiers — always matches them until overridden above.</p>
+                        {defaultTiers.map(t => (
+                          <div key={t.id} className="flex items-center gap-2 bg-stone-800/30 rounded-lg px-3 py-2 opacity-70">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-stone-300 truncate">{t.name}</div>
+                              <div className="text-xs text-stone-500">{fmtAdminDate(t.date, r.saleTimezone ?? announcement.saleTimezone ?? 'UTC')}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-stone-600 italic">No tiers set on the sale yet.</p>
+                    )
+                  ) : (
+                    <TierListEditor
+                      saleId={announcement.id}
+                      regionId={r.id}
+                      tiers={regionTiers}
+                      saleTimezone={r.saleTimezone ?? announcement.saleTimezone ?? 'UTC'}
+                    />
+                  )}
                 </div>
               </div>
             )
@@ -1266,14 +1697,6 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
   const [addMode, setAddMode] = useState(false)
 
   const editions = announcement.editions ?? []
-
-  // Compute default dates for CreateBookEditionForm
-  const defaultRegion = announcement.regions?.find((r: { isDefault?: boolean }) => r.isDefault) ?? announcement.regions?.[0]
-  const dateSource = defaultRegion ?? announcement
-  const saleTz = (defaultRegion?.saleTimezone ?? (announcement as { saleTimezone?: string }).saleTimezone ?? 'UTC')
-  const defaultFirstAccessDate = dateSource.firstAccessDate ? utcIsoToTzLocal(dateSource.firstAccessDate, saleTz).slice(0, 10) : null
-  const defaultEarlyAccessDate = dateSource.earlyAccessDate ? utcIsoToTzLocal(dateSource.earlyAccessDate, saleTz).slice(0, 10) : null
-  const defaultGeneralSaleDate = dateSource.generalSaleDate ? utcIsoToTzLocal(dateSource.generalSaleDate, saleTz).slice(0, 10) : null
 
   const addMutation = useMutation({
     mutationFn: (editionId: string) => adminAddAnnouncementEdition(announcement.id, editionId),
@@ -1479,9 +1902,6 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 }))}
                 onAdd={linked => addMutation.mutate(linked.editionId)}
                 onRemove={editionId => removeMutation.mutate(editionId)}
-                defaultFirstAccessDate={defaultFirstAccessDate}
-                defaultEarlyAccessDate={defaultEarlyAccessDate}
-                defaultGeneralSaleDate={defaultGeneralSaleDate}
                 defaultPrice={announcement.basePrice ?? null}
                 defaultCurrency={announcement.currency ?? null}
                 defaultCompanyId={announcement.companyId ?? null}
@@ -1668,8 +2088,9 @@ function AnnouncementCard({
 }){
   const thumb = announcement.imageUrl ? cloudThumb(announcement.imageUrl, 64, 80) : null
   const companyName = announcement.companyId ? (companyMap[announcement.companyId] ?? announcement.companyId) : null
-  const saleDate = announcement.generalSaleDate
-    ? fmtAdminDate(announcement.generalSaleDate, announcement.saleTimezone ?? 'UTC')
+  const earliestTierDate = getEarliestTierDate(announcement)
+  const saleDate = earliestTierDate
+    ? fmtAdminDate(earliestTierDate, announcement.saleTimezone ?? 'UTC')
     : null
 
   return (
@@ -1759,6 +2180,7 @@ function AnnouncementCard({
           </div>
         </div>
       </div>
+      <AnnouncementTiersPanel announcement={announcement} />
       <AnnouncementBooksPanel announcement={announcement} />
       {(announcement as any).saleType === 'OVERSTOCK' && <AnnouncementItemsPanel announcement={announcement} />}
       <AnnouncementRegionsPanel announcement={announcement} />
@@ -1776,9 +2198,7 @@ interface AiSaleRegion {
   price?: number
   currency?: string
   saleTimezone?: string
-  firstAccessDate?: string
-  earlyAccessDate?: string
-  generalSaleDate?: string
+  tiers?: { name: string; date: string }[]
 }
 
 interface AiSaleResult {
@@ -1952,9 +2372,9 @@ function AiSaleParseModal({ onApply, onClose }: {
                         </div>
                         <div className="text-xs text-stone-500 space-y-0.5">
                           {r.countryCodes && <p>Countries: {r.countryCodes}</p>}
-                          {r.firstAccessDate && <p>First access: {new Date(r.firstAccessDate).toLocaleString('en-GB')} UTC</p>}
-                          {r.earlyAccessDate && <p>Early access: {new Date(r.earlyAccessDate).toLocaleString('en-GB')} UTC</p>}
-                          {r.generalSaleDate && <p>General sale: {new Date(r.generalSaleDate).toLocaleString('en-GB')} UTC</p>}
+                          {(r.tiers ?? []).map((t, ti) => (
+                            <p key={ti}>{t.name}: {new Date(t.date).toLocaleString('en-GB')} UTC</p>
+                          ))}
                           {r.saleTimezone && <p>Timezone: {r.saleTimezone}</p>}
                         </div>
                       </div>
@@ -1999,7 +2419,6 @@ export default function AdminSaleAnnouncementsPage() {
   const { isOpen: showAiModal, setIsOpen: setShowAiModal } = useModalState()
   const [createInitial, setCreateInitial] = useState<FormState>(EMPTY_FORM)
   const [createFormKey, setCreateFormKey] = useState(0)
-  const pendingRegionsRef = useRef<AiSaleRegion[]>([])
 
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 350)
@@ -2025,34 +2444,51 @@ export default function AdminSaleAnnouncementsPage() {
 
   const createMutation = useMutation({
     mutationFn: (form: FormState) => adminCreateSaleAnnouncement(formToData(form)),
-    onSuccess: (newAnnouncement) => {
+    onSuccess: async (newAnnouncement, form) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
       createModal.close()
       setCreateInitial(EMPTY_FORM)
       setCreateFormKey(k => k + 1)
-      const regions = pendingRegionsRef.current
-      if (regions.length > 0) {
-        pendingRegionsRef.current = []
-        Promise.all(
-          regions.map(r => {
-            const codes = r.countryCodes
-              ? r.countryCodes.split(',').map(c => c.trim().toUpperCase()).filter(Boolean)
-              : []
-            return adminUpsertAnnouncementRegion(newAnnouncement.id, {
-              name: r.name,
-              countryCodes: codes.length > 0 ? JSON.stringify(codes) : undefined,
-              isDefault: r.isDefault,
-              generalSaleDate: r.generalSaleDate ?? null,
-              firstAccessDate: r.firstAccessDate ?? null,
-              earlyAccessDate: r.earlyAccessDate ?? null,
-              saleTimezone: r.saleTimezone ?? null,
-              basePrice: r.price ?? null,
-              currency: r.currency ?? null,
-            })
-          })
-        ).then(() => {
+
+      const tz = form.saleTimezone || 'UTC'
+      const jobs: Promise<unknown>[] = []
+
+      // Default (regionId=null) tiers entered inline in the create form
+      const validTiers = form.tiers.filter(t => t.name && t.date)
+      jobs.push(...validTiers.map((t, i) =>
+        adminUpsertAnnouncementTier(newAnnouncement.id, { name: t.name, date: tzLocalToUtcIso(t.date, tz), order: i }),
+      ))
+
+      // Regions (each with their own inline tiers) entered inline in the create form
+      const validRegions = form.regions.filter(r => r.name)
+      jobs.push(...validRegions.map(async r => {
+        const codes = r.countryCodes
+          ? r.countryCodes.split(/[,\s]+/).map(c => c.trim().toUpperCase()).filter(Boolean)
+          : []
+        const rTz = r.saleTimezone || tz
+        const createdRegion = await adminUpsertAnnouncementRegion(newAnnouncement.id, {
+          name: r.name,
+          countryCodes: codes.length > 0 ? JSON.stringify(codes) : undefined,
+          isDefault: r.isDefault,
+          endsAt: r.endsAt ? tzLocalToUtcIso(r.endsAt, rTz) : null,
+          saleTimezone: rTz,
+          basePrice: r.basePrice ? parseDecimalInput(r.basePrice) : null,
+          currency: r.currency || null,
+          subscriberBasePrice: r.subscriberBasePrice ? parseDecimalInput(r.subscriberBasePrice) : null,
+        })
+        const validRegionTiers = r.tiers.filter(t => t.name && t.date)
+        await Promise.all(validRegionTiers.map((t, i) =>
+          adminUpsertAnnouncementTier(newAnnouncement.id, { name: t.name, date: tzLocalToUtcIso(t.date, rTz), order: i }, createdRegion.id),
+        ))
+      }))
+
+      if (jobs.length > 0) {
+        try {
+          await Promise.all(jobs)
           queryClient.invalidateQueries({ queryKey: ['admin', 'sale-announcements'] })
-        }).catch(e => alert(`Error creating regions: ${(e as Error).message}`))
+        } catch (e) {
+          alert(`Sale created, but some tiers/regions failed to save: ${(e as Error).message}`)
+        }
       }
     },
     onError: (e: Error) => alert(`Error: ${e.message}`),
@@ -2093,6 +2529,32 @@ export default function AdminSaleAnnouncementsPage() {
       if (match) resolvedCompanyId = match.id
     }
 
+    // A single parsed region's tiers become the announcement's own default tier set (regionId
+    // omitted); multiple regions are each created as real regions with their own tiers. Both
+    // land directly in the (now-visible, editable) form fields instead of a hidden queue, so
+    // the admin can review/adjust what the AI parsed before hitting Create.
+    const isSingleRegion = (result.regions?.length ?? 0) <= 1
+    const localTiers: LocalTierEntry[] = isSingleRegion
+      ? (defaultRegion?.tiers ?? []).map(t => ({ name: t.name, date: utcIsoToTzLocal(t.date, tz) }))
+      : []
+    const localRegions: LocalRegionEntry[] = isSingleRegion
+      ? []
+      : (result.regions ?? []).map(r => {
+        const rTz = r.saleTimezone || tz
+        return {
+          name: r.name,
+          countryCodes: r.countryCodes ?? '',
+          isDefault: r.isDefault,
+          // AI parsing doesn't extract a per-region "ends at" — left for the admin to fill in.
+          endsAt: '',
+          basePrice: r.price != null ? String(r.price) : '',
+          currency: r.currency ?? '',
+          subscriberBasePrice: (r as any).subscriberBasePrice != null ? String((r as any).subscriberBasePrice) : '',
+          saleTimezone: rTz,
+          tiers: (r.tiers ?? []).map(t => ({ name: t.name, date: utcIsoToTzLocal(t.date, rTz) })),
+        }
+      })
+
     const newInitial: FormState = {
       ...EMPTY_FORM,
       title: result.title ?? '',
@@ -2100,9 +2562,6 @@ export default function AdminSaleAnnouncementsPage() {
       expectedShipping: result.expectedShipping ?? '',
       photoCredit: '',
       saleTimezone: tz,
-      firstAccessDate: defaultRegion?.firstAccessDate ? utcIsoToTzLocal(defaultRegion.firstAccessDate, tz) : '',
-      earlyAccessDate: defaultRegion?.earlyAccessDate ? utcIsoToTzLocal(defaultRegion.earlyAccessDate, tz) : '',
-      generalSaleDate: defaultRegion?.generalSaleDate ? utcIsoToTzLocal(defaultRegion.generalSaleDate, tz) : '',
       endsAt: result.endsAt ? utcIsoToTzLocal(result.endsAt, tz) : '',
       basePrice: defaultRegion?.price != null ? String(defaultRegion.price) : '',
       currency: defaultRegion?.currency ?? 'USD',
@@ -2113,10 +2572,11 @@ export default function AdminSaleAnnouncementsPage() {
       saleType: result.saleType ?? 'LIMITED_PREORDER',
       isSoldOut: false,
       notes: '',
+      tiers: localTiers,
+      regions: localRegions,
     }
     setCreateInitial(newInitial)
     setCreateFormKey(k => k + 1)
-    pendingRegionsRef.current = (result.regions?.length ?? 0) > 1 ? (result.regions ?? []) : []
     setEditItem(null)
     createModal.open()
   }
@@ -2136,7 +2596,6 @@ export default function AdminSaleAnnouncementsPage() {
               if (!createModal.isOpen) {
                 setCreateInitial(EMPTY_FORM)
                 setCreateFormKey(k => k + 1)
-                pendingRegionsRef.current = []
               }
               createModal.toggle()
               setEditItem(null)
@@ -2158,6 +2617,7 @@ export default function AdminSaleAnnouncementsPage() {
             submitLabel="Create"
             submitting={createMutation.isPending}
             onSubmit={form => createMutation.mutate(form)}
+            isCreate
           />
         </div>
       )}

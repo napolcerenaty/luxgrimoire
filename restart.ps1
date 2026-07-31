@@ -1,8 +1,11 @@
 # restart.ps1 — starts Redis (if not running), then API + web
+# Use -Stop to just kill API/Web (they run hidden/detached via Start-Process, so there's
+# no window or Ctrl+C to stop them with otherwise) without starting anything back up.
 param(
   [switch]$ApiOnly,
   [switch]$WebOnly,
-  [switch]$RedisOnly
+  [switch]$RedisOnly,
+  [switch]$Stop
 )
 
 function Kill-Port($port) {
@@ -22,6 +25,16 @@ function Is-PortOpen($port) {
 }
 
 $root = $PSScriptRoot
+
+if ($Stop) {
+  # Redis is intentionally left running (it's a shared, persistent local service, not
+  # tied to this dev session) — only API/Web get stopped, matching what -ApiOnly/-WebOnly
+  # would have started.
+  if (-not $WebOnly) { Write-Host "==> Stopping API (:3001)..."; Kill-Port 3001 }
+  if (-not $ApiOnly) { Write-Host "==> Stopping Web (:3000)..."; Kill-Port 3000 }
+  Write-Host "Done!"
+  exit 0
+}
 
 # ── Redis ─────────────────────────────────────────────────────────────────────
 $redisExe = "$env:USERPROFILE\scoop\apps\redis\current\redis-server.exe"

@@ -33,7 +33,7 @@ export async function BookEditionsSection({ bookSlug }: Props) {
               companySlug={edition.bookBoxCompany?.slug}
               companyBrandColors={(edition.bookBoxCompany as any)?.brandColors}
               unverified={!edition.verifiedAt}
-              generalSaleDate={edition.generalSaleDate}
+              generalSaleDate={edition.resolvedSaleDate?.date ?? null}
               variantLabel={edition.variantLabel}
             />
           ))}

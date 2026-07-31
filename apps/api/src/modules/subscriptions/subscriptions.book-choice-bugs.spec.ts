@@ -164,6 +164,53 @@ describe('getMonthChoiceGroups / submitMonthChoice — combo-aware month resolut
     service = makeService(prisma);
   });
 
+  // ── resolveMonthHoldingSubscriptionIds — the other 3 shapes ──
+  // The combo-with-variant-component case above was the one that actually 404'd in
+  // production. These lock in the other shapes that same helper must also get right.
+
+  it('getMonthChoiceGroups uses the subscription\'s own id for a normal (non-combo, non-variant) subscription', async () => {
+    const normal = { id: 'normal-1', isCombo: false, parentSubscriptionId: null };
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(normal as any);
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'month-1' }]);
+    (prisma.subscriptionMonthChoiceGroup.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await service.getMonthChoiceGroups('normal-slug', 2026, 7);
+
+    expect(prisma.subscriptionMonth.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: ['normal-1'] }, year: 2026, month: 7 }) }),
+    );
+    // A normal sub is never a combo — resolution must not even attempt a component lookup
+    expect(prisma.subscriptionComboComponent.findMany).not.toHaveBeenCalled();
+  });
+
+  it('getMonthChoiceGroups uses the PARENT content stream\'s id for a non-combo content-stream variant', async () => {
+    const variant = { id: 'variant-1', isCombo: false, parentSubscriptionId: 'parent-2' };
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(variant as any);
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'month-1' }]);
+    (prisma.subscriptionMonthChoiceGroup.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await service.getMonthChoiceGroups('variant-slug', 2026, 7);
+
+    expect(prisma.subscriptionMonth.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: ['parent-2'] }, year: 2026, month: 7 }) }),
+    );
+  });
+
+  it('getMonthChoiceGroups resolves combo components unchanged when a component is a regular (non-variant) subscription', async () => {
+    const combo = { id: 'combo-2', isCombo: true, parentSubscriptionId: null };
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(combo as any);
+    (prisma.subscriptionComboComponent.findMany as jest.Mock).mockResolvedValueOnce([{ componentId: 'regular-comp-1' }]);
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'regular-comp-1', parentSubscriptionId: null }]);
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'month-1' }]);
+    (prisma.subscriptionMonthChoiceGroup.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await service.getMonthChoiceGroups('combo-slug-2', 2026, 7);
+
+    expect(prisma.subscriptionMonth.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: ['regular-comp-1'] }, year: 2026, month: 7 }) }),
+    );
+  });
+
   it('getMonthChoiceGroups resolves a combo subscription through its components\' effective parents', async () => {
     const combo = { id: 'combo-1', isCombo: true, parentSubscriptionId: null };
     jest.spyOn(service, 'findBySlug').mockResolvedValue(combo as any);

@@ -7,6 +7,7 @@ import { CreateAuthorDto, UpdateAuthorDto, AuthorQueryDto } from './authors.dto'
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
+import { EditionsService } from '../editions/editions.service';
 
 const AUTHOR_SLUG_TTL = 24 * 60 * 60 * 1000;
 const AUTHOR_BOOKS_TTL = 60 * 60 * 1000;
@@ -22,6 +23,7 @@ export class AuthorsService {
     private readonly prisma: PrismaService,
     private readonly typesense: TypesenseService,
     private readonly mediaAssetsService: MediaAssetsService,
+    private readonly editionsService: EditionsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -173,15 +175,21 @@ export class AuthorsService {
       },
     });
     if (!author) throw new NotFoundException(`Author '${slug}' not found`);
+
+    const allEditionIds = author.books.flatMap((ba) => ba.book.editions.map((e) => e.id));
+    const resolvedDates = await this.editionsService.resolveEditionSaleDates(allEditionIds);
+
     return author.books.map((ba) => ({
       ...ba.book,
       editions: ba.book.editions.map((e) => {
         const { communityImages, ...rest } = e as typeof e & { communityImages: Array<{ url: string }> };
+        const resolved = resolvedDates.get(e.id) ?? null;
         return {
           ...rest,
           communityPhotoCover: (e.additionalImages as string[]).length === 0
             ? (communityImages?.[0]?.url ?? null)
             : null,
+          resolvedSaleDate: resolved ? { label: resolved.label, date: resolved.date } : null,
         };
       }),
     }));

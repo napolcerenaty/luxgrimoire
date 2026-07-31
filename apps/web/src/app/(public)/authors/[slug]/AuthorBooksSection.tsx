@@ -11,6 +11,7 @@ interface EditionSnippet {
   communityPhotoCover?: string | null
   verifiedAt: string | null
   generalSaleDate?: string | null
+  resolvedSaleDate?: { label: string; date: string } | null
   variantLabel?: string | null
   bookBoxCompany: { name: string; slug: string; brandColors?: string[] | null } | null
 }
@@ -48,7 +49,7 @@ function BookRow({ book }: { book: BookSnippet }) {
               companyName={edition.bookBoxCompany?.name}
               companyBrandColors={edition.bookBoxCompany?.brandColors}
               unverified={!edition.verifiedAt}
-              generalSaleDate={edition.generalSaleDate}
+              generalSaleDate={edition.resolvedSaleDate?.date ?? null}
               variantLabel={edition.variantLabel}
             />
           ))}

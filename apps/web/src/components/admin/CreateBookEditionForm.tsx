@@ -6,11 +6,12 @@ import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { GenreTagsPicker } from './pickers/GenreTagsPicker'
-import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type FeaturePreviewHandle, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type EditionSaleDateEntry, type FeaturePreviewHandle, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { GoodreadsParser, SeriesEntriesEditor, seriesEntriesToPayload, StagedComponentsEditor, type AiBookResult, type SeriesEntryFormState, type StagedComponent } from './BookForm'
 import { INP, LBL, BTN_PRIMARY, BTN_GHOST } from '@/lib/adminFormStyles'
 import { computeGeneralSaleDatePrefill } from '@/lib/generalSalePrefill'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const ISO_TO_LANGUAGE: Record<string, string> = {
@@ -36,10 +37,6 @@ export interface CreateBookEditionFormProps {
   defaultLanguage?: string | null
   monthYear?: number
   monthMonth?: number
-  /** Pre-fill date fields from a sale announcement context */
-  defaultFirstAccessDate?: string | null
-  defaultEarlyAccessDate?: string | null
-  defaultGeneralSaleDate?: string | null
   /** Bundle prefill defaults */
   defaultPublisher?: string
   defaultCollectionId?: string
@@ -53,6 +50,11 @@ export interface CreateBookEditionFormProps {
   /** When set, the created edition is linked into this edition's variant group (e.g. "Duplicate as variant"). */
   sourceEditionId?: string
   defaultVariantLabel?: string
+  /** Prefill manual sale dates from a source edition (e.g. "Duplicate as variant" carrying over shared dates). */
+  defaultSaleDates?: EditionSaleDateEntry[]
+  /** True when this edition is being created from within a sale announcement (e.g. EditionPicker)
+   *  and will be auto-linked to it right after creation. */
+  willLinkToAnnouncement?: boolean
   onSuccess: (editionId?: string) => void
   /** Called after book creation in bookOnly mode — useful to chain into edition creation */
   onBookCreated?: (bookId: string, bookTitle: string) => void
@@ -62,8 +64,8 @@ export interface CreateBookEditionFormProps {
 export default function CreateBookEditionForm({
   subscriptionSlug, subscriptionId, defaultCurrency, defaultCompanyId,
   defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage,
-  monthYear, monthMonth, existingBookId, bookOnly, sourceEditionId, defaultVariantLabel,
-  defaultFirstAccessDate, defaultEarlyAccessDate, defaultGeneralSaleDate,
+  monthYear, monthMonth, existingBookId, bookOnly, sourceEditionId, defaultVariantLabel, defaultSaleDates,
+  willLinkToAnnouncement,
   defaultPublisher, defaultCollectionId, defaultPhotoCredit, defaultArtists, defaultFeatureTags,
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
@@ -92,11 +94,10 @@ export default function CreateBookEditionForm({
   const [currency, setCurrency] = useState(defaultCurrency ?? 'USD')
   const [publisher, setPublisher] = useState(defaultPublisher ?? '')
   const [photoCredit, setPhotoCredit] = useState(defaultPhotoCredit ?? '')
-  const [firstAccessDate, setFirstAccessDate] = useState(defaultFirstAccessDate ?? '')
-  const [earlyAccessDate, setEarlyAccessDate] = useState(defaultEarlyAccessDate ?? '')
-  const [generalSaleDate, setGeneralSaleDate] = useState(() => {
-    if (defaultGeneralSaleDate) return defaultGeneralSaleDate
-    return computeGeneralSaleDatePrefill(monthYear, monthMonth, renewalDay, renewalDayUserSet, renewalMonthOffset)
+  const [saleDates, setSaleDates] = useState<EditionSaleDateEntry[]>(() => {
+    if (defaultSaleDates?.length) return defaultSaleDates
+    const renewalDate = computeGeneralSaleDatePrefill(monthYear, monthMonth, renewalDay, renewalDayUserSet, renewalMonthOffset)
+    return renewalDate ? [{ label: 'Subscription Renewal Day', date: renewalDate, order: 0 }] : []
   })
   const [allImages, setAllImages] = useState<string[]>([])
   const [language, setLanguage] = useState(resolveLanguage(defaultLanguage))
@@ -160,7 +161,7 @@ export default function CreateBookEditionForm({
         return [...prev, ...toAdd.map(a => ({ name: a.name }))]
       })
     }
-    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
+    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setSaleDates, setArtists })
     // Stage features for POST after edition creation:
     // Use featureOrder (AI-emitted) for correct source-text ordering; fall back to
     // standalones-first if the field is absent (older responses / edge cases).
@@ -310,6 +311,8 @@ export default function CreateBookEditionForm({
 
   // ── Step 2 submit ────────────────────────────────────────────────────────
   const handleStep2 = async (forceBypass?: boolean) => {
+    const badSaleDate = saleDates.find(d => d.label && d.date && !isValidCalendarDate(d.date))
+    if (badSaleDate) return alert(`Sale date "${badSaleDate.label}" is not a valid date`)
     setBusy(true)
     const shouldBypass = forceBypass ?? bypassDuplicate
     // Only clear the duplicate warning when we're re-checking (not bypassing).
@@ -339,9 +342,9 @@ export default function CreateBookEditionForm({
           basePrice: price ? Number(price.replace(',', '.')) : undefined,
           currency: currency || undefined,
           language: language || undefined,
-          firstAccessDate: firstAccessDate || undefined,
-          earlyAccessDate: earlyAccessDate || undefined,
-          generalSaleDate: generalSaleDate || undefined,
+          saleDates: saleDates.filter(d => d.label && d.date).length > 0
+            ? saleDates.filter(d => d.label && d.date)
+            : undefined,
           additionalImages: allImages.filter(Boolean),
           variantLabel: variantLabel.trim() || undefined,
           sourceEditionId: sourceEditionId || undefined,
@@ -607,12 +610,9 @@ export default function CreateBookEditionForm({
         onPhotoCreditChange={setPhotoCredit}
         language={language}
         onLanguageChange={setLanguage}
-        firstAccessDate={firstAccessDate}
-        onFirstAccessDateChange={setFirstAccessDate}
-        earlyAccessDate={earlyAccessDate}
-        onEarlyAccessDateChange={setEarlyAccessDate}
-        generalSaleDate={generalSaleDate}
-        onGeneralSaleDateChange={setGeneralSaleDate}
+        saleDates={saleDates}
+        onSaleDatesChange={setSaleDates}
+        willLinkToAnnouncement={willLinkToAnnouncement}
         allImages={allImages}
         onImagesChange={setAllImages}
         onAiResult={applyAiResult}

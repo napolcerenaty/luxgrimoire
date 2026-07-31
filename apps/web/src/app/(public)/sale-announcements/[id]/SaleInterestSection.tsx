@@ -4,14 +4,17 @@ import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
 import { AddToCollectionButton } from './AddToCollectionButton'
 import { useSaleInterest } from '@/hooks/useSaleInterest'
 import { isOpenForPurchase, isSalePast, resolveSalePrice, resolveSubscriberPrice } from '@/lib/saleDates'
-import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
+import type { ApiSaleAnnouncement, ApiSaleTier } from '@luxgrimoire/shared-types'
 
 interface Props {
   sale: ApiSaleAnnouncement
   compact?: boolean
+  /** The tier already selected via SaleDateSelector on this page — when present, "Interested?"
+   *  registers directly against it instead of opening its own region/tier picker. */
+  directTier?: ApiSaleTier | null
 }
 
-export function SaleInterestSection({ sale, compact = false }: Props) {
+export function SaleInterestSection({ sale, compact = false, directTier }: Props) {
   const { isInterested, regionId, selectedPrice, selectedPriceCurrency } = useSaleInterest(sale.id)
 
   const saleOpen = isOpenForPurchase(sale, regionId)
@@ -50,6 +53,7 @@ export function SaleInterestSection({ sale, compact = false }: Props) {
         sale={sale}
         subscriberBasePrice={sale.subscriberBasePrice ?? null}
         currency={sale.currency ?? null}
+        directTier={directTier}
       />
       {isInterested && saleOpen && (
         <AddToCollectionButton

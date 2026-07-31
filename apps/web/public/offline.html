@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You're Offline — LuxGrimoire</title>
+<meta name="robots" content="noindex">
+<script>
+  // Mirror the app's own theme resolution (ThemeProvider.tsx): read the lx-theme
+  // cookie set by the main app; fall back to OS preference if it's never been set.
+  (function () {
+    var match = document.cookie.match(/(?:^|;\s*)lx-theme=([^;]+)/);
+    var theme = match ? match[1] : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+  })();
+</script>
+<style>
+  :root {
+    --bg: #050810;
+    --text: #c0e4f4;
+    --text-bright: #e8f4ff;
+    --text-dim: #7ab0cc;
+    --accent: #2a9ec4;
+    --accent-bright: #4ab8d8;
+    --border: #183858;
+  }
+  :root[data-theme="light"] {
+    --bg: #e4edf8;
+    --text: #0d1f35;
+    --text-bright: #0d2448;
+    --text-dim: #1a3a5a;
+    --accent: #0d4880;
+    --accent-bright: #1a70b8;
+    --border: #9ab8d8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: 2rem 1.5rem;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Georgia, 'Times New Roman', serif;
+    text-align: center;
+  }
+
+  .logo {
+    width: 9rem;
+    max-width: 60vw;
+    height: auto;
+    margin-bottom: 2rem;
+  }
+  .logo-for-light { display: none; }
+  [data-theme="light"] .logo-for-light { display: block; }
+  [data-theme="light"] .logo-for-dark { display: none; }
+
+  h1 {
+    font-size: 1.4rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-bright);
+    margin-bottom: 0.75rem;
+  }
+
+  p {
+    max-width: 26rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+    font-size: 0.95rem;
+  }
+
+  button {
+    margin-top: 2rem;
+    padding: 0.7rem 2rem;
+    font: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-bright);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  button:hover {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  .hint {
+    margin-top: 1.5rem;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+  <img class="logo logo-for-dark" src="/logo-light-text.png" alt="LuxGrimoire">
+  <img class="logo logo-for-light" src="/logo-dark-text.png" alt="LuxGrimoire">
+  <h1>The Grimoire Is Closed</h1>
+  <p>No connection right now — your collection and subscriptions need to reach the server to load. Check your connection and try again.</p>
+  <button onclick="location.reload()">Try Again</button>
+  <p class="hint">This page will refresh automatically once you're back online.</p>
+  <script>
+    window.addEventListener('online', function () { location.reload(); });
+  </script>
+</body>
+</html>

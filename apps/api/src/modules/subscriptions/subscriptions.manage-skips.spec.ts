@@ -223,6 +223,81 @@ describe('SubscriptionsService — getManagedMonths', () => {
     expect(result.months).toHaveLength(1);
     expect(result.months[0].month).toBe(7);
   });
+
+  // ── subscriptionId resolution across subscription shapes ──
+  // Same bug class fixed in recordFirstMonthAsPreorder (join-time preorder used sub.id
+  // instead of the parent/combo-resolved id) — these lock in that getManagedMonths'
+  // own resolution (already correct in code) stays correct for every shape.
+
+  it('queries the subscription\'s own id for a normal (non-combo, non-variant) subscription', async () => {
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(makeSub() as any);
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(
+      makeEntry({ startDate: '2026-05-01', skipRecords: [] }),
+    );
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+
+    await service.getManagedMonths(USER_ID, SUB_SLUG);
+
+    expect(prisma.subscriptionMonth.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: [SUB_ID] } }) }),
+    );
+  });
+
+  it('queries the PARENT content stream\'s id for a non-combo content-stream variant', async () => {
+    const PARENT_ID = 'parent-stream-ms-1';
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(makeSub({ parentSubscriptionId: PARENT_ID }) as any);
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(
+      makeEntry({ startDate: '2026-05-01', skipRecords: [] }),
+    );
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+
+    await service.getManagedMonths(USER_ID, SUB_SLUG);
+
+    expect(prisma.subscriptionMonth.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: [PARENT_ID] } }) }),
+    );
+  });
+
+  it('resolves combo components unchanged when a component is a regular (non-variant) subscription', async () => {
+    const REGULAR_COMP_ID = 'regular-comp-ms-1';
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(
+      makeSub({ isCombo: true, componentIds: [REGULAR_COMP_ID] }) as any,
+    );
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(
+      makeEntry({ startDate: '2026-05-01', skipRecords: [] }),
+    );
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: REGULAR_COMP_ID, parentSubscriptionId: null },
+    ]);
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+
+    await service.getManagedMonths(USER_ID, SUB_SLUG);
+
+    expect(prisma.subscriptionMonth.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: [REGULAR_COMP_ID] } }) }),
+    );
+  });
+
+  it('resolves a combo component that is itself a content-stream variant to its effective parent', async () => {
+    const VARIANT_COMP_ID = 'variant-comp-ms-1';
+    const PARENT_ID = 'parent-stream-ms-2';
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(
+      makeSub({ isCombo: true, componentIds: [VARIANT_COMP_ID] }) as any,
+    );
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(
+      makeEntry({ startDate: '2026-05-01', skipRecords: [] }),
+    );
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: VARIANT_COMP_ID, parentSubscriptionId: PARENT_ID },
+    ]);
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+
+    await service.getManagedMonths(USER_ID, SUB_SLUG);
+
+    expect(prisma.subscriptionMonth.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: [PARENT_ID] } }) }),
+    );
+  });
 });
 
 describe('SubscriptionsService — manageSkips', () => {
@@ -513,5 +588,95 @@ describe('SubscriptionsService — manageSkips', () => {
         removeBooksForSkipped: false,
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  // ── subscriptionId resolution across subscription shapes ──
+  // Same bug class fixed in recordFirstMonthAsPreorder — locks in that manageSkips'
+  // own resolution (already correct in code) stays correct for every shape, via the
+  // simplest of its four subscriptionMonth.findFirst call sites (the toSkip lookup).
+
+  it('queries the subscription\'s own id for a normal (non-combo, non-variant) subscription', async () => {
+    setupBase();
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ id: MONTH_ID_MAY });
+    (prisma.userSkipRecord.upsert as jest.Mock).mockResolvedValue({});
+
+    await service.manageSkips(USER_ID, SUB_SLUG, {
+      toSkip: [{ year: 2026, month: 5 }],
+      toUnskip: [],
+      addBooksForUnskipped: false,
+      removeBooksForSkipped: false,
+    });
+
+    expect(prisma.subscriptionMonth.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: [SUB_ID] } }) }),
+    );
+  });
+
+  it('queries the PARENT content stream\'s id for a non-combo content-stream variant', async () => {
+    const PARENT_ID = 'parent-stream-ms-3';
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(makeSub({ parentSubscriptionId: PARENT_ID }) as any);
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(makeEntry({ feeTemplates: [] }));
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ id: MONTH_ID_MAY });
+    (prisma.userSkipRecord.upsert as jest.Mock).mockResolvedValue({});
+
+    await service.manageSkips(USER_ID, SUB_SLUG, {
+      toSkip: [{ year: 2026, month: 5 }],
+      toUnskip: [],
+      addBooksForUnskipped: false,
+      removeBooksForSkipped: false,
+    });
+
+    expect(prisma.subscriptionMonth.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: [PARENT_ID] } }) }),
+    );
+  });
+
+  it('resolves combo components unchanged when a component is a regular (non-variant) subscription', async () => {
+    const REGULAR_COMP_ID = 'regular-comp-ms-2';
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(
+      makeSub({ isCombo: true, componentIds: [REGULAR_COMP_ID] }) as any,
+    );
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(makeEntry({ feeTemplates: [] }));
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: REGULAR_COMP_ID, parentSubscriptionId: null },
+    ]);
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ id: MONTH_ID_MAY });
+    (prisma.userSkipRecord.upsert as jest.Mock).mockResolvedValue({});
+
+    await service.manageSkips(USER_ID, SUB_SLUG, {
+      toSkip: [{ year: 2026, month: 5 }],
+      toUnskip: [],
+      addBooksForUnskipped: false,
+      removeBooksForSkipped: false,
+    });
+
+    expect(prisma.subscriptionMonth.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: [REGULAR_COMP_ID] } }) }),
+    );
+  });
+
+  it('resolves a combo component that is itself a content-stream variant to its effective parent', async () => {
+    const VARIANT_COMP_ID = 'variant-comp-ms-2';
+    const PARENT_ID = 'parent-stream-ms-4';
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(
+      makeSub({ isCombo: true, componentIds: [VARIANT_COMP_ID] }) as any,
+    );
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(makeEntry({ feeTemplates: [] }));
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: VARIANT_COMP_ID, parentSubscriptionId: PARENT_ID },
+    ]);
+    (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ id: MONTH_ID_MAY });
+    (prisma.userSkipRecord.upsert as jest.Mock).mockResolvedValue({});
+
+    await service.manageSkips(USER_ID, SUB_SLUG, {
+      toSkip: [{ year: 2026, month: 5 }],
+      toUnskip: [],
+      addBooksForUnskipped: false,
+      removeBooksForSkipped: false,
+    });
+
+    expect(prisma.subscriptionMonth.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ subscriptionId: { in: [PARENT_ID] } }) }),
+    );
   });
 });

@@ -3,7 +3,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AnnouncementsService } from './announcements.service';
-import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto, AssignEditionToItemDto } from './announcements.dto';
+import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto, AssignEditionToItemDto, UpsertSaleTierDto } from './announcements.dto';
 import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CacheControlInterceptor } from '../../common/interceptors/cache-control.interceptor';
 
@@ -193,6 +193,46 @@ export class AnnouncementsController {
   @Delete('admin/:id/regions/:regionId')
   adminDeleteRegion(@Param('id') id: string, @Param('regionId') regionId: string) {
     return this.announcementsService.adminDeleteRegion(id, regionId);
+  }
+
+  // ── Tier endpoints (dynamic named tiers — the sale's own default set) ──────
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post('admin/:id/tiers')
+  adminUpsertTier(@Param('id') id: string, @Body() dto: UpsertSaleTierDto) {
+    return this.announcementsService.adminUpsertTier(id, null, dto);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete('admin/:id/tiers/:tierId')
+  adminDeleteTier(@Param('id') id: string, @Param('tierId') tierId: string) {
+    return this.announcementsService.adminDeleteTier(id, tierId);
+  }
+
+  // ── Region-scoped tier endpoints ────────────────────────────────────────────
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Post('admin/:id/regions/:regionId/tiers')
+  adminUpsertRegionTier(
+    @Param('id') id: string,
+    @Param('regionId') regionId: string,
+    @Body() dto: UpsertSaleTierDto,
+  ) {
+    return this.announcementsService.adminUpsertTier(id, regionId, dto);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Delete('admin/:id/regions/:regionId/tiers/:tierId')
+  adminDeleteRegionTier(
+    @Param('id') id: string,
+    @Param('regionId') regionId: string,
+    @Param('tierId') tierId: string,
+  ) {
+    return this.announcementsService.adminDeleteTier(id, tierId);
   }
 
   // ── Item (bundle group) endpoints ──────────────────────────────────────────

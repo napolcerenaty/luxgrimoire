@@ -9,6 +9,7 @@ import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import type { ApiFeeTemplate } from '@luxgrimoire/shared-types'
 
 import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 import { groupIntoBundles } from '@/lib/bundleHelpers'
 import {
   computeAutoBatches,
@@ -235,6 +236,18 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
     return ''
   })
   const [cancellationReason, setCancellationReason] = useState('')
+  const [dateError, setDateError] = useState<string | null>(null)
+  const [firstOrderDateInvalid, setFirstOrderDateInvalid] = useState(false)
+  const [cancellationDateInvalid, setCancellationDateInvalid] = useState(false)
+
+  function handleFirstOrderDateChange(v: string) {
+    setFirstOrderDate(v)
+    if (firstOrderDateInvalid) { setFirstOrderDateInvalid(false); setDateError(null) }
+  }
+  function handleCancellationDateChange(v: string) {
+    setCancellationDate(v)
+    if (cancellationDateInvalid) { setCancellationDateInvalid(false); setDateError(null) }
+  }
 
   function handleSelectPrepay(optionId: string | null) {
     setSelectedPrepayOptionId(optionId)
@@ -355,6 +368,13 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (!isValidCalendarDate(firstOrderDate)) {
+      setFirstOrderDateInvalid(true); setDateError('Enter a valid first order date'); return
+    }
+    if (alreadyCancelled && !isValidCalendarDate(cancellationDate)) {
+      setCancellationDateInvalid(true); setDateError('Enter a valid cancellation date'); return
+    }
+    setDateError(null)
     const parts = firstOrderDate.split('-').map(Number)
     const startDate = subscriptionRenewalDay != null
       ? firstOrderDate
@@ -448,8 +468,8 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           type="date"
           value={firstOrderDate}
           max={todayStr}
-          onChange={e => setFirstOrderDate(e.target.value)}
-          className="bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+          onChange={e => handleFirstOrderDateChange(e.target.value)}
+          className={`bg-stone-800 border rounded-lg px-3 py-2 text-stone-100 text-sm ${firstOrderDateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
         />
         {subscriptionRenewalDay == null && (
           <p className="text-xs text-stone-500 mt-1">
@@ -851,8 +871,8 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 max={todayStr}
                 min={firstOrderDate}
                 required
-                onChange={e => setCancellationDate(e.target.value)}
-                className="bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+                onChange={e => handleCancellationDateChange(e.target.value)}
+                className={`bg-stone-800 border rounded-lg px-3 py-2 text-stone-100 text-sm ${cancellationDateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
               />
             </div>
             <div>
@@ -874,6 +894,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         )}
       </div>
 
+      {dateError && <p className="text-xs text-red-400">{dateError}</p>}
       <button
         type="submit"
         className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
@@ -1547,6 +1568,10 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
   }
 
   async function submitYes() {
+    if (yesRows.some(r => r.date && !isValidCalendarDate(r.date))) {
+      setError('One or more payment dates is invalid')
+      return
+    }
     setSubmitting(true); setError(null)
     try {
       const skippedMonthIds = eligibleMonths.filter(m => !selectedMonthIds.includes(m.id)).map(m => m.id)

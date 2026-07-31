@@ -9,6 +9,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverUrl } from '@/lib/editionCover'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { API_BASE } from '@/lib/authFetch'
+import { getEarliestTierDate } from '@/lib/saleTiers'
 import type { ApiSearchResult } from '@luxgrimoire/shared-types'
 
 type SearchTab = 'all' | 'books' | 'editions' | 'authors' | 'artists' | 'subscriptions' | 'companies' | 'sales'
@@ -191,7 +192,7 @@ export function SearchContent() {
               <div className="space-y-2">
                 {results.editions!.map((ed) => {
                   const cover = resolveEditionCoverUrl(ed, 'w_60,c_fill,q_auto,f_auto')
-                  const isUpcoming = ed.generalSaleDate && new Date(ed.generalSaleDate) > new Date()
+                  const isUpcoming = ed.resolvedSaleDate?.date && new Date(ed.resolvedSaleDate.date) > new Date()
                   const displayTitle = formatEditionDisplayTitle(ed.book, ed)
                   return (
                     <Link key={ed.id} href={`/editions/${ed.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
@@ -308,7 +309,8 @@ export function SearchContent() {
               {activeTab === 'all' && <h2 className="text-sm text-stone-500 uppercase tracking-wider mb-3 font-medium">Sales</h2>}
               <div className="space-y-2">
                 {results.sales!.map((sale) => {
-                  const isPast = sale.generalSaleDate && new Date(sale.generalSaleDate) < new Date()
+                  const saleDate = getEarliestTierDate(sale)
+                  const isPast = saleDate && new Date(saleDate) < new Date()
                   const saleImage = cloudinaryUrl(sale.imageUrl) ?? cloudinaryUrl(sale.company?.logoUrl) ?? null
                   return (
                     <Link key={sale.id} href={`/sale-announcements/${sale.id}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">

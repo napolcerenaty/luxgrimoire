@@ -2368,9 +2368,19 @@ export class SubscriptionsService {
           ? (() => { const p = entry.cancellationDate!.split('-').map(Number); return { year: p[0], month: p[1] }; })()
           : null;
 
+        // entry.subscriptionId may be a combo or a content-stream variant — neither owns
+        // SubscriptionMonth rows directly (see resolveMonthHoldingSubscriptionIds).
+        const subscriptionForMonths = await this.prisma.subscription.findUnique({
+          where: { id: entry.subscriptionId },
+          select: { id: true, isCombo: true, parentSubscriptionId: true },
+        });
+        const holdingIds = subscriptionForMonths
+          ? await this.resolveMonthHoldingSubscriptionIds(subscriptionForMonths as any)
+          : [entry.subscriptionId];
+
         const monthsInRange = await this.prisma.subscriptionMonth.findMany({
           where: {
-            subscriptionId: entry.subscriptionId,
+            subscriptionId: { in: holdingIds },
             ...(rangeStart || rangeEnd ? {
               AND: [
                 ...(rangeStart ? [{ OR: [{ year: { gt: rangeStart.year } }, { year: rangeStart.year, month: { gte: rangeStart.month } }] }] : []),
@@ -2892,7 +2902,7 @@ export class SubscriptionsService {
     // (only for non-combo subscriptions — combos have no own SubscriptionMonth records)
     const paymentOnStartup = (sub as any).paymentOnStartup as boolean;
     if (paymentOnStartup && startDateObj && !isCombo && !dto.alreadyCancelled) {
-      await this.recordFirstMonthAsPreorder(entry.id, userId, sub.id, startDateObj, entry, signupIncludesCurrentMonth, renewalDay, renewalMonthOffset, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1, eligibilitySubStartDate);
+      await this.recordFirstMonthAsPreorder(entry.id, userId, monthsSubscriptionId, effectiveStartDateObj!, entry, effectiveSignupIncludes, renewalDay, renewalMonthOffset, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1, eligibilitySubStartDate);
     }
 
     // Persist nextRenewalDate (will be null for cancelled entries)
