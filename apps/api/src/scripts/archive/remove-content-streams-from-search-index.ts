@@ -5,17 +5,15 @@
  * them going forward). A prior full reindex run (before that exclusion existed in
  * typesense-reindex.ts) left them sitting in the index, showing up in global search.
  *
- * Cheap and idempotent — safe to run on every deploy: just deletes any content-stream
- * documents still present, harmless no-op once the index is clean. Unlike the full
- * catalog reindex, this doesn't touch books/editions/authors/etc., so it's fine to run
- * unconditionally on every startup rather than only once.
- *
- * Run automatically from docker-entrypoint.sh. Can also be run manually:
- *   node dist/scripts/remove-content-streams-from-search-index.js
+ * Cheap and idempotent — safe to re-run, but the production cleanup already completed
+ * successfully (confirmed 2026-07-31: content streams no longer appear in search), so this
+ * is archived rather than wired into docker-entrypoint.sh anymore. Kept for history and for
+ * manual cleanup if a future reindex ever reintroduces the issue. Run manually with:
+ *   node dist/scripts/archive/remove-content-streams-from-search-index.js
  */
-import { runScript } from './run-script'
-import { TypesenseService } from '../modules/typesense/typesense.service'
-import { PrismaService } from '../prisma/prisma.service'
+import { runScript } from '../run-script'
+import { TypesenseService } from '../../modules/typesense/typesense.service'
+import { PrismaService } from '../../prisma/prisma.service'
 
 runScript('remove-content-streams-from-search-index', async app => {
   const typesense = app.get(TypesenseService)
