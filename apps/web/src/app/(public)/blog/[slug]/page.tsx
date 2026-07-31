@@ -175,7 +175,7 @@ export default async function BlogPostPage({
             seamlessly to fill the banner instead of leaving bare letterbox bars. */}
         {post.feature_image && (
           <div className="pt-4 pb-6">
-            <div className="relative rounded-[24px] overflow-hidden" style={{ aspectRatio: '2.8 / 1', backgroundColor: backdropColor }}>
+            <div className="relative rounded-[24px] overflow-hidden" style={{ aspectRatio: '3.4 / 1', backgroundColor: backdropColor }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={post.feature_image}
