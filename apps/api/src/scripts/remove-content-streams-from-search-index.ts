@@ -13,15 +13,11 @@
  * Run automatically from docker-entrypoint.sh. Can also be run manually:
  *   node dist/scripts/remove-content-streams-from-search-index.js
  */
-import { NestFactory } from '@nestjs/core'
-import { AppModule } from '../app.module'
+import { runScript } from './run-script'
 import { TypesenseService } from '../modules/typesense/typesense.service'
 import { PrismaService } from '../prisma/prisma.service'
 
-async function main() {
-  const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: ['log', 'error', 'warn'],
-  })
+runScript('remove-content-streams-from-search-index', async app => {
   const typesense = app.get(TypesenseService)
   const prisma = app.get(PrismaService)
 
@@ -35,15 +31,4 @@ async function main() {
   console.log(
     `[remove-content-streams-from-search-index] checked ${contentStreams.length} content stream(s), removed from search index if present`,
   )
-
-  await app.close()
-  // AppModule registers several @Cron jobs whose timers keep the event loop alive even
-  // after app.close() — without an explicit exit the process hangs forever instead of
-  // returning control to docker-entrypoint.sh, which means the API server after it never starts.
-  process.exit(0)
-}
-
-main().catch(err => {
-  console.error('[remove-content-streams-from-search-index] failed:', err)
-  process.exit(1)
 })

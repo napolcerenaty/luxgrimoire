@@ -7,15 +7,11 @@
  *   TYPESENSE_API_KEY=<key>
  *   DATABASE_URL=<postgres url>
  */
-import { NestFactory } from '@nestjs/core'
-import { AppModule } from '../app.module'
+import { runScript } from './run-script'
 import { TypesenseService } from '../modules/typesense/typesense.service'
 import { PrismaService } from '../prisma/prisma.service'
 
-async function main() {
-  const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: ['log', 'error', 'warn'],
-  })
+runScript('typesense-reindex', async app => {
   const typesense = app.get(TypesenseService)
   const prisma = app.get(PrismaService)
 
@@ -186,11 +182,5 @@ async function main() {
   }
   console.log(`  → ${sales.length} sales indexed`)
 
-  await app.close()
   console.log('Done!')
-}
-
-main().catch((e) => {
-  console.error(e)
-  process.exit(1)
 })
