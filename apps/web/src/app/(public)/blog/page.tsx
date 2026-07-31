@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Clock } from 'lucide-react'
 import { getPosts, hasInternalTag, getSponsoredLabel, type GhostPost } from '@/lib/ghost'
+import { getFeatureImageBackdropColor } from '@/lib/featureImageColor'
 import BlogViewTracker from '@/components/blog/BlogViewTracker'
 
 export const revalidate = 60
@@ -15,23 +16,19 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-function HeroPanel({ post, large }: { post: GhostPost; large?: boolean }) {
+function HeroPanel({ post, large, bgColor }: { post: GhostPost; large?: boolean; bgColor: string }) {
   const sponsored = getSponsoredLabel(post)
   return (
     <article
       className={`relative overflow-hidden rounded-[28px] border transition-all duration-[220ms] cursor-pointer blog-panel-card group ${large ? 'min-h-[458px]' : 'min-h-[220px]'} ${post.featured ? 'blog-featured-glow' : ''}`}
-      style={{ borderColor: post.featured ? 'rgba(212,175,55,0.6)' : 'var(--border)' }}
+      style={{ borderColor: post.featured ? 'rgba(212,175,55,0.6)' : 'var(--border)', backgroundColor: bgColor }}
     >
       {post.feature_image ? (
-        <>
-          {/* Blurred, oversized backdrop fills the panel behind the contained photo below —
-              hides the letterboxing that object-contain leaves for photos whose aspect ratio
-              doesn't match the panel, instead of cropping the photo itself (object-cover). */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={post.feature_image} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={post.feature_image} alt={post.feature_image_alt ?? post.title} className="absolute inset-0 w-full h-full object-contain" />
-        </>
+        // Panel background is sampled from the image's own corner color (see
+        // getFeatureImageBackdropColor) so its background "continues" seamlessly to fill the
+        // panel instead of the letterboxing object-contain would otherwise leave bare.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={post.feature_image} alt={post.feature_image_alt ?? post.title} className="absolute inset-0 w-full h-full object-contain" />
       ) : null}
       <div className="absolute inset-0 blog-panel-overlay" />
       {/* Featured star */}
@@ -132,6 +129,12 @@ export default async function BlogPage() {
 
   const heroSlugs = new Set([heroLarge?.slug, heroSlot1?.slug, heroSlot2?.slug].filter(Boolean) as string[])
 
+  const [heroLargeColor, heroSlot1Color, heroSlot2Color] = await Promise.all([
+    getFeatureImageBackdropColor(heroLarge?.feature_image),
+    getFeatureImageBackdropColor(heroSlot1?.feature_image),
+    getFeatureImageBackdropColor(heroSlot2?.feature_image),
+  ])
+
   // ── Category sections (excluding hero posts) ──────────────────────
   const rest = posts.filter(p => !heroSlugs.has(p.slug))
 
@@ -163,17 +166,17 @@ export default async function BlogPage() {
           {heroLarge ? (
             <div className="grid grid-cols-1 lg:grid-cols-[1.45fr_1fr] gap-[18px] pt-6">
               <Link href={`/blog/${heroLarge.slug}`} className="block">
-                <HeroPanel post={heroLarge} large />
+                <HeroPanel post={heroLarge} large bgColor={heroLargeColor} />
               </Link>
               <div className="grid gap-[18px]" style={{ gridTemplateRows: 'repeat(2, minmax(220px, 1fr))' }}>
                 {heroSlot1 && (
                   <Link href={`/blog/${heroSlot1.slug}`} className="block">
-                    <HeroPanel post={heroSlot1} />
+                    <HeroPanel post={heroSlot1} bgColor={heroSlot1Color} />
                   </Link>
                 )}
                 {heroSlot2 && (
                   <Link href={`/blog/${heroSlot2.slug}`} className="block">
-                    <HeroPanel post={heroSlot2} />
+                    <HeroPanel post={heroSlot2} bgColor={heroSlot2Color} />
                   </Link>
                 )}
               </div>

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Clock, Calendar } from 'lucide-react'
 import { getPostBySlug, getPosts, getPostsByTag, getSponsoredLabel, type GhostPost } from '@/lib/ghost'
+import { getFeatureImageBackdropColor } from '@/lib/featureImageColor'
 import BlogPostViewTracker from '@/components/blog/BlogPostViewTracker'
 import BlogPostContent from '@/components/blog/BlogPostContent'
 import BlogShareButton from '@/components/blog/BlogShareButton'
@@ -144,7 +145,10 @@ export default async function BlogPostPage({
   if (!post) notFound()
 
   const tagSlug = post.primary_tag?.slug
-  const related = tagSlug ? await getPostsByTag(tagSlug, 4, slug) : []
+  const [related, backdropColor] = await Promise.all([
+    tagSlug ? getPostsByTag(tagSlug, 4, slug) : Promise.resolve([]),
+    getFeatureImageBackdropColor(post.feature_image),
+  ])
 
   return (
     <div
@@ -166,18 +170,12 @@ export default async function BlogPostPage({
 
         {/* Feature image — full width above grid. object-contain (not cover) so nothing gets
             cropped out regardless of the source's aspect ratio — a squarish photo or a logo
-            graphic both show in full; the blurred backdrop copy fills the banner behind it
-            instead of leaving bare letterbox bars. */}
+            graphic both show in full; the panel's background is sampled from the image's own
+            corner color (see getFeatureImageBackdropColor) so its own background "continues"
+            seamlessly to fill the banner instead of leaving bare letterbox bars. */}
         {post.feature_image && (
           <div className="pt-4 pb-6">
-            <div className="relative rounded-[24px] overflow-hidden" style={{ aspectRatio: '2.8 / 1' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={post.feature_image}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50"
-              />
+            <div className="relative rounded-[24px] overflow-hidden" style={{ aspectRatio: '2.8 / 1', backgroundColor: backdropColor }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={post.feature_image}
