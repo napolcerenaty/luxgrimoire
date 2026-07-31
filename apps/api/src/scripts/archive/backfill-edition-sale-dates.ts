@@ -29,15 +29,16 @@
  * no separate step needed for that part. This script only covers the piece that
  * genuinely needs JS-level free-text date parsing and bug-report filing.
  *
- * Idempotent — safe to run on every deploy: skips editions that already have
- * EditionSaleDate rows. Run automatically from docker-entrypoint.sh, right after
- * `prisma migrate deploy` and before the API starts. Can also be run manually:
- *   node dist/scripts/backfill-edition-sale-dates.js [--dry-run]
+ * Idempotent — safe to re-run, but the production backfill already completed successfully
+ * (2026-07-31: 3306 rows created, 0 errors), so this is archived rather than wired into
+ * docker-entrypoint.sh anymore. Kept for history and for manually backfilling any edition
+ * added/edited outside the normal flow. Run manually with:
+ *   node dist/scripts/archive/backfill-edition-sale-dates.js [--dry-run]
  */
 import { NestFactory } from '@nestjs/core'
-import { AppModule } from '../app.module'
-import { PrismaService } from '../prisma/prisma.service'
-import { BugReportsService } from '../modules/bug-reports/bug-reports.service'
+import { AppModule } from '../../app.module'
+import { PrismaService } from '../../prisma/prisma.service'
+import { BugReportsService } from '../../modules/bug-reports/bug-reports.service'
 
 const DRY_RUN = process.argv.includes('--dry-run')
 
@@ -145,6 +146,11 @@ async function main() {
       `${unparseable} unparseable values filed as bug reports, ${skipped} editions already backfilled (skipped)`,
   )
   await app.close()
+  // AppModule registers several @Cron jobs (renewal, notifications, backup, etc.) whose
+  // timers keep the event loop alive even after app.close() — without an explicit exit
+  // the process hangs forever instead of returning control to docker-entrypoint.sh, which
+  // means the API server after it never starts.
+  process.exit(0)
 }
 
 main().catch(err => {

@@ -37,6 +37,10 @@ async function main() {
   )
 
   await app.close()
+  // AppModule registers several @Cron jobs whose timers keep the event loop alive even
+  // after app.close() — without an explicit exit the process hangs forever instead of
+  // returning control to docker-entrypoint.sh, which means the API server after it never starts.
+  process.exit(0)
 }
 
 main().catch(err => {

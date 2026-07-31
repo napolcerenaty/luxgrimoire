@@ -25,9 +25,6 @@ packages/database/node_modules/.bin/prisma migrate resolve \
 echo "▶ Running Prisma migrations..."
 packages/database/node_modules/.bin/prisma migrate deploy --schema packages/database/prisma/schema.prisma
 
-echo "▶ Backfilling edition sale dates..."
-node apps/api/dist/scripts/backfill-edition-sale-dates.js || echo "⚠ backfill-edition-sale-dates failed, continuing startup (idempotent — will retry on next deploy)"
-
 echo "▶ Removing content streams from search index..."
 node apps/api/dist/scripts/remove-content-streams-from-search-index.js || echo "⚠ remove-content-streams-from-search-index failed, continuing startup (idempotent — will retry on next deploy)"
 
