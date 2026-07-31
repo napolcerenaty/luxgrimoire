@@ -13,12 +13,24 @@ const FALLBACK_COLOR = '#070f1c'
 export async function getFeatureImageBackdropColor(imageUrl: string | null | undefined): Promise<string> {
   if (!imageUrl) return FALLBACK_COLOR
   try {
-    const res = await fetch(imageUrl, { next: { revalidate: 3600 } })
-    if (!res.ok) return FALLBACK_COLOR
+    // Some hosts serve images only to requests that look like a browser (hotlink protection) —
+    // Node's default fetch sends no User-Agent at all, which gets silently rejected by those
+    // hosts even though the same URL loads fine in an <img> tag from the browser.
+    const res = await fetch(imageUrl, {
+      next: { revalidate: 3600 },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxGrimoireBot/1.0; +https://luxgrimoire.com)' },
+    })
+    if (!res.ok) {
+      console.error(`[featureImageColor] fetch failed (${res.status}) for ${imageUrl}`)
+      return FALLBACK_COLOR
+    }
     const buffer = Buffer.from(await res.arrayBuffer())
     const image = sharp(buffer)
     const { width, height } = await image.metadata()
-    if (!width || !height) return FALLBACK_COLOR
+    if (!width || !height) {
+      console.error(`[featureImageColor] no dimensions decoded for ${imageUrl}`)
+      return FALLBACK_COLOR
+    }
 
     const cornerSize = Math.max(1, Math.floor(Math.min(width, height) * 0.05))
     const { data } = await image
@@ -29,7 +41,8 @@ export async function getFeatureImageBackdropColor(imageUrl: string | null | und
 
     const [r, g, b] = data
     return `rgb(${r}, ${g}, ${b})`
-  } catch {
+  } catch (err) {
+    console.error(`[featureImageColor] failed for ${imageUrl}:`, err)
     return FALLBACK_COLOR
   }
 }
