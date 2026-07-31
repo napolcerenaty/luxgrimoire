@@ -145,6 +145,11 @@ async function main() {
       `${unparseable} unparseable values filed as bug reports, ${skipped} editions already backfilled (skipped)`,
   )
   await app.close()
+  // AppModule registers several @Cron jobs (renewal, notifications, backup, etc.) whose
+  // timers keep the event loop alive even after app.close() — without an explicit exit
+  // the process hangs forever instead of returning control to docker-entrypoint.sh, which
+  // means the API server after it never starts.
+  process.exit(0)
 }
 
 main().catch(err => {
