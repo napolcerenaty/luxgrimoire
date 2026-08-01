@@ -99,7 +99,9 @@ describe('SubscriptionsService — getMonthGaps company-skip exclusion', () => {
     const skippedSub = makeCandidateSub({ id: 'sub-skipped', slug: 'sub-skipped', name: 'Skipped Sub' });
     (prisma.subscription.findMany as jest.Mock).mockResolvedValue([normalSub, skippedSub]);
     (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValue([{ subscriptionId: 'sub-skipped' }]);
-    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([{ subscriptionId: 'sub-a', _count: { books: 2 } }]);
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([
+      { subscriptionId: 'sub-a', _count: { books: 2 }, books: [{ edition: { featureTags: [{ id: 'tag-1' }] } }] },
+    ]);
 
     const result = await service.getMonthGaps(YEAR, MONTH) as any;
 
