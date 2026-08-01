@@ -692,11 +692,16 @@ export class SubscriptionsService {
     const { comboComponents, months: _months, priceChanges, ...rest } = subscription;
 
     // For combo subscriptions: if any component is a content stream variant,
-    // its months live on the parent subscription — replace the empty months array.
+    // its months live on the parent subscription — replace the empty months array. Also
+    // resolves each component's own company-wide skips (same date window as its months), same
+    // as the top-level `skippedMonths` below — a combo's public page renders each component's
+    // current/upcoming card from this same data, and without this, a skipped component month
+    // would be invisible there even though it's already correctly reflected everywhere else.
     const processedComboComponents = await Promise.all(
       comboComponents.map(async (cc) => {
         const comp = cc.component as any;
-        if (!comp.parentSubscriptionId) return cc;
+        const compContentStreamId: string = comp.parentSubscriptionId ?? comp.id;
+
         const andConds: Record<string, unknown>[] = [
           { OR: [{ year: { gt: nowYear } }, { year: nowYear, month: { gte: nowMonth } }] },
         ];
@@ -710,6 +715,17 @@ export class SubscriptionsService {
           const em = (comp.endDate as Date).getMonth() + 1;
           andConds.push({ OR: [{ year: { lt: ey } }, { year: ey, month: { lte: em } }] });
         }
+
+        const compSkippedMonths = await this.prisma.subscriptionMonthSkip.findMany({
+          where: { subscriptionId: compContentStreamId, undoneAt: null, AND: andConds },
+          select: { year: true, month: true, reason: true },
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
+        });
+
+        if (!comp.parentSubscriptionId) {
+          return { ...cc, component: { ...comp, skippedMonths: compSkippedMonths } };
+        }
+
         const parentMonths = await this.prisma.subscriptionMonth.findMany({
           where: { subscriptionId: comp.parentSubscriptionId, AND: andConds },
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
@@ -740,7 +756,7 @@ export class SubscriptionsService {
             },
           },
         });
-        return { ...cc, component: { ...comp, months: parentMonths } };
+        return { ...cc, component: { ...comp, months: parentMonths, skippedMonths: compSkippedMonths } };
       }),
     );
 
