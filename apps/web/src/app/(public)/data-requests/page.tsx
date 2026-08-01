@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import { Database, CheckCircle, Clock, XCircle, ExternalLink, ChevronDown, Send } from 'lucide-react'
+import { Database, CheckCircle, Clock, XCircle, RefreshCw, ExternalLink, ChevronDown, Send } from 'lucide-react'
 
 const DATA_TYPES = [
   { value: 'EDITION', label: '📖 Edition / Book box variant' },
@@ -15,11 +15,12 @@ const DATA_TYPES = [
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+  in_progress: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
   added: 'text-green-400 bg-green-500/10 border-green-500/30',
   declined: 'text-stone-500 bg-stone-700/30 border-stone-600/30',
 }
 const STATUS_ICON: Record<string, React.ElementType> = {
-  pending: Clock, added: CheckCircle, declined: XCircle,
+  pending: Clock, in_progress: RefreshCw, added: CheckCircle, declined: XCircle,
 }
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
@@ -153,7 +154,7 @@ export default function DataRequestsPage() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[r.status] ?? STATUS_STYLES.pending}`}>
-                            <Icon size={10} className="inline mr-1" />{r.status.toUpperCase()}
+                            <Icon size={10} className="inline mr-1" />{r.status.replace(/_/g, ' ').toUpperCase()}
                           </span>
                           <span className="text-xs text-stone-600 bg-stone-800 px-2 py-0.5 rounded-full">{r.type}</span>
                         </div>
