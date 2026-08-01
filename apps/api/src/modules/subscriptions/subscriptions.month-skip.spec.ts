@@ -16,7 +16,7 @@
  */
 
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionsService } from './subscriptions.service';
 
@@ -47,7 +47,7 @@ function makeService(prisma: DeepMockProxy<PrismaService>) {
     {} as any, // skipPolicyEngine
     {} as any, // renewalCron
     {} as any, // countryFeeSnapshotService
-    {} as any, // uploadService
+    { deleteImages: jest.fn().mockResolvedValue(undefined) } as any, // uploadService
     {} as any, // crowdStatsService
     {} as any, // statsService
     { get: jest.fn().mockResolvedValue(undefined), set: jest.fn(), del: jest.fn() } as any, // cache
@@ -163,6 +163,46 @@ describe('SubscriptionsService — markMonthSkipped', () => {
     expect(result.failed).toEqual([{ entryId: 'entry-fails', error: 'boom' }]);
     // succeeded + failed accounts for every entry that was attempted
     expect(result.succeeded + result.failed.length).toBe(3);
+  });
+
+  it('rejects with a clear error when the month has existing content and deleteExistingContent is not set', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(makeSub());
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([{ id: PARENT_ID }]);
+    (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'month-1', coverImage: null, spoilerImage: null, books: [{ id: 'mb-1' }, { id: 'mb-2' }],
+    });
+
+    await expect(service.markMonthSkipped(PARENT_SLUG, YEAR, MONTH, undefined, ADMIN_ID))
+      .rejects.toThrow(ConflictException);
+    expect(prisma.subscriptionMonth.delete).not.toHaveBeenCalled();
+    expect(prisma.subscriptionMonthSkip.upsert).not.toHaveBeenCalled();
+  });
+
+  it('deletes the existing SubscriptionMonth row (and its images) when deleteExistingContent is true', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(makeSub());
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([{ id: PARENT_ID }]);
+    (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'month-1', coverImage: 'cover-public-id', spoilerImage: null, books: [{ id: 'mb-1' }],
+    });
+    (prisma.subscriptionMonth.delete as jest.Mock).mockResolvedValueOnce({ id: 'month-1' });
+    (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await service.markMonthSkipped(PARENT_SLUG, YEAR, MONTH, undefined, ADMIN_ID, true);
+
+    expect(prisma.subscriptionMonth.delete).toHaveBeenCalledWith({ where: { id: 'month-1' } });
+    expect(prisma.subscriptionMonthSkip.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('proceeds with no deletion when there is no existing content, regardless of deleteExistingContent', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(makeSub());
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([{ id: PARENT_ID }]);
+    (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await service.markMonthSkipped(PARENT_SLUG, YEAR, MONTH, undefined, ADMIN_ID, true);
+
+    expect(prisma.subscriptionMonth.delete).not.toHaveBeenCalled();
+    expect(prisma.subscriptionMonthSkip.upsert).toHaveBeenCalledTimes(1);
   });
 });
 

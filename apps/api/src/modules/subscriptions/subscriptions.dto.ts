@@ -371,6 +371,12 @@ export class MarkMonthSkippedDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  // Required to confirm permanent deletion when the month already has content — see
+  // markMonthSkipped's doc comment for why leaving stale content behind a skip isn't allowed.
+  @IsOptional()
+  @IsBoolean()
+  deleteExistingContent?: boolean;
 }
 
 export class CreateMonthDto {

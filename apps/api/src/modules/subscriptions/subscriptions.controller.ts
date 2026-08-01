@@ -217,7 +217,7 @@ export class SubscriptionsController {
     @CurrentUser() user: CurrentUserType,
   ) {
     if (user.role === 'COMPANY_MANAGER') { assertCompanyAccess(user, (await this.subscriptionsService.findBySlug(slug)).companyId, 'You can only manage subscriptions for your own company'); }
-    const result = await this.subscriptionsService.markMonthSkipped(slug, parseInt(year, 10), parseInt(month, 10), dto.reason, user.id);
+    const result = await this.subscriptionsService.markMonthSkipped(slug, parseInt(year, 10), parseInt(month, 10), dto.reason, user.id, dto.deleteExistingContent);
     void this.auditService.log({ userId: user.id, username: user.username, action: 'MARK_MONTH_SKIPPED', entityType: 'subscription', entityId: slug, metadata: { year: parseInt(year, 10), month: parseInt(month, 10), reason: dto.reason ?? null, memberSubscriptionIds: result.memberSubscriptionIds } });
     return result;
   }

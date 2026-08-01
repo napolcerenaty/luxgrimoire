@@ -266,13 +266,24 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   const [skipReason, setSkipReason] = useState('')
 
   const markSkippedMutation = useMutation({
+    // This card only ever exists for a month that already has a SubscriptionMonth row, so
+    // marking it skipped always deletes that row — deleteExistingContent is never optional here.
     mutationFn: () => authFetch<SkipRecomputeSummary>(`/subscriptions/${slug}/months/${month.year}/${month.month}/skip`, {
       method: 'POST',
-      body: JSON.stringify({ reason: skipReason || undefined }),
+      body: JSON.stringify({ reason: skipReason || undefined, deleteExistingContent: true }),
     }),
     onSuccess: (result) => { refreshSkips(); setSkipFormOpen(false); setSkipReason(''); reportSkipRecompute(result) },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })
+
+  const confirmMarkSkipped = () => {
+    const contentNote = month.books.length > 0
+      ? `its theme/cover and ${month.books.length} linked book${month.books.length !== 1 ? 's' : ''}`
+      : 'its theme/cover'
+    if (confirm(`Skipping ${monthLabel} will permanently delete ${contentNote}. This cannot be undone. Continue?`)) {
+      markSkippedMutation.mutate()
+    }
+  }
 
   const unmarkSkippedMutation = useMutation({
     mutationFn: () => authFetch<SkipRecomputeSummary>(`/subscriptions/${slug}/months/${month.year}/${month.month}/skip`, { method: 'DELETE' }),
@@ -412,11 +423,9 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
       {/* Mark-skipped inline form */}
       {skipFormOpen && !skipped && (
         <div className="border-t border-stone-800 p-4 space-y-3 bg-stone-800/30">
-          {month.books.length > 0 && (
-            <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
-              This month already has {month.books.length} book{month.books.length !== 1 ? 's' : ''} — skipping hides it from gap scans, books-by-month, and the public page, but doesn&apos;t delete the content.
-            </p>
-          )}
+          <p className="text-red-400 text-xs bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">
+            This month already has content — skipping will <strong>permanently delete</strong> its theme, cover image{month.books.length > 0 ? `, and ${month.books.length} linked book${month.books.length !== 1 ? 's' : ''}` : ''}. This cannot be undone.
+          </p>
           {isBundleSubscription && (
             <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
               This is a bundle — skipping one month still ships whatever content remains in the bundle, it doesn&apos;t stop the bundle itself. Company-wide skip of a single bundle month isn&apos;t specially modeled; verify the result manually.
@@ -428,9 +437,9 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               placeholder="e.g. Printer delay — this box will ship next month instead" className={INPUT} />
           </div>
           <div className="flex gap-2">
-            <button type="button" disabled={markSkippedMutation.isPending} onClick={() => markSkippedMutation.mutate()}
-              className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
-              {markSkippedMutation.isPending ? 'Marking…' : 'Confirm skip'}
+            <button type="button" disabled={markSkippedMutation.isPending} onClick={confirmMarkSkipped}
+              className="bg-red-500/90 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-red-500 disabled:opacity-50 text-sm">
+              {markSkippedMutation.isPending ? 'Marking…' : 'Delete content & confirm skip'}
             </button>
             <button type="button" onClick={() => setSkipFormOpen(false)}
               className="text-stone-400 hover:text-stone-200 text-sm px-2">Cancel</button>

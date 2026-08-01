@@ -1527,6 +1527,16 @@ export class SubscriptionsService {
     });
     if (!existing) throw new NotFoundException(`Month ${month}/${year} not found`);
 
+    const deleted = await this.deleteMonthRow(existing);
+
+    void this.invalidateMonthsCache(subscriptionSlug);
+    void this.invalidateCatalogMonthCaches();
+    return deleted;
+  }
+
+  /** Shared by deleteMonth and markMonthSkipped: deletes a SubscriptionMonth row, its cover/
+   *  spoiler images, and (via the row's own cascade) any linked SubscriptionMonthBook rows. */
+  private async deleteMonthRow(existing: { id: string; coverImage: string | null; spoilerImage: string | null }) {
     await this.uploadService.deleteImages([existing.coverImage, existing.spoilerImage]);
 
     const deleted = await this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
@@ -1536,8 +1546,6 @@ export class SubscriptionsService {
       if (publicId) void this.mediaAssetsService?.deleteIfUnused(publicId as string, this.uploadService);
     }
 
-    void this.invalidateMonthsCache(subscriptionSlug);
-    void this.invalidateCatalogMonthCaches();
     return deleted;
   }
 
@@ -1572,9 +1580,31 @@ export class SubscriptionsService {
    *  SubscriptionMonthSkip row per member — so marking skip via any variant's slug applies to
    *  every sibling variant sharing that content, matching how SubscriptionMonth content itself
    *  is already shared at the parent level. Combos own no months of their own and are rejected;
-   *  mark the underlying component subscription instead. */
-  async markMonthSkipped(slug: string, year: number, month: number, reason: string | undefined, adminUserId: string) {
+   *  mark the underlying component subscription instead.
+   *
+   *  If a SubscriptionMonth row already exists for this month, it's deleted as part of marking
+   *  the skip (requires deleteExistingContent: true — otherwise rejected with a clear error).
+   *  This isn't just cleanup: several unrelated code paths (skip-policy.engine.ts's personal-skip
+   *  candidate search, refreshNextRenewalDate's paymentOnStartup anchor, renewal.cron's
+   *  prepaid-window-skip count) treat "a SubscriptionMonth row exists" as "real content exists" —
+   *  leaving stale content behind a skip would silently feed those the wrong answer. Deleting it
+   *  keeps that invariant true everywhere, not just in the places this feature explicitly audited. */
+  async markMonthSkipped(slug: string, year: number, month: number, reason: string | undefined, adminUserId: string, deleteExistingContent = false) {
     const { contentStreamId, memberIds } = await this.resolveContentStreamMembers(slug, 'mark');
+
+    const existingMonth = await this.prisma.subscriptionMonth.findUnique({
+      where: { subscriptionId_year_month: { subscriptionId: contentStreamId, year, month } },
+      include: { books: { select: { id: true } } },
+    });
+    if (existingMonth) {
+      if (!deleteExistingContent) {
+        throw new ConflictException(
+          `This month already has content (theme/cover/${existingMonth.books.length} book(s) linked). ` +
+          'Pass deleteExistingContent: true to confirm permanent deletion before skipping.',
+        );
+      }
+      await this.deleteMonthRow(existingMonth);
+    }
 
     await Promise.all(memberIds.map((id) =>
       this.prisma.subscriptionMonthSkip.upsert({
