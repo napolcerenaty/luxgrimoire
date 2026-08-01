@@ -7,8 +7,8 @@
  *  1. markMonthSkipped cascades to the content stream (parent + every variant),
  *     writing one row per member and recomputing every one of their active entries
  *  2. markMonthSkipped never creates a UserSkipRecord row (regression guard)
- *  3. unmarkMonthSkipped is deliberately scoped to exactly the slug passed in —
- *     siblings/parent are untouched (the "correct a single variant" workflow)
+ *  3. unmarkMonthSkipped cascades to the content stream too, symmetric with mark —
+ *     including when called via a variant's own slug
  *  4. bulk-recompute resilience: one entry failing doesn't stop the rest, and the
  *     {succeeded, failed} summary accounts for every entry
  *  5. combo subscriptions are rejected for both mark and unmark
@@ -177,36 +177,44 @@ describe('SubscriptionsService — unmarkMonthSkipped', () => {
     (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValue(undefined);
   });
 
-  it('is scoped to exactly the one subscription in slug — not cascaded to the content stream', async () => {
+  it('cascades to the content stream: unmarks the parent and every variant, symmetric with mark', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(makeSub());
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: PARENT_ID }, { id: VARIANT_1_ID }, { id: VARIANT_2_ID },
+    ]);
+    (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'entry-1' }]);
+
+    const result = await service.unmarkMonthSkipped(PARENT_SLUG, YEAR, MONTH);
+
+    expect(prisma.subscriptionMonthSkip.updateMany).toHaveBeenCalledWith({
+      where: { subscriptionId: { in: [PARENT_ID, VARIANT_1_ID, VARIANT_2_ID] }, year: YEAR, month: MONTH, undoneAt: null },
+      data: { undoneAt: expect.any(Date) },
+    });
+    expect(result.memberSubscriptionIds).toEqual([PARENT_ID, VARIANT_1_ID, VARIANT_2_ID]);
+    expect(result.subscriptionId).toBe(PARENT_ID);
+  });
+
+  it('unmarking via a variant\'s own slug still resolves to the shared content-stream id and cascades to siblings', async () => {
     (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(
       makeSub({ id: VARIANT_1_ID, slug: VARIANT_1_SLUG, parentSubscriptionId: PARENT_ID }),
     );
-    (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'entry-1' }]);
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: PARENT_ID }, { id: VARIANT_1_ID }, { id: VARIANT_2_ID },
+    ]);
+    (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
 
     const result = await service.unmarkMonthSkipped(VARIANT_1_SLUG, YEAR, MONTH);
 
-    expect(prisma.subscriptionMonthSkip.updateMany).toHaveBeenCalledWith({
-      where: { subscriptionId: VARIANT_1_ID, year: YEAR, month: MONTH, undoneAt: null },
-      data: { undoneAt: expect.any(Date) },
-    });
-    // No parent/variant resolution query at all — this is the whole point of the asymmetry
-    expect(prisma.subscription.findMany).not.toHaveBeenCalled();
-    expect(prisma.userSubscriptionEntry.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { subscriptionId: { in: [VARIANT_1_ID] }, active: true } }),
+    expect(prisma.subscription.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { OR: [{ id: PARENT_ID }, { parentSubscriptionId: PARENT_ID }] },
+      }),
     );
-    expect(result.subscriptionId).toBe(VARIANT_1_ID);
-  });
-
-  it('unmarking the parent does not touch sibling variants\' rows', async () => {
-    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(makeSub());
-    (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
-
-    await service.unmarkMonthSkipped(PARENT_SLUG, YEAR, MONTH);
-
     expect(prisma.subscriptionMonthSkip.updateMany).toHaveBeenCalledWith({
-      where: { subscriptionId: PARENT_ID, year: YEAR, month: MONTH, undoneAt: null },
+      where: { subscriptionId: { in: [PARENT_ID, VARIANT_1_ID, VARIANT_2_ID] }, year: YEAR, month: MONTH, undoneAt: null },
       data: { undoneAt: expect.any(Date) },
     });
+    expect(result.subscriptionId).toBe(PARENT_ID);
   });
 
   it('rejects a combo subscription with a clear error', async () => {
@@ -218,6 +226,7 @@ describe('SubscriptionsService — unmarkMonthSkipped', () => {
 
   it('is a no-op, not an error, when the subscription was never skipped', async () => {
     (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(makeSub());
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([{ id: PARENT_ID }]);
     (prisma.subscriptionMonthSkip.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
     (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
 

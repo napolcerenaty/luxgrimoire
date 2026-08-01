@@ -381,7 +381,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               >{deleteMutation.isPending ? '…' : 'Delete'}</button>
               {skipped ? (
                 <button
-                  onClick={() => { if (confirm(`Unskip ${monthLabel}? This affects only this subscription — sibling variants stay skipped.`)) unmarkSkippedMutation.mutate() }}
+                  onClick={() => { if (confirm(`Unskip ${monthLabel}? This applies to the whole content stream — every variant.`)) unmarkSkippedMutation.mutate() }}
                   disabled={unmarkSkippedMutation.isPending}
                   className={`${BTN_SM} bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50`}
                 >{unmarkSkippedMutation.isPending ? '…' : 'Unskip'}</button>
@@ -1328,10 +1328,13 @@ function resolveEffectivePrice(
 // A quick-add form for declaring a skip before any content has been authored (the common
 // case). The resulting skip shows up inline in the main month list (see SkippedMonthOnlyCard
 // below), at its correct chronological position — not in a separate, disconnected section.
-// Two lists (months + skips) reading as one is a display problem, not a data-model one: the
-// content-stream cascade and the "correct a single variant" unskip both depend on
-// SubscriptionMonthSkip staying independent of SubscriptionMonth, so the fix is here, in how
-// the two get merged for rendering, not in the schema.
+// Two lists (months + skips) reading as one was a display problem, fixed here by merging them
+// for rendering — not a reason to fold SubscriptionMonthSkip into SubscriptionMonth itself.
+// That table is queried in several places (skip-policy.engine.ts's personal-skip candidate
+// search, renewal-date.util.ts's paymentOnStartup anchor, renewal.cron.ts's prepaid-window-skip
+// count) that treat "a row exists" as "real content exists" — a content-less placeholder row
+// would silently break those. Keeping skip state in its own table keeps that blast radius at
+// exactly the places that were deliberately built to be skip-aware.
 function MarkMonthSkippedForm({ slug, isBundleSubscription, onChange }: {
   slug: string
   isBundleSubscription?: boolean | null
@@ -1428,7 +1431,7 @@ function SkippedMonthOnlyCard({ slug, year, month, reason, onChange, highlighted
         <p className="text-amber-500/80 text-sm mt-0.5">{reason || 'No reason given.'}</p>
       </div>
       <button
-        onClick={() => { if (confirm(`Unskip ${monthLabel}? This affects only this subscription — sibling variants stay skipped.`)) unmarkMutation.mutate() }}
+        onClick={() => { if (confirm(`Unskip ${monthLabel}? This applies to the whole content stream — every variant.`)) unmarkMutation.mutate() }}
         disabled={unmarkMutation.isPending}
         className={`${BTN_SM} bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 shrink-0`}
       >{unmarkMutation.isPending ? '…' : 'Unskip'}</button>

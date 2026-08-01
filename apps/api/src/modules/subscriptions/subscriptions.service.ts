@@ -1574,17 +1574,7 @@ export class SubscriptionsService {
    *  is already shared at the parent level. Combos own no months of their own and are rejected;
    *  mark the underlying component subscription instead. */
   async markMonthSkipped(slug: string, year: number, month: number, reason: string | undefined, adminUserId: string) {
-    const sub = await findBySlugOrThrow(this.prisma.subscription, slug, 'Subscription');
-    if ((sub as any).isCombo) {
-      throw new BadRequestException('Cannot mark a combo subscription as skipped — mark the underlying component subscription instead.');
-    }
-
-    const contentStreamId: string = (sub as any).parentSubscriptionId ?? (sub as any).id;
-    const members = await this.prisma.subscription.findMany({
-      where: { OR: [{ id: contentStreamId }, { parentSubscriptionId: contentStreamId }] },
-      select: { id: true },
-    });
-    const memberIds = members.map((m) => m.id);
+    const { contentStreamId, memberIds } = await this.resolveContentStreamMembers(slug, 'mark');
 
     await Promise.all(memberIds.map((id) =>
       this.prisma.subscriptionMonthSkip.upsert({
@@ -1602,29 +1592,42 @@ export class SubscriptionsService {
     return { subscriptionId: contentStreamId, memberSubscriptionIds: memberIds, year, month, reason: reason ?? null, ...recompute };
   }
 
-  /** Unmarks a company-wide month skip — deliberately scoped to exactly the one subscription in
-   *  `slug`, NOT cascaded to the rest of the content stream. Since markMonthSkipped writes an
-   *  independent row per member subscription, this lets an admin correct a single variant that
-   *  turns out not to match the rest of the content stream (e.g. it shipped after all) without
-   *  touching the content-stream's own row or sibling variants. Un-skipping just the parent still
-   *  leaves any variant rows untouched, and vice versa — that asymmetry is intentional. */
-  async unmarkMonthSkipped(slug: string, year: number, month: number) {
+  /** Resolves a subscription slug to its content-stream (parent) id and every member id
+   *  (the parent plus every variant pointing at it) — shared by mark/unmarkMonthSkipped so
+   *  both cascade identically. Rejects combos, which own no months of their own. */
+  private async resolveContentStreamMembers(slug: string, action: 'mark' | 'unmark'): Promise<{ contentStreamId: string; memberIds: string[] }> {
     const sub = await findBySlugOrThrow(this.prisma.subscription, slug, 'Subscription');
     if ((sub as any).isCombo) {
-      throw new BadRequestException('Cannot unmark a combo subscription — it was never markable.');
+      throw new BadRequestException(`Cannot ${action} a combo subscription as skipped — ${action} the underlying component subscription instead.`);
     }
 
+    const contentStreamId: string = (sub as any).parentSubscriptionId ?? (sub as any).id;
+    const members = await this.prisma.subscription.findMany({
+      where: { OR: [{ id: contentStreamId }, { parentSubscriptionId: contentStreamId }] },
+      select: { id: true },
+    });
+    return { contentStreamId, memberIds: members.map((m) => m.id) };
+  }
+
+  /** Unmarks a company-wide month skip — cascades to the whole content stream (parent + every
+   *  variant), symmetric with markMonthSkipped. A skip is a property of the shipment, not the
+   *  billing plan a variant represents, so there's no realistic scenario where one variant ships
+   *  while a sibling variant of the same physical box doesn't; keeping mark/unmark symmetric is
+   *  far less surprising than a "mark broadcasts, unmark narrowcasts" split ever was. */
+  async unmarkMonthSkipped(slug: string, year: number, month: number) {
+    const { contentStreamId, memberIds } = await this.resolveContentStreamMembers(slug, 'unmark');
+
     await this.prisma.subscriptionMonthSkip.updateMany({
-      where: { subscriptionId: (sub as any).id, year, month, undoneAt: null },
+      where: { subscriptionId: { in: memberIds }, year, month, undoneAt: null },
       data: { undoneAt: new Date() },
     });
 
-    const recompute = await this.recalculateRenewalDatesForSubscriptions([(sub as any).id]);
+    const recompute = await this.recalculateRenewalDatesForSubscriptions(memberIds);
 
     void this.invalidateMonthsCache(slug);
     void this.invalidateCatalogMonthCaches();
 
-    return { subscriptionId: (sub as any).id, year, month, ...recompute };
+    return { subscriptionId: contentStreamId, memberSubscriptionIds: memberIds, year, month, ...recompute };
   }
 
   /** Lists currently-active company-wide month skips for a subscription — a reason is meant to

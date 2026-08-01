@@ -222,8 +222,8 @@ export class SubscriptionsController {
     return result;
   }
 
-  // Deliberately NOT cascaded — scoped to exactly the one subscription in :slug, so an admin can
-  // correct a single variant without touching the content-stream's own row or sibling variants.
+  // Cascades to the whole content stream, symmetric with markMonthSkipped — see that method's
+  // service-layer doc comment for why.
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
   @Delete(':slug/months/:year/:month/skip')
