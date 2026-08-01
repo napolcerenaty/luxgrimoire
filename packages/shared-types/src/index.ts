@@ -360,7 +360,18 @@ export interface ApiSubscription {
   skipPolicies?: ApiSubscriptionSkipPolicy[];
   company?: ApiBookBoxCompany;
   months?: ApiSubscriptionMonth[];
+  // Company-wide "this month doesn't happen" skips (SubscriptionMonthSkip) — distinct from the
+  // per-user opt-in skip. A skipped month with no content row never appears in `months`, so this
+  // is surfaced separately for the same date window, letting the page render an explicit
+  // "Skipped: reason" card in the right chronological slot instead of a silent gap.
+  skippedMonths?: ApiSubscriptionMonthSkip[];
   components?: { componentId: string; component?: ApiSubscription }[];
+}
+
+export interface ApiSubscriptionMonthSkip {
+  year: number;
+  month: number;
+  reason: string | null;
 }
 
 export interface ApiSubscriptionMonth {

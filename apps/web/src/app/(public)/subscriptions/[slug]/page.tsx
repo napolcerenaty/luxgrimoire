@@ -87,6 +87,16 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
     .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))
     .find((m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth))
 
+  // Company-wide skips (SubscriptionMonthSkip) — a skipped month with no content row never
+  // appears in `months` at all, so this is a separate lookup. Only shown when there's no real
+  // content already covering that slot (content should never coexist with an active skip in
+  // practice, but this keeps real content authoritative if it somehow does).
+  const skippedByKey = new Map((sub.skippedMonths ?? []).map((s) => [`${s.year}-${s.month}`, s]))
+  const currentSkip = !currentMonth ? skippedByKey.get(`${nowYear}-${nowMonth}`) ?? null : null
+  const nextCalMonth = nowMonth === 12 ? 1 : nowMonth + 1
+  const nextCalYear = nowMonth === 12 ? nowYear + 1 : nowYear
+  const upcomingSkip = !upcomingMonth ? skippedByKey.get(`${nextCalYear}-${nextCalMonth}`) ?? null : null
+
   // Bundle subscription: compute current and upcoming bundle windows
   const isBundleSubscription = (sub as unknown as { isBundleSubscription?: boolean }).isBundleSubscription ?? false
   const hasBookChoiceMonths = (sub as unknown as { hasBookChoiceMonths?: boolean }).hasBookChoiceMonths ?? false
@@ -386,10 +396,10 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
         )
       ) : (
         /* Regular: single current + upcoming */
-        (currentMonth || upcomingMonth) && (
+        (currentMonth || upcomingMonth || currentSkip || upcomingSkip) && (
           <section className="mb-12">
-            <div className={`grid gap-6 ${currentMonth && upcomingMonth ? 'grid-cols-1 sm:grid-cols-2 max-w-2xl' : 'grid-cols-1 max-w-xs'}`}>
-              {currentMonth && (
+            <div className={`grid gap-6 ${(currentMonth || currentSkip) && (upcomingMonth || upcomingSkip) ? 'grid-cols-1 sm:grid-cols-2 max-w-2xl' : 'grid-cols-1 max-w-xs'}`}>
+              {currentMonth ? (
                 <FeaturedMonthCard
                   compact
                   label="Current Month"
@@ -397,14 +407,32 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
                   monthData={currentMonth}
                   accentColors={brandColors}
                 />
+              ) : currentSkip && (
+                <FeaturedMonthCard
+                  compact
+                  label="Current Month"
+                  labelVariant="current"
+                  monthData={{ year: currentSkip.year, month: currentSkip.month }}
+                  accentColors={brandColors}
+                  skipped={currentSkip}
+                />
               )}
-              {upcomingMonth && (
+              {upcomingMonth ? (
                 <FeaturedMonthCard
                   compact
                   label="Upcoming Theme"
                   labelVariant="upcoming"
                   monthData={upcomingMonth}
                   accentColors={brandColors}
+                />
+              ) : upcomingSkip && (
+                <FeaturedMonthCard
+                  compact
+                  label="Upcoming Theme"
+                  labelVariant="upcoming"
+                  monthData={{ year: upcomingSkip.year, month: upcomingSkip.month }}
+                  accentColors={brandColors}
+                  skipped={upcomingSkip}
                 />
               )}
             </div>
@@ -442,15 +470,47 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
 interface FeaturedMonthCardProps {
   label: string
   labelVariant: 'current' | 'upcoming'
-  monthData: ApiSubscriptionMonth
+  monthData: Pick<ApiSubscriptionMonth, 'year' | 'month'> & Partial<Omit<ApiSubscriptionMonth, 'year' | 'month'>>
   accentColors?: string[] | null
   compact?: boolean
+  // Company-wide skip (SubscriptionMonthSkip) — when set, short-circuits to a "Skipped: reason"
+  // card instead of the normal cover/theme layout. monthData in this case only has year/month.
+  skipped?: { reason: string | null } | null
 }
 
-function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compact }: FeaturedMonthCardProps) {
+function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compact, skipped }: FeaturedMonthCardProps) {
   const monthName = MONTH_NAMES[monthData.month - 1]
+
+  if (skipped) {
+    return (
+      <div className="rounded-2xl overflow-hidden bg-stone-900 border border-amber-800/40">
+        <div className={`relative flex flex-col items-center justify-center gap-2 bg-amber-950/20 ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
+          <div className="absolute top-3 left-3">
+            <span
+              className={`text-xs font-semibold font-serif uppercase tracking-wider px-3 py-1 rounded-full ${
+                labelVariant === 'current' ? 'bg-amber-500 text-stone-950' : 'bg-stone-700 text-amber-400 border border-amber-700/50'
+              }`}
+            >
+              {label}
+            </span>
+          </div>
+          <span className="text-amber-400 font-serif text-2xl">⏭</span>
+          <span className="text-amber-400 font-serif text-sm uppercase tracking-widest">Skipped</span>
+        </div>
+        <div className={compact ? 'p-3' : 'p-5'}>
+          <p className={`text-stone-100 font-serif font-bold mb-1 ${compact ? 'text-sm' : 'text-lg'}`}>
+            {monthName} {monthData.year}
+          </p>
+          <p className={`text-amber-500/90 italic ${compact ? 'text-xs' : 'text-sm'}`}>
+            {skipped.reason || 'This month is skipped — no box this cycle.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   // No c_fill — let contain work properly
-  const coverUrl = cloudinaryUrl(monthData.coverImage, 'w_900,q_auto,f_auto')
+  const coverUrl = cloudinaryUrl(monthData.coverImage ?? null, 'w_900,q_auto,f_auto')
   const mainBook = monthData.books?.find((b) => b.isMainBook) ?? monthData.books?.[0] ?? null
   const bookCoverUrl = cloudinaryUrl(
     mainBook?.edition?.additionalImages?.[0] ?? null,

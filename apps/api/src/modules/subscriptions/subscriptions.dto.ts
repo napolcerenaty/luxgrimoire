@@ -367,6 +367,12 @@ export class YearMonthQueryDto {
   month!: number;
 }
 
+export class MarkMonthSkippedDto {
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
 export class CreateMonthDto {
   @Type(() => Number)
   @IsInt()

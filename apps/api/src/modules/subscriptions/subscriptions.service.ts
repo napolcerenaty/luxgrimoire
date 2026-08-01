@@ -745,6 +745,27 @@ export class SubscriptionsService {
     );
 
     const sentinelRecord = priceChanges.find((pc) => pc.effectiveYear === 1900 && pc.effectiveMonth === 1 && pc.currency === rest.currency);
+
+    // Company-wide month skips, same date window as `months` above (current-month-onward, or
+    // bundle-window-adjusted). A skipped month with no SubscriptionMonth row never appears in
+    // `months` at all, so this is returned separately for the page to render an explicit
+    // "Skipped" card in the right chronological slot rather than a silent gap. Variants resolve
+    // to the content-stream (parent) id, same as `months` does above — skips are always written
+    // at that level (see SubscriptionMonthSkip).
+    const skipContentStreamId = subscription.parentSubscriptionId ?? subscription.id;
+    const skippedMonths = await this.prisma.subscriptionMonthSkip.findMany({
+      where: {
+        subscriptionId: skipContentStreamId,
+        undoneAt: null,
+        OR: [
+          { year: { gt: monthsFromYear } },
+          { year: monthsFromYear, month: { gte: monthsFromMonth } },
+        ],
+      },
+      select: { year: true, month: true, reason: true },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+    });
+
     return {
       ...this.mapSubscriptionAssets(rest),
       price: this.computeCurrentPrice(priceChanges, rest.currency),
@@ -755,6 +776,7 @@ export class SubscriptionsService {
         ? parseFloat(sentinelRecord.newBasePrice.toString()).toFixed(2)
         : this.computeCurrentPrice(priceChanges, rest.currency),
       months: months.map((month: any) => this.mapMonthAssets(month)),
+      skippedMonths,
       componentIds: comboComponents.map((c) => c.componentId),
       components: processedComboComponents.map((c) => ({
         componentId: c.componentId,
@@ -1075,6 +1097,37 @@ export class SubscriptionsService {
     return result;
   }
 
+  /** Filters isSubscriptionDueInMonth's result down to subscriptions that aren't company-wide
+   *  skipped for (year, month) — see SubscriptionMonthSkip. One batched query, not per-candidate;
+   *  callers here already restrict candidates to parentSubscriptionId: null (content-stream/parent
+   *  subscriptions only), which is exactly the id level SubscriptionMonthSkip rows are written at
+   *  (markMonthSkipped denormalizes one row per content-stream member), so no further parent/variant
+   *  resolution is needed. */
+  private async excludeCompanySkippedMonth<T extends {
+    id: string;
+    startDate: Date | null;
+    endDate: Date | null;
+    isDiscontinued: boolean;
+    isHidden: boolean;
+    isUpcoming?: boolean;
+    intervalMonths?: number;
+    startingMonth?: number | null;
+    isBundleSubscription?: boolean;
+  }>(
+    candidates: T[],
+    year: number,
+    month: number,
+  ): Promise<T[]> {
+    const dueBase = candidates.filter((s) => isSubscriptionDueInMonth(s, year, month));
+    if (dueBase.length === 0) return dueBase;
+    const skipped = await this.prisma.subscriptionMonthSkip.findMany({
+      where: { subscriptionId: { in: dueBase.map((s) => s.id) }, year, month, undoneAt: null },
+      select: { subscriptionId: true },
+    });
+    const skippedIds = new Set(skipped.map((s) => s.subscriptionId));
+    return dueBase.filter((s) => !skippedIds.has(s.id));
+  }
+
   /** Admin catalog scan: for the given (year, month), find every non-combo, non-multi-month-bundle
    *  subscription due to ship that month and flag ones missing the month itself, missing books, or
    *  whose book(s) have no features yet (some companies announce the title before the edition's
@@ -1110,7 +1163,7 @@ export class SubscriptionsService {
       },
     });
 
-    const due = candidates.filter((s) => isSubscriptionDueInMonth(s, year, month));
+    const due = await this.excludeCompanySkippedMonth(candidates, year, month);
 
     type MonthGapItem = {
       subscriptionId: string;
@@ -1214,7 +1267,7 @@ export class SubscriptionsService {
       orderBy: [{ company: { name: 'asc' } }, { name: 'asc' }],
     });
 
-    const due = candidates.filter((s) => isSubscriptionDueInMonth(s, year, month));
+    const due = await this.excludeCompanySkippedMonth(candidates, year, month);
     if (due.length === 0) return [];
 
     const dueIds = due.map((s) => s.id);
@@ -1486,6 +1539,129 @@ export class SubscriptionsService {
     void this.invalidateMonthsCache(subscriptionSlug);
     void this.invalidateCatalogMonthCaches();
     return deleted;
+  }
+
+  /** Recomputes nextRenewalDate for every active entry across the given subscription ids.
+   *  Mirrors renewal.cron.ts's per-entry try/catch loop — one entry's failure never blocks or
+   *  rolls back another's, and the caller gets back a summary instead of a silent partial result. */
+  private async recalculateRenewalDatesForSubscriptions(subscriptionIds: string[]): Promise<{
+    succeeded: number;
+    failed: { entryId: string; error: string }[];
+  }> {
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { subscriptionId: { in: subscriptionIds }, active: true },
+      select: { id: true },
+    });
+    const failed: { entryId: string; error: string }[] = [];
+    let succeeded = 0;
+    for (const entry of entries) {
+      try {
+        await refreshNextRenewalDate(this.prisma, entry.id);
+        succeeded++;
+      } catch (err: any) {
+        this.logger.error(`[MonthSkip] recompute failed for entry ${entry.id}: ${err?.message}`);
+        failed.push({ entryId: entry.id, error: err?.message ?? 'unknown error' });
+      }
+    }
+    return { succeeded, failed };
+  }
+
+  /** Admin-declared "this month doesn't happen" for a subscription's whole content stream —
+   *  company-wide, NOT the per-user UserSkipRecord/manageSkips flow. Cascades: resolves the
+   *  content-stream (parent) id plus every variant pointing at it, and writes one
+   *  SubscriptionMonthSkip row per member — so marking skip via any variant's slug applies to
+   *  every sibling variant sharing that content, matching how SubscriptionMonth content itself
+   *  is already shared at the parent level. Combos own no months of their own and are rejected;
+   *  mark the underlying component subscription instead. */
+  async markMonthSkipped(slug: string, year: number, month: number, reason: string | undefined, adminUserId: string) {
+    const sub = await findBySlugOrThrow(this.prisma.subscription, slug, 'Subscription');
+    if ((sub as any).isCombo) {
+      throw new BadRequestException('Cannot mark a combo subscription as skipped — mark the underlying component subscription instead.');
+    }
+
+    const contentStreamId: string = (sub as any).parentSubscriptionId ?? (sub as any).id;
+    const members = await this.prisma.subscription.findMany({
+      where: { OR: [{ id: contentStreamId }, { parentSubscriptionId: contentStreamId }] },
+      select: { id: true },
+    });
+    const memberIds = members.map((m) => m.id);
+
+    await Promise.all(memberIds.map((id) =>
+      this.prisma.subscriptionMonthSkip.upsert({
+        where: { subscriptionId_year_month: { subscriptionId: id, year, month } },
+        create: { subscriptionId: id, year, month, reason: reason ?? null, createdBy: adminUserId },
+        update: { undoneAt: null, reason: reason ?? null, createdBy: adminUserId },
+      }),
+    ));
+
+    const recompute = await this.recalculateRenewalDatesForSubscriptions(memberIds);
+
+    void this.invalidateMonthsCache(slug);
+    void this.invalidateCatalogMonthCaches();
+
+    return { subscriptionId: contentStreamId, memberSubscriptionIds: memberIds, year, month, reason: reason ?? null, ...recompute };
+  }
+
+  /** Unmarks a company-wide month skip — deliberately scoped to exactly the one subscription in
+   *  `slug`, NOT cascaded to the rest of the content stream. Since markMonthSkipped writes an
+   *  independent row per member subscription, this lets an admin correct a single variant that
+   *  turns out not to match the rest of the content stream (e.g. it shipped after all) without
+   *  touching the content-stream's own row or sibling variants. Un-skipping just the parent still
+   *  leaves any variant rows untouched, and vice versa — that asymmetry is intentional. */
+  async unmarkMonthSkipped(slug: string, year: number, month: number) {
+    const sub = await findBySlugOrThrow(this.prisma.subscription, slug, 'Subscription');
+    if ((sub as any).isCombo) {
+      throw new BadRequestException('Cannot unmark a combo subscription — it was never markable.');
+    }
+
+    await this.prisma.subscriptionMonthSkip.updateMany({
+      where: { subscriptionId: (sub as any).id, year, month, undoneAt: null },
+      data: { undoneAt: new Date() },
+    });
+
+    const recompute = await this.recalculateRenewalDatesForSubscriptions([(sub as any).id]);
+
+    void this.invalidateMonthsCache(slug);
+    void this.invalidateCatalogMonthCaches();
+
+    return { subscriptionId: (sub as any).id, year, month, ...recompute };
+  }
+
+  /** Lists currently-active company-wide month skips for a subscription — a reason is meant to
+   *  be shown to subscribers (see the admin skip form's copy), so this is public, not admin-only.
+   *  Feeds both the admin months editor (existing SubscriptionMonth rows shown as "Skipped", plus
+   *  skip-only entries with no content row at all) and the public subscription page / past-months
+   *  archive. A variant subscription's slug resolves transparently to its content-stream parent —
+   *  same as getMonths/_fetchSubscriptionBySlug — rather than being rejected, since a variant's
+   *  own public page needs this data too. Optional date bounds let a paginated caller (the
+   *  past-months archive) match its own page window; omitted, every active skip is returned. */
+  async listMonthSkips(slug: string, fromYear?: number, fromMonth?: number, untilYear?: number, untilMonth?: number) {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { slug },
+      select: { id: true, parentSubscriptionId: true },
+    });
+    if (!sub) throw new NotFoundException(`Subscription '${slug}' not found`);
+    const effectiveId = sub.parentSubscriptionId ?? sub.id;
+
+    const andConditions: Record<string, unknown>[] = [];
+    if (fromYear != null) {
+      const fy = fromYear;
+      const fm = fromMonth ?? 1;
+      andConditions.push({ OR: [{ year: { gt: fy } }, { year: fy, month: { gte: fm } }] });
+    }
+    if (untilYear != null) {
+      const uy = untilYear;
+      const um = untilMonth ?? 12;
+      andConditions.push({ OR: [{ year: { lt: uy } }, { year: uy, month: { lte: um } }] });
+    }
+
+    return this.prisma.subscriptionMonthSkip.findMany({
+      where: andConditions.length > 0
+        ? { subscriptionId: effectiveId, undoneAt: null, AND: andConditions }
+        : { subscriptionId: effectiveId, undoneAt: null },
+      select: { year: true, month: true, reason: true },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    });
   }
 
   private async getMonth(subscriptionId: string, year: number, month: number) {
@@ -4522,7 +4698,20 @@ export class SubscriptionsService {
 
     const isBundleSubscription = ((sub as any).isBundleSubscription as boolean ?? false) && intervalMonths > 1;
 
-    const result = Array.from(grouped.values()).map(({ year, month, booksMap }) => {
+    // A company-wide skip (SubscriptionMonthSkip) is never a personal choice to make/unmake here —
+    // exclude it even if a SubscriptionMonth row happens to already exist for it (content authored
+    // before the admin later decided to skip the month). Defense-in-depth: today this can't
+    // actually happen since no row gets created for a company-skipped month in the first place,
+    // but that's an emergent property, not a guarantee this method should rely on silently.
+    const companySkips = await this.prisma.subscriptionMonthSkip.findMany({
+      where: { subscriptionId: { in: monthsSubscriptionIds }, undoneAt: null },
+      select: { year: true, month: true },
+    });
+    const companySkippedSet = new Set(companySkips.map((s) => `${s.year}-${s.month}`));
+
+    const result = Array.from(grouped.values())
+      .filter(({ year, month }) => !companySkippedSet.has(`${year}-${month}`))
+      .map(({ year, month, booksMap }) => {
       // For bundle subscriptions ALL months in a bundle ship together at the bundle's own
       // renewal date, not each month's individual calendar date — resolve to the bundle's
       // start month first so every constituent month reports the same, correct renewal date.
@@ -4600,8 +4789,18 @@ export class SubscriptionsService {
       return new Date(Date.UTC(ry, rm - 1, renewalDay));
     };
 
+    // A company-wide skip isn't a personal choice — a stale/racing client request must not be
+    // able to create an orphaned personal UserSkipRecord for a month that no longer conceptually
+    // exists (e.g. an admin marked it skipped while this request was in flight).
+    const manageSkipsCompanySkips = await this.prisma.subscriptionMonthSkip.findMany({
+      where: { subscriptionId: { in: monthsSubscriptionIds }, undoneAt: null },
+      select: { year: true, month: true },
+    });
+    const manageSkipsCompanySkippedSet = new Set(manageSkipsCompanySkips.map((s) => `${s.year}-${s.month}`));
+
     // ── Apply new skips ───────────────────────────────────────────────────────
     for (const { year, month } of dto.toSkip) {
+      if (manageSkipsCompanySkippedSet.has(`${year}-${month}`)) continue;
       const subMonth = await this.prisma.subscriptionMonth.findFirst({
         where: { subscriptionId: { in: monthsSubscriptionIds }, year, month },
       });
