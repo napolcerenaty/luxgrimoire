@@ -87,15 +87,16 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
     .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))
     .find((m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth))
 
-  // Company-wide skips (SubscriptionMonthSkip) — a skipped month with no content row never
-  // appears in `months` at all, so this is a separate lookup. Only shown when there's no real
-  // content already covering that slot (content should never coexist with an active skip in
-  // practice, but this keeps real content authoritative if it somehow does).
+  // Company-wide skips (SubscriptionMonthSkip) — checked FIRST and takes priority over real
+  // content: marking a month skipped never deletes its SubscriptionMonth row (warn-don't-block
+  // in the admin UI), so `currentMonth`/`upcomingMonth` can still be non-null for a skipped
+  // month. The whole point of the feature is "this box doesn't happen" regardless of whatever
+  // content was pre-authored, so the skip must win the display, not the leftover content.
   const skippedByKey = new Map((sub.skippedMonths ?? []).map((s) => [`${s.year}-${s.month}`, s]))
-  const currentSkip = !currentMonth ? skippedByKey.get(`${nowYear}-${nowMonth}`) ?? null : null
+  const currentSkip = skippedByKey.get(`${nowYear}-${nowMonth}`) ?? null
   const nextCalMonth = nowMonth === 12 ? 1 : nowMonth + 1
   const nextCalYear = nowMonth === 12 ? nowYear + 1 : nowYear
-  const upcomingSkip = !upcomingMonth ? skippedByKey.get(`${nextCalYear}-${nextCalMonth}`) ?? null : null
+  const upcomingSkip = skippedByKey.get(`${nextCalYear}-${nextCalMonth}`) ?? null
 
   // Bundle subscription: compute current and upcoming bundle windows
   const isBundleSubscription = (sub as unknown as { isBundleSubscription?: boolean }).isBundleSubscription ?? false
@@ -399,15 +400,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
         (currentMonth || upcomingMonth || currentSkip || upcomingSkip) && (
           <section className="mb-12">
             <div className={`grid gap-6 ${(currentMonth || currentSkip) && (upcomingMonth || upcomingSkip) ? 'grid-cols-1 sm:grid-cols-2 max-w-2xl' : 'grid-cols-1 max-w-xs'}`}>
-              {currentMonth ? (
-                <FeaturedMonthCard
-                  compact
-                  label="Current Month"
-                  labelVariant="current"
-                  monthData={currentMonth}
-                  accentColors={brandColors}
-                />
-              ) : currentSkip && (
+              {currentSkip ? (
                 <FeaturedMonthCard
                   compact
                   label="Current Month"
@@ -416,16 +409,16 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
                   accentColors={brandColors}
                   skipped={currentSkip}
                 />
-              )}
-              {upcomingMonth ? (
+              ) : currentMonth && (
                 <FeaturedMonthCard
                   compact
-                  label="Upcoming Theme"
-                  labelVariant="upcoming"
-                  monthData={upcomingMonth}
+                  label="Current Month"
+                  labelVariant="current"
+                  monthData={currentMonth}
                   accentColors={brandColors}
                 />
-              ) : upcomingSkip && (
+              )}
+              {upcomingSkip ? (
                 <FeaturedMonthCard
                   compact
                   label="Upcoming Theme"
@@ -433,6 +426,14 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
                   monthData={{ year: upcomingSkip.year, month: upcomingSkip.month }}
                   accentColors={brandColors}
                   skipped={upcomingSkip}
+                />
+              ) : upcomingMonth && (
+                <FeaturedMonthCard
+                  compact
+                  label="Upcoming Theme"
+                  labelVariant="upcoming"
+                  monthData={upcomingMonth}
+                  accentColors={brandColors}
                 />
               )}
             </div>

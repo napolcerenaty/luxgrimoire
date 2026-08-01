@@ -130,12 +130,28 @@ function PreviousBoxesList({
     staleTime: 1000 * 60 * 5,
   })
 
-  // Company-wide skips for the same date window — small, unpaginated, fetched once. A skipped
-  // month with no content row never appears in `data.data` above, however many pages load, so
-  // it's merged in separately as a synthetic entry.
-  const skipQuery = [fromParams, untilParams].join('').replace(/^&/, '?')
+  // The months fetch above never passes all=true, so the API applies its own implicit
+  // "strictly before the current month" cutoff. listMonthSkips has no such implicit default —
+  // its untilYear/untilMonth are an explicit, inclusive bound — so the same cutoff (one month
+  // before now) has to be computed here and combined with whatever bound was already passed in
+  // (bundle mode), taking whichever is earlier. Otherwise the current/future month's skip leaks
+  // into "Previous Boxes".
+  const now = new Date()
+  const pastCutoff = (() => {
+    let y = now.getFullYear()
+    let m = now.getMonth() // getMonth() is 0-based, so this is already "last month" 1-based
+    if (m === 0) { m = 12; y -= 1 }
+    return { year: y, month: m }
+  })()
+  const effectiveUntil = (untilYear == null || untilYear > pastCutoff.year
+    || (untilYear === pastCutoff.year && (untilMonth ?? 12) > pastCutoff.month))
+    ? pastCutoff
+    : { year: untilYear, month: untilMonth ?? 12 }
+
+  const skipUntilParams = `&untilYear=${effectiveUntil.year}&untilMonth=${effectiveUntil.month}`
+  const skipQuery = [fromParams, skipUntilParams].join('').replace(/^&/, '?')
   const { data: skips = [] } = useQuery<MonthSkip[]>({
-    queryKey: ['subscription-month-skips', subscriptionSlug, fromYear, fromMonth, untilYear, untilMonth],
+    queryKey: ['subscription-month-skips', subscriptionSlug, fromYear, fromMonth, effectiveUntil.year, effectiveUntil.month],
     queryFn: () => apiFetch<MonthSkip[]>(`/subscriptions/${subscriptionSlug}/months/skips${skipQuery}`),
     staleTime: 1000 * 60 * 5,
   })
@@ -152,11 +168,19 @@ function PreviousBoxesList({
 
   const hasMore = page < totalPages
 
+  // Skip status always wins over leftover content: marking a month skipped never deletes its
+  // SubscriptionMonth row (warn-don't-block in the admin UI), so a real month can still exist
+  // for an actively-skipped month — it must show as "Skipped", not its old cover/theme.
+  const skippedByKey = new Map(skips.map((s) => [`${s.year}-${s.month}`, s]))
+  const monthsWithSkipApplied: PastMonth[] = allMonths.map((m) => {
+    const skip = skippedByKey.get(`${m.year}-${m.month}`)
+    return skip ? { ...m, skipped: { reason: skip.reason } } : m
+  })
   const skipOnlyEntries: PastMonth[] = skips
     .filter((s) => !allMonths.some((m) => m.year === s.year && m.month === s.month))
     .map((s) => ({ id: `skip-${s.year}-${s.month}`, year: s.year, month: s.month, isSpoiler: false, skipped: { reason: s.reason } }))
 
-  const displayMonths = [...allMonths, ...skipOnlyEntries].sort((a, b) => (b.year !== a.year ? b.year - a.year : b.month - a.month))
+  const displayMonths = [...monthsWithSkipApplied, ...skipOnlyEntries].sort((a, b) => (b.year !== a.year ? b.year - a.year : b.month - a.month))
 
   // Group by bundle when applicable
   const bundleGroups: { key: string; label: string; months: PastMonth[] }[] | null =
