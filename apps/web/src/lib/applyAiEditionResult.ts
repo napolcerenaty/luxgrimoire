@@ -1,12 +1,10 @@
-import type { AiParseResult, ArtistEntry } from '@/components/admin/EditionFieldsSection'
+import type { AiParseResult, ArtistEntry, EditionSaleDateEntry } from '@/components/admin/EditionFieldsSection'
 
 interface EditionSetters {
   setPublisher: (v: string) => void
   setPrice: (v: string) => void
   setCurrency: (v: string) => void
-  setFirstAccessDate: (v: string) => void
-  setEarlyAccessDate: (v: string) => void
-  setGeneralSaleDate: (v: string) => void
+  setSaleDates: (fn: (prev: EditionSaleDateEntry[]) => EditionSaleDateEntry[]) => void
   /** @deprecated Only used by Create form — edit form adds artists directly via feature-tags API */
   setFeatures?: (fn: (prev: string[]) => string[]) => void
   /** @deprecated Only used by Create form */
@@ -19,9 +17,14 @@ export function applyAiEditionResult(r: AiParseResult, setters: EditionSetters):
   if (e.publisher) setters.setPublisher(e.publisher)
   if (e.price != null) setters.setPrice(String(e.price))
   if (e.currency) setters.setCurrency(e.currency)
-  if (e.firstAccessDate) setters.setFirstAccessDate(e.firstAccessDate)
-  if (e.earlyAccessDate) setters.setEarlyAccessDate(e.earlyAccessDate)
-  if (e.generalSaleDate) setters.setGeneralSaleDate(e.generalSaleDate)
+  if (e.saleDates?.length) {
+    const parsed = e.saleDates
+    setters.setSaleDates(prev => {
+      const existing = new Set(prev.map(d => `${d.label.toLowerCase()}|${d.date}`))
+      const toAdd = parsed.filter(d => !existing.has(`${d.label.toLowerCase()}|${d.date}`))
+      return [...prev, ...toAdd.map((d, i) => ({ label: d.label, date: d.date, order: prev.length + i }))]
+    })
+  }
   if (e.features?.length && setters.setFeatures) {
     setters.setFeatures(prev => Array.from(new Set([...prev, ...e.features!])))
   }

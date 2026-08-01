@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Clock, X, Loader2, Pencil, Check } from 'lucide-react'
 import { joinWaitlist, leaveWaitlist, updateWaitlistDate, getMyWaitlistStatus, getMySubscriptionEntry } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 
 interface WaitlistButtonProps {
   subscriptionSlug: string
@@ -22,7 +23,13 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
   const [error, setError] = useState<string | null>(null)
   const [editingDate, setEditingDate] = useState(false)
   const [dateInput, setDateInput] = useState('')
+  const [dateInvalid, setDateInvalid] = useState(false)
   const [showDateForm, setShowDateForm] = useState(false)
+
+  const handleDateInputChange = (v: string) => {
+    setDateInput(v)
+    if (dateInvalid) { setDateInvalid(false); setError(null) }
+  }
 
   useEffect(() => {
     if (!user) { setStatus('no-auth'); return }
@@ -41,6 +48,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
   const wasOnList = status !== null && !!status.leftAt
 
   const handleJoin = async (joinedAt?: string) => {
+    if (joinedAt && !isValidCalendarDate(joinedAt)) { setDateInvalid(true); setError('Enter a valid join date'); return }
     setBusy(true); setError(null)
     try {
       await joinWaitlist(subscriptionSlug, joinedAt)
@@ -62,6 +70,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
 
   const handleSaveDate = async () => {
     if (!dateInput) return
+    if (!isValidCalendarDate(dateInput)) { setDateInvalid(true); setError('Enter a valid date'); return }
     setBusy(true); setError(null)
     try {
       await updateWaitlistDate(subscriptionSlug, new Date(dateInput).toISOString())
@@ -118,8 +127,8 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
                 <input
                   type="date"
                   value={dateInput}
-                  onChange={e => setDateInput(e.target.value)}
-                  className="bg-stone-700 border border-stone-600 rounded px-2 py-0.5 text-stone-100 focus:outline-none focus:border-amber-400 text-xs w-full"
+                  onChange={e => handleDateInputChange(e.target.value)}
+                  className={`bg-stone-700 border rounded px-2 py-0.5 text-stone-100 focus:outline-none focus:border-amber-400 text-xs w-full ${dateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
                 />
                 <button onClick={handleSaveDate} disabled={busy || !dateInput}
                   className="text-green-400 hover:text-green-300 disabled:opacity-40 shrink-0">
@@ -134,7 +143,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
                 <span>{joinDate.toLocaleDateString('en-GB')} · {daysOnList}d</span>
                 <span className="flex-1" />
                 <button
-                  onClick={() => { setDateInput(joinDate.toISOString().slice(0, 10)); setEditingDate(true) }}
+                  onClick={() => { setDateInput(joinDate.toISOString().slice(0, 10)); setDateInvalid(false); setEditingDate(true) }}
                   className="flex items-center gap-1 text-stone-600 hover:text-stone-400 transition-colors"
                   title="Edit date"
                 >
@@ -165,8 +174,8 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
             <input
               type="date"
               value={dateInput}
-              onChange={e => setDateInput(e.target.value)}
-              className="flex-1 min-w-0 bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-100 focus:outline-none focus:border-amber-400 text-xs"
+              onChange={e => handleDateInputChange(e.target.value)}
+              className={`flex-1 min-w-0 bg-stone-700 border rounded px-2 py-1 text-stone-100 focus:outline-none focus:border-amber-400 text-xs ${dateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
             />
             <button onClick={() => handleJoin(dateInput || undefined)} disabled={busy}
               className="text-xs px-3 py-1 rounded-lg bg-stone-700 text-stone-200 hover:bg-stone-600 transition-colors disabled:opacity-50 shrink-0">
@@ -179,7 +188,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
         </div>
       ) : (
         <button
-          onClick={() => { setDateInput(new Date().toISOString().slice(0, 10)); setShowDateForm(true) }}
+          onClick={() => { setDateInput(new Date().toISOString().slice(0, 10)); setDateInvalid(false); setShowDateForm(true) }}
           className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-xl bg-stone-800/60 border border-stone-700/60 hover:border-stone-600 hover:bg-stone-800 text-sm text-stone-400 hover:text-stone-300 transition-all"
         >
           <Clock className="w-4 h-4" />

@@ -5,6 +5,8 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
 import { SaleInterestButton } from '@/components/sales/SaleInterestButton'
+import { getEarliestTierDate } from '@/lib/saleTiers'
+import type { ApiSaleTier } from '@luxgrimoire/shared-types'
 
 export interface ListSaleAnnouncement {
   id: string
@@ -22,6 +24,7 @@ export interface ListSaleAnnouncement {
   generalSaleDate: string | null
   firstAccessDate: string | null
   earlyAccessDate: string | null
+  tiers?: ApiSaleTier[]
   company: { name: string; slug?: string | null; brandColors?: string[] } | null
   regions: Array<{ id: string; name: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null; countryCodes: string; currency: string | null }>
 }
@@ -34,15 +37,16 @@ export function formatDate(iso: string | null) {
 function isSaleLive(a: ListSaleAnnouncement): boolean {
   const now = Date.now()
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
-  const saleStarted = a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() <= now
+  const saleDateIso = getEarliestTierDate(a)
+  const saleStarted = saleDateIso != null && new Date(saleDateIso).getTime() <= now
   const isOsOrSale = a.saleType === 'OVERSTOCK' || a.saleType === 'SALE'
   const isOsOrSaleLive = isOsOrSale && saleStarted && (
     a.endsAt ? new Date(a.endsAt).getTime() > now
-             : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
+             : saleDateIso != null && new Date(saleDateIso).getTime() >= todayStart.getTime()
   )
   const isLpLive = !isOsOrSale && saleStarted && (
     a.endsAt ? new Date(a.endsAt).getTime() > now
-             : a.generalSaleDate != null && new Date(a.generalSaleDate).getTime() >= todayStart.getTime()
+             : saleDateIso != null && new Date(saleDateIso).getTime() >= todayStart.getTime()
   )
   return isOsOrSaleLive || (
     a.saleType === 'OPEN_PREORDER' ? saleStarted && (!a.endsAt || new Date(a.endsAt).getTime() > now)
@@ -53,7 +57,7 @@ function isSaleLive(a: ListSaleAnnouncement): boolean {
 export function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const cover = a.imageUrl ?? null
   const imgUrl = cover ? cloudinaryUrl(cover, 'w_400,h_600,c_fill,q_auto,f_auto') : null
-  const saleDate = formatDate(a.generalSaleDate)
+  const saleDate = formatDate(getEarliestTierDate(a))
   const getBrandColors = useBrandColors()
   const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
   const isLive = isSaleLive(a)
@@ -141,7 +145,7 @@ export function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
 export function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
   const cover = a.imageUrl ?? null
   const thumb = cover ? cloudinaryUrl(cover, 'w_80,h_80,c_fill,q_auto,f_auto') : null
-  const saleDate = formatDate(a.generalSaleDate)
+  const saleDate = formatDate(getEarliestTierDate(a))
   const getBrandColors = useBrandColors()
   const brandColors = getBrandColors(a.company?.slug ?? null) ?? a.company?.brandColors
   const isLive = isSaleLive(a)

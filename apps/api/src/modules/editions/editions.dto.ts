@@ -8,9 +8,24 @@ import {
   IsNumber,
   Min,
   Max,
+  ValidateNested,
+  IsDateString,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { BasePriceCurrencyDto } from '../../common/dto/price.dto';
+
+/** One manually-entered sale date for a standalone edition (no linked SaleAnnouncement). */
+export class EditionSaleDateInputDto {
+  @IsString()
+  label!: string;
+
+  @IsDateString()
+  date!: string;
+
+  @IsOptional()
+  @IsInt()
+  order?: number;
+}
 
 export class CreateEditionDto extends BasePriceCurrencyDto {
   @IsString()
@@ -33,17 +48,13 @@ export class CreateEditionDto extends BasePriceCurrencyDto {
   @IsBoolean()
   isSpecial?: boolean;
 
+  /** Manual sale dates for a standalone edition (no linked SaleAnnouncement).
+   *  Ignored for editions linked to an announcement — those resolve live from its tiers. */
   @IsOptional()
-  @IsString()
-  firstAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
-  earlyAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
-  generalSaleDate?: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EditionSaleDateInputDto)
+  saleDates?: EditionSaleDateInputDto[];
 
   @IsOptional()
   @IsString()
@@ -102,17 +113,13 @@ export class UpdateEditionDto extends BasePriceCurrencyDto {
   @IsBoolean()
   isSpecial?: boolean;
 
+  /** Manual sale dates for a standalone edition (no linked SaleAnnouncement).
+   *  Ignored for editions linked to an announcement — those resolve live from its tiers. */
   @IsOptional()
-  @IsString()
-  firstAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
-  earlyAccessDate?: string;
-
-  @IsOptional()
-  @IsString()
-  generalSaleDate?: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EditionSaleDateInputDto)
+  saleDates?: EditionSaleDateInputDto[];
 
   @IsOptional()
   @IsString()

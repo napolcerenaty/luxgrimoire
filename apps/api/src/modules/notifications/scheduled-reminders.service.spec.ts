@@ -132,14 +132,21 @@ describe('ScheduledRemindersService', () => {
 
   describe('scheduleSale', () => {
     const futureDate = new Date(Date.now() + 3 * 24 * 3600 * 1000);
+    const GS_TIER_ID = 'tier-gs-1';
+    const EA_TIER_ID = 'tier-ea-1';
 
-    it('creates a reminder for sale with generalSaleDate', async () => {
-      (prisma.saleAnnouncement.findUnique as jest.Mock).mockResolvedValue({
-        id: ANN_ID,
-        earlyAccessDate: null,
-        firstAccessDate: null,
-        generalSaleDate: futureDate,
-        saleTimezone: null,
+    it('does nothing when tierId is not provided', async () => {
+      await service.scheduleSale(USER_ID, ANN_ID);
+      expect(prisma.saleTier.findFirst).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('creates a reminder for a concrete sale tier', async () => {
+      (prisma.saleTier.findFirst as jest.Mock).mockResolvedValue({
+        id: GS_TIER_ID,
+        saleId: ANN_ID,
+        name: 'General Sale',
+        date: futureDate,
       });
       (prisma.userReminderSettings.findUnique as jest.Mock).mockResolvedValue(makeSettings());
       (prisma.$transaction as jest.Mock).mockImplementation((fn: (tx: any) => Promise<void>) =>
@@ -151,36 +158,43 @@ describe('ScheduledRemindersService', () => {
         }),
       );
 
-      await service.scheduleSale(USER_ID, ANN_ID, 'GS');
+      await service.scheduleSale(USER_ID, ANN_ID, GS_TIER_ID);
 
+      expect(prisma.saleTier.findFirst).toHaveBeenCalledWith({ where: { id: GS_TIER_ID, saleId: ANN_ID } });
       expect(prisma.$transaction).toHaveBeenCalled();
     });
 
+    it('does nothing when the tier does not belong to this announcement', async () => {
+      (prisma.saleTier.findFirst as jest.Mock).mockResolvedValue(null);
+
+      await service.scheduleSale(USER_ID, ANN_ID, GS_TIER_ID);
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
     it('does nothing when saleEnabled is false', async () => {
-      (prisma.saleAnnouncement.findUnique as jest.Mock).mockResolvedValue({
-        id: ANN_ID,
-        generalSaleDate: futureDate,
-        earlyAccessDate: null,
-        firstAccessDate: null,
-        saleTimezone: null,
+      (prisma.saleTier.findFirst as jest.Mock).mockResolvedValue({
+        id: GS_TIER_ID,
+        saleId: ANN_ID,
+        name: 'General Sale',
+        date: futureDate,
       });
       (prisma.userReminderSettings.findUnique as jest.Mock).mockResolvedValue(
         makeSettings({ saleEnabled: false }),
       );
 
-      await service.scheduleSale(USER_ID, ANN_ID);
+      await service.scheduleSale(USER_ID, ANN_ID, GS_TIER_ID);
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
-    it('uses earlyAccessDate when tier=EA', async () => {
+    it('schedules off the tier\'s own date regardless of which tier it is', async () => {
       const eaDate = new Date(Date.now() + 5 * 24 * 3600 * 1000);
-      (prisma.saleAnnouncement.findUnique as jest.Mock).mockResolvedValue({
-        id: ANN_ID,
-        earlyAccessDate: eaDate,
-        firstAccessDate: null,
-        generalSaleDate: futureDate,
-        saleTimezone: null,
+      (prisma.saleTier.findFirst as jest.Mock).mockResolvedValue({
+        id: EA_TIER_ID,
+        saleId: ANN_ID,
+        name: 'Early Access',
+        date: eaDate,
       });
       (prisma.userReminderSettings.findUnique as jest.Mock).mockResolvedValue(makeSettings());
       const createMock = jest.fn().mockResolvedValue({ id: 'ea-reminder' });
@@ -193,9 +207,11 @@ describe('ScheduledRemindersService', () => {
         }),
       );
 
-      await service.scheduleSale(USER_ID, ANN_ID, 'EA');
+      await service.scheduleSale(USER_ID, ANN_ID, EA_TIER_ID);
 
-      expect(createMock).toHaveBeenCalled();
+      expect(createMock).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ tierId: EA_TIER_ID }),
+      }));
     });
   });
 

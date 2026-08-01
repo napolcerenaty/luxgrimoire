@@ -3,10 +3,10 @@
 import { useState, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
-import { cloudinaryUrl, uploadImage } from '@/lib/cloudinary'
+import { cloudinaryUrl, uploadImage, deleteImage } from '@/lib/cloudinary'
 import { API_BASE } from '@/lib/authFetch'
 import type { CommunityImage } from '@/types/community'
-const MAX_IMAGES = 5
+const MAX_IMAGES = 8
 const MAX_BYTES = 5 * 1024 * 1024
 
 interface PendingImage {
@@ -89,6 +89,9 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
 
   const removePending = (i: number) => {
     URL.revokeObjectURL(pending[i].previewUrl)
+    // Already uploaded to Cloudinary at this point (see uploadToCloudinary in handleFiles) —
+    // removing it from the pending list alone would leave it orphaned in storage forever.
+    deleteImage(pending[i].cloudinaryId)
     setPending(prev => prev.filter((_, j) => j !== i).map((img, idx) => ({ ...img, sortOrder: idx })))
   }
 
@@ -127,7 +130,13 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
   }
 
   const handleCancel = () => {
-    pending.forEach(img => URL.revokeObjectURL(img.previewUrl))
+    // Every pending image was already uploaded to Cloudinary (see uploadToCloudinary in
+    // handleFiles) — closing the modal without submitting must clean those up too, not
+    // just the local preview blobs, or they're orphaned in storage forever.
+    pending.forEach(img => {
+      URL.revokeObjectURL(img.previewUrl)
+      deleteImage(img.cloudinaryId)
+    })
     setPending([])
     setInstagramHandle('')
     setConsentGiven(false)

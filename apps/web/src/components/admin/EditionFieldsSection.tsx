@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle, type Ref } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
+import { Trash2 } from 'lucide-react'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { PublisherPicker } from './pickers/PublisherPicker'
 import MultiImageUpload from './MultiImageUpload'
@@ -17,6 +18,24 @@ const CURRENCIES = ['GBP', 'USD', 'EUR', 'CAD', 'AUD', 'NZD', 'PLN', 'SGD', 'CHF
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean; contributionId?: string }
 export type EditionCompany = { id: string; name: string; slug: string; defaultCurrency?: string | null }
+/** One manually-entered sale date for a standalone edition (no linked SaleAnnouncement) —
+ *  date only, no time. Editions linked to an announcement resolve their date live from its
+ *  tiers instead (see resolvedSaleDate/isLinkedToAnnouncement) and don't use this list. */
+export type EditionSaleDateEntry = { label: string; date: string; order: number }
+export const SALE_DATE_LABEL_PRESETS = ['First Access', 'Early Access', 'General Sale', 'Subscription Renewal Day']
+
+/** Keeps the list chronological automatically (no manual reordering) — rows without a date
+ *  yet (still being filled in) sink to the bottom instead of sorting as "earliest". */
+function sortSaleDates(entries: EditionSaleDateEntry[]): EditionSaleDateEntry[] {
+  return [...entries]
+    .sort((a, b) => {
+      if (!a.date && !b.date) return 0
+      if (!a.date) return 1
+      if (!b.date) return -1
+      return a.date.localeCompare(b.date)
+    })
+    .map((entry, order) => ({ ...entry, order }))
+}
 export type FeatureTag = {
   id: string
   rawValue: string
@@ -54,9 +73,8 @@ export interface AiParseResult {
     publisher?: string
     price?: number
     currency?: string
-    firstAccessDate?: string
-    earlyAccessDate?: string
-    generalSaleDate?: string
+    /** Manual sale dates parsed from the source text — date only, no time. */
+    saleDates?: { label: string; date: string }[]
     features?: string[]
     featureTags?: Record<string, string[]>
     /** All feature raw values in source-text order (standalone + artist-attributed) */
@@ -620,12 +638,17 @@ export interface EditionFieldsSectionProps {
   onPhotoCreditChange: (v: string) => void
   language: string
   onLanguageChange: (v: string) => void
-  firstAccessDate: string
-  onFirstAccessDateChange: (v: string) => void
-  earlyAccessDate: string
-  onEarlyAccessDateChange: (v: string) => void
-  generalSaleDate: string
-  onGeneralSaleDateChange: (v: string) => void
+  /** Manual sale dates (standalone editions only — ignored/hidden when isLinkedToAnnouncement). */
+  saleDates: EditionSaleDateEntry[]
+  onSaleDatesChange: (fn: (prev: EditionSaleDateEntry[]) => EditionSaleDateEntry[]) => void
+  /** True when this edition is linked to a SaleAnnouncement — its sale date resolves live
+   *  from that announcement's tiers, so the manual editor is replaced with a read-only display. */
+  isLinkedToAnnouncement?: boolean
+  resolvedSaleDate?: { label: string; date: string } | null
+  /** True when this edition is being created from within a sale announcement (e.g. EditionPicker)
+   *  and will be auto-linked to it right after creation — same read-only display as
+   *  isLinkedToAnnouncement, but showing a preview (the edition/link don't exist yet). */
+  willLinkToAnnouncement?: boolean
   allImages: string[]
   onImagesChange: (imgs: string[]) => void
   onAiResult: (r: AiParseResult) => void
@@ -655,9 +678,9 @@ export function EditionFieldsSection({
   price, onPriceChange, currency, onCurrencyChange,
   publisher, onPublisherChange, photoCredit, onPhotoCreditChange,
   language, onLanguageChange,
-  firstAccessDate, onFirstAccessDateChange,
-  earlyAccessDate, onEarlyAccessDateChange,
-  generalSaleDate, onGeneralSaleDateChange,
+  saleDates, onSaleDatesChange,
+  isLinkedToAnnouncement, resolvedSaleDate,
+  willLinkToAnnouncement,
   allImages, onImagesChange,
   onAiResult,
   artists = [], onArtistsChange, onRemoveExistingArtist,
@@ -736,19 +759,65 @@ export function EditionFieldsSection({
         </select>
       </div>
 
-      {/* Dates */}
-      <div className="grid sm:grid-cols-3 gap-3">
+      {/* Sale dates */}
+      <div className="space-y-3">
+        {(isLinkedToAnnouncement || willLinkToAnnouncement) && (
+          <div>
+            <label className={LBL}>Resolved Sale Date</label>
+            <div className="bg-stone-800/60 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-300">
+              {isLinkedToAnnouncement
+                ? (resolvedSaleDate
+                  ? `${resolvedSaleDate.label} — ${new Date(resolvedSaleDate.date).toLocaleString()}`
+                  : 'No sale date resolved yet')
+                : 'All sale dates from this announcement will apply to this edition.'}
+              <p className="text-xs text-stone-500 mt-1">
+                {isLinkedToAnnouncement
+                  ? "Earliest of the linked sale announcement's tiers and any manual sale dates below."
+                  : "This edition will link live to the sale announcement right after creation — no dates to copy, and it always follows the announcement's tiers as they change."}
+              </p>
+            </div>
+          </div>
+        )}
         <div>
-          <label className={LBL}>First access</label>
-          <input type="date" value={firstAccessDate} onChange={e => onFirstAccessDateChange(e.target.value)} className={INP} />
-        </div>
-        <div>
-          <label className={LBL}>Early access</label>
-          <input type="date" value={earlyAccessDate} onChange={e => onEarlyAccessDateChange(e.target.value)} className={INP} />
-        </div>
-        <div>
-          <label className={LBL}>General sale</label>
-          <input type="date" value={generalSaleDate} onChange={e => onGeneralSaleDateChange(e.target.value)} className={INP} />
+          <label className={LBL}>
+            Sale dates <span className="text-stone-600 font-normal normal-case tracking-normal">
+              (date only, no time — kept sorted automatically{(isLinkedToAnnouncement || willLinkToAnnouncement) ? '; contributes to the resolved date above, e.g. a subscription renewal day entered before this edition had a sale link' : ''})
+            </span>
+          </label>
+          <div className="space-y-2">
+            {saleDates.map((d, i) => (
+              <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <input
+                  list="sale-date-label-presets"
+                  className={`${INP} sm:flex-1`}
+                  value={d.label}
+                  placeholder="e.g. First Access, General Sale, Subscription Renewal Day"
+                  onChange={e => onSaleDatesChange(prev => sortSaleDates(prev.map((row, j) => j === i ? { ...row, label: e.target.value } : row)))}
+                />
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="date"
+                    className={`${INP} flex-1 sm:flex-none sm:w-auto`}
+                    value={d.date}
+                    onChange={e => onSaleDatesChange(prev => sortSaleDates(prev.map((row, j) => j === i ? { ...row, date: e.target.value } : row)))}
+                  />
+                  <button type="button" onClick={() => onSaleDatesChange(prev => sortSaleDates(prev.filter((_, j) => j !== i)))}
+                    aria-label="Remove sale date"
+                    className="p-2 rounded text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors flex-shrink-0">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            <datalist id="sale-date-label-presets">
+              {SALE_DATE_LABEL_PRESETS.map(l => <option key={l} value={l} />)}
+            </datalist>
+            <button type="button"
+              onClick={() => onSaleDatesChange(prev => sortSaleDates([...prev, { label: '', date: '', order: prev.length }]))}
+              className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+              + Add sale date
+            </button>
+          </div>
         </div>
       </div>
 

@@ -142,9 +142,7 @@ function DuplicateEditionLoader({ slug, onSuccess, onCancel }: { slug: string; o
       defaultPublisher={data.publisher ?? undefined}
       defaultPhotoCredit={(data as any).photoCredit ?? undefined}
       defaultLanguage={data.language ?? undefined}
-      defaultFirstAccessDate={data.firstAccessDate ?? undefined}
-      defaultEarlyAccessDate={data.earlyAccessDate ?? undefined}
-      defaultGeneralSaleDate={data.generalSaleDate ?? undefined}
+      defaultSaleDates={(data.saleDates ?? []).map((d, i) => ({ label: d.label, date: d.date.slice(0, 10), order: d.order ?? i }))}
       defaultArtists={(data.artists ?? []).map(a => ({ name: a.artist.name, role: a.role }))}
       defaultFeatureTags={(data.featureTags ?? []).map(t => ({ rawValue: t.rawValue, categories: t.categories.map(c => c.slug) }))}
       onSuccess={onSuccess}

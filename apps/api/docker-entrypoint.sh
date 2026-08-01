@@ -25,5 +25,8 @@ packages/database/node_modules/.bin/prisma migrate resolve \
 echo "▶ Running Prisma migrations..."
 packages/database/node_modules/.bin/prisma migrate deploy --schema packages/database/prisma/schema.prisma
 
+echo "▶ Removing content streams from search index..."
+node apps/api/dist/scripts/remove-content-streams-from-search-index.js || echo "⚠ remove-content-streams-from-search-index failed, continuing startup (idempotent — will retry on next deploy)"
+
 echo "▶ Starting API..."
 exec node apps/api/dist/main.js

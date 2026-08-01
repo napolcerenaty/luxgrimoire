@@ -10,6 +10,6 @@ import { FeatureCategoriesModule } from '../feature-categories/feature-categorie
   imports: [AnalyticsModule, UploadModule, FeatureCategoriesModule],
   controllers: [EditionsController],
   providers: [EditionsService, UserEditionImagesService],
-  exports: [UserEditionImagesService],
+  exports: [UserEditionImagesService, EditionsService],
 })
 export class EditionsModule {}

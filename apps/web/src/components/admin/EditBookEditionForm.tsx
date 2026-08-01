@@ -4,10 +4,11 @@ import { useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
-import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type FeaturePreviewHandle } from './EditionFieldsSection'
+import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type EditionSaleDateEntry, type FeaturePreviewHandle } from './EditionFieldsSection'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const BTN_DANGER = 'px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/50 text-red-300 hover:bg-red-800/50 transition-colors'
@@ -74,7 +75,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
             <div className="flex items-center gap-2">
               <span className="text-stone-500">← Previous:</span>
               <span className="text-stone-300">{prev.bookBoxCompany?.name ?? prev.slug}</span>
-              <span className="text-stone-600 text-[10px]">{prev.generalSaleDate?.slice(0, 10)}</span>
+              <span className="text-stone-600 text-[10px]">{prev.resolvedSaleDate?.date?.slice(0, 10)}</span>
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -89,7 +90,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
             <div className="flex items-center gap-2">
               <span className="text-stone-500">→ Next:</span>
               <span className="text-stone-300">{next.bookBoxCompany?.name ?? next.slug}</span>
-              <span className="text-stone-600 text-[10px]">{next.generalSaleDate?.slice(0, 10)}</span>
+              <span className="text-stone-600 text-[10px]">{next.resolvedSaleDate?.date?.slice(0, 10)}</span>
             </div>
           )}
         </div>
@@ -250,9 +251,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const [publisher, setPublisher] = useState(edition.publisher ?? '')
   const [photoCredit, setPhotoCredit] = useState((edition as any).photoCredit ?? '')
   const [language, setLanguage] = useState(edition.language ?? '')
-  const [firstAccessDate, setFirstAccessDate] = useState(edition.firstAccessDate?.slice(0, 10) ?? '')
-  const [earlyAccessDate, setEarlyAccessDate] = useState(edition.earlyAccessDate?.slice(0, 10) ?? '')
-  const [generalSaleDate, setGeneralSaleDate] = useState(edition.generalSaleDate?.slice(0, 10) ?? '')
+  const [saleDates, setSaleDates] = useState<EditionSaleDateEntry[]>(() =>
+    (edition.saleDates ?? []).map((d, i) => ({ label: d.label, date: d.date.slice(0, 10), order: d.order ?? i })),
+  )
   const [variantLabel, setVariantLabel] = useState(edition.variantLabel ?? '')
   const [allImages, setAllImages] = useState<string[]>(() => {
     return edition.additionalImages?.length ? [...edition.additionalImages] : []
@@ -286,7 +287,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   const collections = collectionsData?.data ?? []
 
   const applyAiResult = (r: AiParseResult) => {
-    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setFirstAccessDate, setEarlyAccessDate, setGeneralSaleDate, setArtists })
+    applyAiEditionResult(r, { setPublisher, setPrice, setCurrency, setSaleDates, setArtists })
     // Collect all feature raw values in source-text order using featureOrder if available;
     // fall back to standalones-first for older responses.
     const standaloneFeatures = (r.edition?.features ?? []).map(f => f.trim()).filter(Boolean)
@@ -333,6 +334,8 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   }
 
   const handleSubmit = async () => {
+    const badSaleDate = saleDates.find(d => d.label && d.date && !isValidCalendarDate(d.date))
+    if (badSaleDate) return alert(`Sale date "${badSaleDate.label}" is not a valid date`)
     setBusy(true)
     try {
       // 0. Flush staged feature-tag changes (add/edit/delete/pending)
@@ -349,9 +352,11 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           basePrice: price || undefined,
           currency: currency || undefined,
           language: language || undefined,
-          firstAccessDate: firstAccessDate || undefined,
-          earlyAccessDate: earlyAccessDate || undefined,
-          generalSaleDate: generalSaleDate || undefined,
+          // Manual dates contribute to resolveEditionSaleDate's earliest-overall calculation
+          // alongside any linked announcement's tiers (e.g. a subscription's "Subscription
+          // Renewal Day" often is the actual earliest availability) — always editable, not just
+          // for unlinked editions.
+          saleDates: saleDates.filter(d => d.label && d.date),
           additionalImages: allImages.filter(Boolean),
           variantLabel: variantLabel.trim() || null,
         }),
@@ -455,12 +460,10 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         onPhotoCreditChange={setPhotoCredit}
         language={language}
         onLanguageChange={setLanguage}
-        firstAccessDate={firstAccessDate}
-        onFirstAccessDateChange={setFirstAccessDate}
-        earlyAccessDate={earlyAccessDate}
-        onEarlyAccessDateChange={setEarlyAccessDate}
-        generalSaleDate={generalSaleDate}
-        onGeneralSaleDateChange={setGeneralSaleDate}
+        saleDates={saleDates}
+        onSaleDatesChange={setSaleDates}
+        isLinkedToAnnouncement={edition.isLinkedToAnnouncement}
+        resolvedSaleDate={edition.resolvedSaleDate}
         allImages={allImages}
         onImagesChange={setAllImages}
         onAiResult={applyAiResult}

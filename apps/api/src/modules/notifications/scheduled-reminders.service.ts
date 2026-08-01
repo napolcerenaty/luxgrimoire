@@ -136,30 +136,16 @@ export class ScheduledRemindersService {
   }
 
   /**
-   * Schedule or reschedule a sale reminder for a user + announcement.
+   * Schedule or reschedule a sale reminder for a user + announcement + tier.
+   * A tier is now a concrete SaleTier row with its own real date — no FA/EA/GS
+   * fallback-chain resolution needed, and (unlike the old top-level-only fields) this
+   * naturally respects per-region tiers too, since the tier row IS the region-specific one
+   * when the user picked a region-scoped tier.
    */
-  async scheduleSale(userId: string, announcementId: string, tier?: string): Promise<void> {
-    const announcement = await this.prisma.saleAnnouncement.findUnique({
-      where: { id: announcementId },
-      select: {
-        id: true,
-        earlyAccessDate: true,
-        firstAccessDate: true,
-        generalSaleDate: true,
-        saleTimezone: true,
-      },
-    });
-
-    if (!announcement) return;
-
-    // Resolve the date for the user's tier (GS = general, EA = early access, FA = first access)
-    const effectiveTier = tier ?? 'GS';
-    const saleDate =
-      (effectiveTier === 'EA' && announcement.earlyAccessDate) ||
-      (effectiveTier === 'FA' && announcement.firstAccessDate) ||
-      announcement.generalSaleDate;
-
-    if (!saleDate) return;
+  async scheduleSale(userId: string, announcementId: string, tierId?: string | null): Promise<void> {
+    if (!tierId) return;
+    const tier = await this.prisma.saleTier.findFirst({ where: { id: tierId, saleId: announcementId } });
+    if (!tier) return;
 
     const settings = await this.getOrDefaultSettings(userId);
     if (!settings.saleEnabled) return;
@@ -167,8 +153,7 @@ export class ScheduledRemindersService {
     // saleMinutesBefore means "minutes before actual sale time" (0 = at sale time, 180 = 3h before)
     const minutesBefore = settings.saleMinutesBefore !== null ? settings.saleMinutesBefore : 180;
 
-    // saleDate is a DateTime stored with the actual time component — subtract directly.
-    const scheduledAt = new Date(new Date(saleDate).getTime() - minutesBefore * 60 * 1000);
+    const scheduledAt = new Date(tier.date.getTime() - minutesBefore * 60 * 1000);
 
     if (scheduledAt <= new Date()) return;
 
@@ -184,12 +169,12 @@ export class ScheduledRemindersService {
           type: 'sale',
           scheduledAt,
           announcementId,
-          tier: effectiveTier,
+          tierId: tier.id,
         },
       });
     });
 
-    this.logger.debug(`[Reminders] Scheduled sale reminder for user ${userId} announcement ${announcementId} at ${scheduledAt.toISOString()}`);
+    this.logger.debug(`[Reminders] Scheduled sale reminder for user ${userId} announcement ${announcementId} tier ${tier.name} at ${scheduledAt.toISOString()}`);
   }
 
   /**
@@ -302,21 +287,23 @@ export class ScheduledRemindersService {
     if (settings.saleEnabled) {
       const interests = await this.prisma.userSaleInterest.findMany({
         where: { userId },
-        select: { announcementId: true, tier: true },
+        select: { announcementId: true, tierId: true },
       });
       for (const interest of interests) {
-        await this.scheduleSale(userId, interest.announcementId, interest.tier);
+        await this.scheduleSale(userId, interest.announcementId, interest.tierId);
       }
     }
   }
 
   /**
-   * Reschedule all pending sale reminders for an announcement (admin changed the date).
+   * Reschedule all pending sale reminders for an announcement (admin changed a tier's date/time,
+   * or removed a tier — called from AnnouncementsService's legacy-field update path and from the
+   * new SaleTier CRUD endpoints alike).
    */
   async recalculateForAnnouncement(announcementId: string): Promise<void> {
     const pending = await this.prisma.scheduledReminder.findMany({
       where: { announcementId, type: 'sale', sentAt: null, cancelledAt: null },
-      select: { userId: true, tier: true },
+      select: { userId: true, tierId: true },
     });
 
     if (pending.length === 0) return;
@@ -327,9 +314,10 @@ export class ScheduledRemindersService {
       data: { cancelledAt: new Date() },
     });
 
-    // Reschedule each user
+    // Reschedule each user — scheduleSale no-ops quietly if their tierId no longer resolves
+    // (e.g. the tier itself was deleted, which SETs NULL on tierId via the FK).
     for (const r of pending) {
-      await this.scheduleSale(r.userId, announcementId, r.tier ?? undefined);
+      await this.scheduleSale(r.userId, announcementId, r.tierId);
     }
   }
 

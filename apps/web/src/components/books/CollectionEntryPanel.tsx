@@ -11,6 +11,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
 import { useQueryClient } from '@tanstack/react-query'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ interface CollectionEntry {
       id: string
       title: string
       generalSaleDate: string | null
+      tiers?: { name: string; date: string }[]
     }
   } | null
 }
@@ -128,7 +130,6 @@ interface Props {
   editionId: string
   initialEntryId?: string | null
   saleEditions?: SaleEditionOption[]
-  editionGeneralSaleDate?: string | null
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -199,6 +200,8 @@ function fmtDate(dateStr: string | null | undefined): string {
 const INP_BASE = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
 const INP = INP_BASE + ' w-full'
 const INP_FLEX = INP_BASE + ' flex-1 min-w-0'
+/** Swaps the border color of an INP_* class string to flag an invalid field. */
+const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
 const FEE_CATEGORIES = [
   { value: 'VAT', label: 'VAT' },
   { value: 'CUSTOMS', label: 'Customs' },
@@ -327,7 +330,7 @@ function AddReadingHistoryForm({ onSave, onCancel, saving }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions = [], editionGeneralSaleDate }: Props) {
+export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions = [] }: Props) {
   const { user, loading: authLoading } = useAuth()
   const queryClient = useQueryClient()
   const [allEntries, setAllEntries] = useState<CollectionEntry[]>([])
@@ -358,6 +361,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
 
   // Error state
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [purchaseErrorField, setPurchaseErrorField] = useState<'date' | 'amount' | 'shipping' | null>(null)
 
   // Fee editing state (on purchase group)
   const [addingFee, setAddingFee] = useState(false)
@@ -375,6 +379,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [editFeeDate, setEditFeeDate] = useState('')
   const [editFeeCategory, setEditFeeCategory] = useState('OTHER')
   const [editFeeTemplateId, setEditFeeTemplateId] = useState<string | null>(null)
+  const [newFeeError, setNewFeeError] = useState<string | null>(null)
+  const [newFeeErrorField, setNewFeeErrorField] = useState<'name' | 'amount' | 'date' | null>(null)
+  const [editFeeError, setEditFeeError] = useState<string | null>(null)
+  const [editFeeErrorField, setEditFeeErrorField] = useState<'name' | 'amount' | 'date' | null>(null)
 
   // Refund state
   const [addingRefund, setAddingRefund] = useState(false)
@@ -383,6 +391,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [newRefundReason, setNewRefundReason] = useState('')
   const [newRefundDate, setNewRefundDate] = useState('')
   const [savingRefund, setSavingRefund] = useState(false)
+  const [refundError, setRefundError] = useState<string | null>(null)
+  const [refundErrorField, setRefundErrorField] = useState<'amount' | 'date' | null>(null)
 
   // Fee templates
   const [feeTemplates, setFeeTemplates] = useState<FeeTemplate[]>([])
@@ -624,10 +634,26 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       setEditPurchasedAt('')
       setEditPurchaseNotes('')
     }
+    setSaveError(null)
+    setPurchaseErrorField(null)
     setEditingPurchase(true)
   }
 
   async function savePurchase() {
+    if (editPurchasedAt && !isValidCalendarDate(editPurchasedAt)) {
+      setSaveError('Enter a valid purchase date.'); setPurchaseErrorField('date'); return
+    }
+    const totalAmt = parseFloat(editTotalAmount)
+    if (editTotalAmount && (isNaN(totalAmt) || totalAmt < 0)) {
+      setSaveError('Price must be 0 or greater.'); setPurchaseErrorField('amount'); return
+    }
+    if (editShippingAmount) {
+      const shipAmt = parseFloat(editShippingAmount)
+      if (isNaN(shipAmt) || shipAmt < 0) {
+        setSaveError('Shipping must be 0 or greater.'); setPurchaseErrorField('shipping'); return
+      }
+    }
+    setPurchaseErrorField(null)
     setSavingPurchase(true)
     setSaveError(null)
     try {
@@ -708,6 +734,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     setNewFeeDate(new Date().toISOString().slice(0, 10))
     setNewFeeCategory('OTHER')
     setNewFeeTemplateId(null)
+    setNewFeeError(null)
+    setNewFeeErrorField(null)
     setAddingFee(true)
   }
 
@@ -718,7 +746,13 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   }
 
   async function saveNewFee() {
-    if (!newFeeName.trim() || !newFeeAmount || !newFeeDate || !entry!.purchaseGroup) return
+    if (!newFeeName.trim()) { setNewFeeError('Fee name is required.'); setNewFeeErrorField('name'); return }
+    const amt = parseFloat(newFeeAmount)
+    if (!newFeeAmount || isNaN(amt) || amt < 0) { setNewFeeError('Amount must be 0 or greater.'); setNewFeeErrorField('amount'); return }
+    if (!isValidCalendarDate(newFeeDate)) { setNewFeeError('Enter a valid date.'); setNewFeeErrorField('date'); return }
+    if (!entry!.purchaseGroup) return
+    setNewFeeError(null)
+    setNewFeeErrorField(null)
     setSavingFee(true)
     try {
       await authFetch(`/fees`, {
@@ -726,7 +760,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
         body: JSON.stringify({
           feeTemplateId: newFeeTemplateId ?? undefined,
           name: newFeeName,
-          amount: parseFloat(newFeeAmount),
+          amount: amt,
           currency: newFeeCurrency,
           date: new Date(newFeeDate).toISOString(),
           category: newFeeCategory,
@@ -753,16 +787,24 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     setEditFeeDate(fee.date ? fee.date.slice(0, 10) : new Date().toISOString().slice(0, 10))
     setEditFeeCategory(fee.category ?? 'OTHER')
     setEditFeeTemplateId(fee.feeTemplateId ?? null)
+    setEditFeeError(null)
+    setEditFeeErrorField(null)
   }
 
   async function saveEditFee() {
-    if (!editingFeeId || !editFeeName.trim() || !editFeeAmount || !editFeeDate) return
+    if (!editingFeeId) return
+    if (!editFeeName.trim()) { setEditFeeError('Fee name is required.'); setEditFeeErrorField('name'); return }
+    const amt = parseFloat(editFeeAmount)
+    if (!editFeeAmount || isNaN(amt) || amt < 0) { setEditFeeError('Amount must be 0 or greater.'); setEditFeeErrorField('amount'); return }
+    if (!isValidCalendarDate(editFeeDate)) { setEditFeeError('Enter a valid date.'); setEditFeeErrorField('date'); return }
+    setEditFeeError(null)
+    setEditFeeErrorField(null)
     setSavingFee(true)
     try {
       await authFetch(`/fees/${editingFeeId}`, {
         method: 'PATCH',
         body: JSON.stringify({
-          amount: parseFloat(editFeeAmount),
+          amount: amt,
           currency: editFeeCurrency,
           date: new Date(editFeeDate).toISOString(),
           // Name/category are template-owned when this fee is linked to a template — only
@@ -783,13 +825,18 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   }
 
   async function saveNewRefund() {
-    if (!newRefundAmount || !newRefundDate || !entry!.purchaseGroup) return
+    const amt = parseFloat(newRefundAmount)
+    if (!newRefundAmount || isNaN(amt) || amt < 0) { setRefundError('Amount must be 0 or greater.'); setRefundErrorField('amount'); return }
+    if (!isValidCalendarDate(newRefundDate)) { setRefundError('Enter a valid date.'); setRefundErrorField('date'); return }
+    if (!entry!.purchaseGroup) return
+    setRefundError(null)
+    setRefundErrorField(null)
     setSavingRefund(true)
     try {
       await authFetch(`/fees/refunds`, {
         method: 'POST',
         body: JSON.stringify({
-          amount: parseFloat(newRefundAmount),
+          amount: amt,
           currency: newRefundCurrency,
           date: new Date(newRefundDate).toISOString(),
           reason: newRefundReason || null,
@@ -1200,16 +1247,16 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
             <div className="flex flex-col gap-2">
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Purchase date</label>
-                <input type="date" value={editPurchasedAt} onChange={e => setEditPurchasedAt(e.target.value)} className={INP} />
+                <input type="date" value={editPurchasedAt} onChange={e => { setEditPurchasedAt(e.target.value); if (purchaseErrorField === 'date') { setSaveError(null); setPurchaseErrorField(null) } }} className={inpErr(INP, purchaseErrorField === 'date')} />
               </div>
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Price</label>
-                  <input type="number" step="0.01" min="0" value={editTotalAmount} onChange={e => setEditTotalAmount(e.target.value)} placeholder="0.00" className={INP_FLEX + ' w-20'} />
+                  <input type="number" step="0.01" min="0" value={editTotalAmount} onChange={e => { setEditTotalAmount(e.target.value); if (purchaseErrorField === 'amount') { setSaveError(null); setPurchaseErrorField(null) } }} placeholder="0.00" className={inpErr(INP_FLEX, purchaseErrorField === 'amount') + ' w-20'} />
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
-                  <input type="number" step="0.01" min="0" value={editShippingAmount} onChange={e => setEditShippingAmount(e.target.value)} placeholder="0.00" className={INP_FLEX + ' w-20'} />
+                  <input type="number" step="0.01" min="0" value={editShippingAmount} onChange={e => { setEditShippingAmount(e.target.value); if (purchaseErrorField === 'shipping') { setSaveError(null); setPurchaseErrorField(null) } }} placeholder="0.00" className={inpErr(INP_FLEX, purchaseErrorField === 'shipping') + ' w-20'} />
                 </div>
                 <div className="w-24 shrink-0">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Currency</label>
@@ -1277,24 +1324,25 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             </div>
                           ) : (
                             <div className="flex gap-1.5">
-                              <input value={editFeeName} onChange={e => setEditFeeName(e.target.value)} placeholder="Fee name" className={INP_FLEX} />
+                              <input value={editFeeName} onChange={e => { setEditFeeName(e.target.value); if (editFeeErrorField === 'name') { setEditFeeError(null); setEditFeeErrorField(null) } }} placeholder="Fee name" className={inpErr(INP_FLEX, editFeeErrorField === 'name')} />
                               <select value={editFeeCategory} onChange={e => setEditFeeCategory(e.target.value)} className={INP_BASE + ' w-28'}>
                                 {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                               </select>
                             </div>
                           )}
                           <div className="flex gap-1.5">
-                            <input type="number" step="0.01" min="0" value={editFeeAmount} onChange={e => setEditFeeAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} style={{ MozAppearance: 'textfield' } as React.CSSProperties} />
+                            <input type="number" step="0.01" min="0" value={editFeeAmount} onChange={e => { setEditFeeAmount(e.target.value); if (editFeeErrorField === 'amount') { setEditFeeError(null); setEditFeeErrorField(null) } }} placeholder="0.00" className={inpErr(INP_BASE, editFeeErrorField === 'amount') + ' w-20'} style={{ MozAppearance: 'textfield' } as React.CSSProperties} />
                             <select value={editFeeCurrency} onChange={e => setEditFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                           </div>
-                          <input type="date" value={editFeeDate} onChange={e => setEditFeeDate(e.target.value)} className={INP} />
+                          <input type="date" value={editFeeDate} onChange={e => { setEditFeeDate(e.target.value); if (editFeeErrorField === 'date') { setEditFeeError(null); setEditFeeErrorField(null) } }} className={inpErr(INP, editFeeErrorField === 'date')} />
+                          {editFeeError && <p className="text-xs text-red-400">{editFeeError}</p>}
                           <div className="flex gap-1.5">
                             <button onClick={saveEditFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
                               <Check size={11} /> Save
                             </button>
-                            <button onClick={() => setEditingFeeId(null)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                            <button onClick={() => { setEditingFeeId(null); setEditFeeError(null); setEditFeeErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
                               <X size={11} /> Cancel
                             </button>
                           </div>
@@ -1346,24 +1394,25 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           </div>
                         ) : (
                           <div className="flex gap-1.5">
-                            <input value={newFeeName} onChange={e => setNewFeeName(e.target.value)} placeholder="Fee name" className={INP_FLEX} />
+                            <input value={newFeeName} onChange={e => { setNewFeeName(e.target.value); if (newFeeErrorField === 'name') { setNewFeeError(null); setNewFeeErrorField(null) } }} placeholder="Fee name" className={inpErr(INP_FLEX, newFeeErrorField === 'name')} />
                             <select value={newFeeCategory} onChange={e => setNewFeeCategory(e.target.value)} className={INP_BASE + ' w-28'}>
                               {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                             </select>
                           </div>
                         )}
                         <div className="flex gap-1.5">
-                          <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => setNewFeeAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} />
+                          <input type="number" step="0.01" min="0" value={newFeeAmount} onChange={e => { setNewFeeAmount(e.target.value); if (newFeeErrorField === 'amount') { setNewFeeError(null); setNewFeeErrorField(null) } }} placeholder="0.00" className={inpErr(INP_BASE, newFeeErrorField === 'amount') + ' w-20'} />
                           <select value={newFeeCurrency} onChange={e => setNewFeeCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                         </div>
-                        <input type="date" value={newFeeDate} onChange={e => setNewFeeDate(e.target.value)} className={INP} />
+                        <input type="date" value={newFeeDate} onChange={e => { setNewFeeDate(e.target.value); if (newFeeErrorField === 'date') { setNewFeeError(null); setNewFeeErrorField(null) } }} className={inpErr(INP, newFeeErrorField === 'date')} />
+                        {newFeeError && <p className="text-xs text-red-400">{newFeeError}</p>}
                         <div className="flex gap-1.5">
                           <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
                             <Check size={11} /> Add
                           </button>
-                          <button onClick={() => setAddingFee(false)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                          <button onClick={() => { setAddingFee(false); setNewFeeError(null); setNewFeeErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
                             <X size={11} /> Cancel
                           </button>
                         </div>
@@ -1395,24 +1444,25 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                     {addingRefund ? (
                       <div className="flex flex-col gap-1.5 pt-0.5">
                         <div className="flex gap-1.5">
-                          <input type="number" step="0.01" min="0" value={newRefundAmount} onChange={e => setNewRefundAmount(e.target.value)} placeholder="0.00" className={INP_BASE + ' w-20'} />
+                          <input type="number" step="0.01" min="0" value={newRefundAmount} onChange={e => { setNewRefundAmount(e.target.value); if (refundErrorField === 'amount') { setRefundError(null); setRefundErrorField(null) } }} placeholder="0.00" className={inpErr(INP_BASE, refundErrorField === 'amount') + ' w-20'} />
                           <select value={newRefundCurrency} onChange={e => setNewRefundCurrency(e.target.value)} className={INP_BASE + ' w-20'}>
                             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                           <input value={newRefundReason} onChange={e => setNewRefundReason(e.target.value)} placeholder="Reason (optional)" className={INP + ' flex-1'} />
                         </div>
-                        <input type="date" value={newRefundDate} onChange={e => setNewRefundDate(e.target.value)} className={INP} />
+                        <input type="date" value={newRefundDate} onChange={e => { setNewRefundDate(e.target.value); if (refundErrorField === 'date') { setRefundError(null); setRefundErrorField(null) } }} className={inpErr(INP, refundErrorField === 'date')} />
+                        {refundError && <p className="text-xs text-red-400">{refundError}</p>}
                         <div className="flex gap-1.5">
                           <button onClick={saveNewRefund} disabled={savingRefund} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 transition-colors disabled:opacity-50">
                             <Check size={11} /> Add
                           </button>
-                          <button onClick={() => setAddingRefund(false)} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                          <button onClick={() => { setAddingRefund(false); setRefundError(null); setRefundErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
                             <X size={11} /> Cancel
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <button onClick={() => { setNewRefundAmount(''); setNewRefundCurrency(pg.currency); setNewRefundReason(''); setNewRefundDate(new Date().toISOString().slice(0, 10)); setAddingRefund(true) }} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
+                      <button onClick={() => { setNewRefundAmount(''); setNewRefundCurrency(pg.currency); setNewRefundReason(''); setNewRefundDate(new Date().toISOString().slice(0, 10)); setRefundError(null); setRefundErrorField(null); setAddingRefund(true) }} className="flex items-center gap-1 text-xs pt-0.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
                         <Plus size={11} /> Add refund
                       </button>
                     )}
@@ -1793,7 +1843,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               ? '📗 Original print'
               : entry.saleAnnouncementEdition
                 ? (() => {
-                    const saDate = entry.saleAnnouncementEdition.announcement.generalSaleDate
+                    const saDate = entry.saleAnnouncementEdition.announcement.tiers?.[0]?.date ?? entry.saleAnnouncementEdition.announcement.generalSaleDate
                     const sa = saDate ? new Date(saDate) : null
                     const dateStr = sa ? sa.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : null
                     return dateStr ? `🔁 Reprint · ${dateStr}` : `🔁 Reprint — ${entry.saleAnnouncementEdition.announcement.title}`

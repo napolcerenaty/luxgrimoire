@@ -768,6 +768,32 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
 
       expect(prisma.userSkipRecord.upsert).not.toHaveBeenCalled();
     });
+
+    // Regression: the same sub.id-vs-parent bug fixed in recordFirstMonthAsPreorder
+    // (join-time preorder) could also affect this section, since it calls getEligibleMonths
+    // with monthsSubscriptionId. This locks in that the auto-skip-derivation lookup for a
+    // non-combo content-stream variant queries the PARENT stream's months, not the variant's
+    // own (nonexistent) ones.
+    it('resolves the auto-skip-derivation eligible-months lookup to the PARENT stream for a content-stream variant', async () => {
+      const PARENT_ID = 'parent-stream-fp-1';
+      const sub = makeSub({ parentSubscriptionId: PARENT_ID });
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const months = [makeMonth('m-1', 2026, 1), makeMonth('m-2', 2026, 2)];
+      setupBackfill(prisma, skipMock, {
+        months,
+        purchaseGroupIds: ['pg-1', 'pg-2'],
+      });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1', 'm-2'],
+      } as any);
+
+      // First subscriptionMonth.findMany call = monthRecords (by id, subscription-agnostic).
+      // Second = getEligibleMonths's internal query — must use the parent id.
+      const calls = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls;
+      expect(calls[1][0].where.subscriptionId).toBe(PARENT_ID);
+    });
   });
 
   describe('multi-policy — selects policy by entry.prepaidMonths', () => {
@@ -1255,6 +1281,93 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ editionId: 'ed-combo-1', bookId: 'bk-combo-1' }),
+        }),
+      );
+    });
+
+    it('resolves the skip-derivation compMonth lookup to the PARENT stream for a skippable combo month', async () => {
+      const comboSub = {
+        id: COMBO_SUB_ID,
+        slug: 'combo-test',
+        name: 'Combo Test',
+        isCombo: true,
+        componentIds: [VARIANT_COMP_ID],
+        currency: 'USD',
+        renewalDay: 1,
+        renewalDayUserSet: false,
+        paymentOnStartup: false,
+        signupIncludesCurrentMonth: false,
+        renewalMonthOffset: 0,
+        isContentStream: false,
+        parentSubscriptionId: null,
+      };
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(comboSub as any);
+
+      const entry = {
+        id: COMBO_ENTRY_ID,
+        userId: COMBO_USER_ID,
+        subscriptionId: COMBO_SUB_ID,
+        startDate: '2026-01-01',
+        cancellationDate: null,
+        renewalDay: 1,
+        basePrice: { toString: () => '29.99' },
+        costCurrency: 'USD',
+        shippingCost: null,
+        firstSkipDate: null,
+        feeTemplates: [],
+      };
+
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(entry);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      const janMonth = { id: 'parent-month-jan', year: 2026, month: 1, signatureType: null,
+        books: [{ editionId: 'ed-jan', bookId: 'bk-jan', signatureType: null, edition: { book: { authors: [] } } }] };
+      const febMonth = { id: 'parent-month-feb', year: 2026, month: 2, signatureType: null,
+        books: [{ editionId: 'ed-feb', bookId: 'bk-feb', signatureType: null, edition: { book: { authors: [] } } }] };
+
+      // resolveEffectiveComponentIds (inside getComboEligibleMonths)
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: VARIANT_COMP_ID, parentSubscriptionId: PARENT_STREAM_ID },
+      ]);
+      // getComboEligibleMonths: both Jan and Feb come back from the parent stream — Feb is eligible but won't be selected
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([janMonth, febMonth]);
+
+      // resolveEffectiveComponentIds (in backfillSubscription's own resolution, reused for the skip loop too)
+      (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: VARIANT_COMP_ID, parentSubscriptionId: PARENT_STREAM_ID },
+      ]);
+      // books lookup for the one selected combo month (Jan)
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([janMonth]);
+
+      (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValueOnce({ id: 'pg-combo-jan' });
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValueOnce({ id: 'be-combo-jan' });
+      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
+
+      // skip policy lookup
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: COMBO_SUB_ID, skipPolicies: [] });
+      // compMonth lookup for the skippable Feb month — this is the call under test
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'parent-month-feb' });
+      (prisma.userSkipRecord.upsert as jest.Mock).mockResolvedValueOnce({ id: 'skip-1' });
+      (prisma.userSubscriptionEntry.update as jest.Mock).mockResolvedValueOnce({});
+
+      skipMock.recomputeSkipState.mockResolvedValueOnce(undefined);
+
+      await service.backfillSubscription(COMBO_USER_ID, 'combo-test', {
+        selectedMonthIds: ['COMBO_2026_1'], // Feb (COMBO_2026_2) left unselected → skippable
+      } as any);
+
+      expect(prisma.subscriptionMonth.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ subscriptionId: { in: [PARENT_STREAM_ID] }, year: 2026, month: 2 }),
+        }),
+      );
+      expect(prisma.userSkipRecord.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userEntryId_subscriptionMonthId: { userEntryId: COMBO_ENTRY_ID, subscriptionMonthId: 'parent-month-feb' },
+          }),
         }),
       );
     });

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
+import { getEarliestTierDate } from '@/lib/saleTiers'
 
 interface CountdownParts {
   days: number
@@ -50,13 +51,15 @@ export function SaleCountdownBanner({ announcements }: { announcements: ApiSaleA
   }, [])
 
   const now = new Date()
-  const nextSale = announcements
-    .filter((a) => a.generalSaleDate && new Date(a.generalSaleDate) > now)
-    .sort((a, b) => new Date(a.generalSaleDate!).getTime() - new Date(b.generalSaleDate!).getTime())[0] ?? null
+  const withDate = announcements
+    .map((a) => ({ a, date: getEarliestTierDate(a) }))
+    .filter((x): x is { a: ApiSaleAnnouncement; date: string } => x.date != null && new Date(x.date) > now)
+    .sort((x, y) => new Date(x.date).getTime() - new Date(y.date).getTime())[0] ?? null
 
-  if (!nextSale?.generalSaleDate) return null
+  if (!withDate) return null
+  const { a: nextSale, date: nextSaleDate } = withDate
 
-  const countdown = getCountdown(new Date(nextSale.generalSaleDate))
+  const countdown = getCountdown(new Date(nextSaleDate))
   if (countdown.expired || !countdown.within14Days) return null
 
   const title = nextSale.title.length > 45 ? `${nextSale.title.slice(0, 45)}…` : nextSale.title
@@ -81,7 +84,7 @@ export function SaleCountdownBanner({ announcements }: { announcements: ApiSaleA
 
           {/* Countdown boxes */}
           <div className="flex items-end gap-2">
-            {countdown.days > 0 && <CountdownBox value={countdown.days} label="days" />}
+            {countdown.days > 0 && <CountdownBox value={countdown.days} label={countdown.days === 1 ? 'day' : 'days'} />}
             <CountdownBox value={countdown.hours} label="hrs" />
             <CountdownBox value={countdown.minutes} label="min" />
             <CountdownBox value={countdown.seconds} label="sec" />

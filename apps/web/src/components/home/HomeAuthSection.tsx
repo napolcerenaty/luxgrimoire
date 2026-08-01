@@ -10,43 +10,14 @@ import { SaleRowCountdown } from './SaleRowCountdown'
 
 interface UpcomingSale {
   announcementId: string
-  tier: string
-  regionId: string | null
+  /** The concrete tier this interest points at — its date IS the resolved date, no
+   *  FA/EA/GS fallback-chain needed. */
+  saleTier: { id: string; name: string; date: string } | null
   announcement: {
     id: string
     title: string
-    saleType: string
-    firstAccessDate: string | null
-    earlyAccessDate: string | null
-    generalSaleDate: string | null
-    endsAt: string | null
     company: { name: string; slug: string } | null
-    regions?: { id: string; isDefault: boolean; firstAccessDate: string | null; earlyAccessDate: string | null; generalSaleDate: string | null; endsAt: string | null }[]
   }
-}
-
-// Mirrors SaleInterestsService.resolveTierDate on the backend — every tier falls back to any
-// other known date on the announcement (not just "later" ones), so the countdown still renders
-// for a GS-tier interest even when generalSaleDate isn't set yet but FA/EA already is. Also
-// prefers the user's selected region's dates over the top-level ones (sales with per-country
-// dates leave the top-level fields null entirely — see apps/web/src/lib/saleDates.ts).
-//
-// Deliberately ignores saleType/endsAt — this widget never shows saleType to the user, so
-// there's no reason to resolve OPEN_PREORDER's date differently from any other type.
-function resolveTierDate(sale: UpcomingSale): string | null {
-  const ann = sale.announcement
-  const regions = ann.regions ?? []
-  const region = (sale.regionId ? regions.find(r => r.id === sale.regionId) : null)
-    ?? (regions.length > 0 ? (regions.find(r => r.isDefault) ?? regions[0]) : null)
-  const pick = (regionDate: string | null | undefined, annDate: string | null) => regionDate ?? annDate
-
-  const tier = sale.tier ?? 'GS'
-  const fa = pick(region?.firstAccessDate, ann.firstAccessDate)
-  const ea = pick(region?.earlyAccessDate, ann.earlyAccessDate)
-  const gs = pick(region?.generalSaleDate, ann.generalSaleDate)
-  if (tier === 'FA') return fa ?? ea ?? gs
-  if (tier === 'EA') return ea ?? gs ?? fa
-  return gs ?? ea ?? fa
 }
 
 export function HomeAuthSection() {
@@ -134,8 +105,8 @@ function HeroShell({
                     )}
                     <span className="block text-sm font-medium leading-snug text-stone-100">{s.announcement.title}</span>
                   </div>
-                  {resolveTierDate(s) && (
-                    <SaleRowCountdown dateStr={resolveTierDate(s)!} className="" />
+                  {s.saleTier?.date && (
+                    <SaleRowCountdown dateStr={s.saleTier.date} className="" />
                   )}
                 </Link>
               ))}

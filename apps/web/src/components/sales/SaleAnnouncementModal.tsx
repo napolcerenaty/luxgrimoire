@@ -71,10 +71,11 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
           </div>
 
           <div className="p-5 sm:p-6">
-            {/* Image + content side by side */}
-            <div className="flex gap-4 mb-5">
+            {/* Image + content: stacked on mobile (side-by-side squeezes everything into a
+                narrow column next to the cover), side by side from sm: up */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-5">
               {/* Cover */}
-              <div className="shrink-0 w-20 sm:w-28">
+              <div className="shrink-0 w-28 mx-auto sm:mx-0">
                 <div className="relative rounded-xl overflow-hidden border border-stone-700">
                   {coverImg ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -127,7 +128,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
               </div>
 
               {/* Info (compact mode, with "View full page" link) */}
-              <div className="flex-1 min-w-0 pt-1">
+              <div className="flex-1 min-w-0 sm:pt-1">
                 <SaleAnnouncementContent
                   sale={sale}
                   compact

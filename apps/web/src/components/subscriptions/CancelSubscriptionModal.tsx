@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { cancelMySubscriptionEntry } from '@/lib/api'
+import { isValidCalendarDate } from '@/lib/dateValidation'
 
 export function CancelSubscriptionModal({
   subscriptionSlug,
@@ -17,8 +18,19 @@ export function CancelSubscriptionModal({
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dateInvalid, setDateInvalid] = useState(false)
+
+  function handleDateChange(v: string) {
+    setCancellationDate(v)
+    if (dateInvalid) { setDateInvalid(false); setError(null) }
+  }
 
   async function handleConfirm() {
+    if (!isValidCalendarDate(cancellationDate)) {
+      setDateInvalid(true)
+      setError('Enter a valid cancellation date')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -52,8 +64,8 @@ export function CancelSubscriptionModal({
             <input
               type="date"
               value={cancellationDate}
-              onChange={e => setCancellationDate(e.target.value)}
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
+              onChange={e => handleDateChange(e.target.value)}
+              className={`w-full bg-stone-800 border rounded-lg px-3 py-2 text-stone-100 text-sm ${dateInvalid ? 'border-red-500/70' : 'border-stone-700'}`}
             />
           </div>
 

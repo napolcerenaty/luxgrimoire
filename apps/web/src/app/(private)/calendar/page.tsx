@@ -11,6 +11,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import { useAuth } from '@/components/AuthProvider'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
+import { resolveInterestDate } from '@/lib/saleTiers'
 
 interface CalEntry {
   id: string
@@ -36,36 +37,20 @@ interface CalEntry {
 
 interface SaleInterest {
   announcementId: string
-  tier: 'FA' | 'EA' | 'GS'
-  regionId: string | null
   selectedPrice: string | null
   selectedPriceCurrency: string | null
+  /** The concrete tier this interest points at — its date IS the resolved date, no
+   *  FA/EA/GS fallback-chain needed. Null for interests that predate the tier migration
+   *  and haven't been backfilled. */
+  saleTier: { id: string; name: string; date: string; regionId: string | null } | null
   announcement: {
     id: string
     title: string
     imageUrl: string | null
     basePrice: string | null
     currency: string | null
-    firstAccessDate: string | null
-    earlyAccessDate: string | null
-    generalSaleDate: string | null
-    saleTimezone: string | null
     company: { id: string; name: string; slug: string; logoUrl: string | null; brandColors?: string[] | null } | null
-    regions: Array<{
-      id: string
-      isDefault: boolean
-      firstAccessDate: string | null
-      earlyAccessDate: string | null
-      generalSaleDate: string | null
-      saleTimezone: string | null
-    }>
   }
-}
-
-const TIER_LABELS: Record<'FA' | 'EA' | 'GS', string> = {
-  FA: 'First Access',
-  EA: 'Early Access',
-  GS: 'General Sale',
 }
 
 // Deterministic hue from a string (same as old-approach)
@@ -168,16 +153,22 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
     if (year < subStartYear || (year === subStartYear && month0 < subStartMonth0)) return null
   }
 
+  const offset = sub.renewalMonthOffset ?? 0
+
   const interval = sub.intervalMonths ?? 1
   if (interval > 1) {
     const step = interval
-    const startMonthIdx = ((sub.startingMonth ?? 1) - 1) % step
+    // startingMonth is always a box (content) month — shift it back by the offset to get
+    // the actual renewal-month alignment before computing the step cycle. Mirrors the
+    // backend's getRenewalAlignmentBaseMonth (renewal-date.util.ts); missing this shift
+    // showed the renewal pill in the box month instead of the real (offset) billing month.
+    const alignBase = (((sub.startingMonth ?? 1) - offset - 1 + 1200) % 12) + 1
+    const startMonthIdx = (alignBase - 1) % step
     if (((month0 - startMonthIdx) % step + step) % step !== 0) return null
   }
 
   // A renewal in calendar month (year, month0) pays for box month = renewal month + offset.
   // If that box month is skipped, no renewal fires for this calendar month.
-  const offset = sub.renewalMonthOffset ?? 0
   if (offset !== 0 || (entry.skipRecords?.length ?? 0) > 0) {
     const rawBox = month0 + 1 + offset  // 1-indexed, may exceed 12
     const boxYear = year + Math.floor((rawBox - 1) / 12)
@@ -189,26 +180,6 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
   }
 
   return renewalDay
-}
-
-/** Resolve tier date for a sale interest, using stored regionId if available.
- * Mirrors SaleInterestsService.resolveTierDate on the backend: falls back to the sale's default
- * region when no regionId is stored (not just when one is), and every tier falls back to *any*
- * other known date, not just "later" ones — otherwise a GS-tier interest with no generalSaleDate
- * set (only FA/EA known so far) would resolve to null and vanish from the calendar entirely. */
-function resolveInterestDate(interest: SaleInterest): string | null {
-  const a = interest.announcement
-  const regions = a.regions ?? []
-  const region = (interest.regionId ? regions.find(r => r.id === interest.regionId) : null)
-    ?? (regions.length > 0 ? (regions.find(r => r.isDefault) ?? regions[0]) : null)
-
-  const FA = region?.firstAccessDate ?? a.firstAccessDate
-  const EA = region?.earlyAccessDate ?? a.earlyAccessDate
-  const GS = region?.generalSaleDate ?? a.generalSaleDate
-
-  if (interest.tier === 'FA') return FA ?? EA ?? GS
-  if (interest.tier === 'EA') return EA ?? GS ?? FA
-  return GS ?? EA ?? FA
 }
 
 export default function CalendarPage() {
@@ -318,7 +289,7 @@ export default function CalendarPage() {
           companyName: i.announcement.company?.name ?? null,
           brandColors: getBrandColors(i.announcement.company?.slug) ?? i.announcement.company?.brandColors ?? null,
           hue: strHue(i.announcement.company?.name ?? i.announcementId),
-          tier: i.tier,
+          tierName: i.saleTier?.name ?? 'General Sale',
           time,
           href: `/sale-announcements/${i.announcementId}`,
         }
@@ -531,7 +502,7 @@ export default function CalendarPage() {
                           s.label,
                           s.hue,
                           'sale',
-                          `${TIER_LABELS[s.tier]}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`,
+                          `${s.tierName}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`,
                         )}
                         onMouseLeave={scheduleClose}
                         onClick={e => e.stopPropagation()}
@@ -632,7 +603,7 @@ export default function CalendarPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium leading-snug">{s.label}</p>
                         <p className="text-xs opacity-70">
-                          {TIER_LABELS[s.tier]}{s.time ? ` · ${s.time}` : ''}{s.companyName ? ` · ${s.companyName}` : ''}
+                          {s.tierName}{s.time ? ` · ${s.time}` : ''}{s.companyName ? ` · ${s.companyName}` : ''}
                         </p>
                       </div>
                     </Link>
@@ -764,7 +735,7 @@ export default function CalendarPage() {
                 const bStyle = pillStyle(bc, hue, 'sale', lightMode)
                 return (
                   <Link
-                    key={`${i.announcementId}-${i.tier}`}
+                    key={i.saleTier?.id ?? i.announcementId}
                     href={`/sale-announcements/${i.announcementId}`}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg border hover:opacity-90 transition-opacity group overflow-hidden min-w-0"
                     style={bStyle}
@@ -777,7 +748,7 @@ export default function CalendarPage() {
                       )}
                     </div>
                     <div className="text-right shrink-0 self-start">
-                      <p className="text-xs font-semibold opacity-95">{TIER_LABELS[i.tier]}</p>
+                      <p className="text-xs font-semibold opacity-95">{i.saleTier?.name ?? 'General Sale'}</p>
                       <p className="text-xs opacity-75">{label}{time !== '00:00' ? ` · ${time}` : ''}</p>
                     </div>
                   </Link>

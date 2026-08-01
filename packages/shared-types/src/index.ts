@@ -164,9 +164,20 @@ export interface ApiBookEdition {
     isManual: boolean;
     categories: Array<{ id: string; slug: string; label: string; group: string; sortOrder: number }>;
   }>;
+  /** @deprecated Legacy fixed-slot dates, kept until the Phase B cleanup migration. Prefer
+   *  resolvedSaleDate (linked editions, live-derived from the announcement's tiers) or
+   *  saleDates (standalone editions, manually entered). */
   firstAccessDate?: string | null;
   earlyAccessDate?: string | null;
   generalSaleDate?: string | null;
+  /** Manual sale dates for a standalone edition (no linked SaleAnnouncement) — date only, no
+   *  time. Empty/absent for editions linked to an announcement; those resolve live instead. */
+  saleDates?: ApiEditionSaleDate[];
+  /** The edition's single representative sale date: the earliest SaleTier if linked to a
+   *  SaleAnnouncement (live, always in sync with that announcement's tiers), else the
+   *  earliest manual saleDates entry, else null. */
+  resolvedSaleDate?: { label: string; date: string } | null;
+  isLinkedToAnnouncement?: boolean;
   book?: Pick<ApiBook, 'id' | 'slug' | 'title' | 'seriesName' | 'series' | 'volumeNumbers' | 'isOmnibus' | 'componentCount' | 'seriesEntries' | 'omnibusComponents'> & {
     authors?: ApiAuthor[];
   };
@@ -174,7 +185,7 @@ export interface ApiBookEdition {
     id: string;
     slug: string;
     additionalImages: string[];
-    generalSaleDate?: string | null;
+    resolvedSaleDate?: { label: string; date: string } | null;
     bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
     collection?: { id: string; name: string; slug: string } | null;
   } | null;
@@ -182,7 +193,7 @@ export interface ApiBookEdition {
     id: string;
     slug: string;
     additionalImages: string[];
-    generalSaleDate?: string | null;
+    resolvedSaleDate?: { label: string; date: string } | null;
     bookBoxCompany?: { name: string; slug: string; brandColors?: string[] | null } | null;
     collection?: { id: string; name: string; slug: string } | null;
   } | null;
@@ -194,6 +205,14 @@ export interface ApiBookEdition {
     additionalImages: string[];
     bookBoxCompany?: { name: string; slug: string } | null;
   }>;
+}
+
+export interface ApiEditionSaleDate {
+  id: string;
+  label: string;
+  /** Date only (YYYY-MM-DD), no time. */
+  date: string;
+  order: number;
 }
 
 export interface ApiBookBoxCollection {
@@ -442,6 +461,7 @@ export interface ApiSearchEdition {
   communityPhotoCover: string | null;
   publisher: string | null;
   generalSaleDate: string | null;
+  resolvedSaleDate?: { label: string; date: string } | null;
   variantLabel?: string | null;
   bookBoxCompany: { name: string; slug: string; logoUrl: string | null } | null;
   book: {
@@ -459,6 +479,8 @@ export interface ApiSearchSale {
   title: string;
   imageUrl: string | null;
   generalSaleDate: string | null;
+  tiers?: ApiSaleTier[];
+  regions?: { id: string; isDefault: boolean }[];
   isBundle: boolean;
   availableForPurchase: boolean;
   company: { name: string; slug: string; logoUrl: string | null } | null;
@@ -628,13 +650,24 @@ export interface ApiSaleGroup {
   profitLoss: number | null;
 }
 
-export type SaleType = 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK';
+// Was missing 'SALE' (added by migration 20260703000000_add_sale_type) — drift fixed here.
+export type SaleType = 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK' | 'SALE';
 
 export interface ApiSaleAnnouncementItem {
   id: string;
   name: string | null;
   sortOrder: number;
   editions?: Array<{ id: string; editionId: string }>;
+}
+
+/** A single named access moment for a sale (or one of its regions) — replaces the old fixed
+ *  firstAccessDate/earlyAccessDate/generalSaleDate slots with an arbitrary-length ordered list. */
+export interface ApiSaleTier {
+  id: string;
+  name: string;
+  date: string;
+  order: number;
+  regionId: string | null;
 }
 
 export interface ApiSaleAnnouncement {
@@ -684,6 +717,9 @@ export interface ApiSaleAnnouncement {
     }>;
   }>;
   items?: ApiSaleAnnouncementItem[];
+  /** The sale's own default tier set (regionId: null entries) plus every region's own tiers
+   *  (regionId set) all together — filter by regionId client-side as needed. */
+  tiers?: ApiSaleTier[];
   regions?: Array<{
     id: string;
     name: string;
@@ -727,6 +763,8 @@ export interface ApiTrendingSaleAnnouncement {
   imageUrl: string | null;
   company?: { name: string; slug?: string | null; brandColors?: string[] } | null;
   editions?: ApiSaleAnnouncement['editions'];
+  tiers?: ApiSaleTier[];
+  regions?: { id: string; isDefault: boolean }[];
   interestCount: number;
 }
 

@@ -122,7 +122,14 @@ export class CollectionService {
             select: {
               id: true,
               isReprint: true,
-              announcement: { select: { id: true, title: true, generalSaleDate: true } },
+              announcement: {
+                select: {
+                  id: true,
+                  title: true,
+                  generalSaleDate: true,
+                  tiers: { where: { regionId: null }, orderBy: { date: 'asc' as const }, take: 1, select: { name: true, date: true } },
+                },
+              },
             },
           },
           edition: {
@@ -362,7 +369,12 @@ export class CollectionService {
               id: true,
               isReprint: true,
               announcement: {
-                select: { id: true, title: true, generalSaleDate: true },
+                select: {
+                  id: true,
+                  title: true,
+                  generalSaleDate: true,
+                  tiers: { where: { regionId: null }, orderBy: { date: 'asc' as const }, take: 1, select: { name: true, date: true } },
+                },
               },
             },
           },
