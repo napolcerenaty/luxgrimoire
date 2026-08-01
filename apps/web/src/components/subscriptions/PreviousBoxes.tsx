@@ -168,9 +168,10 @@ function PreviousBoxesList({
 
   const hasMore = page < totalPages
 
-  // Skip status always wins over leftover content: marking a month skipped never deletes its
-  // SubscriptionMonth row (warn-don't-block in the admin UI), so a real month can still exist
-  // for an actively-skipped month — it must show as "Skipped", not its old cover/theme.
+  // Marking an already-authored month skipped deletes its SubscriptionMonth row (see
+  // markMonthSkipped), so content and an active skip should never coexist in practice — this
+  // map-then-override is defense-in-depth, not the primary path, for any row that predates that
+  // behavior or reaches this state some other way.
   const skippedByKey = new Map(skips.map((s) => [`${s.year}-${s.month}`, s]))
   const monthsWithSkipApplied: PastMonth[] = allMonths.map((m) => {
     const skip = skippedByKey.get(`${m.year}-${m.month}`)

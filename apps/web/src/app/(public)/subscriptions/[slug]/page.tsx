@@ -82,21 +82,27 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
   const currentMonth = months.find(
     (m) => m.year === nowYear && m.month === nowMonth,
   )
-  // upcoming = earliest future month (sort ascending to find the next one, not the last)
-  const upcomingMonth = [...months]
-    .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))
-    .find((m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth))
 
-  // Company-wide skips (SubscriptionMonthSkip) — checked FIRST and takes priority over real
-  // content: marking a month skipped never deletes its SubscriptionMonth row (warn-don't-block
-  // in the admin UI), so `currentMonth`/`upcomingMonth` can still be non-null for a skipped
-  // month. The whole point of the feature is "this box doesn't happen" regardless of whatever
-  // content was pre-authored, so the skip must win the display, not the leftover content.
+  // Company-wide skips (SubscriptionMonthSkip). A skip on an already-authored month deletes its
+  // SubscriptionMonth row (see markMonthSkipped), so content and an active skip never coexist —
+  // "upcoming" has to be resolved from a merged timeline of both, not just `months`, or a skip
+  // would silently be invisible: `months` alone would just skip past the gap it left behind and
+  // surface whatever real content comes after it, hiding the fact that the very next box doesn't
+  // happen. The nearest future item — whichever kind it is — is what "upcoming" means.
   const skippedByKey = new Map((sub.skippedMonths ?? []).map((s) => [`${s.year}-${s.month}`, s]))
   const currentSkip = skippedByKey.get(`${nowYear}-${nowMonth}`) ?? null
-  const nextCalMonth = nowMonth === 12 ? 1 : nowMonth + 1
-  const nextCalYear = nowMonth === 12 ? nowYear + 1 : nowYear
-  const upcomingSkip = skippedByKey.get(`${nextCalYear}-${nextCalMonth}`) ?? null
+
+  const futureMonths = months
+    .filter((m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth))
+    .map((m) => ({ year: m.year, month: m.month, kind: 'content' as const, data: m }))
+  const futureSkips = (sub.skippedMonths ?? [])
+    .filter((s) => s.year > nowYear || (s.year === nowYear && s.month > nowMonth))
+    .map((s) => ({ year: s.year, month: s.month, kind: 'skip' as const, data: s }))
+  const nextUpcoming = [...futureMonths, ...futureSkips]
+    .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))[0]
+
+  const upcomingMonth = nextUpcoming?.kind === 'content' ? nextUpcoming.data : undefined
+  const upcomingSkip = nextUpcoming?.kind === 'skip' ? nextUpcoming.data : null
 
   // Bundle subscription: compute current and upcoming bundle windows
   const isBundleSubscription = (sub as unknown as { isBundleSubscription?: boolean }).isBundleSubscription ?? false
