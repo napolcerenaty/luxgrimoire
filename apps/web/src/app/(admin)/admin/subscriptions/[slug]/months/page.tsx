@@ -253,9 +253,10 @@ interface MonthCardProps {
   highlighted?: boolean
   skipped?: MonthSkip | null
   isBundleSubscription?: boolean | null
+  isContentStream?: boolean | null
 }
 
-function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage, onRefresh, highlighted, skipped, isBundleSubscription }: MonthCardProps) {
+function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompanyId, defaultPrice, renewalDay, renewalDayUserSet, renewalMonthOffset, defaultLanguage, onRefresh, highlighted, skipped, isBundleSubscription, isContentStream }: MonthCardProps) {
   const queryClient = useQueryClient()
   const qKey = ['admin', 'subscriptions', slug, 'months']
   const skipsQKey = ['admin', 'subscriptions', slug, 'month-skips']
@@ -280,7 +281,8 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
     const contentNote = month.books.length > 0
       ? `its theme/cover and ${month.books.length} linked book${month.books.length !== 1 ? 's' : ''}`
       : 'its theme/cover'
-    if (confirm(`Skipping ${monthLabel} will permanently delete ${contentNote}. This cannot be undone. Continue?`)) {
+    const scopeNote = isContentStream ? ' This also applies to the whole content stream — every variant.' : ''
+    if (confirm(`Skipping ${monthLabel} will permanently delete ${contentNote}. This cannot be undone.${scopeNote} Continue?`)) {
       markSkippedMutation.mutate()
     }
   }
@@ -392,7 +394,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               >{deleteMutation.isPending ? '…' : 'Delete'}</button>
               {skipped ? (
                 <button
-                  onClick={() => { if (confirm(`Unskip ${monthLabel}? This applies to the whole content stream — every variant.`)) unmarkSkippedMutation.mutate() }}
+                  onClick={() => { if (confirm(unskipConfirmMessage(monthLabel, isContentStream))) unmarkSkippedMutation.mutate() }}
                   disabled={unmarkSkippedMutation.isPending}
                   className={`${BTN_SM} bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50`}
                 >{unmarkSkippedMutation.isPending ? '…' : 'Unskip'}</button>
@@ -426,6 +428,11 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
           <p className="text-red-400 text-xs bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">
             This month already has content — skipping will <strong>permanently delete</strong> its theme, cover image{month.books.length > 0 ? `, and ${month.books.length} linked book${month.books.length !== 1 ? 's' : ''}` : ''}. This cannot be undone.
           </p>
+          {isContentStream && (
+            <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
+              This subscription is a content stream — skipping applies to every variant that shares it.
+            </p>
+          )}
           {isBundleSubscription && (
             <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
               This is a bundle — skipping one month still ships whatever content remains in the bundle, it doesn&apos;t stop the bundle itself. Company-wide skip of a single bundle month isn&apos;t specially modeled; verify the result manually.
@@ -1318,6 +1325,15 @@ function reportSkipRecompute(result: SkipRecomputeSummary) {
   }
 }
 
+// The "every variant" caveat only makes sense for a subscription that's actually a content
+// stream with variants — for a standalone subscription it's just confusing noise implying
+// siblings that don't exist.
+function unskipConfirmMessage(monthLabel: string, isContentStream?: boolean | null) {
+  return isContentStream
+    ? `Unskip ${monthLabel}? This applies to the whole content stream — every variant.`
+    : `Unskip ${monthLabel}?`
+}
+
 /** Mirrors the backend resolveEffectiveBasePrice — returns the most recent price change
  *  effective at or before (year, month), or fallback if none applies. */
 function resolveEffectivePrice(
@@ -1344,9 +1360,10 @@ function resolveEffectivePrice(
 // count) that treat "a row exists" as "real content exists" — a content-less placeholder row
 // would silently break those. Keeping skip state in its own table keeps that blast radius at
 // exactly the places that were deliberately built to be skip-aware.
-function MarkMonthSkippedForm({ slug, isBundleSubscription, onChange }: {
+function MarkMonthSkippedForm({ slug, isBundleSubscription, isContentStream, onChange }: {
   slug: string
   isBundleSubscription?: boolean | null
+  isContentStream?: boolean | null
   onChange: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -1376,6 +1393,11 @@ function MarkMonthSkippedForm({ slug, isBundleSubscription, onChange }: {
 
       {open && (
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 mt-3 space-y-3">
+          {isContentStream && (
+            <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
+              This subscription is a content stream — skipping applies to every variant that shares it.
+            </p>
+          )}
           {isBundleSubscription && (
             <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
               This is a bundle — skipping one month still ships whatever content remains in the bundle, it doesn&apos;t stop the bundle itself. Company-wide skip of a single bundle month isn&apos;t specially modeled; verify the result manually.
@@ -1414,13 +1436,14 @@ function MarkMonthSkippedForm({ slug, isBundleSubscription, onChange }: {
 // Sits in the same chronological list as MonthCard, at its correct position, rather than in a
 // separate section — there's no real month row to edit/add-books-to/delete, so this is a
 // deliberately thinner sibling to MonthCard, not a reuse of it.
-function SkippedMonthOnlyCard({ slug, year, month, reason, onChange, highlighted }: {
+function SkippedMonthOnlyCard({ slug, year, month, reason, onChange, highlighted, isContentStream }: {
   slug: string
   year: number
   month: number
   reason: string | null
   onChange: () => void
   highlighted?: boolean
+  isContentStream?: boolean | null
 }) {
   const monthLabel = `${MONTH_NAMES[month - 1]} ${year}`
 
@@ -1440,7 +1463,7 @@ function SkippedMonthOnlyCard({ slug, year, month, reason, onChange, highlighted
         <p className="text-amber-500/80 text-sm mt-0.5">{reason || 'No reason given.'}</p>
       </div>
       <button
-        onClick={() => { if (confirm(`Unskip ${monthLabel}? This applies to the whole content stream — every variant.`)) unmarkMutation.mutate() }}
+        onClick={() => { if (confirm(unskipConfirmMessage(monthLabel, isContentStream))) unmarkMutation.mutate() }}
         disabled={unmarkMutation.isPending}
         className={`${BTN_SM} bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 shrink-0`}
       >{unmarkMutation.isPending ? '…' : 'Unskip'}</button>
@@ -1688,6 +1711,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           <MarkMonthSkippedForm
             slug={slug}
             isBundleSubscription={subscription.isBundleSubscription}
+            isContentStream={subscription.isContentStream}
             onChange={invalidateSkips}
           />
         )}
@@ -1719,6 +1743,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 highlighted={highlightKey === `${item.data.year}-${item.data.month}`}
                 skipped={skipsByKey.get(skipKey(item.data.year, item.data.month)) ?? null}
                 isBundleSubscription={subscription?.isBundleSubscription}
+                isContentStream={subscription?.isContentStream}
               />
             ) : (
               <SkippedMonthOnlyCard
@@ -1729,6 +1754,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 reason={item.data.reason}
                 onChange={invalidateSkips}
                 highlighted={highlightKey === `${item.year}-${item.month}`}
+                isContentStream={subscription?.isContentStream}
               />
             ))}
             {currentPage < totalPages && (
