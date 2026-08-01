@@ -184,12 +184,17 @@ describe('SubscriptionsService — markMonthSkipped', () => {
     (prisma.subscriptionMonth.findUnique as jest.Mock).mockResolvedValueOnce({
       id: 'month-1', coverImage: 'cover-public-id', spoilerImage: null, books: [{ id: 'mb-1' }],
     });
+    (prisma.subscriptionMonthBook.findMany as jest.Mock).mockResolvedValueOnce([{ editionId: 'edition-1' }]);
     (prisma.subscriptionMonth.delete as jest.Mock).mockResolvedValueOnce({ id: 'month-1' });
+    (prisma.subscriptionMonthBook.findFirst as jest.Mock).mockResolvedValueOnce(null);
     (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([]);
 
     await service.markMonthSkipped(PARENT_SLUG, YEAR, MONTH, undefined, ADMIN_ID, true);
 
     expect(prisma.subscriptionMonth.delete).toHaveBeenCalledWith({ where: { id: 'month-1' } });
+    // The deleted month's linked edition has no other links left — its stale "from a
+    // subscription" flag gets cleared, not just the month/join rows.
+    expect(prisma.bookEdition.updateMany).toHaveBeenCalledWith({ where: { id: 'edition-1' }, data: { subscriptionId: null } });
     expect(prisma.subscriptionMonthSkip.upsert).toHaveBeenCalledTimes(1);
   });
 

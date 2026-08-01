@@ -1534,12 +1534,35 @@ export class SubscriptionsService {
     return deleted;
   }
 
+  /** BookEdition.subscriptionId is a denormalized "which subscription is this from" flag —
+   *  addBookToMonth backfills it, but nothing pointed at it undoes that on removal, so it kept
+   *  reading as "part of a subscription" long after the last SubscriptionMonthBook linking it
+   *  was gone. Clears it only when truly orphaned — an edition can be (or have been) linked from
+   *  more than one month, so removing one link isn't enough on its own to unset the flag. */
+  private async unsetEditionSubscriptionFlagIfOrphaned(editionId: string): Promise<void> {
+    const stillLinked = await this.prisma.subscriptionMonthBook.findFirst({ where: { editionId } });
+    if (!stillLinked) {
+      await this.prisma.bookEdition.updateMany({ where: { id: editionId }, data: { subscriptionId: null } });
+    }
+  }
+
   /** Shared by deleteMonth and markMonthSkipped: deletes a SubscriptionMonth row, its cover/
-   *  spoiler images, and (via the row's own cascade) any linked SubscriptionMonthBook rows. */
+   *  spoiler images, and (via the row's own cascade) any linked SubscriptionMonthBook rows —
+   *  then clears BookEdition.subscriptionId for any edition left with no remaining link at all. */
   private async deleteMonthRow(existing: { id: string; coverImage: string | null; spoilerImage: string | null }) {
     await this.uploadService.deleteImages([existing.coverImage, existing.spoilerImage]);
 
+    const linkedEditionIds = (await this.prisma.subscriptionMonthBook.findMany({
+      where: { monthId: existing.id },
+      select: { editionId: true },
+    })).map((b) => b.editionId);
+
     const deleted = await this.prisma.subscriptionMonth.delete({ where: { id: existing.id } });
+
+    // Awaited, not fire-and-forget: this is a data-integrity fix (a stale "from a subscription"
+    // flag), not cosmetic cleanup like the image deletion below — it should be done by the time
+    // this call returns, not "eventually".
+    await Promise.all([...new Set(linkedEditionIds)].map((id) => this.unsetEditionSubscriptionFlagIfOrphaned(id)));
 
     // Clean up orphaned media assets after record is deleted
     for (const publicId of [existing.coverImage, existing.spoilerImage]) {
@@ -1774,6 +1797,7 @@ export class SubscriptionsService {
     }
 
     const result = await this.prisma.subscriptionMonthBook.delete({ where: { id: monthBookId } });
+    await this.unsetEditionSubscriptionFlagIfOrphaned(existing.editionId);
     void this.invalidateMonthsCache(subscriptionSlug);
     void this.invalidateCatalogMonthCaches();
     return result;
