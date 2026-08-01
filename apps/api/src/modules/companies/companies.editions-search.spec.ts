@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UploadService } from '../upload/upload.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
+import { EditionsService } from '../editions/editions.service';
 import { CompaniesService } from './companies.service';
 
 describe('CompaniesService.getEditions — server-side search', () => {
@@ -15,9 +16,11 @@ describe('CompaniesService.getEditions — server-side search', () => {
     const uploadService = mockDeep<UploadService>();
     const typesense = mockDeep<TypesenseService>();
     const mediaAssetsService = mockDeep<MediaAssetsService>();
+    const editionsService = mockDeep<EditionsService>();
+    editionsService.resolveEditionSaleDates.mockResolvedValue(new Map());
     cache = { get: jest.fn(), set: jest.fn(), del: jest.fn(), reset: jest.fn() };
 
-    service = new CompaniesService(prisma, typesense, uploadService, mediaAssetsService, cache as any);
+    service = new CompaniesService(prisma, typesense, uploadService, mediaAssetsService, editionsService, cache as any);
 
     (prisma.bookBoxCompany.findUnique as jest.Mock).mockResolvedValue({ id: 'company-1' });
     (prisma.bookEdition.count as jest.Mock).mockResolvedValue(0);

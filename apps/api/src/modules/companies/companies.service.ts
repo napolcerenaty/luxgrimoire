@@ -11,6 +11,7 @@ import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
+import { EditionsService } from '../editions/editions.service';
 
 const COMPANY_SLUG_TTL = 24 * 60 * 60 * 1000; // 24 hours — explicit invalidation on all writes
 const COMPANY_EDITIONS_COUNT_TTL = 2 * 60 * 60 * 1000; // 2 hours — total count cache per filter
@@ -47,6 +48,7 @@ export class CompaniesService {
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
     private readonly mediaAssetsService: MediaAssetsService,
+    private readonly editionsService: EditionsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -361,6 +363,12 @@ export class CompaniesService {
     });
     if (!company) throw new NotFoundException(`Company '${slug}' not found`);
 
+    // generalSaleDate is a legacy scalar column the sale-tier redesign stopped populating —
+    // ordering by it left every edition null (nulls: 'last' is a no-op), silently falling back
+    // to DB insertion order. The real "earliest availability date" now lives across the
+    // EditionSaleDate/SaleTier tables (resolveEditionSaleDates), which Prisma can't `orderBy`
+    // directly since it's a one-to-many relation — resolve + sort in application code instead,
+    // then paginate the already-sorted list.
     const editions = await this.prisma.bookEdition.findMany({
       where: {
         bookBoxCompanyId: company.id,
@@ -376,6 +384,7 @@ export class CompaniesService {
         variantLabel: true,
         collectionId: true,
         subscriptionId: true,
+        createdAt: true,
         collection: { select: { id: true, name: true, slug: true } },
         communityImages: {
           where: { status: 'APPROVED' },
@@ -398,13 +407,17 @@ export class CompaniesService {
           },
         },
       },
-      orderBy: { generalSaleDate: { sort: 'desc', nulls: 'last' } },
-      skip,
-      take,
     });
 
-    return editions.map((e) => {
-      const { communityImages, ...rest } = e;
+    const resolvedDates = await this.editionsService.resolveEditionSaleDates(editions.map((e) => e.id));
+    const sorted = [...editions].sort((a, b) => {
+      const dateA = resolvedDates.get(a.id)?.date ?? a.createdAt;
+      const dateB = resolvedDates.get(b.id)?.date ?? b.createdAt;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
+
+    return sorted.slice(skip, skip + take).map((e) => {
+      const { communityImages, createdAt, ...rest } = e;
       return {
         ...rest,
         communityPhotoCover: (e.additionalImages as string[]).length === 0
