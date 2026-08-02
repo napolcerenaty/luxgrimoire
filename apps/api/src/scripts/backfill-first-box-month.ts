@@ -70,7 +70,7 @@ runScript('backfill-first-box-month', async app => {
         id: true,
         parentSubscriptionId: true,
         isCombo: true,
-        componentIds: true,
+        comboComponents: { select: { componentId: true } },
         renewalDay: true,
         renewalMonthOffset: true,
         signupIncludesCurrentMonth: true,
@@ -81,7 +81,10 @@ runScript('backfill-first-box-month', async app => {
     }) as any
     if (!sub) continue
 
-    const monthsSubscriptionIds = await resolveMonthsSubscriptionIds(prisma, sub)
+    // componentIds isn't a raw column — findBySlug derives it from the comboComponents relation
+    // (see subscriptions.service.ts) the same way.
+    const componentIds: string[] = (sub.comboComponents ?? []).map((c: { componentId: string }) => c.componentId)
+    const monthsSubscriptionIds = await resolveMonthsSubscriptionIds(prisma, { ...sub, componentIds })
 
     let year: number | null = null
     let month: number | null = null
