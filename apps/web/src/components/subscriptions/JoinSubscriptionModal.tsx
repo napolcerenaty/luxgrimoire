@@ -16,9 +16,14 @@ import {
   resolveBackfillFallbackPrice,
   computeFirstBillingMonth,
   isGrandfatheredExcluded,
+  buildFirstBoxCandidates,
+  applyFirstBoxChoice,
   type PriceChangeRecord,
   type ComputedBatch,
+  type FirstBoxCandidates,
+  type BoxCandidate,
 } from '@/lib/joinSubscription.utils'
+import { bundleRangeLabel } from '@/lib/bundleHelpers'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -117,6 +122,11 @@ interface JoinResult {
     basePrice: string | null
   }
   eligibleMonths: SubscriptionMonth[]
+  /** One box unit's worth of months immediately before the default first box (see below) — empty if none. */
+  previousBoxMonths?: SubscriptionMonth[]
+  /** The server's date-anchored default first box month — the "current" candidate in the picker step. */
+  defaultFirstBoxYear?: number | null
+  defaultFirstBoxMonth?: number | null
 }
 
 interface Props {
@@ -192,6 +202,9 @@ interface JoinSubscriptionData {
   cancellationDate?: string
   cancellationReason?: string
   selectedPrepayOptionId: string | null
+  /** Set once the mandatory "choose your first box" step is confirmed — see StepChooseFirstBox. */
+  firstBoxYear?: number
+  firstBoxMonth?: number
 }
 
 interface Step1Props {
@@ -902,6 +915,119 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         Continue
       </button>
     </form>
+  )
+}
+
+// ── Step ChooseFirstBox: mandatory first-box month picker ───────────────────
+//
+// Renewal-day/signupIncludesCurrentMonth cycle math drifts over time (settings history bug
+// fixes, historical corrections) — the same entry can compute a different "first box" on every
+// recompute. Instead of trusting that formula live, we show the user a calculated default plus
+// the adjacent box (earlier/later) and let them confirm which one was actually theirs; the choice
+// gets saved on the entry and reused everywhere the app needs "first box month" from then on.
+// Always shown — no skip button — for every subscription type, including bundles.
+
+interface ChooseFirstBoxProps {
+  eligibleMonths: SubscriptionMonth[]
+  previousBoxMonths: SubscriptionMonth[]
+  defaultFirstBoxYear: number
+  defaultFirstBoxMonth: number
+  isBundleMode: boolean
+  intervalMonths: number
+  startingMonth: number
+  onConfirm: (firstBoxYear: number, firstBoxMonth: number, adjustedEligibleMonths: SubscriptionMonth[]) => void
+  onBack: () => void
+}
+
+function candidateBookTitles(candidate: BoxCandidate, monthMap: Map<string, SubscriptionMonth>): string[] {
+  const titles = new Set<string>()
+  for (const id of candidate.monthIds) {
+    const m = monthMap.get(id)
+    if (!m) continue
+    for (const b of m.books) {
+      const title = editionDisplayTitle(b.edition)
+      if (title) titles.add(title)
+    }
+  }
+  return Array.from(titles)
+}
+
+function candidateLabel(candidate: BoxCandidate, isBundleMode: boolean, intervalMonths: number): string {
+  return isBundleMode
+    ? bundleRangeLabel(candidate.year, candidate.month, intervalMonths)
+    : `${MONTH_NAMES[candidate.month - 1]} ${candidate.year}`
+}
+
+function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, defaultFirstBoxYear, defaultFirstBoxMonth, isBundleMode, intervalMonths, startingMonth, onConfirm, onBack }: ChooseFirstBoxProps) {
+  const candidates: FirstBoxCandidates = buildFirstBoxCandidates(
+    eligibleMonths, previousBoxMonths, defaultFirstBoxYear, defaultFirstBoxMonth, isBundleMode, intervalMonths, startingMonth,
+  )
+  const [choice, setChoice] = useState<'previous' | 'current' | 'next'>('current')
+
+  const monthMap = new Map<string, SubscriptionMonth>([...previousBoxMonths, ...eligibleMonths].map(m => [m.id, m]))
+
+  function submit() {
+    const selected = candidates[choice]
+    const adjusted = applyFirstBoxChoice(choice, eligibleMonths, previousBoxMonths, candidates)
+    onConfirm(selected.year, selected.month, adjusted)
+  }
+
+  const options: { key: 'previous' | 'current' | 'next'; candidate: BoxCandidate | null }[] = [
+    { key: 'previous', candidate: candidates.previous },
+    { key: 'current', candidate: candidates.current },
+    { key: 'next', candidate: candidates.next },
+  ]
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-serif text-stone-100 font-semibold">Which was your first box?</h3>
+        <button onClick={onBack} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
+      </div>
+      <p className="text-sm text-stone-400">
+        We calculated a default from your join date, but renewal timing can shift over time — confirm the month your subscription actually started with.
+      </p>
+      <div className="space-y-2">
+        {options.map(({ key, candidate }) => {
+          if (!candidate) return null
+          const titles = candidateBookTitles(candidate, monthMap)
+          const label = candidateLabel(candidate, isBundleMode, intervalMonths)
+          return (
+            <label
+              key={key}
+              className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${choice === key ? 'border-amber-500 bg-amber-500/5' : 'border-stone-700 hover:border-stone-500'}`}
+            >
+              <input
+                type="radio"
+                name="firstBoxChoice"
+                checked={choice === key}
+                onChange={() => setChoice(key)}
+                className="mt-1 text-amber-600 focus:ring-amber-600/30"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-stone-100">{label}</span>
+                  {key === 'current' && (
+                    <span className="text-[10px] uppercase tracking-wide text-amber-500/80">Suggested</span>
+                  )}
+                </div>
+                {titles.length > 0 ? (
+                  <p className="text-xs text-stone-400 mt-0.5">{titles.join(', ')}</p>
+                ) : (
+                  <p className="text-xs text-stone-600 mt-0.5 italic">Not yet announced</p>
+                )}
+              </div>
+            </label>
+          )
+        })}
+      </div>
+      <button
+        onClick={submit}
+        className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+      >
+        Continue
+      </button>
+    </div>
   )
 }
 
@@ -2027,8 +2153,9 @@ export default function JoinSubscriptionModal({
   onJoined,
   onClose,
 }: Props) {
-  const [step, setStep] = useState<1 | 2 | 3 | 'done'>(1)
+  const [step, setStep] = useState<1 | 'chooseFirstBox' | 2 | 3 | 'done'>(1)
   const [joinResult, setJoinResult] = useState<JoinResult | null>(null)
+  const [finalEligibleMonths, setFinalEligibleMonths] = useState<SubscriptionMonth[] | null>(null)
   const [step2Data, setStep2Data] = useState<{ selectedMonthIds: string[]; bookPrices: Record<string, string>; backfillOwnershipStatus: 'OWNED' | 'PREORDER'; choicePicks: Record<string, string[]> } | null>(null)
   const [step1Fees, setStep1Fees] = useState<{ name: string; amount: string; currency: string }[]>([])
   const [step1PriceChanges, setStep1PriceChanges] = useState<PriceChange[]>([])
@@ -2079,20 +2206,36 @@ export default function JoinSubscriptionModal({
         setStep1SelectedPrepayOption(null)
       }
 
-      if (result.eligibleMonths.length > 0) {
-        setStep(2)
-      } else {
-        // No past months: do the real join immediately and finish
-        await performRealJoin(joinPayload, data.selectedPrepayOptionId ?? null)
-        setStep('done')
-        onJoined()
-      }
+      // Mandatory first-box picker step always comes next — regardless of subscription type
+      // (monthly, bundle, prepay) and regardless of whether there's anything to backfill yet.
+      setStep('chooseFirstBox')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to join')
     } finally {
       setJoining(false)
     }
-  }, [subscriptionSlug, onJoined])
+  }, [subscriptionSlug])
+
+  const handleChooseFirstBox = useCallback(async (firstBoxYear: number, firstBoxMonth: number, adjustedEligibleMonths: SubscriptionMonth[]) => {
+    setStep1JoinPayload(prev => prev ? { ...prev, firstBoxYear, firstBoxMonth } : prev)
+    setFinalEligibleMonths(adjustedEligibleMonths)
+    if (adjustedEligibleMonths.length > 0) {
+      setStep(2)
+    } else if (step1JoinPayload) {
+      // Nothing to backfill: do the real join immediately and finish
+      setJoining(true)
+      try {
+        await performRealJoin({ ...step1JoinPayload, firstBoxYear, firstBoxMonth })
+        setStep('done')
+        onJoined()
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to join')
+      } finally {
+        setJoining(false)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step1JoinPayload, onJoined])
 
   /** Executes the real join (creates subscription entry with prepaidMonths + scheduledPrepayOptionId set atomically) */
   const performRealJoin = useCallback(async (
@@ -2148,9 +2291,23 @@ export default function JoinSubscriptionModal({
           </>
         )}
 
-        {!joining && step === 2 && joinResult && joinResult.eligibleMonths.length > 0 && (
-          <Step2
+        {!joining && step === 'chooseFirstBox' && joinResult && (
+          <StepChooseFirstBox
             eligibleMonths={joinResult.eligibleMonths}
+            previousBoxMonths={joinResult.previousBoxMonths ?? []}
+            defaultFirstBoxYear={joinResult.defaultFirstBoxYear ?? new Date().getFullYear()}
+            defaultFirstBoxMonth={joinResult.defaultFirstBoxMonth ?? new Date().getMonth() + 1}
+            isBundleMode={(isBundleSubscription ?? false) && (intervalMonths ?? 1) > 1}
+            intervalMonths={intervalMonths ?? 1}
+            startingMonth={startingMonth ?? 1}
+            onConfirm={handleChooseFirstBox}
+            onBack={() => setStep(1)}
+          />
+        )}
+
+        {!joining && step === 2 && joinResult && finalEligibleMonths && finalEligibleMonths.length > 0 && (
+          <Step2
+            eligibleMonths={finalEligibleMonths}
             subscriptionSlug={subscriptionSlug}
             entry={joinResult.entry}
             hasPrepayOptions={(prepayOptions?.length ?? 0) > 0}
@@ -2158,7 +2315,7 @@ export default function JoinSubscriptionModal({
             intervalMonths={intervalMonths}
             startingMonth={startingMonth}
             onDone={() => { setStep('done'); onJoined() }}
-            onBack={() => setStep(1)}
+            onBack={() => setStep('chooseFirstBox')}
             onSkip={async () => {
               if (step1JoinPayload) {
                 try { await performRealJoin(step1JoinPayload) } catch { /* ignore */ }
@@ -2171,14 +2328,14 @@ export default function JoinSubscriptionModal({
                   setStep2Data(data)
                   if (step1SelectedPrepayOption && data.selectedMonthIds.length < step1SelectedPrepayOption.months) {
                     // Partial prepay period — skip step 3, backfill months+skips without billing batches
-                    const skippedMonthIds = (joinResult?.eligibleMonths ?? [])
+                    const skippedMonthIds = (finalEligibleMonths ?? [])
                       .filter(m => !data.selectedMonthIds.includes(m.id))
                       .map(m => m.id)
                     const doJoinAndBackfill = async () => {
                       if (step1JoinPayload) {
                         await performRealJoin(step1JoinPayload)
                       }
-                      await submitChoicePicks(subscriptionSlug, joinResult?.eligibleMonths ?? [], data.selectedMonthIds, data.choicePicks)
+                      await submitChoicePicks(subscriptionSlug, finalEligibleMonths ?? [], data.selectedMonthIds, data.choicePicks)
                       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -2201,7 +2358,7 @@ export default function JoinSubscriptionModal({
           />
         )}
 
-        {!joining && step === 3 && joinResult && step2Data && (step1SelectedPrepayOption || (prepayOptions?.length ?? 0) > 0) && (
+        {!joining && step === 3 && joinResult && step2Data && finalEligibleMonths && (step1SelectedPrepayOption || (prepayOptions?.length ?? 0) > 0) && (
           <Step3
             selectedMonthIds={step2Data.selectedMonthIds}
             bookPrices={step2Data.bookPrices}
@@ -2212,7 +2369,7 @@ export default function JoinSubscriptionModal({
             subscriptionSlug={subscriptionSlug}
             entryFees={step1Fees}
             entry={joinResult.entry}
-            eligibleMonths={joinResult.eligibleMonths}
+            eligibleMonths={finalEligibleMonths}
             onDone={() => { setStep('done'); onJoined() }}
             onBack={() => setStep(2)}
             onBeforeBackfill={step1JoinPayload

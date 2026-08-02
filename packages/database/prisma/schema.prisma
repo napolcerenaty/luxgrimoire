@@ -961,6 +961,10 @@ model UserSubscriptionEntry {
   trackingNumber     String?
   scheduledPrepayOptionId String?
   isForwarding            Boolean                            @default(false)
+  // User-confirmed first box month (join flow's mandatory picker step). Null until set —
+  // falls back to computeFirstEligibleBoxMonth() everywhere it's read. See resolveFirstBoxMonth.
+  firstBoxYear       Int?
+  firstBoxMonth      Int?
   skipRecords        UserSkipRecord[]
   billingPeriods     UserSubBillingPeriod[]
   tags               UserSubEntryTag[]

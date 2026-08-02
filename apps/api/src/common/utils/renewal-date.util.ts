@@ -609,6 +609,104 @@ export async function getSubscriptionMonthSkips(
 }
 
 /**
+ * Determines a subscriber's first box month purely from the join date's calendar position and
+ * *actual* released content — no renewal-day/signupIncludesCurrentMonth/renewalMonthOffset cycle
+ * math. This replaces computeFirstEligibleBoxMonth as the live default: that formula depends on
+ * settings that drift over time (bug fixes, historical corrections), so the same entry could get a
+ * different answer on every recompute. This function is naturally gap-aware too — a company-wide
+ * skipped month/bundle has no SubscriptionMonth row at all, so it's skipped over automatically by
+ * only ever landing on real content.
+ *
+ * Algorithm: the naive unit containing the join date (one calendar month, or — for bundle
+ * subscriptions — the bundle cycle containing it) is the answer if it has real content. If that
+ * unit is a full company-wide skip (zero rows), shift forward to the nearest unit that does.
+ * `subscriptionIds` supports combo subscriptions, whose content lives on component subscriptions.
+ */
+export async function computeDateAnchoredFirstBoxMonth(
+  prisma: PrismaService,
+  subscriptionIds: string[],
+  joinDate: Date,
+  intervalMonths = 1,
+  startingMonth = 1,
+): Promise<{ year: number; month: number }> {
+  const joinYear = joinDate.getFullYear();
+  const joinMonth = joinDate.getMonth() + 1;
+  const naiveStart = intervalMonths > 1
+    ? getBundleBoxStart(joinYear, joinMonth, startingMonth, intervalMonths)
+    : { year: joinYear, month: joinMonth };
+
+  const nextReal = await prisma.subscriptionMonth.findFirst({
+    where: {
+      subscriptionId: { in: subscriptionIds },
+      OR: [
+        { year: { gt: naiveStart.year } },
+        { year: naiveStart.year, month: { gte: naiveStart.month } },
+      ],
+    },
+    orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    select: { year: true, month: true },
+  });
+
+  if (!nextReal) return naiveStart;
+
+  return intervalMonths > 1
+    ? getBundleBoxStart(nextReal.year, nextReal.month, startingMonth, intervalMonths)
+    : { year: nextReal.year, month: nextReal.month };
+}
+
+/**
+ * The box unit immediately before (startYear, startMonth) that has real content, gap-aware (walks
+ * back past any number of fully company-skipped units — mirrors computeDateAnchoredFirstBoxMonth's
+ * forward shift). Returns null when nothing earlier exists (subscription launch, or entirely
+ * skipped history before this point) — the join modal's picker hides the "previous" option then.
+ */
+export async function getPreviousBoxUnitStart(
+  prisma: PrismaService,
+  subscriptionIds: string[],
+  startYear: number,
+  startMonth: number,
+  intervalMonths = 1,
+  startingMonth = 1,
+): Promise<{ year: number; month: number } | null> {
+  const prevReal = await prisma.subscriptionMonth.findFirst({
+    where: {
+      subscriptionId: { in: subscriptionIds },
+      OR: [
+        { year: { lt: startYear } },
+        { year: startYear, month: { lt: startMonth } },
+      ],
+    },
+    orderBy: [{ year: 'desc' }, { month: 'desc' }],
+    select: { year: true, month: true },
+  });
+  if (!prevReal) return null;
+
+  return intervalMonths > 1
+    ? getBundleBoxStart(prevReal.year, prevReal.month, startingMonth, intervalMonths)
+    : { year: prevReal.year, month: prevReal.month };
+}
+
+/**
+ * Resolves an entry's first box month: the user-confirmed value if the join flow's mandatory
+ * picker step saved one, otherwise the date-anchored default (only reachable for entries created
+ * before this feature, until the one-off backfill script runs — see project memory).
+ */
+export async function resolveFirstBoxMonth(
+  prisma: PrismaService,
+  entry: { firstBoxYear: number | null; firstBoxMonth: number | null; startDate: string | Date | null },
+  subscriptionIds: string[],
+  intervalMonths = 1,
+  startingMonth = 1,
+): Promise<{ year: number; month: number } | null> {
+  if (entry.firstBoxYear != null && entry.firstBoxMonth != null) {
+    return { year: entry.firstBoxYear, month: entry.firstBoxMonth };
+  }
+  if (!entry.startDate) return null;
+  const joinDate = entry.startDate instanceof Date ? entry.startDate : new Date(entry.startDate);
+  return computeDateAnchoredFirstBoxMonth(prisma, subscriptionIds, joinDate, intervalMonths, startingMonth);
+}
+
+/**
  * Recomputes and persists nextRenewalDate for a given entry.
  * Call this after: join, skip, unskip, cancel.
  */
@@ -624,6 +722,8 @@ export async function refreshNextRenewalDate(
       startDate: true,
       renewalDay: true,
       prepaidMonths: true,
+      firstBoxYear: true,
+      firstBoxMonth: true,
       scheduledPrepayOptionId: true,
       scheduledPrepayOption: { select: { months: true } },
       skipRecords: {
@@ -739,35 +839,23 @@ export async function refreshNextRenewalDate(
   });
   const skippedMonths = [...personalSkippedMonths, ...companySkippedMonths];
 
-  // For paymentOnStartup: determine which month was already paid at signup
+  // For paymentOnStartup: determine which month was already paid at signup — same "first box
+  // month" as the join modal's picker, so use the same resolver (user's saved choice, or the
+  // date-anchored default for entries that predate it).
   let paidUpFrontDate: Date | null = null;
   if (effectiveSettings.paymentOnStartup && entry.startDate) {
-    const joinDate = new Date(entry.startDate);
-    const { year: firstEligibleYear, month: firstEligibleMonth } = computeFirstEligibleBoxMonth(
-      joinDate,
-      renewalDay,
-      offset,
-      effectiveSettings.signupIncludesCurrentMonth,
+    const firstBox = await resolveFirstBoxMonth(
+      prisma,
+      { firstBoxYear: (entry as any).firstBoxYear ?? null, firstBoxMonth: (entry as any).firstBoxMonth ?? null, startDate: entry.startDate },
+      [sub.id],
       sub.intervalMonths ?? 1,
       sub.startingMonth ?? 1,
-      subStartDate,
     );
-    const firstSubMonth = await prisma.subscriptionMonth.findFirst({
-      where: {
-        subscriptionId: sub.id,
-        OR: [
-          { year: { gt: firstEligibleYear } },
-          { year: firstEligibleYear, month: { gte: firstEligibleMonth } },
-        ],
-      },
-      orderBy: [{ year: 'asc' }, { month: 'asc' }],
-      select: { year: true, month: true },
-    });
-    const paidYear = firstSubMonth?.year ?? firstEligibleYear;
-    const paidMonth = firstSubMonth?.month ?? firstEligibleMonth;
-    // Convert box month → renewal month (paidUpFrontDate is used to skip the already-charged renewal)
-    const [renewalYear, renewalMonth] = renewalMonthFromBoxMonth(paidYear, paidMonth, offset);
-    paidUpFrontDate = new Date(Date.UTC(renewalYear, renewalMonth - 1, renewalDay));
+    if (firstBox) {
+      // Convert box month → renewal month (paidUpFrontDate is used to skip the already-charged renewal)
+      const [renewalYear, renewalMonth] = renewalMonthFromBoxMonth(firstBox.year, firstBox.month, offset);
+      paidUpFrontDate = new Date(Date.UTC(renewalYear, renewalMonth - 1, renewalDay));
+    }
   }
 
   const prepayOption = (entry as any).scheduledPrepayOption as { months: number } | null;
