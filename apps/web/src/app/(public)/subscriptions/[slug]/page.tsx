@@ -7,7 +7,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandTextClasses } from '@/lib/brandGradient'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { Badge } from '@/components/ui/Badge'
-import type { ApiSubscription, ApiSubscriptionMonth } from '@luxgrimoire/shared-types'
+import type { ApiSubscription, ApiSubscriptionMonth, ApiSubscriptionMonthSkip } from '@luxgrimoire/shared-types'
 import MonthCard from '@/components/subscriptions/MonthCard'
 import SubscriptionInfoPanel from '@/components/subscriptions/SubscriptionInfoPanel'
 import WaitlistButton from '@/components/subscriptions/WaitlistButton'
@@ -82,10 +82,27 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
   const currentMonth = months.find(
     (m) => m.year === nowYear && m.month === nowMonth,
   )
-  // upcoming = earliest future month (sort ascending to find the next one, not the last)
-  const upcomingMonth = [...months]
-    .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))
-    .find((m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth))
+
+  // Company-wide skips (SubscriptionMonthSkip). A skip on an already-authored month deletes its
+  // SubscriptionMonth row (see markMonthSkipped), so content and an active skip never coexist —
+  // "upcoming" has to be resolved from a merged timeline of both, not just `months`, or a skip
+  // would silently be invisible: `months` alone would just skip past the gap it left behind and
+  // surface whatever real content comes after it, hiding the fact that the very next box doesn't
+  // happen. The nearest future item — whichever kind it is — is what "upcoming" means.
+  const skippedByKey = new Map((sub.skippedMonths ?? []).map((s) => [`${s.year}-${s.month}`, s]))
+  const currentSkip = skippedByKey.get(`${nowYear}-${nowMonth}`) ?? null
+
+  const futureMonths = months
+    .filter((m) => m.year > nowYear || (m.year === nowYear && m.month > nowMonth))
+    .map((m) => ({ year: m.year, month: m.month, kind: 'content' as const, data: m }))
+  const futureSkips = (sub.skippedMonths ?? [])
+    .filter((s) => s.year > nowYear || (s.year === nowYear && s.month > nowMonth))
+    .map((s) => ({ year: s.year, month: s.month, kind: 'skip' as const, data: s }))
+  const nextUpcoming = [...futureMonths, ...futureSkips]
+    .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))[0]
+
+  const upcomingMonth = nextUpcoming?.kind === 'content' ? nextUpcoming.data : undefined
+  const upcomingSkip = nextUpcoming?.kind === 'skip' ? nextUpcoming.data : null
 
   // Bundle subscription: compute current and upcoming bundle windows
   const isBundleSubscription = (sub as unknown as { isBundleSubscription?: boolean }).isBundleSubscription ?? false
@@ -135,17 +152,45 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
     ? (sub.components ?? []).filter((c) => c.component)
     : []
 
-  // Build per-component current + upcoming for combo
+  // Build per-component current + upcoming for combo, same merged content+skip timeline used
+  // for the regular (non-combo) case above — a component's own skips are otherwise invisible
+  // here, since a combo has no SubscriptionMonth rows of its own; the skip only ever lives on
+  // the component subscription being featured.
   const comboFeatured = comboComponents.map(({ component }) => {
     if (!component) return null
     const compMonths = ((component as unknown as { months?: ApiSubscriptionMonth[] }).months ?? [])
       .sort((a, b) => (b.year !== a.year ? b.year - a.year : b.month - a.month))
-    const cur = compMonths.find((m) => m.year === now.getFullYear() && m.month === now.getMonth() + 1)
-    const upc = [...compMonths]
-      .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))
-      .find((m) => m.year > now.getFullYear() || (m.year === now.getFullYear() && m.month > now.getMonth() + 1))
-    return { component: component as unknown as { id: string; slug: string; name: string }, currentMonth: cur, upcomingMonth: upc }
-  }).filter(Boolean) as { component: { id: string; slug: string; name: string }; currentMonth?: ApiSubscriptionMonth; upcomingMonth?: ApiSubscriptionMonth }[]
+    const compSkips = (component as unknown as { skippedMonths?: ApiSubscriptionMonthSkip[] }).skippedMonths ?? []
+    const compSkippedByKey = new Map(compSkips.map((s) => [`${s.year}-${s.month}`, s]))
+
+    const curYear = now.getFullYear()
+    const curMonth = now.getMonth() + 1
+    const cur = compMonths.find((m) => m.year === curYear && m.month === curMonth)
+    const curSkip = compSkippedByKey.get(`${curYear}-${curMonth}`) ?? null
+
+    const futureMonths = compMonths
+      .filter((m) => m.year > curYear || (m.year === curYear && m.month > curMonth))
+      .map((m) => ({ year: m.year, month: m.month, kind: 'content' as const, data: m }))
+    const futureSkips = compSkips
+      .filter((s) => s.year > curYear || (s.year === curYear && s.month > curMonth))
+      .map((s) => ({ year: s.year, month: s.month, kind: 'skip' as const, data: s }))
+    const nextUpcoming = [...futureMonths, ...futureSkips]
+      .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month))[0]
+
+    return {
+      component: component as unknown as { id: string; slug: string; name: string },
+      currentMonth: cur,
+      currentSkip: curSkip,
+      upcomingMonth: nextUpcoming?.kind === 'content' ? nextUpcoming.data : undefined,
+      upcomingSkip: nextUpcoming?.kind === 'skip' ? nextUpcoming.data : null,
+    }
+  }).filter(Boolean) as {
+    component: { id: string; slug: string; name: string }
+    currentMonth?: ApiSubscriptionMonth
+    currentSkip: ApiSubscriptionMonthSkip | null
+    upcomingMonth?: ApiSubscriptionMonth
+    upcomingSkip: ApiSubscriptionMonthSkip | null
+  }[]
 
   // For combo subscriptions, collect deduplicated component months for the skip panel.
   // Combo subscriptions have no own SubscriptionMonth records; months live on components.
@@ -308,31 +353,39 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
         /* Combo: all current months in one row, all upcoming in another */
         comboFeatured.length > 0 && (
           <section className="mb-12 space-y-8">
-            {comboFeatured.some((f) => f.currentMonth) && (
+            {comboFeatured.some((f) => f.currentMonth || f.currentSkip) && (
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-widest text-amber-400 mb-4">Current Month</h3>
-                <div className={`grid gap-4 ${comboFeatured.filter((f) => f.currentMonth).length === 1 ? 'grid-cols-1 max-w-xs' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.currentMonth).length, 3)} ${comboFeatured.filter((f) => f.currentMonth).length === 2 ? 'max-w-2xl' : 'max-w-4xl'}`}`}>
+                <div className={`grid gap-4 ${comboFeatured.filter((f) => f.currentMonth || f.currentSkip).length === 1 ? 'grid-cols-1 max-w-xs' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.currentMonth || f.currentSkip).length, 3)} ${comboFeatured.filter((f) => f.currentMonth || f.currentSkip).length === 2 ? 'max-w-2xl' : 'max-w-4xl'}`}`}>
                   {comboFeatured
-                    .filter((f) => f.currentMonth)
-                    .map(({ component, currentMonth: cur }) => (
+                    .filter((f) => f.currentMonth || f.currentSkip)
+                    .map(({ component, currentMonth: cur, currentSkip: curSkip }) => (
                       <div key={component.id} className="space-y-2">
                         <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">{component.name}</p>
-                        <FeaturedMonthCard compact label="Current Month" labelVariant="current" monthData={cur!} accentColors={brandColors} />
+                        {curSkip ? (
+                          <FeaturedMonthCard compact label="Current Month" labelVariant="current" monthData={{ year: curSkip.year, month: curSkip.month }} accentColors={brandColors} skipped={curSkip} />
+                        ) : (
+                          <FeaturedMonthCard compact label="Current Month" labelVariant="current" monthData={cur!} accentColors={brandColors} />
+                        )}
                       </div>
                     ))}
                 </div>
               </div>
             )}
-            {comboFeatured.some((f) => f.upcomingMonth) && (
+            {comboFeatured.some((f) => f.upcomingMonth || f.upcomingSkip) && (
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4">Upcoming Theme</h3>
-                <div className={`grid gap-4 ${comboFeatured.filter((f) => f.upcomingMonth).length === 1 ? 'grid-cols-1 max-w-xs' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.upcomingMonth).length, 3)} ${comboFeatured.filter((f) => f.upcomingMonth).length === 2 ? 'max-w-2xl' : 'max-w-4xl'}`}`}>
+                <div className={`grid gap-4 ${comboFeatured.filter((f) => f.upcomingMonth || f.upcomingSkip).length === 1 ? 'grid-cols-1 max-w-xs' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.upcomingMonth || f.upcomingSkip).length, 3)} ${comboFeatured.filter((f) => f.upcomingMonth || f.upcomingSkip).length === 2 ? 'max-w-2xl' : 'max-w-4xl'}`}`}>
                   {comboFeatured
-                    .filter((f) => f.upcomingMonth)
-                    .map(({ component, upcomingMonth: upc }) => (
+                    .filter((f) => f.upcomingMonth || f.upcomingSkip)
+                    .map(({ component, upcomingMonth: upc, upcomingSkip: upcSkip }) => (
                       <div key={component.id} className="space-y-2">
                         <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">{component.name}</p>
-                        <FeaturedMonthCard compact label="Upcoming Theme" labelVariant="upcoming" monthData={upc!} accentColors={brandColors} />
+                        {upcSkip ? (
+                          <FeaturedMonthCard compact label="Upcoming Theme" labelVariant="upcoming" monthData={{ year: upcSkip.year, month: upcSkip.month }} accentColors={brandColors} skipped={upcSkip} />
+                        ) : (
+                          <FeaturedMonthCard compact label="Upcoming Theme" labelVariant="upcoming" monthData={upc!} accentColors={brandColors} />
+                        )}
                       </div>
                     ))}
                 </div>
@@ -386,10 +439,19 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
         )
       ) : (
         /* Regular: single current + upcoming */
-        (currentMonth || upcomingMonth) && (
+        (currentMonth || upcomingMonth || currentSkip || upcomingSkip) && (
           <section className="mb-12">
-            <div className={`grid gap-6 ${currentMonth && upcomingMonth ? 'grid-cols-1 sm:grid-cols-2 max-w-2xl' : 'grid-cols-1 max-w-xs'}`}>
-              {currentMonth && (
+            <div className={`grid gap-6 ${(currentMonth || currentSkip) && (upcomingMonth || upcomingSkip) ? 'grid-cols-1 sm:grid-cols-2 max-w-2xl' : 'grid-cols-1 max-w-xs'}`}>
+              {currentSkip ? (
+                <FeaturedMonthCard
+                  compact
+                  label="Current Month"
+                  labelVariant="current"
+                  monthData={{ year: currentSkip.year, month: currentSkip.month }}
+                  accentColors={brandColors}
+                  skipped={currentSkip}
+                />
+              ) : currentMonth && (
                 <FeaturedMonthCard
                   compact
                   label="Current Month"
@@ -398,7 +460,16 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
                   accentColors={brandColors}
                 />
               )}
-              {upcomingMonth && (
+              {upcomingSkip ? (
+                <FeaturedMonthCard
+                  compact
+                  label="Upcoming Theme"
+                  labelVariant="upcoming"
+                  monthData={{ year: upcomingSkip.year, month: upcomingSkip.month }}
+                  accentColors={brandColors}
+                  skipped={upcomingSkip}
+                />
+              ) : upcomingMonth && (
                 <FeaturedMonthCard
                   compact
                   label="Upcoming Theme"
@@ -442,15 +513,47 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
 interface FeaturedMonthCardProps {
   label: string
   labelVariant: 'current' | 'upcoming'
-  monthData: ApiSubscriptionMonth
+  monthData: Pick<ApiSubscriptionMonth, 'year' | 'month'> & Partial<Omit<ApiSubscriptionMonth, 'year' | 'month'>>
   accentColors?: string[] | null
   compact?: boolean
+  // Company-wide skip (SubscriptionMonthSkip) — when set, short-circuits to a "Skipped: reason"
+  // card instead of the normal cover/theme layout. monthData in this case only has year/month.
+  skipped?: { reason: string | null } | null
 }
 
-function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compact }: FeaturedMonthCardProps) {
+function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compact, skipped }: FeaturedMonthCardProps) {
   const monthName = MONTH_NAMES[monthData.month - 1]
+
+  if (skipped) {
+    return (
+      <div className="rounded-2xl overflow-hidden bg-stone-900 border border-amber-800/40">
+        <div className={`relative flex flex-col items-center justify-center gap-2 bg-amber-950/20 ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
+          <div className="absolute top-3 left-3">
+            <span
+              className={`text-xs font-semibold font-serif uppercase tracking-wider px-3 py-1 rounded-full ${
+                labelVariant === 'current' ? 'bg-amber-500 text-stone-950' : 'bg-stone-700 text-amber-400 border border-amber-700/50'
+              }`}
+            >
+              {label}
+            </span>
+          </div>
+          <span className="text-amber-400 font-serif text-2xl">⏭</span>
+          <span className="text-amber-400 font-serif text-sm uppercase tracking-widest">Skipped</span>
+        </div>
+        <div className={compact ? 'p-3' : 'p-5'}>
+          <p className={`text-stone-100 font-serif font-bold mb-1 ${compact ? 'text-sm' : 'text-lg'}`}>
+            {monthName} {monthData.year}
+          </p>
+          <p className={`text-amber-500/90 italic ${compact ? 'text-xs' : 'text-sm'}`}>
+            {skipped.reason || 'This month is skipped — no box this cycle.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   // No c_fill — let contain work properly
-  const coverUrl = cloudinaryUrl(monthData.coverImage, 'w_900,q_auto,f_auto')
+  const coverUrl = cloudinaryUrl(monthData.coverImage ?? null, 'w_900,q_auto,f_auto')
   const mainBook = monthData.books?.find((b) => b.isMainBook) ?? monthData.books?.[0] ?? null
   const bookCoverUrl = cloudinaryUrl(
     mainBook?.edition?.additionalImages?.[0] ?? null,

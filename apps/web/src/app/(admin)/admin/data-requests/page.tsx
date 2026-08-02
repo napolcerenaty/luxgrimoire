@@ -6,9 +6,10 @@ import { Database, Trash2, RefreshCw, ExternalLink, CheckCircle, Clock, XCircle 
 import { authFetch } from '@/lib/authFetch'
 import { Pagination } from '@/components/admin/Pagination'
 
-const STATUS_OPTIONS = ['pending', 'added', 'declined']
+const STATUS_OPTIONS = ['pending', 'in_progress', 'added', 'declined']
 const STATUS_STYLES: Record<string, string> = {
   pending: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+  in_progress: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
   added: 'text-green-400 bg-green-500/10 border-green-500/30',
   declined: 'text-stone-500 bg-stone-700/30 border-stone-600/30',
 }
@@ -71,7 +72,7 @@ export default function AdminDataRequestsPage() {
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               statusFilter === s ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'text-stone-400 border-stone-700 hover:border-stone-500'
             }`}>
-            {s === '' ? 'All' : s}
+            {s === '' ? 'All' : s.replace(/_/g, ' ')}
           </button>
         ))}
       </div>
@@ -88,7 +89,7 @@ export default function AdminDataRequestsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[r.status] ?? STATUS_STYLES.pending}`}>
-                      {r.status.toUpperCase()}
+                      {r.status.replace(/_/g, ' ').toUpperCase()}
                     </span>
                     <span className="text-xs text-stone-600 bg-stone-800 px-2 py-0.5 rounded-full">{r.type}</span>
                     {r.user && <span className="text-xs text-stone-500">by {r.user.username}</span>}
@@ -112,7 +113,7 @@ export default function AdminDataRequestsPage() {
                 <div className="flex flex-col gap-1 shrink-0">
                   <select value={r.status} onChange={e => updateStatus.mutate({ id: r.id, status: e.target.value })}
                     className="text-xs bg-stone-800 border border-stone-700 rounded-lg px-2 py-1 text-stone-300 focus:outline-none focus:border-amber-500">
-                    {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                    {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
                   </select>
                   <button onClick={() => { if (confirm('Delete?')) del.mutate(r.id) }}
                     className="p-1.5 rounded-lg text-stone-600 hover:text-rose-400 hover:bg-rose-950/30 transition-colors self-end">

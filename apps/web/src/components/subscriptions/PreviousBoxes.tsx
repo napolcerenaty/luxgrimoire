@@ -24,6 +24,8 @@ interface PastMonth {
     book: { id: string; title: string; slug: string }
     edition?: { id: string; slug: string; additionalImages?: string[] | null; variantLabel?: string | null } | null
   }[]
+  // Set on synthetic entries for a company-wide skip that has no SubscriptionMonth row at all.
+  skipped?: { reason: string | null } | null
 }
 
 interface PaginatedMonths {
@@ -32,6 +34,15 @@ interface PaginatedMonths {
   page: number
   pageSize: number
   totalPages: number
+}
+
+// A company-wide "this month doesn't happen" skip — see SubscriptionMonthSkip. A skipped month
+// with no content row never appears in `PaginatedMonths.data` at all, so it's fetched separately
+// and merged in for display.
+interface MonthSkip {
+  year: number
+  month: number
+  reason: string | null
 }
 
 function getMainBook(m: PastMonth) {
@@ -119,6 +130,32 @@ function PreviousBoxesList({
     staleTime: 1000 * 60 * 5,
   })
 
+  // The months fetch above never passes all=true, so the API applies its own implicit
+  // "strictly before the current month" cutoff. listMonthSkips has no such implicit default —
+  // its untilYear/untilMonth are an explicit, inclusive bound — so the same cutoff (one month
+  // before now) has to be computed here and combined with whatever bound was already passed in
+  // (bundle mode), taking whichever is earlier. Otherwise the current/future month's skip leaks
+  // into "Previous Boxes".
+  const now = new Date()
+  const pastCutoff = (() => {
+    let y = now.getFullYear()
+    let m = now.getMonth() // getMonth() is 0-based, so this is already "last month" 1-based
+    if (m === 0) { m = 12; y -= 1 }
+    return { year: y, month: m }
+  })()
+  const effectiveUntil = (untilYear == null || untilYear > pastCutoff.year
+    || (untilYear === pastCutoff.year && (untilMonth ?? 12) > pastCutoff.month))
+    ? pastCutoff
+    : { year: untilYear, month: untilMonth ?? 12 }
+
+  const skipUntilParams = `&untilYear=${effectiveUntil.year}&untilMonth=${effectiveUntil.month}`
+  const skipQuery = [fromParams, skipUntilParams].join('').replace(/^&/, '?')
+  const { data: skips = [] } = useQuery<MonthSkip[]>({
+    queryKey: ['subscription-month-skips', subscriptionSlug, fromYear, fromMonth, effectiveUntil.year, effectiveUntil.month],
+    queryFn: () => apiFetch<MonthSkip[]>(`/subscriptions/${subscriptionSlug}/months/skips${skipQuery}`),
+    staleTime: 1000 * 60 * 5,
+  })
+
   useEffect(() => {
     if (!data) return
     setTotalPages(data.totalPages)
@@ -131,12 +168,27 @@ function PreviousBoxesList({
 
   const hasMore = page < totalPages
 
+  // Marking an already-authored month skipped deletes its SubscriptionMonth row (see
+  // markMonthSkipped), so content and an active skip should never coexist in practice — this
+  // map-then-override is defense-in-depth, not the primary path, for any row that predates that
+  // behavior or reaches this state some other way.
+  const skippedByKey = new Map(skips.map((s) => [`${s.year}-${s.month}`, s]))
+  const monthsWithSkipApplied: PastMonth[] = allMonths.map((m) => {
+    const skip = skippedByKey.get(`${m.year}-${m.month}`)
+    return skip ? { ...m, skipped: { reason: skip.reason } } : m
+  })
+  const skipOnlyEntries: PastMonth[] = skips
+    .filter((s) => !allMonths.some((m) => m.year === s.year && m.month === s.month))
+    .map((s) => ({ id: `skip-${s.year}-${s.month}`, year: s.year, month: s.month, isSpoiler: false, skipped: { reason: s.reason } }))
+
+  const displayMonths = [...monthsWithSkipApplied, ...skipOnlyEntries].sort((a, b) => (b.year !== a.year ? b.year - a.year : b.month - a.month))
+
   // Group by bundle when applicable
   const bundleGroups: { key: string; label: string; months: PastMonth[] }[] | null =
     isBundleSubscription && intervalMonths > 1
       ? (() => {
           const map = new Map<string, PastMonth[]>()
-          for (const m of allMonths) {
+          for (const m of displayMonths) {
             const key = getBundleKey(m.year, m.month, intervalMonths, startingMonth)
             if (!map.has(key)) map.set(key, [])
             map.get(key)!.push(m)
@@ -163,6 +215,7 @@ function PreviousBoxesList({
           cardArtist={m.cardArtist ?? null}
           accentColors={accentColors}
           editionSlug={getEditionSlug(m)}
+          skipped={m.skipped ?? null}
         />
       ))}
     </div>
@@ -212,7 +265,7 @@ function PreviousBoxesList({
         </>
       ) : (
         <>
-          <MonthGrid months={allMonths} />
+          <MonthGrid months={displayMonths} />
           {hasMore && (
             <div className="mt-8 text-center">
               <button

@@ -35,8 +35,7 @@
  * added/edited outside the normal flow. Run manually with:
  *   node dist/scripts/archive/backfill-edition-sale-dates.js [--dry-run]
  */
-import { NestFactory } from '@nestjs/core'
-import { AppModule } from '../../app.module'
+import { runScript } from '../run-script'
 import { PrismaService } from '../../prisma/prisma.service'
 import { BugReportsService } from '../../modules/bug-reports/bug-reports.service'
 
@@ -73,8 +72,7 @@ function parseLegacyDate(raw: string): Date | null {
   return d
 }
 
-async function main() {
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: ['log', 'error', 'warn'] })
+runScript('backfill-edition-sale-dates', async app => {
   const prisma = app.get(PrismaService)
   const bugReports = app.get(BugReportsService)
 
@@ -145,15 +143,4 @@ async function main() {
     `[backfill-edition-sale-dates] ${created} EditionSaleDate rows ${DRY_RUN ? 'would be created' : 'created'}, ` +
       `${unparseable} unparseable values filed as bug reports, ${skipped} editions already backfilled (skipped)`,
   )
-  await app.close()
-  // AppModule registers several @Cron jobs (renewal, notifications, backup, etc.) whose
-  // timers keep the event loop alive even after app.close() — without an explicit exit
-  // the process hangs forever instead of returning control to docker-entrypoint.sh, which
-  // means the API server after it never starts.
-  process.exit(0)
-}
-
-main().catch(err => {
-  console.error('[backfill-edition-sale-dates] failed:', err)
-  process.exit(1)
 })

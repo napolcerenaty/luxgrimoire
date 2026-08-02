@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UploadService } from '../upload/upload.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
+import { EditionsService } from '../editions/editions.service';
 import { CompaniesService } from './companies.service';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -55,9 +56,10 @@ describe('CompaniesService.purgeOfficialImages', () => {
     uploadService = mockDeep<UploadService>();
     const typesense = mockDeep<TypesenseService>();
     const mediaAssetsService = mockDeep<MediaAssetsService>();
+    const editionsService = mockDeep<EditionsService>();
     const cache = { get: jest.fn(), set: jest.fn(), del: jest.fn(), reset: jest.fn() } as any;
 
-    service = new CompaniesService(prisma, typesense, uploadService, mediaAssetsService, cache);
+    service = new CompaniesService(prisma, typesense, uploadService, mediaAssetsService, editionsService, cache);
 
     // default: Cloudinary delete succeeds
     (uploadService.deleteImage as jest.Mock).mockResolvedValue(undefined);

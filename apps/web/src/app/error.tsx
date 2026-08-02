@@ -19,10 +19,7 @@ export default function ErrorPage({
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4 py-16">
       <div className="max-w-md w-full text-center">
-        <div
-          className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full"
-          style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.3)' }}
-        >
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 border border-amber-500/30">
           <AlertTriangle size={24} className="text-amber-500" />
         </div>
         <h1 className="font-serif text-2xl font-semibold text-stone-100 mb-2">Something went wrong</h1>
