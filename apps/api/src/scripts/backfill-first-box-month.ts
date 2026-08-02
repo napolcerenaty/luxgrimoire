@@ -21,7 +21,12 @@
  * Idempotent — only touches entries where firstBoxYear/firstBoxMonth is still null. Safe to re-run
  * (covers any entry created between runs, e.g. by data imports that bypass the join flow).
  *
- * Run manually with:
+ * Wired into docker-entrypoint.sh — runs automatically on every deploy, after migrations and
+ * before the API starts. A failure there doesn't block startup (every call site already falls
+ * back safely when firstBoxYear/firstBoxMonth is null), it just means this deploy's backfill
+ * pass didn't complete and the next one will pick up whatever's left.
+ *
+ * Can also be run manually:
  *   node dist/scripts/backfill-first-box-month.js [--dry-run]
  */
 import { runScript } from './run-script'
