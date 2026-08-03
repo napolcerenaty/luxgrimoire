@@ -609,31 +609,30 @@ export async function getSubscriptionMonthSkips(
 }
 
 /**
- * Determines a subscriber's first box month purely from the join date's calendar position and
- * *actual* released content — no renewal-day/signupIncludesCurrentMonth/renewalMonthOffset cycle
- * math. This replaces computeFirstEligibleBoxMonth as the live default: that formula depends on
- * settings that drift over time (bug fixes, historical corrections), so the same entry could get a
- * different answer on every recompute. This function is naturally gap-aware too — a company-wide
- * skipped month/bundle has no SubscriptionMonth row at all, so it's skipped over automatically by
- * only ever landing on real content.
- *
- * Algorithm: the naive unit containing the join date (one calendar month, or — for bundle
- * subscriptions — the bundle cycle containing it) is the answer if it has real content. If that
- * unit is a full company-wide skip (zero rows), shift forward to the nearest unit that does.
- * `subscriptionIds` supports combo subscriptions, whose content lives on component subscriptions.
+ * Determines the DEFAULT SUGGESTION shown in the join modal's mandatory first-box picker step —
+ * not the trusted final answer (that's whatever the user confirms, saved once on the entry and
+ * never recomputed — see resolveFirstBoxMonth). Reuses computeFirstEligibleBoxMonth's renewal-day/
+ * renewalMonthOffset/signupIncludesCurrentMonth cycle math to get a plausible starting guess (it's
+ * a legitimate signal, not garbage — the drift problem it has isn't in the math itself, it's in
+ * blindly trusting its output forever without letting the user correct it), then snaps that guess
+ * forward to the nearest month that actually has content, so a fully company-skipped month/bundle
+ * is never offered as "current". `subscriptionIds` supports combo subscriptions, whose content
+ * lives on component subscriptions.
  */
 export async function computeDateAnchoredFirstBoxMonth(
   prisma: PrismaService,
   subscriptionIds: string[],
   joinDate: Date,
+  renewalDay: number,
+  renewalMonthOffset: number,
+  signupIncludesCurrentMonth: boolean,
   intervalMonths = 1,
   startingMonth = 1,
+  subscriptionStartDate: Date | null = null,
 ): Promise<{ year: number; month: number }> {
-  const joinYear = joinDate.getFullYear();
-  const joinMonth = joinDate.getMonth() + 1;
-  const naiveStart = intervalMonths > 1
-    ? getBundleBoxStart(joinYear, joinMonth, startingMonth, intervalMonths)
-    : { year: joinYear, month: joinMonth };
+  const naiveStart = computeFirstEligibleBoxMonth(
+    joinDate, renewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth, subscriptionStartDate,
+  );
 
   const nextReal = await prisma.subscriptionMonth.findFirst({
     where: {
@@ -695,15 +694,21 @@ export async function resolveFirstBoxMonth(
   prisma: PrismaService,
   entry: { firstBoxYear: number | null; firstBoxMonth: number | null; startDate: string | Date | null },
   subscriptionIds: string[],
+  renewalDay: number,
+  renewalMonthOffset: number,
+  signupIncludesCurrentMonth: boolean,
   intervalMonths = 1,
   startingMonth = 1,
+  subscriptionStartDate: Date | null = null,
 ): Promise<{ year: number; month: number } | null> {
   if (entry.firstBoxYear != null && entry.firstBoxMonth != null) {
     return { year: entry.firstBoxYear, month: entry.firstBoxMonth };
   }
   if (!entry.startDate) return null;
   const joinDate = entry.startDate instanceof Date ? entry.startDate : new Date(entry.startDate);
-  return computeDateAnchoredFirstBoxMonth(prisma, subscriptionIds, joinDate, intervalMonths, startingMonth);
+  return computeDateAnchoredFirstBoxMonth(
+    prisma, subscriptionIds, joinDate, renewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth, subscriptionStartDate,
+  );
 }
 
 /**
@@ -848,8 +853,12 @@ export async function refreshNextRenewalDate(
       prisma,
       { firstBoxYear: (entry as any).firstBoxYear ?? null, firstBoxMonth: (entry as any).firstBoxMonth ?? null, startDate: entry.startDate },
       [sub.id],
+      renewalDay,
+      offset,
+      effectiveSettings.signupIncludesCurrentMonth,
       sub.intervalMonths ?? 1,
       sub.startingMonth ?? 1,
+      subStartDate,
     );
     if (firstBox) {
       // Convert box month → renewal month (paidUpFrontDate is used to skip the already-charged renewal)

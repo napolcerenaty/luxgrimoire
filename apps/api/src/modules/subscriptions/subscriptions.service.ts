@@ -3047,8 +3047,9 @@ export class SubscriptionsService {
         effectiveSignupIncludes = true;
       }
       // Standalone subs may have an entry startDate before the sub's own startDate (historical data
-      // entry) — computeDateAnchoredFirstBoxMonth handles that naturally: no content exists before
-      // launch, so it shifts forward to the subscription's actual first real box on its own.
+      // entry) — computeFirstEligibleBoxMonth (the naive-guess part of computeDateAnchoredFirstBoxMonth)
+      // handles that case directly via subscriptionStartDate.
+      const eligibilitySubStartDate = parentSubscriptionId ? null : variantDbStartDate;
       const monthsSubscriptionId = parentSubscriptionId ?? sub.id;
       const intervalMonths = (sub as any).intervalMonths ?? 1;
       const startingMonth = (sub as any).startingMonth ?? 1;
@@ -3059,7 +3060,7 @@ export class SubscriptionsService {
       // eligibleMonths list below is built from the exact same value (its first unit IS "current",
       // its second unit IS "next" — no separate fetch needed for those two).
       const defaultFirstBox = effectiveStartDateObj
-        ? await computeDateAnchoredFirstBoxMonth(this.prisma, searchIds, effectiveStartDateObj, intervalMonths, startingMonth)
+        ? await computeDateAnchoredFirstBoxMonth(this.prisma, searchIds, effectiveStartDateObj, resolvedRenewalDay ?? 1, renewalMonthOffset, effectiveSignupIncludes, intervalMonths, startingMonth, eligibilitySubStartDate)
         : null;
       const previousBoxStart = defaultFirstBox
         ? await getPreviousBoxUnitStart(this.prisma, searchIds, defaultFirstBox.year, defaultFirstBox.month, intervalMonths, startingMonth)
@@ -3180,7 +3181,7 @@ export class SubscriptionsService {
     const searchIds = isCombo ? await this.resolveEffectiveComponentIds(componentIds) : [monthsSubscriptionId];
     const resolvedFirstBox = (dto.firstBoxYear != null && dto.firstBoxMonth != null)
       ? { year: dto.firstBoxYear, month: dto.firstBoxMonth }
-      : (effectiveStartDateObj ? await computeDateAnchoredFirstBoxMonth(this.prisma, searchIds, effectiveStartDateObj, intervalMonths, startingMonth) : undefined);
+      : (effectiveStartDateObj ? await computeDateAnchoredFirstBoxMonth(this.prisma, searchIds, effectiveStartDateObj, resolvedRenewalDay ?? 1, renewalMonthOffset, effectiveSignupIncludes, intervalMonths, startingMonth, eligibilitySubStartDate) : undefined);
 
     const eligibleMonths = isCombo
       ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, intervalMonths, startingMonth, eligibilitySubStartDate, resolvedFirstBox)
@@ -3244,10 +3245,9 @@ export class SubscriptionsService {
 
     // The first box month is the user's own confirmed choice from the join modal's mandatory
     // picker step (explicitFirstBox) whenever available. It only falls back to the date-anchored
-    // calculation (no renewal-day/signupIncludesCurrentMonth cycle math — see
-    // computeDateAnchoredFirstBoxMonth) for entries that predate this feature.
+    // default calculation for entries that predate this feature.
     const { year: startYear, month: startMonth } = explicitFirstBox
-      ?? await computeDateAnchoredFirstBoxMonth(this.prisma, [subscriptionId], startDateObj, intervalMonths, startingMonth);
+      ?? await computeDateAnchoredFirstBoxMonth(this.prisma, [subscriptionId], startDateObj, effectiveRenewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth, subscriptionStartDate);
 
     // If startDate is at or after limit month → nothing to backfill
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
@@ -3364,7 +3364,7 @@ export class SubscriptionsService {
     const effectiveComponentIds = await this.resolveEffectiveComponentIds(componentIds);
 
     const { year: startYear, month: startMonth } = explicitFirstBox
-      ?? await computeDateAnchoredFirstBoxMonth(this.prisma, effectiveComponentIds, startDateObj, intervalMonths, startingMonth);
+      ?? await computeDateAnchoredFirstBoxMonth(this.prisma, effectiveComponentIds, startDateObj, effectiveRenewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth, subscriptionStartDate);
 
     if (startYear > limitYear || (startYear === limitYear && startMonth > limitMonth)) {
       return [];
@@ -3681,8 +3681,12 @@ export class SubscriptionsService {
         this.prisma,
         { firstBoxYear: (entry as any).firstBoxYear ?? null, firstBoxMonth: (entry as any).firstBoxMonth ?? null, startDate: entry.startDate },
         effectiveComponentIds,
+        fallbackSettings.renewalDay ?? 1,
+        fallbackSettings.renewalMonthOffset,
+        fallbackSettings.signupIncludesCurrentMonth,
         (sub as any).intervalMonths ?? 1,
         (sub as any).startingMonth ?? 1,
+        null,
       );
       const eligibleComboMonths = await this.getComboEligibleMonths(componentIds, startDateObj, cancellationDateObj, fallbackSettings.signupIncludesCurrentMonth, fallbackSettings.renewalMonthOffset, fallbackSettings.renewalDay, (sub as any).intervalMonths ?? 1, (sub as any).startingMonth ?? 1, null, comboFirstBox);
       const eligibleIds = new Set(eligibleComboMonths.map(m => m.id));
@@ -4229,8 +4233,12 @@ export class SubscriptionsService {
         this.prisma,
         { firstBoxYear: (entry as any).firstBoxYear ?? null, firstBoxMonth: (entry as any).firstBoxMonth ?? null, startDate: entry.startDate },
         [monthsSubscriptionId],
+        fallbackSettings.renewalDay ?? 1,
+        fallbackSettings.renewalMonthOffset,
+        fallbackSettings.signupIncludesCurrentMonth,
         (sub as any).intervalMonths ?? 1,
         (sub as any).startingMonth ?? 1,
+        null,
       );
       const eligibleMonths = await this.getEligibleMonths(
         monthsSubscriptionId,
@@ -4774,13 +4782,14 @@ export class SubscriptionsService {
     const renewalDay: number =
       entry.renewalDay ?? (sub as any).renewalDay ?? 1;
     const renewalMonthOffset: number = (sub as any).renewalMonthOffset ?? 0;
+    const signupIncludesCurrentMonth: boolean = (sub as any).signupIncludesCurrentMonth ?? false;
     const intervalMonths: number = (sub as any).intervalMonths ?? 1;
     const startingMonth: number = (sub as any).startingMonth ?? 1;
     const now = new Date();
 
     // First eligible box month — same value as the join modal's picker step (the user's saved
     // choice, or the date-anchored default for entries that predate this feature).
-    const resolvedFirstBox = await resolveFirstBoxMonth(this.prisma, entry, monthsSubscriptionIds, intervalMonths, startingMonth);
+    const resolvedFirstBox = await resolveFirstBoxMonth(this.prisma, entry, monthsSubscriptionIds, renewalDay, renewalMonthOffset, signupIncludesCurrentMonth, intervalMonths, startingMonth);
     if (!resolvedFirstBox) throw new NotFoundException('Subscription entry has no start date');
     const { year: startYear, month: startMonth } = resolvedFirstBox;
 
