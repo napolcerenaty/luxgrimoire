@@ -342,6 +342,7 @@ function SkipPolicyEditor({ draft, onChange, usedBillingTypes, onSave, onCancel,
             <option value="CALENDAR_YEAR">X skips per calendar year</option>
             <option value="FROM_FIRST_SKIP">X skips from first skip date</option>
             <option value="FROM_SUB_START">X skips from subscription start</option>
+            <option value="FROM_FIRST_BOX">X skips per rolling window from first box month</option>
             <option value="PREPAID_WINDOW_SKIP">Prepaid window skip</option>
           </select>
         </div>
@@ -381,11 +382,16 @@ function SkipPolicyEditor({ draft, onChange, usedBillingTypes, onSave, onCancel,
                     value={draft.maxSkips} onChange={set('maxSkips')} placeholder="e.g. 2" />
                 </div>
               )}
-              {(draft.type === 'FROM_FIRST_SKIP' || draft.type === 'FROM_SUB_START') && (
+              {(draft.type === 'FROM_FIRST_SKIP' || draft.type === 'FROM_SUB_START' || draft.type === 'FROM_FIRST_BOX') && (
                 <div>
                   <label className={LABEL_CLASS}>Reset period (months)</label>
                   <input type="number" min={1} className={INPUT_CLASS}
-                    value={draft.windowMonths} onChange={set('windowMonths')} placeholder="e.g. 12" />
+                    value={draft.windowMonths} onChange={set('windowMonths')} placeholder="e.g. 6 or 12" />
+                  {draft.type === 'FROM_FIRST_BOX' && (
+                    <p className="text-xs text-stone-500 mt-1">
+                      Resets every {draft.windowMonths || 'N'} months from the user&apos;s first box month (e.g. 12 = anniversary reset).
+                    </p>
+                  )}
                 </div>
               )}
               <div>
@@ -572,6 +578,7 @@ function SubscriptionForm({
     CALENDAR_YEAR: 'X per calendar year',
     FROM_FIRST_SKIP: 'X from first skip',
     FROM_SUB_START: 'X from sub start',
+    FROM_FIRST_BOX: 'X from first box (rolling)',
     PREPAID_WINDOW_SKIP: 'Prepaid window skip',
   }
 
@@ -949,6 +956,92 @@ interface SettingsHistoryRecord {
   changedBy: string | null
   notes: string | null
   createdAt: string
+}
+
+// ─── Skip window recompute panel ───────────────────────────────────────────────
+// Recomputes skip windows for a subscription's SAVED skip policy (not the local draft) — run
+// after changing a policy's type/windowMonths, since existing UserSkipRecord.windowKey values
+// were computed under the OLD config. Manual only, never triggered automatically on save.
+
+function SkipWindowRecomputePanel({ slug, policies }: { slug: string; policies: { billingType: string; type: string; windowMonths: number | null }[] }) {
+  const [billingType, setBillingType] = useState(policies[0]?.billingType ?? 'ALL')
+  const [preview, setPreview] = useState<{ trackedUsers: number; windowWouldChange: number } | null>(null)
+  const [previewing, setPreviewing] = useState(false)
+  const [applying, setApplying] = useState(false)
+  const [result, setResult] = useState<{ recomputedCount: number; totalActive: number } | null>(null)
+
+  if (policies.length === 0) return null
+  const policy = policies.find(p => p.billingType === billingType) ?? policies[0]
+
+  async function runPreview() {
+    if (!policy) return
+    setPreviewing(true)
+    setResult(null)
+    try {
+      const res = await authFetch<{ trackedUsers: number; windowWouldChange: number }>(
+        `/skip-policy/${slug}/policies/${policy.billingType}/recompute-preview`,
+        { method: 'POST', body: JSON.stringify({ type: policy.type, windowMonths: policy.windowMonths ?? undefined }) },
+      )
+      setPreview(res)
+    } finally {
+      setPreviewing(false)
+    }
+  }
+
+  async function runApply() {
+    if (!policy) return
+    if (!confirm(`Recompute skip windows for ${preview?.trackedUsers ?? 'all tracked'} user(s) under the ${policy.billingType} policy?`)) return
+    setApplying(true)
+    try {
+      const res = await authFetch<{ recomputedCount: number; totalActive: number }>(
+        `/skip-policy/${slug}/policies/${policy.billingType}/recompute`,
+        { method: 'POST' },
+      )
+      setResult(res)
+      setPreview(null)
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  return (
+    <div className="border border-stone-700 rounded-lg p-4 space-y-3">
+      <p className="text-sm font-semibold text-amber-400">Recompute Skip Windows</p>
+      <p className="text-xs text-stone-500">
+        Run this after changing a policy&apos;s type or reset period above (and saving) — it re-buckets
+        every active user&apos;s skip history under the currently saved policy. Nothing recomputes
+        automatically when you save a policy change.
+      </p>
+      <div className="flex items-end gap-3 flex-wrap">
+        <div>
+          <label className={LABEL_CLASS}>Billing type</label>
+          <select className={SELECT_CLASS} value={billingType}
+            onChange={(e) => { setBillingType(e.target.value); setPreview(null); setResult(null) }}>
+            {policies.map(p => <option key={p.billingType} value={p.billingType}>{p.billingType}</option>)}
+          </select>
+        </div>
+        <button type="button" onClick={runPreview} disabled={previewing}
+          className="text-xs px-3 py-2 rounded-lg bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors disabled:opacity-50">
+          {previewing ? 'Checking…' : 'Preview impact'}
+        </button>
+        {preview && (
+          <button type="button" onClick={runApply} disabled={applying}
+            className="text-xs px-3 py-2 rounded-lg bg-amber-500 text-stone-950 font-semibold hover:bg-amber-400 transition-colors disabled:opacity-50">
+            {applying ? 'Recomputing…' : 'Recompute now'}
+          </button>
+        )}
+      </div>
+      {preview && (
+        <p className="text-xs text-stone-400">
+          {preview.trackedUsers} active user(s) have tracked skip usage under this policy — an estimated{' '}
+          {preview.windowWouldChange} would have their window recalculated.
+        </p>
+      )}
+      {result && (
+        <p className="text-xs text-teal-400">Recomputed {result.recomputedCount} of {result.totalActive} active user(s).</p>
+      )}
+    </div>
+  )
 }
 
 interface SettingsHistoryEditState {
@@ -1732,6 +1825,7 @@ export default function AdminSubscriptionsPage() {
           />
           <SettingsHistoryPanel slug={editSub.slug} />
           <PrepayOptionsPanel slug={editSub.slug} subscriptionCurrency={editSub.currency} />
+          <SkipWindowRecomputePanel slug={editSub.slug} policies={editSub.skipPolicies ?? []} />
         </div>
       )}
 

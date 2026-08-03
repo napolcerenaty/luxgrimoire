@@ -29,6 +29,7 @@ const SKIP_TYPE_SHORT: Record<string, string> = {
   CALENDAR_YEAR: 'Limited skips',
   FROM_FIRST_SKIP: 'Limited skips',
   FROM_SUB_START: 'Limited skips',
+  FROM_FIRST_BOX: 'Limited skips',
   PREPAID_WINDOW_SKIP: 'Prepaid window skip',
 }
 
@@ -44,6 +45,7 @@ const SKIP_POLICY_OPTIONS: { value: string; label: string }[] = [
   { value: 'CALENDAR_YEAR', label: 'Calendar year' },
   { value: 'FROM_FIRST_SKIP', label: 'Rolling window from first skip' },
   { value: 'FROM_SUB_START', label: 'Rolling window from sub start' },
+  { value: 'FROM_FIRST_BOX', label: 'Rolling window from first box month' },
   { value: 'PREPAID_WINDOW_SKIP', label: 'Prepaid window skip' },
 ]
 

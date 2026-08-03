@@ -712,6 +712,94 @@ export async function resolveFirstBoxMonth(
 }
 
 /**
+ * Returns the windowKey (YYYY-MM-01) of the repeating `windowMonths`-long window that contains
+ * (targetYear, targetMonth), for a rolling grid anchored at (anchorYear, anchorMonth). Used by
+ * the FROM_SUB_START and FROM_FIRST_BOX skip-policy types' recompute path — see
+ * computeWindowKeyForRecompute.
+ */
+export function rollingWindowKey(
+  anchorYear: number,
+  anchorMonth: number,
+  windowMonths: number,
+  targetYear: number,
+  targetMonth: number,
+): string {
+  const monthsSinceAnchor = (targetYear - anchorYear) * 12 + (targetMonth - anchorMonth);
+  const windowIndex = Math.floor(monthsSinceAnchor / windowMonths);
+  const rawMonth = (anchorMonth - 1) + windowIndex * windowMonths;
+  const windowStartYear = anchorYear + Math.floor(rawMonth / 12);
+  const windowStartMonth = ((rawMonth % 12) + 12) % 12 + 1;
+  return `${windowStartYear}-${String(windowStartMonth).padStart(2, '0')}-01`;
+}
+
+/**
+ * Anchor inputs for computeWindowKeyForRecompute — a subset of UserSubscriptionEntry fields.
+ */
+export interface SkipWindowAnchor {
+  entryStartDate: string | Date | null;
+  firstBoxYear: number | null;
+  firstBoxMonth: number | null;
+}
+
+/**
+ * Recomputes the windowKey that a given calendar month (year, month) falls into for a skip
+ * policy, used to re-bucket a user's ENTIRE skip history after an admin changes a subscription's
+ * skip policy type or windowMonths (the windowKeys stored on existing UserSkipRecord rows were
+ * computed under the OLD policy and no longer reflect correct window boundaries).
+ *
+ * CALENDAR_YEAR / FROM_SUB_START / FROM_FIRST_BOX use a fixed anchor + rollingWindowKey (the
+ * window grid ticks forward regardless of activity). FROM_FIRST_SKIP is activity-driven — each
+ * window starts lazily at the first skip recorded after the previous window expired — so callers
+ * must walk records chronologically and pass the running `firstSkipDateInWindow`, resetting it to
+ * null whenever the returned windowKey differs from the previous iteration's.
+ */
+export function computeWindowKeyForRecompute(
+  policy: { type: string; windowMonths: number | null } | null,
+  anchor: SkipWindowAnchor,
+  year: number,
+  month: number,
+  firstSkipDateInWindow: Date | null,
+): string | null {
+  if (!policy) return null;
+
+  switch (policy.type) {
+    case 'CALENDAR_YEAR':
+      return String(year);
+
+    case 'FROM_FIRST_SKIP': {
+      if (!firstSkipDateInWindow) return `${year}-${String(month).padStart(2, '0')}-01`;
+      const windowMonths = policy.windowMonths ?? 12;
+      const windowEnd = new Date(firstSkipDateInWindow);
+      windowEnd.setMonth(windowEnd.getMonth() + windowMonths);
+      if (new Date(year, month - 1, 1) < windowEnd) return firstSkipDateInWindow.toISOString().slice(0, 10);
+      return `${year}-${String(month).padStart(2, '0')}-01`;
+    }
+
+    case 'FROM_SUB_START': {
+      if (!anchor.entryStartDate) return `${year}-${String(month).padStart(2, '0')}-01`;
+      const start = anchor.entryStartDate instanceof Date ? anchor.entryStartDate : new Date(anchor.entryStartDate);
+      const anchorYear = start.getFullYear();
+      const anchorMonth = start.getMonth() + 1;
+      if (!policy.windowMonths) return `${anchorYear}-${String(anchorMonth).padStart(2, '0')}-01`;
+      return rollingWindowKey(anchorYear, anchorMonth, policy.windowMonths, year, month);
+    }
+
+    case 'FROM_FIRST_BOX': {
+      if (anchor.firstBoxYear == null || anchor.firstBoxMonth == null) {
+        return `${year}-${String(month).padStart(2, '0')}-01`;
+      }
+      if (!policy.windowMonths) {
+        return `${anchor.firstBoxYear}-${String(anchor.firstBoxMonth).padStart(2, '0')}-01`;
+      }
+      return rollingWindowKey(anchor.firstBoxYear, anchor.firstBoxMonth, policy.windowMonths, year, month);
+    }
+
+    default:
+      return null;
+  }
+}
+
+/**
  * Recomputes and persists nextRenewalDate for a given entry.
  * Call this after: join, skip, unskip, cancel.
  */

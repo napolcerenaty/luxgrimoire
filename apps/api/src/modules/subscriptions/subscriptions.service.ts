@@ -3871,7 +3871,10 @@ export class SubscriptionsService {
         });
         if (!compMonth) continue;
 
-        const windowKey = this.computeWindowKeyForBackfill(comboPolicy, firstSkipDateInWindow, entry.startDate, m.year, m.month);
+        const windowKey = this.computeWindowKeyForBackfill(
+          comboPolicy, firstSkipDateInWindow, entry.startDate, m.year, m.month,
+          (entry as any).firstBoxYear ?? null, (entry as any).firstBoxMonth ?? null,
+        );
         // Detect window transition: reset so this month anchors the new window for subsequent iterations
         if (prevWindowKey !== null && windowKey !== prevWindowKey) {
           firstSkipDateInWindow = null;
@@ -4260,7 +4263,10 @@ export class SubscriptionsService {
       let prevWindowKey: string | null = null;
 
       for (const m of skippableMonths) {
-        const windowKey = this.computeWindowKeyForBackfill(policy, firstSkipDateInWindow, entry.startDate, m.year, m.month);
+        const windowKey = this.computeWindowKeyForBackfill(
+          policy, firstSkipDateInWindow, entry.startDate, m.year, m.month,
+          (entry as any).firstBoxYear ?? null, (entry as any).firstBoxMonth ?? null,
+        );
         // Detect window transition: reset so this month anchors the new window for subsequent iterations
         if (prevWindowKey !== null && windowKey !== prevWindowKey) {
           firstSkipDateInWindow = null;
@@ -4338,6 +4344,8 @@ export class SubscriptionsService {
     entryStartDate: string | null,
     year: number,
     month: number,
+    entryFirstBoxYear: number | null = null,
+    entryFirstBoxMonth: number | null = null,
   ): string | null {
     if (!policy) return null;
 
@@ -4361,6 +4369,15 @@ export class SubscriptionsService {
       case 'FROM_SUB_START': {
         const ref = entryStartDate ? new Date(entryStartDate) : new Date(year, month - 1, 1);
         return ref.toISOString().slice(0, 10);
+      }
+
+      case 'FROM_FIRST_BOX': {
+        // Mirrors FROM_SUB_START above — this backfill only walks the initial signup window,
+        // so no rolling-window math is needed here (see rollingWindowKey for the live/recompute version).
+        if (entryFirstBoxYear != null && entryFirstBoxMonth != null) {
+          return `${entryFirstBoxYear}-${String(entryFirstBoxMonth).padStart(2, '0')}-01`;
+        }
+        return `${year}-${String(month).padStart(2, '0')}-01`;
       }
 
       default:
