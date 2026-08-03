@@ -967,7 +967,11 @@ function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, defaultFirstBox
   const monthMap = new Map<string, SubscriptionMonth>([...previousBoxMonths, ...eligibleMonths].map(m => [m.id, m]))
 
   function submit() {
+    // choice can only ever be 'previous' if candidates.previous is non-null — the radio option
+    // for it isn't rendered otherwise (see options.map below) — but the indexed access can't
+    // express that to TypeScript.
     const selected = candidates[choice]
+    if (!selected) return
     const adjusted = applyFirstBoxChoice(choice, eligibleMonths, previousBoxMonths, candidates)
     onConfirm(selected.year, selected.month, adjusted)
   }

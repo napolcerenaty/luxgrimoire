@@ -350,7 +350,11 @@ export function buildFirstBoxCandidates(
   const next: BoxCandidate = (firstEligibleIsDefault && eligibleUnits[1])
     ? eligibleUnits[1]
     : (() => {
-        const nextStart = shiftCalendarMonth(current.year, current.month, isBundleMode ? intervalMonths : 1)
+        // Shift by the subscription's own release cadence, not by `isBundleMode` — a genuinely
+        // quarterly-release sub (isBundleSubscription=false, intervalMonths=3: content itself only
+        // exists every 3rd month) needs the same +intervalMonths step as an actual bundle box.
+        // `intervalMonths` is already 1 for plain monthly subs, so this covers every case.
+        const nextStart = shiftCalendarMonth(current.year, current.month, intervalMonths)
         return makeSyntheticCandidate(nextStart.year, nextStart.month, isBundleMode, intervalMonths)
       })()
 
