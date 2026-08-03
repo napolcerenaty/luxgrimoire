@@ -593,6 +593,22 @@ export function computeNextRenewalDatePrepaid(
 }
 
 /**
+ * Company-wide (not per-user) skipped box months for a subscription — see SubscriptionMonthSkip.
+ * A plain equality lookup on subscriptionId: the admin write path (subscriptions.service.ts
+ * markMonthSkipped) denormalizes one row per content-stream member subscription up front, so no
+ * parent/variant resolution is needed here.
+ */
+export async function getSubscriptionMonthSkips(
+  prisma: PrismaService,
+  subscriptionId: string,
+): Promise<{ year: number; month: number }[]> {
+  return prisma.subscriptionMonthSkip.findMany({
+    where: { subscriptionId, undoneAt: null },
+    select: { year: true, month: true },
+  });
+}
+
+/**
  * Recomputes and persists nextRenewalDate for a given entry.
  * Call this after: join, skip, unskip, cancel.
  */
@@ -712,10 +728,16 @@ export async function refreshNextRenewalDate(
 
   const offset: number = effectiveSettings.renewalMonthOffset;
   // Skip records are keyed by box month; convert to renewal month for the renewal-date computation
-  const skippedMonths = (entry.skipRecords as any[]).map((r) => {
+  const personalSkippedMonths = (entry.skipRecords as any[]).map((r) => {
     const [ry, rm] = renewalMonthFromBoxMonth(r.month.year, r.month.month, offset);
     return { year: ry, month: rm };
   });
+  const companySkips = await getSubscriptionMonthSkips(prisma, sub.id);
+  const companySkippedMonths = companySkips.map((s) => {
+    const [ry, rm] = renewalMonthFromBoxMonth(s.year, s.month, offset);
+    return { year: ry, month: rm };
+  });
+  const skippedMonths = [...personalSkippedMonths, ...companySkippedMonths];
 
   // For paymentOnStartup: determine which month was already paid at signup
   let paidUpFrontDate: Date | null = null;
@@ -806,6 +828,7 @@ export async function backfillRenewalHistory(
       },
       subscription: {
         select: {
+          id: true,
           renewalDay: true,
           renewalDayUserSet: true,
           intervalMonths: true,
@@ -851,10 +874,16 @@ export async function backfillRenewalHistory(
   // but we use the fallback here as a conservative baseline).
   const offset: number = fallback.renewalMonthOffset;
   // Convert skipped box months → renewal months for computePastRenewalDates
-  const skippedMonths = (entry.skipRecords as any[]).map((r) => {
+  const personalSkippedMonths = (entry.skipRecords as any[]).map((r) => {
     const [ry, rm] = renewalMonthFromBoxMonth(r.month.year, r.month.month, offset);
     return { year: ry, month: rm };
   });
+  const companySkips = await getSubscriptionMonthSkips(prisma, sub.id);
+  const companySkippedMonths = companySkips.map((s) => {
+    const [ry, rm] = renewalMonthFromBoxMonth(s.year, s.month, offset);
+    return { year: ry, month: rm };
+  });
+  const skippedMonths = [...personalSkippedMonths, ...companySkippedMonths];
 
   // Parse startDate: supports YYYY-MM-DD and YYYY-MM
   const parts = entry.startDate.split('-').map(Number);

@@ -90,6 +90,8 @@ describe('backfillRenewalHistory', () => {
     (prisma.$transaction as jest.Mock).mockResolvedValue([]);
     // Default: upsert returns a resolved promise (so inline map works)
     (prisma.userSubscriptionRenewal.upsert as jest.Mock).mockResolvedValue({});
+    // Default: no company-wide skipped months
+    (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -333,6 +335,48 @@ describe('backfillRenewalHistory', () => {
       expect(upsertedDates).not.toContain('2023-09-01T00:00:00.000Z');
       expect(upsertedDates).not.toContain('2024-01-01T00:00:00.000Z');
       expect(upsertedDates).not.toContain('2024-06-01T00:00:00.000Z');
+    });
+  });
+
+  // ── Company-wide month skip (SubscriptionMonthSkip) ───────────────────────
+  // Same skippedMonths plumbing as personal skipRecords, sourced from a
+  // separate table — must exclude the month even when the entry has zero
+  // personal skips of its own.
+
+  describe('monthly — with a company-wide month skip', () => {
+    it('excludes a company-skipped month from the backfill even with no personal skips', async () => {
+      const entry = makeEntry({
+        skipRecords: [],
+        startDate: '2025-01-01',
+      });
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
+      (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValueOnce([{ year: 2025, month: 1 }]);
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      // Feb 1 2025, Mar 1 2025 (Jan skipped by the company, not personally)
+      const upsertCalls = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls;
+      const upsertedDates = upsertCalls.map((c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString());
+      expect(upsertedDates).not.toContain('2025-01-01T00:00:00.000Z');
+      expect(upsertedDates).toHaveLength(2);
+    });
+
+    it('merges a company skip with the entry\'s own personal skips rather than replacing them', async () => {
+      const entry = makeEntry({
+        skipRecords: [{ month: { year: 2025, month: 2 } }],
+        startDate: '2025-01-01',
+      });
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce(entry);
+      (prisma.subscriptionMonthSkip.findMany as jest.Mock).mockResolvedValueOnce([{ year: 2025, month: 1 }]);
+
+      await backfillRenewalHistory(prisma, 'entry-1');
+
+      // Jan (company) and Feb (personal) both excluded → only Mar 1 2025 remains
+      const upsertCalls = (prisma.userSubscriptionRenewal.upsert as jest.Mock).mock.calls;
+      const upsertedDates = upsertCalls.map((c) => (c[0].create as { renewalDate: Date }).renewalDate.toISOString());
+      expect(upsertedDates).not.toContain('2025-01-01T00:00:00.000Z');
+      expect(upsertedDates).not.toContain('2025-02-01T00:00:00.000Z');
+      expect(upsertedDates).toHaveLength(1);
     });
   });
 

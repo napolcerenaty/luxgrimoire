@@ -58,17 +58,16 @@ export class DataRequestsService {
       include: { user: { select: { id: true } } },
     });
 
-    if (req.userId && (status === 'added' || status === 'declined')) {
+    if (req.userId && (status === 'in_progress' || status === 'added' || status === 'declined')) {
       const msg =
         status === 'added'
           ? `✅ Your data request for "${req.name}" has been added to the database!`
+          : status === 'in_progress'
+          ? `🔧 Your data request for "${req.name}" is now being worked on!`
           : `Your data request for "${req.name}" has been reviewed.${req.adminNote ? ` Note: ${req.adminNote}` : ''}`;
-      await this.notifications.createNotification(
-        req.userId,
-        `data_request_${status}`,
-        status === 'added' ? '✅ Data added!' : 'Data request update',
-        msg,
-      );
+      const title =
+        status === 'added' ? '✅ Data added!' : status === 'in_progress' ? '🔧 Request in progress' : 'Data request update';
+      await this.notifications.createNotification(req.userId, `data_request_${status}`, title, msg);
     }
 
     return req;

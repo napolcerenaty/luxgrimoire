@@ -238,7 +238,7 @@ export class SearchService {
     const take = LIMIT_PER_GROUP
     const v = andVariants(trimmed)
 
-    const [books, editions, authors, artists, subscriptions, companies, sales] = await Promise.all([
+    const [books, editions, authors, artists, subscriptions, companies, rawSales] = await Promise.all([
       // ── Books ──────────────────────────────────────────────────────────────
       (all || filter === 'books')
         ? this.prisma.book.findMany({
@@ -350,6 +350,14 @@ export class SearchService {
         : [],
 
       // ── Sale Announcements ─────────────────────────────────────────────────
+      // generalSaleDate is a legacy column the sale-tier redesign superseded (see
+      // project_pending_sale_tier_column_drops memory — scheduled for removal), and ordering by
+      // it left every tier-based sale null, degrading this to insertion order. Every historical
+      // sale with a populated legacy date got an equivalent SaleTier row via the sale_tiers
+      // migration's backfill, so tiers[0] (earliest, since ordered asc) is a complete replacement
+      // — no need to select or fall back to generalSaleDate here at all. Over-fetch a bounded
+      // candidate pool, then sort/slice by resolved date in application code (Prisma can't
+      // ORDER BY a one-to-many relation's aggregate directly).
       (all || filter === 'sales')
         ? this.prisma.saleAnnouncement.findMany({
             where: {
@@ -363,7 +371,6 @@ export class SearchService {
               id: true,
               title: true,
               imageUrl: true,
-              generalSaleDate: true,
               isBundle: true,
               availableForPurchase: true,
               company: { select: { name: true, slug: true, logoUrl: true } },
@@ -374,11 +381,20 @@ export class SearchService {
               tiers: { orderBy: { date: 'asc' as const }, select: { name: true, date: true, regionId: true } },
               regions: { select: { id: true, isDefault: true } },
             },
-            orderBy: { generalSaleDate: 'desc' as const },
-            take,
+            take: 100,
           })
         : [],
     ])
+
+    const sales = rawSales
+      .map((s) => ({ ...s, _earliestTierDate: s.tiers[0]?.date ?? null }))
+      .sort((a, b) => {
+        if (!a._earliestTierDate) return b._earliestTierDate ? 1 : 0;
+        if (!b._earliestTierDate) return -1;
+        return b._earliestTierDate.getTime() - a._earliestTierDate.getTime();
+      })
+      .slice(0, take)
+      .map(({ _earliestTierDate, ...s }) => s)
 
     const resolvedEditionDates = await this.editionsService.resolveEditionSaleDates((editions as any[]).map((e) => e.id))
 

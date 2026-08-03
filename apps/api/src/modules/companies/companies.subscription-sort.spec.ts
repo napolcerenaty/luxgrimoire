@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UploadService } from '../upload/upload.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
+import { EditionsService } from '../editions/editions.service';
 import { CompaniesService } from './companies.service';
 
 describe('CompaniesService.findBySlug — subscription grouping', () => {
@@ -15,9 +16,10 @@ describe('CompaniesService.findBySlug — subscription grouping', () => {
     const uploadService = mockDeep<UploadService>();
     const typesense = mockDeep<TypesenseService>();
     const mediaAssetsService = mockDeep<MediaAssetsService>();
+    const editionsService = mockDeep<EditionsService>();
     cache = { get: jest.fn().mockResolvedValue(undefined), set: jest.fn(), del: jest.fn(), reset: jest.fn() };
 
-    service = new CompaniesService(prisma, typesense, uploadService, mediaAssetsService, cache as any);
+    service = new CompaniesService(prisma, typesense, uploadService, mediaAssetsService, editionsService, cache as any);
   });
 
   it('sorts subscriptions active → upcoming → discontinued regardless of insertion order', async () => {
