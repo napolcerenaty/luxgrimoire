@@ -58,6 +58,8 @@ export interface CollectionFormData {
   feeTemplates: FeeTemplate[]
   selectedVariants: Record<string, string>
   selectedEditionIds: string[]
+  /** Optional per-edition base price override, keyed by editionId. Blank = split evenly. */
+  editionPrices: Record<string, string>
 }
 
 export interface SaleEditionForModal {
@@ -117,6 +119,7 @@ export function CollectionFormModal({
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
   const [selectedEditionIds, setSelectedEditionIds] = useState<string[]>([])
+  const [editionPrices, setEditionPrices] = useState<Record<string, string>>({})
   const feeKeyRef = useRef(0)
   const discountKeyRef = useRef(0)
 
@@ -162,6 +165,7 @@ export function CollectionFormModal({
     }
     setSelectedVariants(initVariants)
     setSelectedEditionIds(editions.map(e => e.editionId))
+    setEditionPrices({})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -205,6 +209,7 @@ export function CollectionFormModal({
       feeEntries,
       discountEntries,
       feeTemplates,
+      editionPrices,
       selectedVariants,
       selectedEditionIds,
     })
@@ -264,15 +269,31 @@ export function CollectionFormModal({
                         )}
                         className="w-4 h-4 accent-amber-500 shrink-0"
                       />
-                      <span className="text-sm text-stone-300 leading-tight">
+                      <span className="text-sm text-stone-300 leading-tight flex-1">
                         {ed.edition?.book?.title ?? 'Edition'}
                       </span>
+                      {checked && selectedEditionIds.length > 1 && (
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="auto"
+                          value={editionPrices[ed.editionId] ?? ''}
+                          onChange={e => setEditionPrices(prev => ({ ...prev, [ed.editionId]: e.target.value }))}
+                          onClick={e => e.stopPropagation()}
+                          className="w-16 bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-xs text-right shrink-0"
+                        />
+                      )}
                     </label>
                   )
                 })}
               </div>
               {selectedEditionIds.length === 0 && (
                 <p className="text-xs text-red-400">Select at least one edition</p>
+              )}
+              {selectedEditionIds.length > 1 && (
+                <p className="text-[11px] text-stone-500">
+                  Optional per-book price — leave blank to split the total evenly.
+                </p>
               )}
             </div>
           )}

@@ -76,6 +76,13 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
         editionSaleAnnouncementEditionIds[ed.editionId] = ed.id
       }
 
+      const editionPrices: Record<string, number> = {}
+      for (const ed of activeEditions) {
+        const raw = data.editionPrices[ed.editionId]
+        if (raw && parseDecimalInput(raw) > 0) editionPrices[ed.editionId] = parseDecimalInput(raw)
+      }
+      const hasCustomPrices = Object.keys(editionPrices).length > 0
+
       const result = await createPurchaseGroup({
         saleAnnouncementId,
         totalAmount: parsedPrice,
@@ -89,6 +96,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
         editionSaleAnnouncementEditionIds,
         isSecondHand: data.isSecondHand,
         sourcePlatform: data.isSecondHand && data.sourcePlatform ? data.sourcePlatform : undefined,
+        ...(hasCustomPrices && { priceDistribution: 'CUSTOM' as const, editionPrices }),
       })
 
       const purchaseGroupId = (result as any).group?.id ?? (result as any).id

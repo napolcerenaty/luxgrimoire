@@ -76,6 +76,7 @@ interface CollectionEntry {
     announcement: { id: string; title: string; generalSaleDate: string | null }
   } | null
   tags: string[]
+  basePrice: string | null
   subscriptionEntry: {
     subscription: { id: string; name: string; parentSubscriptionId: string | null }
   } | null
@@ -1443,36 +1444,36 @@ export default function CollectionPage() {
                             const pg = entry.purchaseGroup
                             const pgCur = pg.currency
                             const dateStr = pg.purchasedAt.slice(0, 10)
-                            let total = Number(pg.totalAmount) + Number(pg.shippingAmount ?? 0)
-                            // Add fees (normalized to pgCur)
+                            // Shipping/fees/discounts/refunds are still split evenly across the
+                            // set — only the base price is a real per-book allocation.
+                            let extras = Number(pg.shippingAmount ?? 0)
                             for (const fee of pg.fees ?? []) {
                               if (fee.currency === pgCur) {
-                                total += Number(fee.amount)
+                                extras += Number(fee.amount)
                               } else {
                                 const rate = conversionRates[`${fee.currency}:${pgCur}:${fee.date?.slice(0, 10) ?? dateStr}`]
-                                if (rate) total += Number(fee.amount) * rate
+                                if (rate) extras += Number(fee.amount) * rate
                               }
                             }
-                            // Subtract discounts (normalized to pgCur)
                             for (const discount of pg.discounts ?? []) {
                               if (discount.currency === pgCur) {
-                                total -= Number(discount.amount)
+                                extras -= Number(discount.amount)
                               } else {
                                 const rate = conversionRates[`${discount.currency}:${pgCur}:${discount.date?.slice(0, 10) ?? dateStr}`]
-                                if (rate) total -= Number(discount.amount) * rate
+                                if (rate) extras -= Number(discount.amount) * rate
                               }
                             }
-                            // Subtract refunds (normalized to pgCur)
                             for (const refund of pg.refunds ?? []) {
                               if (refund.currency === pgCur) {
-                                total -= Number(refund.amount)
+                                extras -= Number(refund.amount)
                               } else {
                                 const rate = conversionRates[`${refund.currency}:${pgCur}:${refund.date?.slice(0, 10) ?? dateStr}`]
-                                if (rate) total -= Number(refund.amount) * rate
+                                if (rate) extras -= Number(refund.amount) * rate
                               }
                             }
                             const bookCount = pg._count?.bookEntries ?? 1
-                            const perBook = bookCount > 1 ? total / bookCount : total
+                            const base = entry.basePrice != null ? Number(entry.basePrice) : Number(pg.totalAmount) / bookCount
+                            const perBook = bookCount > 1 ? base + extras / bookCount : base + extras
                             const dc = user?.preferredCurrency
                             return (
                               <p className="text-[10px] text-stone-400">
@@ -1685,9 +1686,10 @@ export default function CollectionPage() {
                         <div className="hidden md:flex flex-col items-end gap-0.5 flex-shrink-0 min-w-[80px]">
                           {dateLabel && <p className="text-[10px] text-stone-500">{dateLabel}</p>}
                           {pg && (() => {
-                            const total = Number(pg.totalAmount) + Number(pg.shippingAmount ?? 0)
                             const bookCount = pg._count?.bookEntries ?? 1
-                            const perBook = bookCount > 1 ? total / bookCount : total
+                            const base = entry.basePrice != null ? Number(entry.basePrice) : Number(pg.totalAmount) / bookCount
+                            const shippingShare = Number(pg.shippingAmount ?? 0) / bookCount
+                            const perBook = base + shippingShare
                             return <p className="text-[10px] text-stone-400">{perBook.toFixed(2)} {pg.currency}</p>
                           })()}
                         </div>

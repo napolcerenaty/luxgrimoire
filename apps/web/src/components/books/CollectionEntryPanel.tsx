@@ -82,6 +82,7 @@ interface CollectionEntry {
   saleNotes: string | null
   signatureType: string | null
   subscriptionEntryId: string | null
+  basePrice: string | null
   saleGroupId: string | null
   saleGroupTitle: string | null
   saleGroupEntryCount: number | null
@@ -1588,12 +1589,15 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                     </div>
                   )}
 
-                  {/* Per-book price for bundles */}
+                  {/* Per-book price for bundles — real base price allocation when set (falls
+                      back to an equal split), plus this book's equal share of shipping/fees
+                      (those are still split evenly across the set, by design). */}
                   {(() => {
                     const bookCount = pg._count?.bookEntries ?? 1
                     if (bookCount <= 1) return null
-                    const total = grandTotal ?? (pgTotal ?? 0) + (pgShipping ?? 0) + pgFeesTotal - pgDiscountsTotal - pgRefundsTotal
-                    const perBook = total / bookCount
+                    const equalExtrasShare = ((pgShipping ?? 0) + pgFeesTotal - pgDiscountsTotal - pgRefundsTotal) / bookCount
+                    const base = entry.basePrice != null ? parseFloat(entry.basePrice) : (pgTotal ?? 0) / bookCount
+                    const perBook = base + equalExtrasShare
                     return (
                       <div className="flex justify-between items-baseline gap-2 pt-1.5" style={{ borderTop: '1px solid var(--border)' }}>
                         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
