@@ -34,7 +34,6 @@ export function HomeTrendingSales({ announcements }: Props) {
   return (
     <EditionCarousel
       title="Trending Sales ⚡"
-      eyebrow="Most followed upcoming sales"
       cards={cards}
       centered
     />

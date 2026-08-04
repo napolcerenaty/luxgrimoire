@@ -162,12 +162,6 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
       <section className="container mx-auto px-4 py-10 max-w-5xl">
         {/* Centered header */}
         <div className="flex flex-col items-center mb-6 gap-3">
-          <p className="text-xs uppercase tracking-widest text-amber-600 font-medium text-center">
-            Have you seen an announcement?{' '}
-            <Link href="/sale-announcement-requests" className="underline underline-offset-2 hover:text-amber-400 transition-colors">
-              Let us know!
-            </Link>
-          </p>
           <div className="flex items-center gap-4 w-full">
             <span className="flex-1 h-px bg-stone-700" />
             <h2 className="text-2xl font-serif font-semibold text-stone-100 tracking-widest text-center sm:whitespace-nowrap">

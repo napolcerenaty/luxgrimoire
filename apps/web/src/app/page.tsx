@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { API_BASE } from '@/lib/authFetch'
 import { apiFetch } from '@/lib/api'
 import { resolveEditionCoverRaw } from '@/lib/editionCover'
@@ -106,6 +107,17 @@ export default async function HomePage() {
         announcements={announcements}
         viewAllHref="/sale-announcements"
       />
+
+      {announcements.length > 0 && (
+        <div className="container mx-auto px-4 -mt-4 mb-2 text-center">
+          <p className="text-xs uppercase tracking-widest text-amber-600 font-medium">
+            Have you seen an announcement?{' '}
+            <Link href="/sale-announcement-requests" className="underline underline-offset-2 hover:text-amber-400 transition-colors">
+              Let us know!
+            </Link>
+          </p>
+        </div>
+      )}
 
       <HomeTrendingEditions editions={trendingEditions} />
 
