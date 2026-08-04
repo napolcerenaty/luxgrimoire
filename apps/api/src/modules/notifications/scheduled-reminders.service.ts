@@ -3,8 +3,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { computeChoiceDeadline } from '../subscriptions/subscription-month-choice.util';
 
-export type ReminderType = 'renewal' | 'sale' | 'book_choice';
-
 interface UserReminderSettingsLike {
   renewalEnabled: boolean;
   renewalDaysBefore: number;
