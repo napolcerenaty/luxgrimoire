@@ -116,7 +116,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   const website = sale.company?.website
                   return (
                     <div className="text-[10px] text-stone-500 mt-1 text-center leading-4">
-                      <span>📷</span>
+                      <span>📷 photo by</span>
                       {credits.map(({ handle, role }) => (
                         <div key={handle}>
                           <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-amber-600 hover:text-amber-400 transition-colors">
