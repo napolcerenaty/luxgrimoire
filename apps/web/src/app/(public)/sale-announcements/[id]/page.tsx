@@ -6,6 +6,7 @@ import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { SaleAnnouncementContent } from '@/components/sales/SaleAnnouncementContent'
+import { ExternalLink } from 'lucide-react'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -63,15 +64,26 @@ export default async function SaleAnnouncementPage({ params }: Props) {
               credits.push({ handle: m[1], role: m[2] ?? null })
             }
             if (credits.length === 0) return null
+            const website = sale.company?.website
             return (
               <div className="text-xs text-stone-500 mt-2 text-center leading-5">
                 <span>📷 photo by</span>
                 {credits.map(({ handle, role }) => (
                   <div key={handle}>
-                    <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="hover:text-amber-400 transition-colors">@{handle}</a>
+                    <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-amber-600 hover:text-amber-400 transition-colors">
+                      @{handle}<ExternalLink size={10} className="shrink-0" />
+                    </a>
                     {role && <span className="text-stone-600"> ({role})</span>}
                   </div>
                 ))}
+                {website && (
+                  <div>
+                    courtesy of{' '}
+                    <a href={website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-amber-600 hover:text-amber-400 transition-colors">
+                      {sale.company!.name}<ExternalLink size={10} className="shrink-0" />
+                    </a>
+                  </div>
+                )}
               </div>
             )
           })()}

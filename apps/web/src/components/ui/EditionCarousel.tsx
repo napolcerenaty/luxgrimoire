@@ -20,6 +20,8 @@ export interface CarouselCard {
 
 interface Props {
   title: string
+  /** Small uppercase label rendered right above the heading, e.g. "Most followed upcoming sales". */
+  eyebrow?: string
   viewAllHref?: string
   cards: CarouselCard[]
   centered?: boolean
@@ -65,14 +67,7 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
 
         {/* Top badge */}
         {card.badge && (
-          <span
-            className="absolute top-1.5 left-1.5 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded"
-            style={{
-              background: 'rgba(5,10,18,0.85)',
-              border: '1px solid var(--border)',
-              color: 'var(--accent2)',
-            }}
-          >
+          <span className="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-tight bg-stone-800/90 text-stone-300 border border-stone-600">
             {card.badge}
           </span>
         )}
@@ -117,7 +112,7 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
   )
 })
 
-export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHref, cards, centered }: Props) {
+export const EditionCarousel = memo(function EditionCarousel({ title, eyebrow, viewAllHref, cards, centered }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const scroll = (dir: 'left' | 'right') => {
@@ -135,6 +130,9 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
       {/* Header */}
       {centered ? (
         <div className="flex flex-col items-center mb-6 gap-3">
+          {eyebrow && (
+            <p className="text-xs uppercase tracking-widest text-amber-600 font-medium text-center">{eyebrow}</p>
+          )}
           <div className="flex items-center gap-4 w-full">
             <span className="flex-1 h-px bg-stone-700" />
             <h2 className="text-xl sm:text-2xl font-serif font-semibold text-stone-100 tracking-wide sm:tracking-widest text-center">
