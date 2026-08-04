@@ -2405,6 +2405,13 @@ export class SubscriptionsService {
                 brandColors: true,
               },
             },
+            // Admin-declared "this month doesn't ship" — company-wide, distinct from the
+            // per-user skipRecords above. Written per exact subscriptionId (see model comment),
+            // so no parent/variant resolution needed here.
+            monthSkips: {
+              where: { undoneAt: null },
+              select: { year: true, month: true },
+            },
           },
         },
         purchaseGroups: {
