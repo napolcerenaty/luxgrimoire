@@ -289,6 +289,41 @@ export class AnnouncementsService {
     return this.mapAnnouncementAssets(announcement);
   }
 
+  /** Every SaleTier (any region) falling within (year, month) — global, not tied to any user.
+   *  Powers the public /sales-calendar page. */
+  async getCalendarTiers(year: number, month: number) {
+    const monthStart = new Date(Date.UTC(year, month - 1, 1));
+    const monthEnd = new Date(Date.UTC(year, month, 1));
+
+    const tiers = await this.prisma.saleTier.findMany({
+      where: { date: { gte: monthStart, lt: monthEnd } },
+      orderBy: { date: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        date: true,
+        region: { select: { id: true, name: true } },
+        announcement: {
+          select: {
+            id: true,
+            title: true,
+            imageUrl: true,
+            saleType: true,
+            company: { select: { id: true, name: true, slug: true, brandColors: true } },
+          },
+        },
+      },
+    });
+
+    return tiers.map((t) => ({
+      tierId: t.id,
+      name: t.name,
+      date: t.date,
+      region: t.region,
+      announcement: t.announcement,
+    }));
+  }
+
   /** Countdown target for a company's page: the soonest upcoming tier across every live/
    *  upcoming sale (all tiers combined) — unless the given user has an interest in one of this
    *  company's live/upcoming sales and picked a specific tier, in which case that tier's own

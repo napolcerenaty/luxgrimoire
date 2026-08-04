@@ -36,7 +36,7 @@ import {
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
-import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, computeDateAnchoredFirstBoxMonth, computeJoinDateWindow, getPreviousBoxUnitStart, resolveFirstBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, computeDateAnchoredFirstBoxMonth, computeJoinDateWindow, getPreviousBoxUnitStart, resolveFirstBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth, computeGlobalRenewalDay } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
@@ -2486,6 +2486,90 @@ export class SubscriptionsService {
         },
       };
     }));
+  }
+
+  /**
+   * Every subscription's computed renewal day for (year, month) — global, not tied to any
+   * user. Powers the public /sales-calendar page. Unlike getMySubscriptionsForCalendar, there's
+   * no UserSubscriptionEntry to key off, so this uses the subscription's own default renewalDay
+   * and only company-wide SubscriptionMonthSkip suppresses a renewal (per-user skips have no
+   * meaning in a non-user-specific view).
+   */
+  async getGlobalCalendarRenewals(year: number, month: number) {
+    const subs = await this.prisma.subscription.findMany({
+      where: {
+        isHidden: false,
+        isUpcoming: false,
+        renewalDay: { not: null },
+      },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        logoUrl: true,
+        logoAsset: { select: { publicId: true } },
+        coverImage: true,
+        coverImageAsset: { select: { publicId: true } },
+        intervalMonths: true,
+        startingMonth: true,
+        renewalDay: true,
+        renewalMonthOffset: true,
+        startDate: true,
+        isDiscontinued: true,
+        company: { select: { id: true, name: true, slug: true, brandColors: true } },
+        // Admin-declared "this month doesn't ship" — company-wide, applies globally.
+        monthSkips: {
+          where: { undoneAt: null },
+          select: { year: true, month: true },
+        },
+      },
+    });
+
+    const month0 = month - 1;
+    const now = new Date();
+    const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const viewedMonthStart = new Date(Date.UTC(year, month0, 1));
+
+    const results: Array<{
+      subscriptionId: string;
+      slug: string;
+      name: string;
+      logoUrl: string | null;
+      coverImage: string | null;
+      day: number;
+      company: { id: string; name: string; slug: string; brandColors: string[] | null };
+    }> = [];
+
+    for (const sub of subs) {
+      // Discontinued subscriptions have no future renewals — only show for months they were live.
+      if (sub.isDiscontinued && viewedMonthStart >= currentMonthStart) continue;
+
+      const day = computeGlobalRenewalDay(
+        {
+          renewalDay: sub.renewalDay,
+          startDate: sub.startDate,
+          startingMonth: sub.startingMonth,
+          intervalMonths: sub.intervalMonths,
+          renewalMonthOffset: sub.renewalMonthOffset,
+        },
+        year,
+        month0,
+        sub.monthSkips,
+      );
+      if (day == null) continue;
+
+      results.push({
+        subscriptionId: sub.id,
+        slug: sub.slug,
+        name: sub.name,
+        logoUrl: sub.logoAsset?.publicId ?? sub.logoUrl,
+        coverImage: sub.coverImageAsset?.publicId ?? sub.coverImage,
+        day,
+        company: sub.company,
+      });
+    }
+
+    return results;
   }
 
   async getOrphanedMembershipHistory(userId: string) {

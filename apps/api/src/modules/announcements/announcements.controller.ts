@@ -6,6 +6,7 @@ import { AnnouncementsService } from './announcements.service';
 import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto, AssignEditionToItemDto, UpsertSaleTierDto } from './announcements.dto';
 import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CacheControlInterceptor } from '../../common/interceptors/cache-control.interceptor';
+import { YearMonthQueryDto } from '../subscriptions/subscriptions.dto';
 
 const TRENDING_TTL = 60 * 60 * 1000;
 
@@ -261,6 +262,14 @@ export class AnnouncementsController {
   @Delete('admin/:id/items/:itemId')
   adminDeleteItem(@Param('id') id: string, @Param('itemId') itemId: string) {
     return this.announcementsService.adminDeleteItem(id, itemId);
+  }
+
+  /** Global (not per-user) sale-tier calendar — every SaleTier falling in a given month, for
+   *  the public /sales-calendar page. */
+  @Public()
+  @Get('calendar')
+  getCalendar(@Query() query: YearMonthQueryDto) {
+    return this.announcementsService.getCalendarTiers(query.year, query.month);
   }
 
   @Public()
