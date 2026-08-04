@@ -290,13 +290,17 @@ export class AnnouncementsService {
   }
 
   /** Every SaleTier (any region) falling within (year, month) — global, not tied to any user.
-   *  Powers the public /sales-calendar page. */
-  async getCalendarTiers(year: number, month: number) {
+   *  Powers the public /sales-calendar page. `companyId` narrows to one company's tiers, for
+   *  the per-company calendar embed on the company sale-announcements list. */
+  async getCalendarTiers(year: number, month: number, companyId?: string) {
     const monthStart = new Date(Date.UTC(year, month - 1, 1));
     const monthEnd = new Date(Date.UTC(year, month, 1));
 
     const tiers = await this.prisma.saleTier.findMany({
-      where: { date: { gte: monthStart, lt: monthEnd } },
+      where: {
+        date: { gte: monthStart, lt: monthEnd },
+        ...(companyId ? { announcement: { companyId } } : {}),
+      },
       orderBy: { date: 'asc' },
       select: {
         id: true,

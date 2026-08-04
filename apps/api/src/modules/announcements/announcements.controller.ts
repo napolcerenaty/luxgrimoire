@@ -268,8 +268,8 @@ export class AnnouncementsController {
    *  the public /sales-calendar page. */
   @Public()
   @Get('calendar')
-  getCalendar(@Query() query: YearMonthQueryDto) {
-    return this.announcementsService.getCalendarTiers(query.year, query.month);
+  getCalendar(@Query() query: YearMonthQueryDto, @Query('companyId') companyId?: string) {
+    return this.announcementsService.getCalendarTiers(query.year, query.month, companyId);
   }
 
   @Public()

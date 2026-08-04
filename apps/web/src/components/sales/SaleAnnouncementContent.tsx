@@ -2,11 +2,25 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, CalendarDays } from 'lucide-react'
 import type { ApiSaleAnnouncement, ApiSaleTier } from '@luxgrimoire/shared-types'
 import SaleDateSelector from '@/app/(public)/sale-announcements/[id]/SaleDateSelector'
 import { SaleInterestSection } from '@/app/(public)/sale-announcements/[id]/SaleInterestSection'
 import { SaleEditionsGrid } from '@/components/sales/SaleEditionsGrid'
+import { useTheme } from '@/components/ThemeProvider'
+import { strHue } from '@/lib/calendarPills'
+import CalendarGrid, { type CalendarSaleItem } from '@/components/calendar/CalendarGrid'
+
+/** First month worth showing: the soonest upcoming tier's month, or the most recent past
+ *  tier's month if every tier has already passed. */
+function getNearestTierMonth(tiers: ApiSaleTier[]): Date {
+  const now = new Date()
+  if (tiers.length === 0) return new Date(now.getFullYear(), now.getMonth(), 1)
+  const sorted = [...tiers].sort((a, b) => a.date.localeCompare(b.date))
+  const upcoming = sorted.find(t => new Date(t.date) >= now)
+  const d = new Date((upcoming ?? sorted[sorted.length - 1]).date)
+  return new Date(d.getFullYear(), d.getMonth(), 1)
+}
 
 const TYPE_LABELS: Record<string, string> = {
   LIMITED_PREORDER: '⏳ Limited Preorder',
@@ -32,12 +46,44 @@ interface Props {
 }
 
 export function SaleAnnouncementContent({ sale, compact = false, showPageLink = false, onLinkClick }: Props) {
+  const { theme } = useTheme()
   const editions = sale.editions ?? []
+  const tiers = sale.tiers ?? []
   // The tier currently selected in SaleDateSelector below — passed to SaleInterestSection so
   // "Interested?" registers directly against it instead of opening its own region/tier picker
   // (that picker only makes sense when there's no on-page selector already, e.g. the bell icon
   // on a card in a list).
   const [selectedTier, setSelectedTier] = useState<ApiSaleTier | null>(null)
+
+  // Inline "Show calendar" panel — full page only (compact/modal use has no room for it).
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [calendarViewDate, setCalendarViewDate] = useState(() => getNearestTierMonth(tiers))
+  const regionNameById = new Map((sale.regions ?? []).map(r => [r.id, r.name]))
+
+  const calendarSalesForDay = (day: number): CalendarSaleItem[] => {
+    const year = calendarViewDate.getFullYear()
+    const month0 = calendarViewDate.getMonth()
+    return tiers
+      .filter(t => {
+        const d = new Date(t.date)
+        return d.getFullYear() === year && d.getMonth() === month0 && d.getDate() === day
+      })
+      .map(t => {
+        const d = new Date(t.date)
+        const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+        const regionName = t.regionId ? regionNameById.get(t.regionId) ?? null : null
+        return {
+          id: t.id,
+          label: t.name,
+          companyName: sale.company?.name ?? null,
+          brandColors: sale.company?.brandColors ?? null,
+          hue: strHue(sale.company?.slug ?? sale.id),
+          tierName: regionName ?? 'All regions',
+          time,
+          href: `/sale-announcements/${sale.id}`,
+        }
+      })
+  }
 
   const heading = compact
     ? <h2 className="text-lg sm:text-xl font-serif font-bold text-stone-100 leading-tight mb-2 pr-6">{sale.title}</h2>
@@ -155,6 +201,32 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
           userCountry={null}
           onSelectionChange={setSelectedTier}
         />
+
+        {!compact && tiers.length > 0 && (
+          <div className="mt-2">
+            <button
+              onClick={() => setShowCalendar(v => !v)}
+              className="inline-flex items-center gap-1.5 text-xs text-stone-400 hover:text-amber-400 transition-colors"
+            >
+              <CalendarDays size={13} />
+              {showCalendar ? 'Hide calendar' : 'Show calendar'}
+            </button>
+            {showCalendar && (
+              <div className="mt-3">
+                <CalendarGrid
+                  year={calendarViewDate.getFullYear()}
+                  month0={calendarViewDate.getMonth()}
+                  monthLabel={calendarViewDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                  lightMode={theme === 'light'}
+                  onPrevMonth={() => setCalendarViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+                  onNextMonth={() => setCalendarViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+                  renewalsForDay={() => []}
+                  salesForDay={calendarSalesForDay}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Interest / add to collection */}
