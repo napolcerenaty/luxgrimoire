@@ -36,7 +36,7 @@ import {
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
-import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, computeDateAnchoredFirstBoxMonth, getPreviousBoxUnitStart, resolveFirstBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, computeDateAnchoredFirstBoxMonth, computeJoinDateWindow, getPreviousBoxUnitStart, resolveFirstBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
@@ -3055,23 +3055,35 @@ export class SubscriptionsService {
       const startingMonth = (sub as any).startingMonth ?? 1;
       const searchIds = isCombo ? await this.resolveEffectiveComponentIds(componentIds) : [monthsSubscriptionId];
 
-      // The join modal's mandatory "choose your first box" step needs a default suggestion plus
-      // the previous/next candidates to offer alongside it — computed here once, up front, so the
-      // eligibleMonths list below is built from the exact same value (its first unit IS "current",
-      // its second unit IS "next" — no separate fetch needed for those two).
+      // Two distinct anchors for the picker:
+      //  - defaultFirstBox: the renewal-cycle-aware ELIGIBILITY suggestion (computeFirstEligibleBoxMonth
+      //    + content-shift) — only used to mark which of the 3 displayed candidates is "Suggested".
+      //  - joinDateWindow: the box unit containing the join date's own calendar position, no
+      //    renewal-day math — this is what previous/current/next are actually built around, so
+      //    "current" always means "the window presently in progress", not "the eligibility-adjusted
+      //    one" (e.g. signupIncludesCurrentMonth=false shouldn't make "current" skip to next month —
+      //    it should just make next month the Suggested one instead).
       const defaultFirstBox = effectiveStartDateObj
         ? await computeDateAnchoredFirstBoxMonth(this.prisma, searchIds, effectiveStartDateObj, resolvedRenewalDay ?? 1, renewalMonthOffset, effectiveSignupIncludes, intervalMonths, startingMonth, eligibilitySubStartDate)
         : null;
-      const previousBoxStart = defaultFirstBox
-        ? await getPreviousBoxUnitStart(this.prisma, searchIds, defaultFirstBox.year, defaultFirstBox.month, intervalMonths, startingMonth)
+      const joinDateWindow = effectiveStartDateObj
+        ? await computeJoinDateWindow(this.prisma, searchIds, effectiveStartDateObj, intervalMonths, startingMonth)
+        : null;
+      const previousBoxStart = joinDateWindow
+        ? await getPreviousBoxUnitStart(this.prisma, searchIds, joinDateWindow.year, joinDateWindow.month, intervalMonths, startingMonth)
         : null;
       const previousBoxMonths = previousBoxStart
         ? await this.getBoxUnitMonths(searchIds, previousBoxStart.year, previousBoxStart.month, intervalMonths)
         : [];
 
+      // eligibleMonths is anchored at joinDateWindow (its first unit IS "current", second IS
+      // "next") — NOT at defaultFirstBox. If the user ends up picking "current" (overriding the
+      // eligibility suggestion), Step2 should offer that window onward for backfill; if they pick
+      // whichever slot matches defaultFirstBox instead, applyFirstBoxChoice already drops the
+      // earlier unit(s) — see joinSubscription.utils.ts.
       const eligibleMonths = isCombo
-        ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, intervalMonths, startingMonth, null, defaultFirstBox)
-        : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, intervalMonths, startingMonth, null, defaultFirstBox);
+        ? await this.getComboEligibleMonths(componentIds, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, intervalMonths, startingMonth, null, joinDateWindow)
+        : await this.getEligibleMonths(monthsSubscriptionId, effectiveStartDateObj, cancellationDateObj, effectiveSignupIncludes, renewalMonthOffset, resolvedRenewalDay, intervalMonths, startingMonth, null, joinDateWindow);
       const mockEntry = {
         id: '__preview__',
         startDate: startDateStr,
@@ -3086,8 +3098,13 @@ export class SubscriptionsService {
         entry: mockEntry as any,
         eligibleMonths,
         previousBoxMonths,
+        // Renewal-cycle-aware eligibility suggestion — decides which picker slot is "Suggested".
         defaultFirstBoxYear: defaultFirstBox?.year ?? null,
         defaultFirstBoxMonth: defaultFirstBox?.month ?? null,
+        // The box unit containing the join date's own calendar position — decides which slot the
+        // picker labels "current" (see computeJoinDateWindow).
+        joinWindowYear: joinDateWindow?.year ?? null,
+        joinWindowMonth: joinDateWindow?.month ?? null,
       };
     }
 

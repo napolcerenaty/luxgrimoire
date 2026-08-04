@@ -260,18 +260,17 @@ describe('SubscriptionsService — joinSubscription', () => {
   //  signupIncludesCurrentMonth=false → first = currentBoxMonth + 1
   //  paymentOnStartup does NOT change which months are eligible
 
-  // computeFirstEligibleBoxMonth's renewalDay/renewalMonthOffset/signupIncludesCurrentMonth cycle
-  // math is still used here — it's a legitimate signal for a plausible starting guess, not the
-  // problem. The drift bug was blindly TRUSTING that computed value forever, live, with no way for
-  // the user to correct it once settings history got fixed/corrected retroactively. That's fixed
-  // structurally now, not by discarding the math: this value only ever becomes the join modal's
-  // DEFAULT SUGGESTION in the mandatory ChooseFirstBox picker step (see
-  // computeDateAnchoredFirstBoxMonth, resolveFirstBoxMonth) — the user confirms or overrides it
-  // (previous/current/next), and whatever they pick is what actually gets saved as
-  // firstBoxYear/firstBoxMonth, once, never recomputed again. The only NEW behavior on top of the
-  // old formula is: the naive cycle-math guess is then snapped forward to the nearest month that
-  // actually has real content, so a fully company-skipped month is never offered as "current".
-  describe('eligible months — first box month determination (default suggestion for the picker)', () => {
+  // eligibleMonths (and the "current"/"next" candidates the picker builds from it) are anchored on
+  // computeJoinDateWindow — the join date's own raw calendar position (or cadence cycle for
+  // multi-month subs), with NO renewal-day/renewalMonthOffset/signupIncludesCurrentMonth math at
+  // all. That cycle math still exists and still runs (computeFirstEligibleBoxMonth, via
+  // computeDateAnchoredFirstBoxMonth) but only feeds `defaultFirstBoxYear`/`defaultFirstBoxMonth`
+  // in the response now — the renewal-cycle-aware "Suggested" badge, not the query boundary. See
+  // the "'Suggested' badge" block below for cycle-math coverage, and buildFirstBoxCandidates
+  // (joinSubscription.utils.test.ts) for why: a subscriber joining today whose subscription has
+  // signupIncludesCurrentMonth=false should still see "current" mean the window shipping right
+  // now, with the eligibility-adjusted month marked Suggested separately (Afterlight bug report).
+  describe('eligible months — first box month determination (join-date window, no cycle math)', () => {
     /** Returns the `where.AND[0].OR` lower-bound clause from the first subscriptionMonth.findMany call */
     async function getLowerBound(subOverrides: Record<string, unknown>, startDate: string) {
       jest.clearAllMocks();
@@ -280,8 +279,8 @@ describe('SubscriptionsService — joinSubscription', () => {
       (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
-      // No real content found near the naive cycle-math guess → computeDateAnchoredFirstBoxMonth
-      // falls back to that unshifted guess as-is.
+      // No real content found at the raw join-date position → computeJoinDateWindow falls back to
+      // that unshifted calendar position as-is.
       (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue(null);
 
       await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ dryRun: true, startDate }));
@@ -300,20 +299,15 @@ describe('SubscriptionsService — joinSubscription', () => {
       return clause?.year?.gt as number | undefined;
     }
 
-    it('with no real content nearby, first box uses the renewal-cycle math (renewalDay=20, offset=2, includes=false, Feb10 join → April)', async () => {
-      // joinDay=10 < renewalDay=20 → not yet happened → lastBillingMonth=Jan; boxMonth=Jan+2=March;
-      // includes=false → first = March+1 = April.
+    it('with no real content nearby, eligibleMonths starts at the raw join month — renewalDay/offset/includes have no effect', async () => {
       const lb = await getLowerBound({ renewalDay: 20, renewalMonthOffset: 2, signupIncludesCurrentMonth: false }, '2025-02-10');
-      expect(getMonthGte(lb, 2025)).toBe(4);
+      expect(getMonthGte(lb, 2025)).toBe(2);
       expect(getYearGt(lb)).toBe(2025);
     });
 
-    it('join on Dec 31 with default settings (renewalDay=1, includes=false) → first box is January next year', async () => {
-      // joinDay=31 >= renewalDay=1 → happened → lastBillingMonth=Dec; boxMonth=Dec;
-      // includes=false → first = Dec+1 = Jan next year.
+    it('join on Dec 31 → eligibleMonths starts at December of the join year (no year-boundary special-casing)', async () => {
       const lb = await getLowerBound({}, '2024-12-31');
-      expect(getYearGt(lb)).toBe(2025);
-      expect(getMonthGte(lb, 2025)).toBe(1);
+      expect(getMonthGte(lb, 2024)).toBe(12);
     });
 
     it('paymentOnStartup does not change the eligible-months boundary', async () => {
@@ -352,6 +346,49 @@ describe('SubscriptionsService — joinSubscription', () => {
       const call = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls[0]?.[0];
       const lb = call?.where?.AND?.[0]?.OR as Array<Record<string, unknown>> | undefined;
       expect(getMonthGte(lb, 2025)).toBe(4);
+    });
+  });
+
+  // ── defaultFirstBoxYear/Month — the renewal-cycle-aware "Suggested" badge ──────
+  //
+  // computeFirstEligibleBoxMonth's cycle math still runs — it just no longer decides the
+  // eligibleMonths query boundary (see block above). It's returned separately in the dry-run
+  // response so the frontend can mark whichever of previous/current/next matches it as
+  // "Suggested" (see buildFirstBoxCandidates).
+  describe('dry-run response — defaultFirstBoxYear/Month (renewal-cycle-aware suggestion)', () => {
+    async function getDefaultFirstBox(subOverrides: Record<string, unknown>, startDate: string) {
+      jest.clearAllMocks();
+      const sub = makeSub({ renewalDay: 1, renewalMonthOffset: 0, signupIncludesCurrentMonth: false, ...subOverrides });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue(null);
+
+      return service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ dryRun: true, startDate })) as Promise<any>;
+    }
+
+    it('renewalDay=20, offset=2, includes=false, Feb10 join → suggestion is April (cycle math still applies here)', async () => {
+      // joinDay=10 < renewalDay=20 → not yet happened → lastBillingMonth=Jan; boxMonth=Jan+2=March;
+      // includes=false → first = March+1 = April.
+      const result = await getDefaultFirstBox({ renewalDay: 20, renewalMonthOffset: 2, signupIncludesCurrentMonth: false }, '2025-02-10');
+      expect(result.defaultFirstBoxYear).toBe(2025);
+      expect(result.defaultFirstBoxMonth).toBe(4);
+    });
+
+    it('join on Dec 31, renewalDay=1, includes=false → suggestion is January next year', async () => {
+      // joinDay=31 >= renewalDay=1 → happened → lastBillingMonth=Dec; boxMonth=Dec; includes=false → Jan next year.
+      const result = await getDefaultFirstBox({}, '2024-12-31');
+      expect(result.defaultFirstBoxYear).toBe(2025);
+      expect(result.defaultFirstBoxMonth).toBe(1);
+    });
+
+    it('renewalDay=1, includes=true, Feb10 join → suggestion equals the raw join month (no divergence)', async () => {
+      const result = await getDefaultFirstBox({ renewalDay: 1, signupIncludesCurrentMonth: true }, '2025-02-10');
+      expect(result.defaultFirstBoxYear).toBe(2025);
+      expect(result.defaultFirstBoxMonth).toBe(2);
+      expect(result.joinWindowYear).toBe(2025);
+      expect(result.joinWindowMonth).toBe(2);
     });
   });
 

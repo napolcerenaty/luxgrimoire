@@ -654,6 +654,52 @@ export async function computeDateAnchoredFirstBoxMonth(
 }
 
 /**
+ * The box unit containing the join date's own calendar position (or, for a multi-month cadence,
+ * the cycle containing it) — shifted forward only if that exact position has no real content
+ * (company-wide gap). No renewal-day/renewalMonthOffset/signupIncludesCurrentMonth math at all.
+ *
+ * This is the anchor for WHICH 3 months the join modal's picker displays (previous/current/next
+ * around "the month you say you joined") — deliberately independent of
+ * computeDateAnchoredFirstBoxMonth's renewal-cycle-aware SUGGESTION (which of those 3 gets marked
+ * "Suggested"). Without this split, a subscriber who joins today but whose subscription's
+ * signupIncludesCurrentMonth=false means their first eligible box is next month would see the
+ * picker's "current" slot land on next month instead of the box that's actually shipping right
+ * now — confusing, since "current" should mean the window presently in progress, not the
+ * eligibility-adjusted one.
+ */
+export async function computeJoinDateWindow(
+  prisma: PrismaService,
+  subscriptionIds: string[],
+  joinDate: Date,
+  intervalMonths = 1,
+  startingMonth = 1,
+): Promise<{ year: number; month: number }> {
+  const joinYear = joinDate.getFullYear();
+  const joinMonth = joinDate.getMonth() + 1;
+  const naiveStart = intervalMonths > 1
+    ? getBundleBoxStart(joinYear, joinMonth, startingMonth, intervalMonths)
+    : { year: joinYear, month: joinMonth };
+
+  const nextReal = await prisma.subscriptionMonth.findFirst({
+    where: {
+      subscriptionId: { in: subscriptionIds },
+      OR: [
+        { year: { gt: naiveStart.year } },
+        { year: naiveStart.year, month: { gte: naiveStart.month } },
+      ],
+    },
+    orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    select: { year: true, month: true },
+  });
+
+  if (!nextReal) return naiveStart;
+
+  return intervalMonths > 1
+    ? getBundleBoxStart(nextReal.year, nextReal.month, startingMonth, intervalMonths)
+    : { year: nextReal.year, month: nextReal.month };
+}
+
+/**
  * The box unit immediately before (startYear, startMonth) that has real content, gap-aware (walks
  * back past any number of fully company-skipped units — mirrors computeDateAnchoredFirstBoxMonth's
  * forward shift). Returns null when nothing earlier exists (subscription launch, or entirely

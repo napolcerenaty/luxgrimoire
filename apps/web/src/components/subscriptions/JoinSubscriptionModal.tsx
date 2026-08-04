@@ -122,11 +122,14 @@ interface JoinResult {
     basePrice: string | null
   }
   eligibleMonths: SubscriptionMonth[]
-  /** One box unit's worth of months immediately before the default first box (see below) — empty if none. */
+  /** One box unit's worth of months immediately before joinWindowYear/Month (see below) — empty if none. */
   previousBoxMonths?: SubscriptionMonth[]
-  /** The server's date-anchored default first box month — the "current" candidate in the picker step. */
+  /** The server's renewal-cycle-aware eligibility suggestion — decides which picker slot is "Suggested". */
   defaultFirstBoxYear?: number | null
   defaultFirstBoxMonth?: number | null
+  /** The box unit containing the join date's own calendar position — decides which slot is "current". */
+  joinWindowYear?: number | null
+  joinWindowMonth?: number | null
 }
 
 interface Props {
@@ -930,6 +933,10 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
 interface ChooseFirstBoxProps {
   eligibleMonths: SubscriptionMonth[]
   previousBoxMonths: SubscriptionMonth[]
+  /** The window containing the join date's own calendar position — decides which slot is "current". */
+  joinWindowYear: number
+  joinWindowMonth: number
+  /** Renewal-cycle-aware eligibility guess — decides which slot gets the "Suggested" badge. */
   defaultFirstBoxYear: number
   defaultFirstBoxMonth: number
   isBundleMode: boolean
@@ -958,11 +965,11 @@ function candidateLabel(candidate: BoxCandidate, isBundleMode: boolean, interval
     : `${MONTH_NAMES[candidate.month - 1]} ${candidate.year}`
 }
 
-function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, defaultFirstBoxYear, defaultFirstBoxMonth, isBundleMode, intervalMonths, startingMonth, onConfirm, onBack }: ChooseFirstBoxProps) {
+function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, joinWindowYear, joinWindowMonth, defaultFirstBoxYear, defaultFirstBoxMonth, isBundleMode, intervalMonths, startingMonth, onConfirm, onBack }: ChooseFirstBoxProps) {
   const candidates: FirstBoxCandidates = buildFirstBoxCandidates(
-    eligibleMonths, previousBoxMonths, defaultFirstBoxYear, defaultFirstBoxMonth, isBundleMode, intervalMonths, startingMonth,
+    eligibleMonths, previousBoxMonths, joinWindowYear, joinWindowMonth, defaultFirstBoxYear, defaultFirstBoxMonth, isBundleMode, intervalMonths, startingMonth,
   )
-  const [choice, setChoice] = useState<'previous' | 'current' | 'next'>('current')
+  const [choice, setChoice] = useState<'previous' | 'current' | 'next'>(candidates.suggested ?? 'current')
 
   const monthMap = new Map<string, SubscriptionMonth>([...previousBoxMonths, ...eligibleMonths].map(m => [m.id, m]))
 
@@ -989,7 +996,7 @@ function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, defaultFirstBox
         <button onClick={onBack} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
       </div>
       <p className="text-sm text-stone-400">
-        We calculated a default from your join date, but renewal timing can shift over time — confirm the month your subscription actually started with.
+        Pick the box you actually received first. The one marked Suggested is our best guess from your join date and renewal timing — but that can shift over time, so confirm it&apos;s right.
       </p>
       <div className="space-y-2">
         {options.map(({ key, candidate }) => {
@@ -1011,7 +1018,7 @@ function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, defaultFirstBox
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-stone-100">{label}</span>
-                  {key === 'current' && (
+                  {key === candidates.suggested && (
                     <span className="text-[10px] uppercase tracking-wide text-amber-500/80">Suggested</span>
                   )}
                 </div>
@@ -2299,6 +2306,8 @@ export default function JoinSubscriptionModal({
           <StepChooseFirstBox
             eligibleMonths={joinResult.eligibleMonths}
             previousBoxMonths={joinResult.previousBoxMonths ?? []}
+            joinWindowYear={joinResult.joinWindowYear ?? new Date().getFullYear()}
+            joinWindowMonth={joinResult.joinWindowMonth ?? new Date().getMonth() + 1}
             defaultFirstBoxYear={joinResult.defaultFirstBoxYear ?? new Date().getFullYear()}
             defaultFirstBoxMonth={joinResult.defaultFirstBoxMonth ?? new Date().getMonth() + 1}
             isBundleMode={(isBundleSubscription ?? false) && (intervalMonths ?? 1) > 1}
