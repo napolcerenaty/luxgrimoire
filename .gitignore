@@ -40,6 +40,9 @@ apps/api/backups/
 # Turbo cache
 .turbo/
 
+# Test coverage reports
+coverage/
+
 # Gitleaks report
 leaks-report.json
 
