@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   ExternalLink, Pencil, Check, X, ChevronDown, ChevronUp,
   Clock, Tag, Package, Wallet, Plus, Trash2, Hash,
@@ -10,8 +10,9 @@ import { createSaleGroup, updateSaleGroup } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { isValidCalendarDate } from '@/lib/dateValidation'
+import { TagEditor } from '@/components/collection/TagEditor'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -423,11 +424,11 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [savingOrderNumber, setSavingOrderNumber] = useState(false)
   const [deletingOrderNumber, setDeletingOrderNumber] = useState(false)
 
-  // Edit state — tags
-  const [editingTags, setEditingTags] = useState(false)
-  const [editTagInput, setEditTagInput] = useState('')
-  const [editTagList, setEditTagList] = useState<string[]>([])
-  const [savingTags, setSavingTags] = useState(false)
+  // Tags — all tags across the user's collection, for autocomplete suggestions
+  const { data: allUserTags = [] } = useQuery({
+    queryKey: ['collection-tags'],
+    queryFn: () => authFetch<string[]>('/collection/tags'),
+  })
 
   // History
   const { isOpen: showHistory, toggle: _toggleHistory } = useModalState()
@@ -964,40 +965,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
 
   // ── Tags section ──────────────────────────────────────────────────────────
 
-  function openTagsEdit() {
-    setEditTagList([...entry!.tags])
-    setEditTagInput('')
-    setEditingTags(true)
-  }
-
-  async function saveTagsList(tags: string[]) {
-    setSavingTags(true)
-    try {
-      const saved = await authFetch<string[]>(`/collection/entry/${entry!.id}/tags`, {
-        method: 'PUT',
-        body: JSON.stringify({ tags }),
-      })
-      setEntry(prev => prev ? { ...prev, tags: saved } : prev)
-      setEditTagList(saved)
-    } finally {
-      setSavingTags(false)
-    }
-  }
-
-  async function addTagFromInput() {
-    const newTags = editTagInput.split(',').map(t => t.trim()).filter(Boolean)
-    if (!newTags.length) return
-    const merged = [...new Set([...editTagList, ...newTags])]
-    setEditTagList(merged)
-    setEditTagInput('')
-    await saveTagsList(merged)
-  }
-
-  async function removeTag(tag: string) {
-    const updated = editTagList.filter(t => t !== tag)
-    setEditTagList(updated)
-    await saveTagsList(updated)
-  }
+  const handleTagsSaved = useCallback((_entryId: string, tags: string[]) => {
+    setEntry(prev => prev ? { ...prev, tags } : prev)
+    void queryClient.invalidateQueries({ queryKey: ['collection-tags'] })
+  }, [queryClient])
 
   // ── History section ───────────────────────────────────────────────────────
 
@@ -2070,55 +2041,17 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
 
           {/* Tags — below Tracking */}
           <div className="rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-        <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
-          <Tag size={10} /> Tags
-        </span>
-        {editingTags ? (
-          <div className="flex flex-col gap-2 w-full mt-1">
-            {editTagList.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {editTagList.map(tag => (
-                  <span key={tag} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
-                    {tag}
-                    <button onClick={() => removeTag(tag)} className="text-stone-500 hover:text-red-400 transition-colors">
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                value={editTagInput}
-                onChange={e => setEditTagInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTagFromInput() } }}
-                placeholder="Add tags (Enter or comma)…"
-                className={INP}
-                disabled={savingTags}
+            <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
+              <Tag size={10} /> Tags
+            </span>
+            <div className="flex-1 min-w-0">
+              <TagEditor
+                entryId={entry.id}
+                tags={entry.tags}
+                allTags={allUserTags}
+                onSaved={handleTagsSaved}
               />
             </div>
-            <div className="flex justify-end">
-              <button onClick={() => setEditingTags(false)} className="text-xs px-3 py-1 rounded-lg transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                Done
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center flex-1 min-w-0">
-            <div className="flex items-center gap-1 flex-wrap flex-1">
-              {entry.tags.length > 0 ? (
-                entry.tags.map(tag => (
-                  <span key={tag} className="px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
-                    {tag}
-                  </span>
-                ))
-              ) : (
-                <span className="text-xs italic" style={{ color: 'var(--text-muted)' }}>no tags</span>
-              )}
-            </div>
-            <EditBtn onClick={openTagsEdit} />
-          </div>
-        )}
           </div>
 
           {/* Ownership history — always directly under tags */}
