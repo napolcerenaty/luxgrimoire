@@ -7,6 +7,8 @@ import {
   getBundleBoxStart,
   enumerateBundleMonths,
   addMonths,
+  rollingWindowKey,
+  computeWindowKeyForRecompute,
 } from '../../common/utils/renewal-date.util';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
 
@@ -389,6 +391,157 @@ export class SkipPolicyEngine {
       startingMonth: (subscription as any)?.startingMonth ?? 1,
       isBundleSubscription: (subscription as any)?.isBundleSubscription ?? false,
     });
+  }
+
+  /**
+   * Estimates how many active, previously-tracked users would have their skip window
+   * boundaries change under a PROPOSED (not-yet-saved) policy config. Used by the admin UI to
+   * show an impact count before committing a skip-policy type/windowMonths change.
+   *
+   * Approximate for FROM_FIRST_SKIP (checked as if the latest skip started a fresh window) —
+   * exact recomputation only happens in recomputeWindowsForPolicy, after the admin applies it.
+   */
+  async previewWindowRecompute(
+    subscriptionSlug: string,
+    billingType: string,
+    proposedType: string,
+    proposedWindowMonths: number | null,
+  ): Promise<{ trackedUsers: number; windowWouldChange: number }> {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { slug: subscriptionSlug },
+      include: { skipPolicies: true },
+    });
+    if (!subscription) throw new NotFoundException(`Subscription '${subscriptionSlug}' not found`);
+
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { subscriptionId: subscription.id, active: true },
+    });
+
+    const proposedPolicy = { type: proposedType, windowMonths: proposedWindowMonths };
+    let trackedUsers = 0;
+    let windowWouldChange = 0;
+
+    for (const entry of entries) {
+      const isPrepaid = (entry.prepaidMonths ?? 1) > 1;
+      const applicable = this.selectApplicablePolicy(subscription.skipPolicies ?? [], isPrepaid);
+      if (applicable?.billingType !== billingType) continue;
+
+      const state = await this.prisma.userSubscriptionSkipState.findUnique({
+        where: { userId_subscriptionId: { userId: entry.userId, subscriptionId: subscription.id } },
+      });
+      if (!state || state.windowKey === null) continue;
+      trackedUsers++;
+
+      const latestRecord = await this.prisma.userSkipRecord.findFirst({
+        where: { userEntryId: entry.id, undoneAt: null },
+        include: { month: { select: { year: true, month: true } } },
+        orderBy: [{ month: { year: 'desc' } }, { month: { month: 'desc' } }],
+      });
+      if (!latestRecord?.month) continue;
+
+      const newKey = computeWindowKeyForRecompute(
+        proposedPolicy,
+        { entryStartDate: entry.startDate, firstBoxYear: (entry as any).firstBoxYear, firstBoxMonth: (entry as any).firstBoxMonth },
+        latestRecord.month.year,
+        latestRecord.month.month,
+        null,
+      );
+      if (newKey !== state.windowKey) windowWouldChange++;
+    }
+
+    return { trackedUsers, windowWouldChange };
+  }
+
+  /**
+   * Re-buckets every active user's ENTIRE skip history for a subscription's currently-SAVED
+   * skip policy (billingType) — call this after an admin edits a policy's type or windowMonths,
+   * since the windowKey stored on existing UserSkipRecord rows was computed under the OLD config
+   * and no longer reflects correct window boundaries. Manual/admin-triggered only (never automatic
+   * on save) — see previewWindowRecompute for the impact count shown beforehand.
+   */
+  async recomputeWindowsForPolicy(
+    subscriptionSlug: string,
+    billingType: string,
+  ): Promise<{ recomputedCount: number; totalActive: number }> {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { slug: subscriptionSlug },
+      include: { skipPolicies: true },
+    });
+    if (!subscription) throw new NotFoundException(`Subscription '${subscriptionSlug}' not found`);
+
+    const policy = subscription.skipPolicies.find((p) => p.billingType === billingType) ?? null;
+    if (!policy) throw new BadRequestException(`No skip policy found for billing type '${billingType}'`);
+
+    const entries = await this.prisma.userSubscriptionEntry.findMany({
+      where: { subscriptionId: subscription.id, active: true },
+    });
+
+    const bundleInfo = {
+      intervalMonths: (subscription as any).intervalMonths ?? 1,
+      startingMonth: (subscription as any).startingMonth ?? 1,
+      isBundleSubscription: (subscription as any).isBundleSubscription ?? false,
+    };
+
+    let recomputedCount = 0;
+    let totalActive = 0;
+    for (const entry of entries) {
+      const isPrepaid = (entry.prepaidMonths ?? 1) > 1;
+      const applicable = this.selectApplicablePolicy(subscription.skipPolicies ?? [], isPrepaid);
+      if (applicable?.billingType !== billingType) continue;
+      totalActive++;
+
+      const changed = await this.recomputeEntryWindowsForPolicy(entry as any, policy, bundleInfo);
+      if (changed) recomputedCount++;
+    }
+
+    return { recomputedCount, totalActive };
+  }
+
+  /** Recomputes windowKey on every skip record for one entry under `policy`, then refreshes
+   *  the entry's UserSubscriptionSkipState counters if anything changed. Returns whether it did. */
+  private async recomputeEntryWindowsForPolicy(
+    entry: { id: string; userId: string; subscriptionId: string; startDate: string | null; firstBoxYear: number | null; firstBoxMonth: number | null },
+    policy: { type: string; windowMonths: number | null },
+    bundleInfo: { intervalMonths: number; startingMonth: number; isBundleSubscription: boolean },
+  ): Promise<boolean> {
+    const records = await this.prisma.userSkipRecord.findMany({
+      where: { userEntryId: entry.id, undoneAt: null },
+      include: { month: { select: { year: true, month: true } } },
+    });
+    if (records.length === 0) return false;
+
+    records.sort((a, b) => {
+      if (!a.month || !b.month) return 0;
+      return a.month.year !== b.month.year ? a.month.year - b.month.year : a.month.month - b.month.month;
+    });
+
+    const anchor = { entryStartDate: entry.startDate, firstBoxYear: entry.firstBoxYear, firstBoxMonth: entry.firstBoxMonth };
+    let firstSkipDateInWindow: Date | null = null;
+    let prevWindowKey: string | null = null;
+    let anyChanged = false;
+
+    for (const r of records) {
+      if (!r.month) continue;
+      const windowKey = computeWindowKeyForRecompute(policy, anchor, r.month.year, r.month.month, firstSkipDateInWindow);
+      // Detect window transition so the running FROM_FIRST_SKIP anchor restarts at this record
+      if (prevWindowKey !== null && windowKey !== prevWindowKey) {
+        firstSkipDateInWindow = null;
+      }
+      if (firstSkipDateInWindow === null) {
+        firstSkipDateInWindow = r.skippedAt;
+      }
+      prevWindowKey = windowKey;
+
+      if (windowKey !== r.windowKey) {
+        anyChanged = true;
+        await this.prisma.userSkipRecord.update({ where: { id: r.id }, data: { windowKey } });
+      }
+    }
+
+    if (anyChanged) {
+      await this.recomputeState(entry.userId, entry.subscriptionId, policy, bundleInfo);
+    }
+    return anyChanged;
   }
 
   async recordSkip(
@@ -1295,13 +1448,30 @@ export class SkipPolicyEngine {
   private computeWindowKey(
     policy: { type: string; windowMonths: number | null } | null,
     state: { windowKey: string | null } | null,
-    entry: { startDate: string | null; firstSkipDate: Date | null },
+    entry: { startDate: string | null; firstSkipDate: Date | null; firstBoxYear?: number | null; firstBoxMonth?: number | null },
   ): string | null {
     if (!policy) return null;
 
     switch (policy.type) {
       case 'CALENDAR_YEAR':
         return String(new Date().getFullYear());
+
+      case 'FROM_FIRST_BOX': {
+        // Anchor = user's confirmed first box month (join-flow picker, backfilled for older
+        // entries — see resolveFirstBoxMonth). Falls back to subscription start date's month
+        // for the rare entry where neither is set yet.
+        let anchorYear = entry.firstBoxYear ?? null;
+        let anchorMonth = entry.firstBoxMonth ?? null;
+        if (anchorYear == null || anchorMonth == null) {
+          if (!entry.startDate) return new Date().toISOString().slice(0, 10);
+          const start = new Date(entry.startDate);
+          anchorYear = start.getFullYear();
+          anchorMonth = start.getMonth() + 1;
+        }
+        if (!policy.windowMonths) return `${anchorYear}-${String(anchorMonth).padStart(2, '0')}-01`;
+        const now = new Date();
+        return rollingWindowKey(anchorYear, anchorMonth, policy.windowMonths, now.getFullYear(), now.getMonth() + 1);
+      }
 
       case 'FROM_FIRST_SKIP': {
         // Prefer state.windowKey as the anchor (most accurate); fall back to firstSkipDate.
@@ -1364,6 +1534,17 @@ export class SkipPolicyEngine {
         const resetDate = new Date(windowStart);
         resetDate.setMonth(resetDate.getMonth() + policy.windowMonths);
         return resetDate.toISOString().slice(0, 10);
+      }
+      case 'FROM_FIRST_BOX': {
+        if (!policy.windowMonths) return null;
+        const [wyRaw, wmRaw] = windowKey.split('-');
+        const wy = parseInt(wyRaw, 10);
+        const wm = parseInt(wmRaw, 10);
+        if (isNaN(wy) || isNaN(wm)) return null;
+        const rawMonth = (wm - 1) + policy.windowMonths;
+        const resetYear = wy + Math.floor(rawMonth / 12);
+        const resetMonth = (rawMonth % 12) + 1;
+        return `${resetYear}-${String(resetMonth).padStart(2, '0')}-01`;
       }
       default:
         return null;

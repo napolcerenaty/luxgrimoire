@@ -969,6 +969,20 @@ export default function CollectionPage() {
     return [sorted]
   })()
 
+  const isGroupedView = filter === 'BOOK' || filter === 'SERIES' || filter === 'YEAR' || filter === 'AUTHOR' || filter === 'COMPANY'
+
+  // Most groups only ever have one entry — giving each of those its own header + near-empty
+  // row produces a long, sparse list (same rationale as the "boxes by month" grouping). Only
+  // groups with an actual overlap (2+ entries) earn a dedicated section; every singleton
+  // collapses into one shared "Other" section at the end instead.
+  const { multiGroups, singleItems } = isGroupedView
+    ? {
+        multiGroups: grouped.filter((g) => g.length > 1),
+        singleItems: grouped.filter((g) => g.length === 1).flatMap((g) => g),
+      }
+    : { multiGroups: grouped, singleItems: [] as CollectionEntry[] }
+  const renderGroups: CollectionEntry[][] = singleItems.length > 0 ? [...multiGroups, singleItems] : multiGroups
+
   if (entriesLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1205,9 +1219,16 @@ export default function CollectionPage() {
             </div>
           ) : (
             <div className="space-y-8">
-              {grouped.map((group, gi) => {
-                const groupLabel =
-                  filter === 'BOOK'
+              {renderGroups.map((group, gi) => {
+                // The trailing merged bucket of every singleton group — no single item[0]
+                // represents the whole thing, so it gets a generic label, not a per-filter one.
+                const isSingletonBucket = singleItems.length > 0 && gi === multiGroups.length
+
+                const groupLabel = isSingletonBucket
+                  // Only worth a heading when it's contrasted against real multi-item groups above it —
+                  // if every group is a singleton, this is just the whole list; show it as a plain flat grid.
+                  ? (multiGroups.length > 0 ? 'Other' : null)
+                  : filter === 'BOOK'
                     ? (group[0]?.edition.book.title ?? null)
                     : filter === 'SERIES'
                     ? (group[0]?.edition.book.seriesName ?? 'Standalone')
@@ -1226,23 +1247,23 @@ export default function CollectionPage() {
                   <div key={gi}>
                     {groupLabel && (
                       <h2 className="text-lg font-serif font-semibold text-stone-300 mb-4 border-b border-stone-800 pb-2 flex items-center gap-2">
-                        {filter === 'BOOK' && group[0] && (
+                        {!isSingletonBucket && filter === 'BOOK' && group[0] && (
                           <a href={`/books/${group[0].edition.book.slug}`} className="hover:text-amber-400 transition-colors">
                             {groupLabel}
                           </a>
                         )}
-                        {filter === 'AUTHOR' && group[0] && (
+                        {!isSingletonBucket && filter === 'AUTHOR' && group[0] && (
                           <a href={`/authors/${((group[0].edition.book.authors[0] as any)?.author ?? group[0].edition.book.authors[0])?.slug}`} className="hover:text-amber-400 transition-colors">
                             {groupLabel}
                           </a>
                         )}
-                        {filter === 'COMPANY' && group[0]?.edition.bookBoxCompany && (
+                        {!isSingletonBucket && filter === 'COMPANY' && group[0]?.edition.bookBoxCompany && (
                           <a href={`/book-boxes/${group[0].edition.bookBoxCompany.slug}`} className="hover:text-amber-400 transition-colors">
                             {groupLabel}
                           </a>
                         )}
-                        {(filter === 'SERIES' || filter === 'YEAR' || (filter === 'COMPANY' && !group[0]?.edition.bookBoxCompany)) && groupLabel}
-                        {filter === 'BOOK' && group.length > 1 && (
+                        {(isSingletonBucket || filter === 'SERIES' || filter === 'YEAR' || (filter === 'COMPANY' && !group[0]?.edition.bookBoxCompany)) && groupLabel}
+                        {!isSingletonBucket && filter === 'BOOK' && group.length > 1 && (
                           <span className="text-xs font-sans font-normal text-stone-500 bg-stone-800 rounded-full px-2 py-0.5">{group.length} editions</span>
                         )}
                         <span className="text-xs font-sans font-normal text-stone-500 bg-stone-800 rounded-full px-2 py-0.5 ml-auto">{group.length}</span>

@@ -32,15 +32,10 @@ export function HomeTrendingSales({ announcements }: Props) {
   })
 
   return (
-    <section className="pt-4">
-      <div className="container mx-auto px-4 text-center">
-        <p className="mb-2 text-sm text-stone-400">Most followed upcoming sales</p>
-      </div>
-      <EditionCarousel
-        title="Trending Sales ⚡"
-        cards={cards}
-        centered
-      />
-    </section>
+    <EditionCarousel
+      title="Trending Sales ⚡"
+      cards={cards}
+      centered
+    />
   )
 }

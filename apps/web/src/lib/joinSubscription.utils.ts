@@ -5,6 +5,7 @@
  */
 
 import { parseDecimalInput } from './parseDecimalInput'
+import { groupIntoBundles, getBundleEnd } from './bundleHelpers'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -261,4 +262,145 @@ export function computeAutoBatches(
     batches.push({ billingDate: dateStr, monthIds: [...currentBatch], amount: batchAmount, currency })
   }
   return batches
+}
+
+// ── First-box picker (previous / current / next) ─────────────────────────────
+
+export interface BoxUnitMonth {
+  id: string
+  year: number
+  month: number
+}
+
+export interface BoxCandidate {
+  year: number
+  month: number
+  endYear: number
+  endMonth: number
+  /** IDs of the real SubscriptionMonth rows making up this unit — empty means "not yet announced". */
+  monthIds: string[]
+}
+
+export interface FirstBoxCandidates {
+  previous: BoxCandidate | null
+  current: BoxCandidate
+  next: BoxCandidate
+  /**
+   * Which of the 3 above matches the server's renewal-cycle-aware eligibility suggestion
+   * (defaultFirstBoxYear/Month) — null if none do (rare: a large renewalMonthOffset can land
+   * outside this ±1 window). Drives the "Suggested" badge and the picker's initial selection.
+   */
+  suggested: 'previous' | 'current' | 'next' | null
+}
+
+function shiftCalendarMonth(year: number, month: number, delta: number): { year: number; month: number } {
+  let m = month + delta
+  let y = year
+  while (m > 12) { m -= 12; y++ }
+  while (m < 1) { m += 12; y-- }
+  return { year: y, month: m }
+}
+
+function unitsFromMonths<T extends BoxUnitMonth>(
+  months: T[],
+  isBundleMode: boolean,
+  intervalMonths: number,
+  startingMonth: number,
+): BoxCandidate[] {
+  if (!isBundleMode) {
+    return [...months]
+      .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+      .map(m => ({ year: m.year, month: m.month, endYear: m.year, endMonth: m.month, monthIds: [m.id] }))
+  }
+  return groupIntoBundles(months, intervalMonths, startingMonth)
+    .sort((a, b) => a.startYear !== b.startYear ? a.startYear - b.startYear : a.startMonth - b.startMonth)
+    .map(g => ({ year: g.startYear, month: g.startMonth, endYear: g.endYear, endMonth: g.endMonth, monthIds: g.items.map(i => i.id) }))
+}
+
+function makeSyntheticCandidate(year: number, month: number, isBundleMode: boolean, intervalMonths: number): BoxCandidate {
+  const end = isBundleMode ? getBundleEnd(year, month, intervalMonths) : { year, month }
+  return { year, month, endYear: end.year, endMonth: end.month, monthIds: [] }
+}
+
+/**
+ * Builds the previous/current/next candidates for the join modal's mandatory first-box picker
+ * step, from the months already fetched by the dry-run join call — no extra requests needed.
+ *
+ * `current` is anchored on `joinWindowYear`/`joinWindowMonth` — the box unit containing the join
+ * date's own calendar position (see computeJoinDateWindow), i.e. "the window presently in
+ * progress" — NOT the renewal-cycle-aware eligibility suggestion. Those are deliberately
+ * different: a subscriber joining today whose subscription has signupIncludesCurrentMonth=false
+ * has an eligibility default of NEXT month, but the window actually shipping right now is still
+ * THIS month — showing that as "current" (with next month separately marked "Suggested") is far
+ * less confusing than making "current" jump ahead of the calendar. `suggestedYear`/`suggestedMonth`
+ * (defaultFirstBoxYear/Month from the dry-run response) only decides which of the 3 gets the
+ * "Suggested" badge. `previous`/`next` come from adjacent real content when it exists
+ * (previousBoxMonths, or the second unit of eligibleMonths), or a calendar-shifted placeholder
+ * with empty monthIds ("not yet announced") when it doesn't.
+ */
+export function buildFirstBoxCandidates(
+  eligibleMonths: BoxUnitMonth[],
+  previousBoxMonths: BoxUnitMonth[],
+  joinWindowYear: number,
+  joinWindowMonth: number,
+  suggestedYear: number,
+  suggestedMonth: number,
+  isBundleMode: boolean,
+  intervalMonths: number,
+  startingMonth: number,
+): FirstBoxCandidates {
+  const eligibleUnits = unitsFromMonths(eligibleMonths, isBundleMode, intervalMonths, startingMonth)
+  const prevUnits = unitsFromMonths(previousBoxMonths, isBundleMode, intervalMonths, startingMonth)
+
+  const firstEligibleIsJoinWindow = !!eligibleUnits[0]
+    && eligibleUnits[0].year === joinWindowYear
+    && eligibleUnits[0].month === joinWindowMonth
+
+  const current: BoxCandidate = firstEligibleIsJoinWindow
+    ? eligibleUnits[0]
+    : makeSyntheticCandidate(joinWindowYear, joinWindowMonth, isBundleMode, intervalMonths)
+
+  const previous: BoxCandidate | null = prevUnits[0] ?? null
+
+  const next: BoxCandidate = (firstEligibleIsJoinWindow && eligibleUnits[1])
+    ? eligibleUnits[1]
+    : (() => {
+        // Shift by the subscription's own release cadence, not by `isBundleMode` — a genuinely
+        // quarterly-release sub (isBundleSubscription=false, intervalMonths=3: content itself only
+        // exists every 3rd month) needs the same +intervalMonths step as an actual bundle box.
+        // `intervalMonths` is already 1 for plain monthly subs, so this covers every case.
+        const nextStart = shiftCalendarMonth(current.year, current.month, intervalMonths)
+        return makeSyntheticCandidate(nextStart.year, nextStart.month, isBundleMode, intervalMonths)
+      })()
+
+  const matchesSuggested = (c: BoxCandidate | null) => !!c && c.year === suggestedYear && c.month === suggestedMonth
+  const suggested: 'previous' | 'current' | 'next' | null =
+    matchesSuggested(previous) ? 'previous'
+    : matchesSuggested(current) ? 'current'
+    : matchesSuggested(next) ? 'next'
+    : null
+
+  return { previous, current, next, suggested }
+}
+
+/**
+ * Given which of previous/current/next the user picked, returns the final set of months (in the
+ * shape Step2 expects) to offer for backfill — previous prepends previousBoxMonths, next drops
+ * the current unit's months, current leaves eligibleMonths untouched.
+ */
+export function applyFirstBoxChoice<T extends BoxUnitMonth>(
+  choice: 'previous' | 'current' | 'next',
+  eligibleMonths: T[],
+  previousBoxMonths: T[],
+  candidates: FirstBoxCandidates,
+): T[] {
+  if (choice === 'previous') {
+    return [...previousBoxMonths, ...eligibleMonths]
+      .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+  }
+  if (choice === 'next') {
+    const dropIds = new Set(candidates.current.monthIds)
+    return eligibleMonths.filter(m => !dropIds.has(m.id))
+  }
+  return eligibleMonths
 }

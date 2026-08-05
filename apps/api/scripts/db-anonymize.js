@@ -120,11 +120,15 @@ async function anonymize() {
         "cancellationReason" = NULL
     `);
     const { rowCount: bookTracking } = await client.query(`
-      UPDATE user_book_entries SET
-        "trackingNumber" = NULL,
-        "saleNotes"      = NULL
+      UPDATE user_book_entries SET "saleNotes" = NULL
     `);
-    console.log(`   subscription entries: ${subTracking}, book entries: ${bookTracking}`);
+    // trackingNumber lives in a separate per-entry table now (a book entry can have multiple
+    // tracking numbers), not a column on user_book_entries — delete the rows outright, same as
+    // the sessions/tokens cleanup above, rather than trying to null a NOT NULL column.
+    const { rowCount: bookEntryTracking } = await client.query(`
+      DELETE FROM user_book_entry_tracking
+    `);
+    console.log(`   subscription entries: ${subTracking}, book entries: ${bookTracking}, book entry tracking rows deleted: ${bookEntryTracking}`);
 
     // ── 7. Bug reports — clear description (users often paste personal info) ──
     console.log('🐛 Anonymizing bug reports...');

@@ -708,7 +708,7 @@ export interface ApiSaleAnnouncement {
   sourceUrl: string | null;
   createdAt: string;
   updatedAt: string;
-  company?: { name: string; slug?: string | null; brandColors?: string[] } | null;
+  company?: { name: string; slug?: string | null; brandColors?: string[]; website?: string | null } | null;
   editions?: Array<{
     id: string;
     edition: (ApiBookEdition & { book: ApiBook }) | null;

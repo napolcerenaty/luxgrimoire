@@ -915,6 +915,7 @@ function policyTypeLabel(type: string): string {
     CALENDAR_YEAR: 'Limited skips per calendar year',
     FROM_FIRST_SKIP: 'Limited skips per rolling window',
     FROM_SUB_START: 'Limited skips from subscription start',
+    FROM_FIRST_BOX: 'Limited skips per rolling window from first box',
     PREPAID_WINDOW_SKIP: 'Prepaid: skips entire renewal window',
   }
   return labels[type] ?? type

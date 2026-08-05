@@ -32,6 +32,8 @@ interface CalEntry {
     renewalMonthOffset: number
     startDate: Date | string | null
     company: { name: string; slug: string; brandColors?: string[] | null }
+    /** Admin-declared "this month doesn't ship" — company-wide, distinct from skipRecords (per-user). */
+    monthSkips: { year: number; month: number }[]
   }
 }
 
@@ -168,14 +170,16 @@ function renewalDayInMonth(entry: CalEntry, year: number, month0: number): numbe
   }
 
   // A renewal in calendar month (year, month0) pays for box month = renewal month + offset.
-  // If that box month is skipped, no renewal fires for this calendar month.
-  if (offset !== 0 || (entry.skipRecords?.length ?? 0) > 0) {
+  // If that box month is skipped — either by the user (skipRecords) or by the company itself
+  // not shipping that month (subscription.monthSkips) — no renewal fires for this calendar month.
+  const hasAnySkips = (entry.skipRecords?.length ?? 0) > 0 || (sub.monthSkips?.length ?? 0) > 0
+  if (offset !== 0 || hasAnySkips) {
     const rawBox = month0 + 1 + offset  // 1-indexed, may exceed 12
     const boxYear = year + Math.floor((rawBox - 1) / 12)
     const boxMonth = ((rawBox - 1) % 12) + 1
-    const isSkipped = (entry.skipRecords ?? []).some(
-      r => r.month.year === boxYear && r.month.month === boxMonth,
-    )
+    const isSkipped =
+      (entry.skipRecords ?? []).some(r => r.month.year === boxYear && r.month.month === boxMonth) ||
+      (sub.monthSkips ?? []).some(s => s.year === boxYear && s.month === boxMonth)
     if (isSkipped) return null
   }
 

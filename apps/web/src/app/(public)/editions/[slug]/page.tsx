@@ -1,4 +1,5 @@
 import { CollectionEntryPanel } from '@/components/books/CollectionEntryPanel'
+import { ExternalLink } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Fragment, cache } from 'react'
@@ -105,7 +106,7 @@ interface EditionDetail {
   artists?: EditionArtist[]
   monthBooks?: EditionMonthBook[]
   saleEditions?: EditionSaleEdition[]
-  bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null } | null
+  bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null; website: string | null } | null
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
   previousEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   nextEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
@@ -281,15 +282,30 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   credits.push({ handle: m[1], role: m[2] ?? null })
                 }
                 if (credits.length === 0) return null
+                const company = edition.bookBoxCompany
+                // Only credit the company when we're showing its own official images —
+                // hasOfficialImagePermission is company-wide and can be true even for
+                // editions (e.g. subscriptions) where we only have community photos.
+                const showCompanyCredit = allImages.length > 0 && !!company?.website
                 return (
                   <div className="text-xs text-stone-400 mt-1 text-center leading-5 w-full">
                     <span>📷 photo by</span>
                     {credits.map(({ handle, role }) => (
                       <div key={handle}>
-                        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="hover:text-amber-400 transition-colors">@{handle}</a>
+                        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-amber-600 hover:text-amber-400 transition-colors">
+                          @{handle}<ExternalLink size={10} className="shrink-0" />
+                        </a>
                         {role && <span className="text-stone-500"> ({role})</span>}
                       </div>
                     ))}
+                    {showCompanyCredit && (
+                      <div>
+                        courtesy of{' '}
+                        <a href={company!.website!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-amber-600 hover:text-amber-400 transition-colors">
+                          {company!.name}<ExternalLink size={10} className="shrink-0" />
+                        </a>
+                      </div>
+                    )}
                   </div>
                 )
               })()}

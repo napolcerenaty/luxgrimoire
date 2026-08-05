@@ -1347,6 +1347,10 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
 
       // skip policy lookup
       (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: COMBO_SUB_ID, skipPolicies: [] });
+      // resolveFirstBoxMonth's date-anchoring lookup (entry has no firstBoxYear/Month saved yet) —
+      // unrelated to the compMonth lookup below; returning null just falls back to the raw join
+      // month (Jan 2026), same as this scenario's entry.startDate already implies.
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValueOnce(null);
       // compMonth lookup for the skippable Feb month — this is the call under test
       (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'parent-month-feb' });
       (prisma.userSkipRecord.upsert as jest.Mock).mockResolvedValueOnce({ id: 'skip-1' });

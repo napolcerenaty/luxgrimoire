@@ -282,7 +282,7 @@ export class AnnouncementsService {
         items: { orderBy: { sortOrder: 'asc' as const } },
         regions: regionsInclude,
         tiers: { orderBy: { date: 'asc' as const } },
-        company: { select: { name: true, slug: true, brandColors: true } },
+        company: { select: { name: true, slug: true, brandColors: true, website: true } },
       },
     });
     if (!announcement) throw new NotFoundException('Sale announcement not found');
@@ -294,7 +294,7 @@ export class AnnouncementsService {
    *  company's live/upcoming sales and picked a specific tier, in which case that tier's own
    *  date is returned instead. `tier` is now the tier's free-text name, not a fixed FA/EA/GS code —
    *  every SaleTier row is a concrete date, so no fallback-chain resolution is needed anymore. */
-  async getNextSale(companyId: string, userId?: string | null): Promise<{
+  async getNextSale(companyId?: string, userId?: string | null): Promise<{
     date: string | null;
     tier: string | null;
     announcementId: string | null;
@@ -307,8 +307,9 @@ export class AnnouncementsService {
 
     const empty = { date: null, tier: null, announcementId: null, title: null, personalized: false };
 
+    // companyId omitted => global "next sale" across every company (homepage banner).
     const liveOrUpcoming = await this.prisma.saleAnnouncement.findMany({
-      where: { companyId, ...this.buildActiveSaleCondition(now, today, null) },
+      where: { ...(companyId ? { companyId } : {}), ...this.buildActiveSaleCondition(now, today, null) },
       select: {
         id: true,
         title: true,

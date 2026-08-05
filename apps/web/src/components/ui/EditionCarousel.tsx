@@ -65,14 +65,7 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
 
         {/* Top badge */}
         {card.badge && (
-          <span
-            className="absolute top-1.5 left-1.5 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded"
-            style={{
-              background: 'rgba(5,10,18,0.85)',
-              border: '1px solid var(--border)',
-              color: 'var(--accent2)',
-            }}
-          >
+          <span className="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-tight bg-stone-800/90 text-stone-300 border border-stone-600">
             {card.badge}
           </span>
         )}

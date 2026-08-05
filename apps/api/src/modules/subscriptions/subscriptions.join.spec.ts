@@ -260,7 +260,17 @@ describe('SubscriptionsService — joinSubscription', () => {
   //  signupIncludesCurrentMonth=false → first = currentBoxMonth + 1
   //  paymentOnStartup does NOT change which months are eligible
 
-  describe('eligible months — first box month determination', () => {
+  // eligibleMonths (and the "current"/"next" candidates the picker builds from it) are anchored on
+  // computeJoinDateWindow — the join date's own raw calendar position (or cadence cycle for
+  // multi-month subs), with NO renewal-day/renewalMonthOffset/signupIncludesCurrentMonth math at
+  // all. That cycle math still exists and still runs (computeFirstEligibleBoxMonth, via
+  // computeDateAnchoredFirstBoxMonth) but only feeds `defaultFirstBoxYear`/`defaultFirstBoxMonth`
+  // in the response now — the renewal-cycle-aware "Suggested" badge, not the query boundary. See
+  // the "'Suggested' badge" block below for cycle-math coverage, and buildFirstBoxCandidates
+  // (joinSubscription.utils.test.ts) for why: a subscriber joining today whose subscription has
+  // signupIncludesCurrentMonth=false should still see "current" mean the window shipping right
+  // now, with the eligibility-adjusted month marked Suggested separately (Afterlight bug report).
+  describe('eligible months — first box month determination (join-date window, no cycle math)', () => {
     /** Returns the `where.AND[0].OR` lower-bound clause from the first subscriptionMonth.findMany call */
     async function getLowerBound(subOverrides: Record<string, unknown>, startDate: string) {
       jest.clearAllMocks();
@@ -269,6 +279,9 @@ describe('SubscriptionsService — joinSubscription', () => {
       (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
       (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+      // No real content found at the raw join-date position → computeJoinDateWindow falls back to
+      // that unshifted calendar position as-is.
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue(null);
 
       await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ dryRun: true, startDate }));
 
@@ -286,118 +299,96 @@ describe('SubscriptionsService — joinSubscription', () => {
       return clause?.year?.gt as number | undefined;
     }
 
-    // ── renewalDay=1: joinDay >= 1 always → renewal already happened → lastBillingMonth = joinMonth ──
-
-    it('renewalDay=1, offset=0, includes=false, Feb join → first box is March', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2025-02-10');
-      expect(getMonthGte(lb, 2025)).toBe(3);
-      expect(getYearGt(lb)).toBe(2025);
-    });
-
-    it('renewalDay=1, offset=1, includes=false, Feb join → first box is April (currentBox=March, +1 for !includes)', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2025-02-10');
-      expect(getMonthGte(lb, 2025)).toBe(4);
-      expect(getYearGt(lb)).toBe(2025);
-    });
-
-    it('renewalDay=1, offset=2, includes=false, Feb join → first box is May (currentBox=April, +1 for !includes)', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 2 }, '2025-02-10');
-      expect(getMonthGte(lb, 2025)).toBe(5);
-    });
-
-    it('renewalDay=1, offset=0, includes=false, Dec join → first box is January next year', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2024-12-15');
-      expect(getYearGt(lb)).toBe(2025);
-      expect(getMonthGte(lb, 2025)).toBe(1);
-    });
-
-    it('renewalDay=1, offset=1, includes=false, Dec join → first box is February next year (currentBox=Jan, +1 for !includes)', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2024-12-15');
-      expect(getYearGt(lb)).toBe(2025);
+    it('with no real content nearby, eligibleMonths starts at the raw join month — renewalDay/offset/includes have no effect', async () => {
+      const lb = await getLowerBound({ renewalDay: 20, renewalMonthOffset: 2, signupIncludesCurrentMonth: false }, '2025-02-10');
       expect(getMonthGte(lb, 2025)).toBe(2);
-    });
-
-    it('renewalDay=1, offset=0, includes=false, Nov join → first box is December', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2025-11-01');
-      expect(getMonthGte(lb, 2025)).toBe(12);
-    });
-
-    it('renewalDay=1, offset=0, includes=true, Feb join → first box is February', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 0 }, '2025-02-05');
-      expect(getMonthGte(lb, 2025)).toBe(2);
-    });
-
-    it('renewalDay=1, offset=1, includes=true, Feb join → first box is March (currentBox = lastBillingMonth + offset = Feb+1)', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-02-05');
-      expect(getMonthGte(lb, 2025)).toBe(3);
-    });
-
-    it('renewalDay=1, offset=2, includes=true, Feb join → first box is April (currentBox = Feb+2)', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 2 }, '2025-02-05');
-      expect(getMonthGte(lb, 2025)).toBe(4);
-    });
-
-    it('renewalDay=1, offset=1, includes=true, Jan join → first box is February (currentBox = Jan+1)', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-01-20');
-      expect(getMonthGte(lb, 2025)).toBe(2);
-    });
-
-    it('renewalDay=1, offset=1, includes=true, Dec join → first box is January next year (currentBox = Dec+1)', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2024-12-10');
       expect(getYearGt(lb)).toBe(2025);
-      expect(getMonthGte(lb, 2025)).toBe(1);
     });
 
-    it('renewalDay=1, offset=0, includes=true, Dec join → first box is December', async () => {
-      const lb = await getLowerBound({ signupIncludesCurrentMonth: true, renewalMonthOffset: 0 }, '2024-12-10');
+    it('join on Dec 31 → eligibleMonths starts at December of the join year (no year-boundary special-casing)', async () => {
+      const lb = await getLowerBound({}, '2024-12-31');
       expect(getMonthGte(lb, 2024)).toBe(12);
     });
 
-    // ── paymentOnStartup does not change eligible months ────────────────────
-
-    it('paymentOnStartup=true + renewalDay=1, offset=1, includes=true, Feb join → first box is March', async () => {
-      const lb = await getLowerBound({ paymentOnStartup: true, signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-02-05');
-      expect(getMonthGte(lb, 2025)).toBe(3);
+    it('paymentOnStartup does not change the eligible-months boundary', async () => {
+      const lb = await getLowerBound({ paymentOnStartup: true, renewalDay: 15 }, '2025-02-05');
+      expect(getMonthGte(lb, 2025)).toBe(2);
     });
 
-    it('paymentOnStartup=true + renewalDay=1, offset=1, includes=false, Feb join → first box is April', async () => {
-      const lb = await getLowerBound({ paymentOnStartup: true, signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2025-02-05');
+    it('when real content exists at the join month, it is used as-is (not shifted)', async () => {
+      jest.clearAllMocks();
+      const sub = makeSub({ renewalDay: 1, renewalMonthOffset: 0, signupIncludesCurrentMonth: false });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ year: 2025, month: 2 });
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ dryRun: true, startDate: '2025-02-10' }));
+
+      const call = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls[0]?.[0];
+      const lb = call?.where?.AND?.[0]?.OR as Array<Record<string, unknown>> | undefined;
+      expect(getMonthGte(lb, 2025)).toBe(2);
+    });
+
+    it('when the join month is fully skipped (no content), shifts forward to the nearest real month', async () => {
+      jest.clearAllMocks();
+      const sub = makeSub({ renewalDay: 1, renewalMonthOffset: 0, signupIncludesCurrentMonth: false });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+      // Feb has no content (company-wide skip) — nearest real content is April
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue({ year: 2025, month: 4 });
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ dryRun: true, startDate: '2025-02-10' }));
+
+      const call = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls[0]?.[0];
+      const lb = call?.where?.AND?.[0]?.OR as Array<Record<string, unknown>> | undefined;
       expect(getMonthGte(lb, 2025)).toBe(4);
     });
+  });
 
-    // ── renewalDay=20: joinDay < renewalDay → renewal hasn't happened → lastBillingMonth = joinMonth - 1 ──
+  // ── defaultFirstBoxYear/Month — the renewal-cycle-aware "Suggested" badge ──────
+  //
+  // computeFirstEligibleBoxMonth's cycle math still runs — it just no longer decides the
+  // eligibleMonths query boundary (see block above). It's returned separately in the dry-run
+  // response so the frontend can mark whichever of previous/current/next matches it as
+  // "Suggested" (see buildFirstBoxCandidates).
+  describe('dry-run response — defaultFirstBoxYear/Month (renewal-cycle-aware suggestion)', () => {
+    async function getDefaultFirstBox(subOverrides: Record<string, unknown>, startDate: string) {
+      jest.clearAllMocks();
+      const sub = makeSub({ renewalDay: 1, renewalMonthOffset: 0, signupIncludesCurrentMonth: false, ...subOverrides });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue(null);
 
-    it('renewalDay=20, offset=0, includes=false, Feb5 join → lastBillingMonth=Jan → first box is February', async () => {
-      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2025-02-05');
-      expect(getMonthGte(lb, 2025)).toBe(2);
+      return service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ dryRun: true, startDate })) as Promise<any>;
+    }
+
+    it('renewalDay=20, offset=2, includes=false, Feb10 join → suggestion is April (cycle math still applies here)', async () => {
+      // joinDay=10 < renewalDay=20 → not yet happened → lastBillingMonth=Jan; boxMonth=Jan+2=March;
+      // includes=false → first = March+1 = April.
+      const result = await getDefaultFirstBox({ renewalDay: 20, renewalMonthOffset: 2, signupIncludesCurrentMonth: false }, '2025-02-10');
+      expect(result.defaultFirstBoxYear).toBe(2025);
+      expect(result.defaultFirstBoxMonth).toBe(4);
     });
 
-    it('renewalDay=20, offset=1, includes=true, Feb5 join → lastBillingMonth=Jan, currentBox=Feb → first box is February', async () => {
-      // User scenario: join Feb 5, renewalDay=20, offset=1, includes=true → first = Feb
-      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-02-05');
-      expect(getMonthGte(lb, 2025)).toBe(2);
+    it('join on Dec 31, renewalDay=1, includes=false → suggestion is January next year', async () => {
+      // joinDay=31 >= renewalDay=1 → happened → lastBillingMonth=Dec; boxMonth=Dec; includes=false → Jan next year.
+      const result = await getDefaultFirstBox({}, '2024-12-31');
+      expect(result.defaultFirstBoxYear).toBe(2025);
+      expect(result.defaultFirstBoxMonth).toBe(1);
     });
 
-    it('renewalDay=20, offset=0, includes=true, Feb5 join → lastBillingMonth=Jan, currentBox=Jan → first box is January', async () => {
-      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: true, renewalMonthOffset: 0 }, '2025-02-05');
-      expect(getMonthGte(lb, 2025)).toBe(1);
-    });
-
-    it('renewalDay=20, offset=1, includes=false, Feb5 join → lastBillingMonth=Jan, currentBox=Feb → first box is March', async () => {
-      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: false, renewalMonthOffset: 1 }, '2025-02-05');
-      expect(getMonthGte(lb, 2025)).toBe(3);
-    });
-
-    it('renewalDay=20, offset=0, includes=false, Jan5 join → lastBillingMonth=Dec2024, currentBox=Dec2024 → first box is January 2025', async () => {
-      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: false, renewalMonthOffset: 0 }, '2025-01-05');
-      expect(getYearGt(lb)).toBe(2025);
-      expect(getMonthGte(lb, 2025)).toBe(1);
-    });
-
-    it('renewalDay=20, offset=1, includes=true, Jan5 join → lastBillingMonth=Dec2024, currentBox=Jan2025 → first box is January 2025', async () => {
-      const lb = await getLowerBound({ renewalDay: 20, signupIncludesCurrentMonth: true, renewalMonthOffset: 1 }, '2025-01-05');
-      expect(getYearGt(lb)).toBe(2025);
-      expect(getMonthGte(lb, 2025)).toBe(1);
+    it('renewalDay=1, includes=true, Feb10 join → suggestion equals the raw join month (no divergence)', async () => {
+      const result = await getDefaultFirstBox({ renewalDay: 1, signupIncludesCurrentMonth: true }, '2025-02-10');
+      expect(result.defaultFirstBoxYear).toBe(2025);
+      expect(result.defaultFirstBoxMonth).toBe(2);
+      expect(result.joinWindowYear).toBe(2025);
+      expect(result.joinWindowMonth).toBe(2);
     });
   });
 
@@ -596,12 +587,16 @@ describe('SubscriptionsService — joinSubscription', () => {
     /**
      * Sets up a real join (not dryRun) with paymentOnStartup=true and returns
      * the `where` clause from the subscriptionMonth.findFirst call made inside
-     * recordFirstMonthAsPreorder (the SECOND findFirst call — the first is for
-     * the active-entry check).
+     * recordFirstMonthAsPreorder specifically — identified by its `include` (it
+     * fetches book rows), not by call order: joinSubscription now also makes an
+     * earlier, unrelated subscriptionMonth.findFirst call (select-only, no
+     * `include`) to date-anchor the default first box month, so "the first call"
+     * is no longer a safe way to find this one.
      */
     async function getPreorderQuery(
       subOverrides: Record<string, unknown>,
       startDate: string,
+      dtoOverrides: Record<string, unknown> = {},
     ): Promise<{ yearGt?: number; monthGte?: number; yearGt2?: number; subscriptionId?: string } | undefined> {
       jest.clearAllMocks();
       const sub = makeSub({
@@ -624,9 +619,10 @@ describe('SubscriptionsService — joinSubscription', () => {
       (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue(null);
       (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
 
-      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate }));
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate, ...dtoOverrides }));
 
-      const call = (prisma.subscriptionMonth.findFirst as jest.Mock).mock.calls[0]?.[0];
+      const calls = (prisma.subscriptionMonth.findFirst as jest.Mock).mock.calls;
+      const call = calls.map((c: any[]) => c[0]).find((c: any) => c?.include?.books) ?? calls[calls.length - 1]?.[0];
       const or: Array<any> | undefined = call?.where?.OR;
       if (!or) return undefined;
       const yearGtClause = or.find((c: any) => c.year?.gt !== undefined);
@@ -666,97 +662,44 @@ describe('SubscriptionsService — joinSubscription', () => {
       });
     });
 
-    // ── bimonthly (intervalMonths=2), renewalDay=15, signupIncludesCurrentMonth=true ──
-    // This is the Enchantasy regression: startDate=01.06.2026
-    // joinDay=1 < renewalDay=15 → renewal NOT happened → lastBillingMonth=May
-    // currentBoxMonth = May + 0 = May → firstEligibleMonth=5 (May)
-    // DB must query months >= May, NOT >= June (which would skip to July for bimonthly)
+    // ── first box month resolution ──
+    //
+    // recordFirstMonthAsPreorder no longer runs its own computeFirstEligibleBoxMonth call directly
+    // — it uses the same resolved first-box month as everywhere else (the join modal's mandatory
+    // picker choice, or — absent that — the date-anchored default). That default still applies the
+    // renewal-day/renewalMonthOffset/signupIncludesCurrentMonth cycle math as its starting guess
+    // (same numbers computeFirstEligibleBoxMonth would give), then snaps forward only if that exact
+    // month has no real content — with no SubscriptionMonth content in these mocks, that snap never
+    // triggers, so the numbers below match the plain cycle-math formula. See
+    // computeDateAnchoredFirstBoxMonth / resolveFirstBoxMonth.
 
-    it('bimonthly, renewalDay=15, includes=true, join Jun 1 (before renewal) → preorder query starts at May', async () => {
-      const q = await getPreorderQuery(
-        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
-        '2026-06-01',
-      );
-      expect(q?.monthGte).toBe(5);   // >= May, not >= June
-      expect(q?.yearGt2).toBe(2026);
-    });
-
-    it('bimonthly, renewalDay=15, includes=true, join Jun 20 (after renewal) → preorder query starts at June', async () => {
-      // joinDay=20 >= renewalDay=15 → renewal happened → lastBillingMonth=June → firstEligibleMonth=June
+    it('with no firstBoxYear/firstBoxMonth in the dto → preorder query uses the renewal-cycle default (renewalDay=15, includes=true, Jun20 join → June)', async () => {
       const q = await getPreorderQuery(
         { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
         '2026-06-20',
       );
-      expect(q?.monthGte).toBe(6);   // >= June → next bimonthly is July
+      expect(q?.monthGte).toBe(6);
       expect(q?.yearGt2).toBe(2026);
     });
 
-    it('monthly, renewalDay=15, includes=true, join Jun 1 (before renewal) → preorder query starts at May', async () => {
+    it('with firstBoxYear/firstBoxMonth in the dto → preorder query uses that exact value, ignoring renewalDay entirely', async () => {
       const q = await getPreorderQuery(
         { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
-        '2026-06-01',
+        '2026-06-20',
+        { firstBoxYear: 2026, firstBoxMonth: 5 },
       );
       expect(q?.monthGte).toBe(5);
       expect(q?.yearGt2).toBe(2026);
     });
 
-    it('monthly, renewalDay=15, includes=true, join Jun 20 (after renewal) → preorder query starts at June', async () => {
-      const q = await getPreorderQuery(
-        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
-        '2026-06-20',
-      );
-      expect(q?.monthGte).toBe(6);
-      expect(q?.yearGt2).toBe(2026);
-    });
-
-    it('monthly, renewalDay=15, includes=false, join Jun 1 (before renewal) → preorder query starts at June', async () => {
-      // !includes → first = currentBoxMonth+1 = May+1 = June
-      const q = await getPreorderQuery(
-        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: false },
-        '2026-06-01',
-      );
-      expect(q?.monthGte).toBe(6);
-      expect(q?.yearGt2).toBe(2026);
-    });
-
-    it('monthly, renewalDay=15, includes=false, join Jun 20 (after renewal) → preorder query starts at July', async () => {
-      // joinDay=20 >= 15 → lastBillingMonth=June → currentBox=June → !includes → July
-      const q = await getPreorderQuery(
-        { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: false },
-        '2026-06-20',
-      );
-      expect(q?.monthGte).toBe(7);
-      expect(q?.yearGt2).toBe(2026);
-    });
-
-    it('with renewalMonthOffset=1, renewalDay=15, includes=true, join Jun 1 → preorder query starts at June (May billing + offset 1)', async () => {
-      // lastBillingMonth=May, currentBoxMonth=May+1=June
-      const q = await getPreorderQuery(
-        { renewalDay: 15, renewalMonthOffset: 1, signupIncludesCurrentMonth: true },
-        '2026-06-01',
-      );
-      expect(q?.monthGte).toBe(6);
-      expect(q?.yearGt2).toBe(2026);
-    });
-
-    it('monthly, renewalDay=1, includes=true, join Jun 1 (renewal already happened) → preorder query starts at June', async () => {
-      // joinDay=1 >= renewalDay=1 → renewal happened → lastBillingMonth=June → firstEligibleMonth=June
-      const q = await getPreorderQuery(
-        { renewalDay: 1, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
-        '2026-06-01',
-      );
-      expect(q?.monthGte).toBe(6);
-      expect(q?.yearGt2).toBe(2026);
-    });
-
-    it('join Jan 1, renewalDay=15, includes=true → lastBillingMonth=Dec → preorder query starts at December prev year', async () => {
-      // joinDay=1 < 15 → lastBillingMonth = Jan-1 = Dec 2025 → firstEligibleMonth=Dec 2025
+    it('join Jan 1 with no firstBoxYear/firstBoxMonth, renewalDay=15 → preorder query starts at December of the previous year (renewal-cycle math)', async () => {
+      // joinDay=1 < renewalDay=15 → not yet happened → lastBillingMonth=Dec 2025; includes=true → first=Dec 2025.
       const q = await getPreorderQuery(
         { renewalDay: 15, renewalMonthOffset: 0, signupIncludesCurrentMonth: true },
         '2026-01-01',
       );
       expect(q?.monthGte).toBe(12);
-      expect(q?.yearGt2).toBe(2025);  // year wraps back to 2025
+      expect(q?.yearGt2).toBe(2025);
     });
 
     it('preorder entry is created with ownershipStatus PREORDER not OWNED', async () => {
@@ -816,8 +759,10 @@ describe('SubscriptionsService — joinSubscription', () => {
 
       await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
 
-      // Looked up months on the PARENT stream, not the variant's own id
-      const findFirstCall = (prisma.subscriptionMonth.findFirst as jest.Mock).mock.calls[0]?.[0];
+      // Looked up months on the PARENT stream, not the variant's own id (the preorder-specific
+      // call — identified by its `include`, since an earlier date-anchoring call now also runs)
+      const findFirstCalls = (prisma.subscriptionMonth.findFirst as jest.Mock).mock.calls;
+      const findFirstCall = findFirstCalls.map((c: any[]) => c[0]).find((c: any) => c?.include?.books);
       expect(findFirstCall?.where?.subscriptionId).toBe(PARENT_ID);
 
       // ...and the book was actually added as a PREORDER
@@ -838,7 +783,11 @@ describe('SubscriptionsService — joinSubscription', () => {
   // components is itself a content-stream variant (the same shape as the variant bug
   // above, just one level further removed). These tests lock in that the guard stays in
   // place: if it were ever removed, recordFirstMonthAsPreorder would run its single-
-  // subscriptionId findFirst against a combo id that owns no months at all.
+  // subscriptionId findFirst (with an `include` fetching books) against a combo id that
+  // owns no months at all. A separate, unrelated subscriptionMonth.findFirst call (no
+  // `include`, just year/month) legitimately does still run for every join, combo or
+  // not — it date-anchors the default first box month — so the guard is checked via the
+  // preorder-shaped call specifically, not "findFirst never called at all".
   describe('recordFirstMonthAsPreorder — combo subscriptions (guarded out entirely)', () => {
     it('does not attempt a preorder lookup for a combo subscription with a regular component', async () => {
       jest.clearAllMocks();
@@ -864,7 +813,9 @@ describe('SubscriptionsService — joinSubscription', () => {
 
       await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
 
-      expect(prisma.subscriptionMonth.findFirst).not.toHaveBeenCalled();
+      const preorderShapedCalls = (prisma.subscriptionMonth.findFirst as jest.Mock).mock.calls
+        .filter((c: any[]) => c[0]?.include?.books);
+      expect(preorderShapedCalls).toHaveLength(0);
       expect(prisma.userPurchaseGroup.create).not.toHaveBeenCalled();
     });
 
@@ -893,7 +844,9 @@ describe('SubscriptionsService — joinSubscription', () => {
 
       await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
 
-      expect(prisma.subscriptionMonth.findFirst).not.toHaveBeenCalled();
+      const preorderShapedCalls = (prisma.subscriptionMonth.findFirst as jest.Mock).mock.calls
+        .filter((c: any[]) => c[0]?.include?.books);
+      expect(preorderShapedCalls).toHaveLength(0);
       expect(prisma.userPurchaseGroup.create).not.toHaveBeenCalled();
     });
   });
