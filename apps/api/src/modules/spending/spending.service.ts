@@ -255,8 +255,9 @@ export class SpendingService {
       const entryMonth = date.getMonth() + 1;
       const entryCount = group.bookEntries.length || 1;
 
-      // Base + shipping per entry (in group currency, converted to target)
-      const basePerEntry = toNum(group.totalAmount) / entryCount;
+      // Base + shipping per entry (in group currency, converted to target).
+      // Real per-book allocation when present, else fall back to an equal split (legacy data).
+      const basePerEntry = entry.basePrice != null ? toNum(entry.basePrice) : toNum(group.totalAmount) / entryCount;
       const shippingPerEntry = group.shippingAmount ? toNum(group.shippingAmount) / entryCount : 0;
       const baseConverted = await convert(basePerEntry, purchaseCurrency, date);
       const shippingConverted = await convert(shippingPerEntry, purchaseCurrency, date);

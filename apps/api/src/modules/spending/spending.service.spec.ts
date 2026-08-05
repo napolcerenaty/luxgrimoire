@@ -154,4 +154,78 @@ describe('SpendingService', () => {
       expect(result.byMonth).toHaveLength(0);
     });
   });
+
+  // ─── getComprehensiveStats (per-book basePrice) ───────────────────────────
+
+  describe('getComprehensiveStats — per-book basePrice', () => {
+    function makePurchaseGroup(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'pg-1',
+        currency: 'USD',
+        totalAmount: 200,
+        shippingAmount: null,
+        purchasedAt: new Date('2024-01-15'),
+        fees: [],
+        discounts: [],
+        refunds: [],
+        bookEntries: [{ id: 'e1' }, { id: 'e2' }],
+        ...overrides,
+      };
+    }
+
+    function makeBookEntry(id: string, basePrice: number | null, purchaseGroup: unknown) {
+      return {
+        id,
+        basePrice,
+        salePrice: null,
+        saleCurrency: null,
+        saleDate: null,
+        purchaseGroup,
+        subscriptionEntry: null,
+        edition: { slug: `ed-${id}`, bookBoxCompany: null, book: { title: `Book ${id}`, slug: `book-${id}`, authors: [] } },
+      };
+    }
+
+    beforeEach(() => {
+      prisma.userSaleGroup.findMany.mockResolvedValue([]);
+      (currencyService.warmCacheBatch as jest.Mock).mockResolvedValue(undefined);
+    });
+
+    it('uses the real per-book basePrice instead of an equal split when set', async () => {
+      const pg = makePurchaseGroup();
+      prisma.userBookEntry.findMany.mockResolvedValue([
+        makeBookEntry('e1', 150, pg), // real allocation
+        makeBookEntry('e2', null, pg), // legacy → falls back to totalAmount/entryCount = 200/2 = 100
+      ] as any);
+
+      const result = await service.getComprehensiveStats('u1', 'USD');
+
+      expect(result.totalAllTime).toBe(250); // 150 + 100
+    });
+
+    it('falls back to an equal split for every entry when none has a real basePrice (legacy data, no regression)', async () => {
+      const pg = makePurchaseGroup({ totalAmount: 100 });
+      prisma.userBookEntry.findMany.mockResolvedValue([
+        makeBookEntry('e1', null, pg),
+        makeBookEntry('e2', null, pg),
+      ] as any);
+
+      const result = await service.getComprehensiveStats('u1', 'USD');
+
+      expect(result.totalAllTime).toBe(100); // 50 + 50
+    });
+
+    it('shipping stays an even split by count even when basePrice differs per book', async () => {
+      const pg = makePurchaseGroup({ totalAmount: 200, shippingAmount: 20 });
+      prisma.userBookEntry.findMany.mockResolvedValue([
+        makeBookEntry('e1', 150, pg),
+        makeBookEntry('e2', 50, pg),
+      ] as any);
+
+      const result = await service.getComprehensiveStats('u1', 'USD');
+
+      // (150+10) + (50+10) = 220, shipping never follows the basePrice split
+      expect(result.totalAllTime).toBe(220);
+    });
+  });
 });

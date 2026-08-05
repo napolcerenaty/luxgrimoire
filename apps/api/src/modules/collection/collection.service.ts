@@ -173,6 +173,7 @@ export class CollectionService {
           salePrice: true,
           saleCurrency: true,
           subscriptionEntryId: true,
+          basePrice: true,
           subscriptionEntry: {
             select: {
               subscription: { select: { id: true, name: true, parentSubscriptionId: true } },
@@ -355,6 +356,7 @@ export class CollectionService {
           saleNotes: true,
           signatureType: true,
           subscriptionEntryId: true,
+          basePrice: true,
           subscriptionEntry: {
             select: {
               subscription: {

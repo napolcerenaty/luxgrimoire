@@ -153,6 +153,116 @@ describe('backfillSubscription — combo path respects book choice', () => {
       expect.objectContaining({ data: expect.objectContaining({ editionId: 'ed-a' }) }),
     );
   });
+
+  it('a combo month with a resolved choice pick plus an always-included book splits basePrice evenly with no override', async () => {
+    const sub = {
+      id: SUB_ID, slug: SUB_SLUG, isCombo: true, componentIds: ['comp-1'],
+      currency: 'USD', renewalDay: 1, renewalDayUserSet: false, paymentOnStartup: false,
+      signupIncludesCurrentMonth: false, renewalMonthOffset: 0, isContentStream: false,
+    };
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+    jest.spyOn(service as any, 'getComboEligibleMonths').mockResolvedValue([{ id: 'COMBO_2026_7', year: 2026, month: 7, books: [] }]);
+
+    const entry = {
+      id: ENTRY_ID, userId: USER_ID, subscriptionId: SUB_ID, startDate: '2026-07-01',
+      cancellationDate: null, renewalDay: 1, basePrice: { toString: () => '30' },
+      costCurrency: 'USD', shippingCost: null, firstSkipDate: null, feeTemplates: [],
+    };
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(entry);
+    (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'comp-1', parentSubscriptionId: null }]);
+
+    // Choice group (2 alternatives, one picked) + one always-included extra book
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        books: [
+          { id: 'mb-a', bookId: 'book-1', editionId: 'ed-a', signatureType: null, choiceGroupId: 'group-1' },
+          { id: 'mb-b', bookId: 'book-1', editionId: 'ed-b', signatureType: null, choiceGroupId: 'group-1' },
+          { id: 'mb-extra', bookId: 'book-extra', editionId: 'ed-extra', signatureType: null, choiceGroupId: null },
+        ],
+      },
+    ]);
+    (prisma.userSubscriptionMonthChoice.findMany as jest.Mock).mockResolvedValueOnce([
+      { choiceGroupId: 'group-1', selections: [{ monthBookId: 'mb-a' }] },
+    ]);
+    (prisma.subscriptionMonthChoiceGroup.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValueOnce({ id: 'pg-1' });
+    for (let i = 0; i < 2; i++) {
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValueOnce({ id: `ube-${i}` });
+      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
+    }
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: SUB_ID, skipPolicies: [] });
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await service.backfillSubscription(USER_ID, SUB_SLUG, {
+      selectedMonthIds: ['COMBO_2026_7'],
+    } as any);
+
+    // Group has exactly the 2 resolved books (chosen ed-a + always-included ed-extra) —
+    // equal split of the group total (30), not 3-way (which would wrongly count ed-b).
+    const createCalls = (prisma.userBookEntry.create as jest.Mock).mock.calls;
+    const byEdition = Object.fromEntries(createCalls.map((c: any) => [c[0].data.editionId, c[0].data.basePrice]));
+    expect(byEdition).toEqual({ 'ed-a': 15, 'ed-extra': 15 });
+  });
+
+  it('bookPrices override keyed by the synthetic comboId applies within the combo purchase group', async () => {
+    const sub = {
+      id: SUB_ID, slug: SUB_SLUG, isCombo: true, componentIds: ['comp-1'],
+      currency: 'USD', renewalDay: 1, renewalDayUserSet: false, paymentOnStartup: false,
+      signupIncludesCurrentMonth: false, renewalMonthOffset: 0, isContentStream: false,
+    };
+    jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+    jest.spyOn(service as any, 'getComboEligibleMonths').mockResolvedValue([{ id: 'COMBO_2026_7', year: 2026, month: 7, books: [] }]);
+
+    const entry = {
+      id: ENTRY_ID, userId: USER_ID, subscriptionId: SUB_ID, startDate: '2026-07-01',
+      cancellationDate: null, renewalDay: 1, basePrice: { toString: () => '29.99' },
+      costCurrency: 'USD', shippingCost: null, firstSkipDate: null, feeTemplates: [],
+    };
+    (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(entry);
+    (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.subscriptionPriceChange.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([{ id: 'comp-1', parentSubscriptionId: null }]);
+
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        books: [
+          { id: 'mb-a', bookId: 'book-1', editionId: 'ed-a', signatureType: null, choiceGroupId: 'group-1' },
+          { id: 'mb-b', bookId: 'book-1', editionId: 'ed-b', signatureType: null, choiceGroupId: 'group-1' },
+          { id: 'mb-extra', bookId: 'book-extra', editionId: 'ed-extra', signatureType: null, choiceGroupId: null },
+        ],
+      },
+    ]);
+    (prisma.userSubscriptionMonthChoice.findMany as jest.Mock).mockResolvedValueOnce([
+      { choiceGroupId: 'group-1', selections: [{ monthBookId: 'mb-a' }] },
+    ]);
+    (prisma.subscriptionMonthChoiceGroup.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValueOnce({ id: 'pg-1' });
+    for (let i = 0; i < 2; i++) {
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValueOnce({ id: `ube-${i}` });
+      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
+    }
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({ id: SUB_ID, skipPolicies: [] });
+    (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await service.backfillSubscription(USER_ID, SUB_SLUG, {
+      selectedMonthIds: ['COMBO_2026_7'],
+      // monthId matches the synthetic comboId, exactly how selectedMonthIds addresses combo months.
+      bookPrices: [{ monthId: 'COMBO_2026_7', editionId: 'ed-extra', price: 9.99 }],
+    } as any);
+
+    expect(prisma.userPurchaseGroup.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'pg-1' }, data: { priceDistribution: 'CUSTOM' } }),
+    );
+    const createCalls = (prisma.userBookEntry.create as jest.Mock).mock.calls;
+    const byEdition = Object.fromEntries(createCalls.map((c: any) => [c[0].data.editionId, c[0].data.basePrice]));
+    expect(byEdition).toEqual({ 'ed-a': 20, 'ed-extra': 9.99 });
+  });
 });
 
 describe('getMonthChoiceGroups / submitMonthChoice — combo-aware month resolution', () => {

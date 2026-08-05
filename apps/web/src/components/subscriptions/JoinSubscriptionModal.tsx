@@ -1381,6 +1381,10 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
     if (!choiceGroups.has(b.choiceGroupId)) choiceGroups.set(b.choiceGroupId, [])
     choiceGroups.get(b.choiceGroupId)!.push(b)
   }
+  const hasUnresolvedChoiceGroups = Array.from(choiceGroups.keys()).some(groupId => (choicePicks[groupId] ?? []).length === 0)
+  // Only books that will actually become entries: always-included extras, plus whichever
+  // choice-group option(s) were picked. Unpicked alternatives are excluded.
+  const priceableBooks = allBooks.filter(b => !b.choiceGroupId || (choicePicks[b.choiceGroupId] ?? []).includes(b.id))
 
   return (
     <div className="border-b border-stone-700/40 last:border-0">
@@ -1460,10 +1464,32 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
         </div>
       )}
 
-      {/* Per-book price inputs temporarily removed: they're misleading — all books in a month
-          share one UserPurchaseGroup/totalAmount, there's no real per-book price to set (see
-          project_backfill_per_book_price_bug memory). bookPrices state/payload wiring is left
-          in place since nothing can populate it without this UI; revisit once that's resolved. */}
+      {/* Per-book price: only shown once the set of books that will actually be created is
+          known — i.e. always-included extras, plus whichever choice-group option(s) the user
+          picked above (unpicked alternatives never become entries, so pricing them is moot).
+          Optional: leave blank to split the box price evenly; price one or more books and the
+          rest split whatever's left (see UserPurchaseGroup.priceDistribution). */}
+      {checked && priceableBooks.length > 1 && !hasUnresolvedChoiceGroups && (
+        <div className="px-3 pb-3 space-y-1.5" onClick={e => e.stopPropagation()}>
+          <p className="text-[10px] uppercase tracking-wider text-stone-500">Per-book price (optional)</p>
+          {priceableBooks.map(b => {
+            const key = `${month.id}:${b.editionId}`
+            return (
+              <label key={key} className="flex items-center gap-2 text-xs text-stone-300">
+                <span className="flex-1 truncate">{editionDisplayTitle(b.edition) ?? '—'}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="auto"
+                  value={bookPrices[key] ?? ''}
+                  onChange={e => onPriceChange(key, e.target.value)}
+                  className="w-20 bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-right focus:outline-none focus:ring-1 focus:ring-amber-600/40"
+                />
+              </label>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
