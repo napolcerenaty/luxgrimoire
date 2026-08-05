@@ -107,7 +107,7 @@ interface CollectionEntry {
   }
 }
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
 
 interface FeeEntry {
@@ -300,7 +300,7 @@ function AddSaleForm({
               type="button"
               onClick={() => toggleEntry(e.id)}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
-                saleSelectedEntries.includes(e.id) ? 'bg-amber-500/10 text-amber-400' : 'text-stone-300 hover:bg-stone-800'
+                saleSelectedEntries.includes(e.id) ? 'bg-brand-500/10 text-brand-400' : 'text-stone-300 hover:bg-stone-800'
               }`}
             >
               <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-stone-600">
@@ -332,7 +332,7 @@ function AddSaleForm({
                 type="button"
                 onClick={() => setSaleDistribution(d)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                  saleDistribution === d ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'border-stone-700 text-stone-400 hover:border-stone-500'
+                  saleDistribution === d ? 'bg-brand-500/10 border-brand-500/30 text-brand-400' : 'border-stone-700 text-stone-400 hover:border-stone-500'
                 }`}
               >
                 {d === 'EQUAL' ? 'Equal' : 'Custom per book'}
@@ -373,7 +373,7 @@ function AddSaleForm({
       <button
         type="submit"
         disabled={pending}
-        className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
+        className="bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
       >
         {pending ? 'Saving…' : 'Record Sale'}
       </button>
@@ -865,7 +865,7 @@ export default function CollectionPage() {
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
               aria-label="Grid view"
             >
               <LayoutGrid size={15} />
@@ -873,7 +873,7 @@ export default function CollectionPage() {
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'list' ? 'bg-brand-500/20 text-brand-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
               aria-label="List view"
             >
               <List size={15} />
@@ -881,7 +881,7 @@ export default function CollectionPage() {
           </div>
           <button
             onClick={() => setAddModalOpen(true)}
-            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-3 py-2 rounded-xl text-sm transition-colors"
+            className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold px-3 py-2 rounded-xl text-sm transition-colors"
           >
             <Plus size={16} />
             Add Book
@@ -893,7 +893,7 @@ export default function CollectionPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
           <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Owned</p>
-          <p className="text-2xl font-serif font-bold text-amber-400">{stats?.totalOwned ?? 0}</p>
+          <p className="text-2xl font-serif font-bold text-brand-400">{stats?.totalOwned ?? 0}</p>
         </div>
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
           <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Series</p>
@@ -919,14 +919,14 @@ export default function CollectionPage() {
             value={bookFilter}
             onChange={e => setBookFilter(e.target.value)}
             placeholder="Search by title…"
-            className={`bg-stone-800 border text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none transition-colors min-w-[160px] flex-1 sm:flex-none ${filterLoading && hasActiveFilters ? 'border-amber-400/50 animate-pulse' : 'border-stone-700 focus:border-amber-400'}`}
+            className={`bg-stone-800 border text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none transition-colors min-w-[160px] flex-1 sm:flex-none ${filterLoading && hasActiveFilters ? 'border-brand-400/50 animate-pulse' : 'border-stone-700 focus:border-brand-400'}`}
           />
 
           {/* Group by — always visible */}
           <select
             value={filter}
             onChange={e => setFilter(e.target.value as FilterMode)}
-            className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${filter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${filter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
           >
             <option value="ALL">Group: All</option>
             <option value="BOOK">Group: By Book</option>
@@ -940,7 +940,7 @@ export default function CollectionPage() {
           <select
             value={sortOrder}
             onChange={e => setSortOrder(e.target.value as SortOrder)}
-            className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${sortOrder !== 'DATE_DESC' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${sortOrder !== 'DATE_DESC' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
           >
             <option value="DATE_DESC">Sort: Newest first</option>
             <option value="DATE_ASC">Sort: Oldest first</option>
@@ -953,12 +953,12 @@ export default function CollectionPage() {
               <button
                 type="button"
                 onClick={() => setFiltersOpen(prev => !prev)}
-                className={`sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors ${activeCount > 0 ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500 bg-stone-900'}`}
+                className={`sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors ${activeCount > 0 ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500 bg-stone-900'}`}
               >
                 <SlidersHorizontal size={13} />
                 Filters
                 {activeCount > 0 && (
-                  <span className="bg-amber-500 text-stone-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{activeCount}</span>
+                  <span className="bg-brand-500 text-stone-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{activeCount}</span>
                 )}
               </button>
             )
@@ -976,7 +976,7 @@ export default function CollectionPage() {
               <select
                 value={companyFilter}
                 onChange={e => setCompanyFilter(e.target.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
               >
                 <option value="ALL">Box: Any</option>
                 {companies.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1016,7 +1016,7 @@ export default function CollectionPage() {
               <select
                 value={tagFilter}
                 onChange={e => setTagFilter(e.target.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
               >
                 <option value="ALL">Tag: Any</option>
                 {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
@@ -1060,7 +1060,7 @@ export default function CollectionPage() {
                 <button
                   key={chip.key}
                   onClick={chip.onRemove}
-                  className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-amber-950/40 border border-amber-800/50 text-amber-300 text-xs hover:bg-amber-950/70 transition-colors"
+                  className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-brand-950/40 border border-brand-800/50 text-brand-300 text-xs hover:bg-brand-950/70 transition-colors"
                 >
                   {chip.label}
                   <X className="w-3 h-3" />
@@ -1109,17 +1109,17 @@ export default function CollectionPage() {
                     {groupLabel && (
                       <h2 className="text-lg font-serif font-semibold text-stone-300 mb-4 border-b border-stone-800 pb-2 flex items-center gap-2">
                         {!isSingletonBucket && filter === 'BOOK' && group[0] && (
-                          <a href={`/books/${group[0].edition.book.slug}`} className="hover:text-amber-400 transition-colors">
+                          <a href={`/books/${group[0].edition.book.slug}`} className="hover:text-brand-400 transition-colors">
                             {groupLabel}
                           </a>
                         )}
                         {!isSingletonBucket && filter === 'AUTHOR' && group[0] && (
-                          <a href={`/authors/${((group[0].edition.book.authors[0] as any)?.author ?? group[0].edition.book.authors[0])?.slug}`} className="hover:text-amber-400 transition-colors">
+                          <a href={`/authors/${((group[0].edition.book.authors[0] as any)?.author ?? group[0].edition.book.authors[0])?.slug}`} className="hover:text-brand-400 transition-colors">
                             {groupLabel}
                           </a>
                         )}
                         {!isSingletonBucket && filter === 'COMPANY' && group[0]?.edition.bookBoxCompany && (
-                          <a href={`/book-boxes/${group[0].edition.bookBoxCompany.slug}`} className="hover:text-amber-400 transition-colors">
+                          <a href={`/book-boxes/${group[0].edition.bookBoxCompany.slug}`} className="hover:text-brand-400 transition-colors">
                             {groupLabel}
                           </a>
                         )}
@@ -1166,7 +1166,7 @@ export default function CollectionPage() {
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-ownership` ? null : `${entry.id}-ownership`) }}
                                 className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
                                   entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
-                                  entry.ownershipStatus === 'PREORDER' ? 'text-amber-600 bg-amber-500/20 border-amber-500/40' :
+                                  entry.ownershipStatus === 'PREORDER' ? 'text-brand-600 bg-brand-500/20 border-brand-500/40' :
                                   entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
                                   (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
                                   'text-stone-500 bg-stone-500/10 border-stone-500/30'
@@ -1208,7 +1208,7 @@ export default function CollectionPage() {
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-reading` ? null : `${entry.id}-reading`) }}
                                 className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
                                   entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
-                                  entry.readingStatus === 'READING' ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' :
+                                  entry.readingStatus === 'READING' ? 'text-brand-400 bg-brand-500/10 border-brand-500/30' :
                                   entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
                                   'text-stone-500 bg-stone-500/10 border-stone-500/30'
                                 }`}
@@ -1253,7 +1253,7 @@ export default function CollectionPage() {
                                     entry.signatureType === 'signed'
                                       ? 'text-purple-400 bg-purple-500/10 border-purple-500/30'
                                       : entry.signatureType === 'signed_bookplate'
-                                      ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+                                      ? 'text-brand-400 bg-brand-500/10 border-brand-500/30'
                                       : entry.signatureType === 'autopen'
                                       ? 'text-rose-400 bg-rose-500/10 border-rose-500/30'
                                       : entry.signatureType === 'stamped'
@@ -1293,7 +1293,7 @@ export default function CollectionPage() {
                               </div>
                             )}
                             {entry.saleAnnouncementEdition?.isReprint && (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border text-amber-400 bg-amber-500/10 border-amber-500/30">
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border text-brand-400 bg-brand-500/10 border-brand-500/30">
                                 🔁 REPRINT
                               </span>
                             )}
@@ -1396,7 +1396,7 @@ export default function CollectionPage() {
                                   e.preventDefault(); e.stopPropagation()
                                   openRecordSale(entry.id, entry.purchaseGroup?.currency ?? 'GBP')
                                 }}
-                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-stone-700 text-stone-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/10 transition-colors"
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-stone-700 text-stone-400 hover:text-brand-400 hover:border-brand-500/30 hover:bg-brand-500/10 transition-colors"
                                 title="Record sale"
                               >
                                 <Banknote size={10} />
@@ -1478,7 +1478,7 @@ export default function CollectionPage() {
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-ownership` ? null : `${entry.id}-ownership`) }}
                               className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
                                 entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
-                                entry.ownershipStatus === 'PREORDER' ? 'text-amber-600 bg-amber-500/20 border-amber-500/40' :
+                                entry.ownershipStatus === 'PREORDER' ? 'text-brand-600 bg-brand-500/20 border-brand-500/40' :
                                 entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
                                 (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
                                 'text-stone-500 bg-stone-500/10 border-stone-500/30'
@@ -1503,7 +1503,7 @@ export default function CollectionPage() {
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-reading` ? null : `${entry.id}-reading`) }}
                               className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
                                 entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
-                                entry.readingStatus === 'READING' ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' :
+                                entry.readingStatus === 'READING' ? 'text-brand-400 bg-brand-500/10 border-brand-500/30' :
                                 entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
                                 'text-stone-500 bg-stone-500/10 border-stone-500/30'
                               }`}
@@ -1567,7 +1567,7 @@ export default function CollectionPage() {
                           {entry.ownershipStatus !== 'SOLD' && entry.ownershipStatus !== 'GIFTED_AWAY' && (
                             <button
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); openRecordSale(entry.id, entry.purchaseGroup?.currency ?? 'GBP') }}
-                              className="p-1.5 rounded-lg text-stone-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                              className="p-1.5 rounded-lg text-stone-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
                               title="Record sale"
                             >
                               <Banknote size={12} />
@@ -1781,7 +1781,7 @@ export default function CollectionPage() {
                 placeholder="Tracking number (e.g. JD014600006278907695)"
                 value={trackingInput}
                 onChange={(e) => setTrackingInput(e.target.value)}
-                className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+                className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
                 autoFocus
               />
               <input
@@ -1789,14 +1789,14 @@ export default function CollectionPage() {
                 placeholder="Label (optional, e.g. Volume 1)"
                 value={trackingLabelInput}
                 onChange={(e) => setTrackingLabelInput(e.target.value)}
-                className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+                className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
               />
               {trackingInput.trim() && (
                 <a
                   href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackingInput.trim())}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-xs text-stone-400 hover:text-amber-400 transition-colors"
+                  className="flex items-center gap-2 text-xs text-stone-400 hover:text-brand-400 transition-colors"
                 >
                   <Truck size={12} /> Preview on ParcelsApp ↗
                 </a>
@@ -1817,7 +1817,7 @@ export default function CollectionPage() {
                     setShowAddTracking(false)
                   }}
                   disabled={!trackingInput.trim()}
-                  className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                  className="flex-1 bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
                 >
                   Add
                 </button>
@@ -1832,7 +1832,7 @@ export default function CollectionPage() {
           ) : (
             <button
               onClick={() => setShowAddTracking(true)}
-              className="flex items-center gap-2 text-sm text-stone-400 hover:text-amber-400 transition-colors"
+              className="flex items-center gap-2 text-sm text-stone-400 hover:text-brand-400 transition-colors"
             >
               <Plus size={14} /> Add tracking number
             </button>
@@ -2091,7 +2091,7 @@ function AddToCollectionSearch({
             <span className="text-xs font-medium text-stone-400">Additional fees (optional)</span>
             <button type="button"
               onClick={() => { feeKeyRef.current++; setFeeEntries(p => [...p, { key: feeKeyRef.current, templateId: '', amount: '', currency }]) }}
-              className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors">
+              className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 transition-colors">
               <Plus size={12} /> Add fee
             </button>
           </div>
@@ -2104,14 +2104,14 @@ function AddToCollectionSearch({
                     const tpl = feeTemplates.find(t => t.id === e.target.value)
                     setFeeEntries(p => p.map(f => f.key === fee.key ? { ...f, templateId: e.target.value, amount: tpl?.defaultAmount != null ? String(tpl.defaultAmount) : f.amount, currency: tpl?.defaultCurrency ?? f.currency } : f))
                   }}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400">
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400">
                   <option value="">— Template —</option>
                   {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}{t.category ? ` (${t.category})` : ''}</option>)}
                 </select>
                 <input type="text" value={fee.amount} onChange={e => setFeeEntries(p => p.map(f => f.key === fee.key ? { ...f, amount: e.target.value } : f))}
-                  placeholder="0.00" className="w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400" />
+                  placeholder="0.00" className="w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400" />
                 <select value={fee.currency} onChange={e => setFeeEntries(p => p.map(f => f.key === fee.key ? { ...f, currency: e.target.value } : f))}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400">
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400">
                   {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <button type="button" onClick={() => setFeeEntries(p => p.filter(f => f.key !== fee.key))} className="p-2 text-stone-500 hover:text-red-400 transition-colors">
@@ -2161,12 +2161,12 @@ function AddToCollectionSearch({
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={isSecondHand} onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
-              className="w-4 h-4 rounded accent-amber-500" />
+              className="w-4 h-4 rounded accent-brand-500" />
             <span className="text-sm text-stone-300">Second-hand purchase</span>
           </label>
           {isSecondHand && (
             <select value={sourcePlatform} onChange={e => setSourcePlatform(e.target.value)}
-              className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400 transition-colors">
+              className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400 transition-colors">
               <option value="">Select platform (optional)</option>
               {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
@@ -2181,7 +2181,7 @@ function AddToCollectionSearch({
             Back
           </button>
           <button type="submit" disabled={submitting}
-            className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
+            className="flex-1 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
             {submitting ? 'Adding…' : 'Add to Collection'}
           </button>
         </div>
@@ -2198,7 +2198,7 @@ function AddToCollectionSearch({
           placeholder="Search by title, author, series…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl pl-9 pr-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+          className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl pl-9 pr-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
         />
         <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 ${loading ? 'animate-pulse' : ''}`} />
       </div>
@@ -2232,7 +2232,7 @@ function AddToCollectionSearch({
                   className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                     alreadyOwned
                       ? 'bg-stone-700 text-stone-500 cursor-not-allowed'
-                      : 'bg-amber-500 hover:bg-amber-400 text-stone-950'
+                      : 'bg-brand-500 hover:bg-brand-400 text-stone-950'
                   }`}
                 >
                   {alreadyOwned ? <><Check size={11} /> Owned</> : <><Plus size={11} /> Add</>}

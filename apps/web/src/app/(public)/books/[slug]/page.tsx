@@ -64,7 +64,7 @@ export default async function BookPage({ params }: Props) {
         {book.series ? (
           <Link
             href={`/series/${book.series.slug}`}
-            className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
+            className="inline-block text-sm text-brand-500 hover:text-brand-400 mb-2 font-medium transition-colors hover:underline"
           >
             {book.series.name}
             {book.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
@@ -73,7 +73,7 @@ export default async function BookPage({ params }: Props) {
         ) : book.seriesName ? (
           // Legacy plain-text series name with no linked BookSeries record — no series page
           // exists to link to (see /series/[slug] 404s from books like this).
-          <p className="inline-block text-sm text-amber-500 mb-2 font-medium">
+          <p className="inline-block text-sm text-brand-500 mb-2 font-medium">
             {book.seriesName}
             {book.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
           </p>
@@ -83,7 +83,7 @@ export default async function BookPage({ params }: Props) {
             Also in{' '}
             {book.seriesEntries.filter(e => !e.isPrimary).map((entry, i, arr) => (
               <span key={entry.seriesId}>
-                <Link href={`/series/${entry.series.slug}`} className="text-stone-400 hover:text-amber-400 transition-colors hover:underline">
+                <Link href={`/series/${entry.series.slug}`} className="text-stone-400 hover:text-brand-400 transition-colors hover:underline">
                   {entry.series.name}{entry.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(entry.volumeNumbers)}` : ''}
                 </Link>
                 {i < arr.length - 1 && ', '}
@@ -102,7 +102,7 @@ export default async function BookPage({ params }: Props) {
                 {i > 0 && ', '}
                 <Link
                   href={`/authors/${author.slug}`}
-                  className="text-amber-400 hover:underline"
+                  className="text-brand-400 hover:underline"
                 >
                   {author.name}
                 </Link>
@@ -131,8 +131,8 @@ export default async function BookPage({ params }: Props) {
           <ul className="flex flex-col gap-2">
             {book.omnibusComponents.map((c) => (
               <li key={c.id}>
-                <Link href={`/books/${c.book.slug}`} className="text-stone-300 hover:text-amber-400 transition-colors">
-                  {c.volumeNumber != null && <span className="text-amber-600/80 font-semibold mr-2">Vol. {c.volumeNumber}</span>}
+                <Link href={`/books/${c.book.slug}`} className="text-stone-300 hover:text-brand-400 transition-colors">
+                  {c.volumeNumber != null && <span className="text-brand-600/80 font-semibold mr-2">Vol. {c.volumeNumber}</span>}
                   {c.book.title}
                 </Link>
               </li>

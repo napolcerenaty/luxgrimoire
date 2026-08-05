@@ -10,7 +10,7 @@ import { X, Plus, MoveRight } from 'lucide-react'
 
 export type { FeeEntry, DiscountEntry, FeeTemplate }
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
+const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
 /** Swaps the border color of an input class string to flag an invalid field. */
 const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
@@ -267,7 +267,7 @@ export function CollectionFormModal({
                         onChange={() => setSelectedEditionIds(prev =>
                           checked ? prev.filter(id => id !== ed.editionId) : [...prev, ed.editionId]
                         )}
-                        className="w-4 h-4 accent-amber-500 shrink-0"
+                        className="w-4 h-4 accent-brand-500 shrink-0"
                       />
                       <span className="text-sm text-stone-300 leading-tight flex-1">
                         {ed.edition?.book?.title ?? 'Edition'}
@@ -316,7 +316,7 @@ export function CollectionFormModal({
                           value={v.signatureType}
                           checked={selectedVariants[ed.editionId] === v.signatureType}
                           onChange={() => setSelectedVariants(prev => ({ ...prev, [ed.editionId]: v.signatureType }))}
-                          className="accent-amber-500"
+                          className="accent-brand-500"
                         />
                         <span className="text-sm text-stone-300">
                           {SIGNATURE_LABELS[v.signatureType] ?? v.signatureType}
@@ -356,7 +356,7 @@ export function CollectionFormModal({
               <span className="text-xs font-medium text-stone-400">Additional fees (optional)</span>
               <button type="button"
                 onClick={() => { feeKeyRef.current++; setFeeEntries(prev => [...prev, { key: feeKeyRef.current, templateId: '', amount: '', currency, name: '', category: 'OTHER' }]) }}
-                className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors">
+                className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 transition-colors">
                 <Plus size={12} /> Add fee
               </button>
             </div>
@@ -375,7 +375,7 @@ export function CollectionFormModal({
                             currency: t.defaultCurrency ?? f.currency,
                             category: t.category ?? f.category,
                           } : f))}
-                          className={`px-2 py-0.5 rounded text-xs border transition-colors ${fee.templateId === t.id ? 'border-amber-500/60 text-amber-400' : 'border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400'}`}
+                          className={`px-2 py-0.5 rounded text-xs border transition-colors ${fee.templateId === t.id ? 'border-brand-500/60 text-brand-400' : 'border-stone-600 text-stone-400 hover:border-brand-500/40 hover:text-brand-400'}`}
                         >
                           {t.name}
                         </button>
@@ -397,10 +397,10 @@ export function CollectionFormModal({
                         <input type="text" value={fee.name}
                           onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, name: e.target.value } : f))}
                           placeholder="Fee name"
-                          className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors" />
+                          className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors" />
                         <select value={fee.category}
                           onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, category: e.target.value } : f))}
-                          className="w-32 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors">
+                          className="w-32 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors">
                           {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                         </select>
                       </>
@@ -417,10 +417,10 @@ export function CollectionFormModal({
                         if (invalidFeeKeys.has(fee.key)) { setInvalidFeeKeys(prev => { const next = new Set(prev); next.delete(fee.key); return next }); setValidationError(null) }
                       }}
                       placeholder="0.00"
-                      className={inpErr('w-24 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors', invalidFeeKeys.has(fee.key))} />
+                      className={inpErr('w-24 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors', invalidFeeKeys.has(fee.key))} />
                     <select value={fee.currency}
                       onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, currency: e.target.value } : f))}
-                      className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors">
+                      className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors">
                       {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
@@ -501,7 +501,7 @@ export function CollectionFormModal({
               Cancel
             </button>
             <button type="submit" disabled={submitting || (editions.length > 1 && selectedEditionIds.length === 0)}
-              className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
+              className="flex-1 flex items-center justify-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
               <MoveRight size={14} />
               {submitting ? 'Saving…' : submitLabel}
             </button>

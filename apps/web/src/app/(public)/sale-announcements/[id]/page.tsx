@@ -70,7 +70,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
                 <span>📷 photo by</span>
                 {credits.map(({ handle, role }) => (
                   <div key={handle}>
-                    <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-amber-600 hover:text-amber-400 transition-colors">
+                    <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
                       @{handle}<ExternalLink size={10} className="shrink-0" />
                     </a>
                     {role && <span className="text-stone-600"> ({role})</span>}
@@ -79,7 +79,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
                 {website && (
                   <div>
                     courtesy of{' '}
-                    <a href={website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-amber-600 hover:text-amber-400 transition-colors">
+                    <a href={website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
                       {sale.company!.name}<ExternalLink size={10} className="shrink-0" />
                     </a>
                   </div>

@@ -54,7 +54,7 @@ export function BookBundleInfo({ editionIds }: Props) {
             {bundle.saleAnnouncementId && (
               <Link
                 href={`/sale-announcements/${bundle.saleAnnouncementId}`}
-                className="text-xs text-amber-400 hover:text-amber-300 hover:underline whitespace-nowrap"
+                className="text-xs text-brand-400 hover:text-brand-300 hover:underline whitespace-nowrap"
               >
                 View Sale →
               </Link>

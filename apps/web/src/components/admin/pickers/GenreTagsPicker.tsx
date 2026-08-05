@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 
 export function GenreTagsPicker({ genres, onChange, allowNew = true, staticOptions, endpoint = '/books/genres' }: { genres: string[]; onChange: (v: string[]) => void; allowNew?: boolean; staticOptions?: string[]; endpoint?: string }) {
   const [q, setQ] = useState('')
@@ -110,7 +110,7 @@ export function GenreTagsPicker({ genres, onChange, allowNew = true, staticOptio
             ))}
             {hasAddNew && (
               <button type="button" onMouseDown={() => add(q.trim())}
-                className={`w-full text-left px-3 py-2 text-xs text-amber-400 transition-colors border-t border-stone-700 ${activeIndex === filtered.length ? 'bg-stone-700' : 'hover:bg-stone-700'}`}>
+                className={`w-full text-left px-3 py-2 text-xs text-brand-400 transition-colors border-t border-stone-700 ${activeIndex === filtered.length ? 'bg-stone-700' : 'hover:bg-stone-700'}`}>
                 + Add &ldquo;{q.trim()}&rdquo;
               </button>
             )}
@@ -120,10 +120,10 @@ export function GenreTagsPicker({ genres, onChange, allowNew = true, staticOptio
       {genres.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2">
           {genres.map((g, i) => (
-            <span key={i} className="flex items-center gap-1 bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs px-2.5 py-1 rounded-full">
+            <span key={i} className="flex items-center gap-1 bg-brand-500/15 text-brand-300 border border-brand-500/30 text-xs px-2.5 py-1 rounded-full">
               {g}
               <button type="button" onClick={() => onChange(genres.filter((_, j) => j !== i))}
-                className="text-amber-500/60 hover:text-red-400 ml-0.5">×</button>
+                className="text-brand-500/60 hover:text-red-400 ml-0.5">×</button>
             </span>
           ))}
         </div>

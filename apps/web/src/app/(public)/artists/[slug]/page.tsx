@@ -16,7 +16,7 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
       href={href}
       target="_blank"
       rel="noreferrer noopener"
-      className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-amber-400 transition-colors border border-stone-700 hover:border-amber-700/60 rounded-full px-3 py-1"
+      className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-brand-400 transition-colors border border-stone-700 hover:border-brand-700/60 rounded-full px-3 py-1"
     >
       {icon}
       <span>{label}</span>
@@ -115,7 +115,7 @@ export default async function ArtistPage({ params }: Props) {
               <img
                 src={photoUrl}
                 alt={artist.name}
-                className="w-36 h-36 sm:w-48 sm:h-48 rounded-2xl object-cover shadow-2xl ring-2 ring-amber-700/40 shrink-0"
+                className="w-36 h-36 sm:w-48 sm:h-48 rounded-2xl object-cover shadow-2xl ring-2 ring-brand-700/40 shrink-0"
               />
             ) : (
               <div className="w-36 h-36 sm:w-48 sm:h-48 rounded-2xl bg-stone-800 flex items-center justify-center shrink-0 text-5xl font-serif text-stone-600">
@@ -125,7 +125,7 @@ export default async function ArtistPage({ params }: Props) {
 
             {/* Info */}
             <div className="flex-1">
-              <p className="text-xs text-amber-600 uppercase tracking-widest mb-2 font-medium">Artist</p>
+              <p className="text-xs text-brand-600 uppercase tracking-widest mb-2 font-medium">Artist</p>
               <h1 className="text-4xl sm:text-5xl font-serif font-bold text-stone-100 leading-tight mb-1">
                 {artist.name}
               </h1>

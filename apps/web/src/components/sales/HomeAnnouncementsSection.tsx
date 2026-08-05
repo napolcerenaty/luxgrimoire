@@ -35,7 +35,7 @@ function DaysBadge({ dateStr }: { dateStr: string | null | undefined }) {
   const color = days <= 0
     ? 'bg-green-600/90 text-white'
     : days <= 3
-    ? 'bg-amber-500/90 text-stone-900'
+    ? 'bg-brand-500/90 text-stone-900'
     : 'bg-stone-800/90 text-stone-300 border border-stone-600'
   return (
     <span className={`absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-tight ${color}`}>
@@ -66,7 +66,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
       title={sale.title}
       onClick={() => onClick(sale)}
       onKeyDown={(e) => e.key === 'Enter' && onClick(sale)}
-      className="flex-shrink-0 w-48 group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-600/60 transition-all duration-250 text-left cursor-pointer"
+      className="flex-shrink-0 w-48 group rounded-lg overflow-hidden border border-stone-700 hover:border-brand-600/60 transition-all duration-250 text-left cursor-pointer"
       style={{ background: 'var(--bg-raised)' }}
     >
       {/* Cover */}
@@ -110,7 +110,7 @@ const AnnouncementCardItem = memo(function AnnouncementCardItem({
       {/* Info */}
       <div className="px-2.5 pt-2 pb-2 flex flex-col">
         <div className="h-[2.25rem] overflow-hidden my-0.5">
-          <p className="text-sm font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+          <p className="text-sm font-serif font-semibold text-stone-200 group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
             {sale.title}
           </p>
         </div>
@@ -172,7 +172,7 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
           {viewAllHref && (
             <Link
               href={viewAllHref}
-              className="text-xs text-amber-500 hover:text-amber-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-amber-700 px-3 py-1 rounded-full"
+              className="text-xs text-brand-500 hover:text-brand-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-brand-700 px-3 py-1 rounded-full"
             >
               View all →
             </Link>
@@ -187,7 +187,7 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
             className="absolute left-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                        bg-gradient-to-r from-[var(--bg)] to-transparent
                        opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
-                       text-stone-400 hover:text-amber-400"
+                       text-stone-400 hover:text-brand-400"
           >
             <ChevronLeft size={24} />
           </button>
@@ -198,7 +198,7 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
             className="absolute right-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                        bg-gradient-to-l from-[var(--bg)] to-transparent
                        opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
-                       text-stone-400 hover:text-amber-400"
+                       text-stone-400 hover:text-brand-400"
           >
             <ChevronRight size={24} />
           </button>
@@ -220,7 +220,7 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
       {/* Loading overlay while fetching full announcement */}
       {loading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-10 h-10 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+          <div className="w-10 h-10 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
         </div>
       )}
     </>

@@ -71,7 +71,7 @@ export default function MonthCard({
           </div>
         </div>
         <div className="p-3 pt-2 flex flex-col justify-start flex-1 min-h-[3.5rem]">
-          <p className="text-amber-500/90 text-xs italic leading-snug">
+          <p className="text-brand-500/90 text-xs italic leading-snug">
             {skipped.reason || 'This month is skipped — no box this cycle.'}
           </p>
         </div>
@@ -100,7 +100,7 @@ export default function MonthCard({
 
   const inner = (
     <div
-      className="relative rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors select-none flex flex-col h-full"
+      className="relative rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/50 transition-colors select-none flex flex-col h-full"
       style={{ cursor: bookSlug ? 'pointer' : 'default' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -177,7 +177,7 @@ export default function MonthCard({
           {cardArtist ? (
             <Link
               href={`/artists/${cardArtist.slug}`}
-              className="text-[10px] text-stone-500 hover:text-amber-400 transition-colors leading-none"
+              className="text-[10px] text-stone-500 hover:text-brand-400 transition-colors leading-none"
               onClick={(e) => e.stopPropagation()}
             >
               card art by {cardArtist.instagram ? `@${cardArtist.instagram.replace(/^@/, '')}` : cardArtist.name}

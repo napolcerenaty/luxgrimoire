@@ -12,7 +12,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { CURRENCIES } from '@/components/sale/SaleFormFields'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 const LABEL = 'block text-xs text-stone-400 mb-1'
 const BTN_SM = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors'
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -191,7 +191,7 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
               <div>
                 <div className="text-stone-100 text-xs">
                   {editionCompany(ed) ?? ''}
-                  {ed.variantLabel && <span className="text-amber-400"> ({ed.variantLabel})</span>}
+                  {ed.variantLabel && <span className="text-brand-400"> ({ed.variantLabel})</span>}
                 </div>
                 <div className="text-stone-500 text-xs">{ed.bookBoxCompanyCustomName ?? ''}</div>
               </div>
@@ -200,7 +200,7 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
         </div>
 
         <button type="button" onClick={() => setMode('createEdition')}
-          className="text-amber-400 hover:text-amber-300 text-xs">+ Create new edition for this book</button>
+          className="text-brand-400 hover:text-brand-300 text-xs">+ Create new edition for this book</button>
       </div>
     )
   }
@@ -232,7 +232,7 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
         </div>
       )}
       <button type="button" onClick={() => setMode('createBook')}
-        className="text-amber-400 hover:text-amber-300 text-xs">+ Create new book</button>
+        className="text-brand-400 hover:text-brand-300 text-xs">+ Create new book</button>
     </div>
   )
 }
@@ -342,7 +342,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   return (
     <div
       id={`month-${month.year}-${month.month}`}
-      className={`bg-stone-900 border rounded-2xl transition-shadow ${highlighted ? 'border-amber-400 ring-2 ring-amber-400' : 'border-stone-800'}`}
+      className={`bg-stone-900 border rounded-2xl transition-shadow ${highlighted ? 'border-brand-400 ring-2 ring-brand-400' : 'border-stone-800'}`}
     >
       {/* Header row */}
       <div className="flex items-start gap-3 p-4">
@@ -361,12 +361,12 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                 const entries = Object.entries(counts)
                 if (entries.length === 0 && month.signatureType) {
                   const label = month.signatureType === 'signed' ? '✍️ Signed' : month.signatureType === 'autopen' ? '✒️ Autopen' : month.signatureType === 'digitally_signed' ? '🖨️ Digitally Signed' : month.signatureType === 'signed_bookplate' ? '🏷️ Signed Bookplate' : 'Unsigned'
-                  return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{label}</span>
+                  return <span className="text-xs px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400">{label}</span>
                 }
                 return entries.map(([type, count]) => {
                   const label = type === 'signed' ? '✍️ Signed' : type === 'autopen' ? '✒️ Autopen' : type === 'digitally_signed' ? '🖨️ Digitally Signed' : type === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
                   return (
-                    <span key={type} className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                    <span key={type} className="text-xs px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400">
                       {label}{month.books.length > 1 ? ` ×${count}` : ''}
                     </span>
                   )
@@ -384,7 +384,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                 {editing ? 'Cancel' : 'Edit'}
               </button>
               <button onClick={() => setBooksOpen(!booksOpen)}
-                className={`${BTN_SM} ${booksOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+                className={`${BTN_SM} ${booksOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
                 Books {booksOpen ? '▲' : '▼'}
               </button>
               <button
@@ -401,7 +401,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
               ) : (
                 <button
                   onClick={() => setSkipFormOpen(!skipFormOpen)}
-                  className={`${BTN_SM} ${skipFormOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}
+                  className={`${BTN_SM} ${skipFormOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}
                 >Mark skipped</button>
               )}
             </div>
@@ -488,7 +488,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             )}
           </div>
           <button type="button"disabled={updateMutation.isPending} onClick={() => updateMutation.mutate()}
-            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
+            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
             {updateMutation.isPending ? 'Saving…' : 'Save changes'}
           </button>
         </div>
@@ -513,7 +513,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                       : <div className="text-stone-500 text-xs italic">No specific edition</div>
                     }
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                      {mb.isMainBook && <span className="text-xs text-amber-500">main book</span>}
+                      {mb.isMainBook && <span className="text-xs text-brand-500">main book</span>}
                       {(() => {
                         const effective = mb.signatureType ?? month.signatureType
                         if (!effective) return null
@@ -531,7 +531,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                   <select
                     value={mb.signatureType ?? ''}
                     onChange={e => updateBookSignatureMutation.mutate({ monthBookId: mb.id, signatureType: e.target.value || null })}
-                    className="text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-300 focus:outline-none focus:border-amber-400"
+                    className="text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-300 focus:outline-none focus:border-brand-400"
                     title="Signature type override for this book"
                   >
                     <option value="">—</option>
@@ -659,7 +659,7 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
             ))}
           </div>
           <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label (optional)"
-            className="text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-200 w-full focus:outline-none focus:border-amber-400" />
+            className="text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-200 w-full focus:outline-none focus:border-brand-400" />
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs text-stone-300 cursor-pointer">
               <input type="checkbox" checked={allowMultiple} onChange={e => setAllowMultiple(e.target.checked)} />
@@ -668,11 +668,11 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
             <label className="flex items-center gap-1.5 text-xs text-stone-400">
               Deadline (days before renewal)
               <input type="number" min={0} value={deadlineDays} onChange={e => setDeadlineDays(e.target.value)}
-                className="w-14 text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-200 focus:outline-none focus:border-amber-400" />
+                className="w-14 text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-200 focus:outline-none focus:border-brand-400" />
             </label>
           </div>
           <button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || selectedIds.length < 2}
-            className="text-xs px-3 py-1.5 rounded bg-amber-400 text-stone-950 font-semibold hover:bg-amber-300 disabled:opacity-40 transition-colors">
+            className="text-xs px-3 py-1.5 rounded bg-brand-400 text-stone-950 font-semibold hover:bg-brand-300 disabled:opacity-40 transition-colors">
             Create choice group ({selectedIds.length} selected)
           </button>
         </div>
@@ -727,7 +727,7 @@ function AddMonthForm({ slug, onSuccess, open, onClose, initialYear, initialMont
     <div className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-3">
       <div className="text-stone-100 font-semibold text-sm">New Month</div>
       {deepLinkBanner && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-amber-400 text-xs">
+        <div className="bg-brand-500/10 border border-brand-500/30 rounded-lg px-3 py-2 text-brand-400 text-xs">
           {deepLinkBanner}
         </div>
       )}
@@ -778,7 +778,7 @@ function AddMonthForm({ slug, onSuccess, open, onClose, initialYear, initialMont
         value={cover} onChange={setCover} aspectRatio="1/1" />
       <div className="flex gap-2">
         <button type="button" disabled={mutation.isPending} onClick={() => mutation.mutate()}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
+          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
           {mutation.isPending ? 'Adding…' : 'Add Month'}
         </button>
         <button type="button" onClick={onClose}
@@ -882,7 +882,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
       <button onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between p-4 hover:bg-stone-800/40 transition-colors">
         <div className="flex items-center gap-2">
-          <span className="text-amber-400 text-sm">📥</span>
+          <span className="text-brand-400 text-sm">📥</span>
           <span className="text-stone-200 font-semibold text-sm">Import Months from CSV</span>
           <span className="text-stone-500 text-xs">bulk historical import</span>
         </div>
@@ -893,7 +893,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
         <div className="border-t border-stone-800 p-4 space-y-4">
           <div className="text-stone-400 text-xs bg-stone-800/50 rounded-lg p-3 space-y-1">
             <div className="font-semibold text-stone-300">CSV format (comma-separated, header optional):</div>
-            <code className="text-amber-400/80 block">year,month,theme,signatureType</code>
+            <code className="text-brand-400/80 block">year,month,theme,signatureType</code>
             <div>Example: <code className="text-stone-300">2024,8,Dark Fairytales,signed</code></div>
             <div>Valid signature types: <code className="text-stone-300">signed</code>, <code className="text-stone-300">autopen</code>, <code className="text-stone-300">digitally_signed</code>, <code className="text-stone-300">signed_bookplate</code>, <code className="text-stone-300">unsigned</code> (or leave empty)</div>
           </div>
@@ -904,7 +904,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-400/20 text-amber-400 hover:bg-amber-400/30 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-400/20 text-brand-400 hover:bg-brand-400/30 transition-colors"
               >
                 Choose file
               </button>
@@ -951,7 +951,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-stone-700 rounded-full h-1.5">
                       <div
-                        className="bg-amber-400 h-1.5 rounded-full transition-all"
+                        className="bg-brand-400 h-1.5 rounded-full transition-all"
                         style={{ width: `${(progress.done / progress.total) * 100}%` }}
                       />
                     </div>
@@ -972,7 +972,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
                 type="button"
                 disabled={importing || validRows.length === 0}
                 onClick={importAll}
-                className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm"
+                className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm"
               >
                 {importing ? `Importing… (${progress?.done ?? 0}/${progress?.total ?? 0})` : `Import ${validRows.length} month${validRows.length !== 1 ? 's' : ''}`}
               </button>
@@ -1036,7 +1036,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
         <h3 className="text-stone-100 font-semibold text-sm">💰 Price Change History</h3>
         <button
           onClick={() => setShowForm(v => !v)}
-          className={`${BTN_SM} ${showForm ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
+          className={`${BTN_SM} ${showForm ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
         >
           {showForm ? 'Cancel' : '+ Add Price Change'}
         </button>
@@ -1080,7 +1080,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
           <button
             disabled={addMutation.isPending || !price || !currency}
             onClick={() => addMutation.mutate()}
-            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm"
+            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm"
           >
             {addMutation.isPending ? 'Saving…' : 'Save Price Change'}
           </button>
@@ -1096,11 +1096,11 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
           {changes.map(pc => {
             const isSentinel = pc.effectiveYear === 1900
             return (
-              <div key={pc.id} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-stone-800/50 border border-amber-900/40' : 'bg-stone-800'}`}>
+              <div key={pc.id} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-stone-800/50 border border-brand-900/40' : 'bg-stone-800'}`}>
                 <div className="space-y-0.5">
                   <span className="text-stone-100 font-medium">
                     {isSentinel
-                      ? <span className="text-amber-400/80">⚓ Base price (sentinel)</span>
+                      ? <span className="text-brand-400/80">⚓ Base price (sentinel)</span>
                       : <>{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</>
                     }
                     {' '}— {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}
@@ -1194,7 +1194,7 @@ function ImportMonthsFromVariantPanel({ parentSlug, parentId }: { parentSlug: st
 
       {selectedSlug && (
         <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="accent-amber-400" />
+          <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="accent-brand-400" />
           <span className="text-xs text-stone-300">
             I understand this will move all months from the selected variant to this content stream and cannot be undone.
           </span>
@@ -1286,7 +1286,7 @@ function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; com
 
       {selectedId && (
         <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="accent-amber-400" />
+          <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="accent-brand-400" />
           <span className="text-xs text-stone-300">
             I understand this will move all {monthCount} month{monthCount !== 1 ? 's' : ''} to the selected content stream and this action cannot be undone.
           </span>
@@ -1385,7 +1385,7 @@ function MarkMonthSkippedForm({ slug, isBundleSubscription, isContentStream, onC
       <div className="flex justify-end">
         <button
           onClick={() => setOpen(!open)}
-          className={`${BTN_SM} ${open ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-stone-800 text-stone-400 border border-stone-700 hover:text-stone-200 hover:border-stone-600'}`}
+          className={`${BTN_SM} ${open ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-stone-800 text-stone-400 border border-stone-700 hover:text-stone-200 hover:border-stone-600'}`}
         >
           {open ? 'Cancel' : '⏭ Skip a month'}
         </button>
@@ -1423,7 +1423,7 @@ function MarkMonthSkippedForm({ slug, isBundleSubscription, isContentStream, onC
               placeholder="e.g. Printer delay — this box will ship next month instead" className={INPUT} />
           </div>
           <button type="button" disabled={markMutation.isPending} onClick={() => markMutation.mutate()}
-            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
+            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
             {markMutation.isPending ? 'Marking…' : 'Confirm skip'}
           </button>
         </div>
@@ -1456,11 +1456,11 @@ function SkippedMonthOnlyCard({ slug, year, month, reason, onChange, highlighted
   return (
     <div
       id={`month-${year}-${month}`}
-      className={`bg-stone-900 border rounded-2xl p-4 flex items-center justify-between gap-3 ${highlighted ? 'border-amber-400 ring-2 ring-amber-400' : 'border-amber-800/40'}`}
+      className={`bg-stone-900 border rounded-2xl p-4 flex items-center justify-between gap-3 ${highlighted ? 'border-brand-400 ring-2 ring-brand-400' : 'border-brand-800/40'}`}
     >
       <div className="min-w-0">
-        <span className="text-amber-400 font-semibold">⏭ {monthLabel} — Skipped</span>
-        <p className="text-amber-500/80 text-sm mt-0.5">{reason || 'No reason given.'}</p>
+        <span className="text-brand-400 font-semibold">⏭ {monthLabel} — Skipped</span>
+        <p className="text-brand-500/80 text-sm mt-0.5">{reason || 'No reason given.'}</p>
       </div>
       <button
         onClick={() => { if (confirm(unskipConfirmMessage(monthLabel, isContentStream))) unmarkMutation.mutate() }}
@@ -1665,7 +1665,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => setAddMonthOpen(!addMonthOpen)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${addMonthOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-400 text-stone-950 hover:bg-amber-300'}`}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${addMonthOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' : 'bg-brand-400 text-stone-950 hover:bg-brand-300'}`}
             >
               + Add Month
             </button>

@@ -24,8 +24,8 @@ function VoteButton({ req, onVote }: { req: ApiFeatureRequest; onVote: () => voi
       onClick={onVote}
       className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl border transition-all min-w-[52px]
         ${req.userHasVoted
-          ? 'border-amber-500 bg-amber-500/10 text-amber-400'
-          : 'border-stone-700 bg-stone-800/60 text-stone-400 hover:border-amber-500/60 hover:text-amber-400'
+          ? 'border-brand-500 bg-brand-500/10 text-brand-400'
+          : 'border-stone-700 bg-stone-800/60 text-stone-400 hover:border-brand-500/60 hover:text-brand-400'
         }`}
     >
       <svg className="w-4 h-4" fill={req.userHasVoted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -43,7 +43,7 @@ function SubmitModal({ onClose, onSubmit, submitting }: {
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+  const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -82,7 +82,7 @@ function SubmitModal({ onClose, onSubmit, submitting }: {
               Cancel
             </button>
             <button type="submit" disabled={submitting}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-50 transition-colors">
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand-400 text-stone-950 hover:bg-brand-300 disabled:opacity-50 transition-colors">
               {submitting ? 'Submitting…' : 'Submit Request'}
             </button>
           </div>
@@ -149,7 +149,7 @@ export default function FeatureRequestsPage() {
         </div>
         <button
           onClick={() => setShowSubmit(true)}
-          className="shrink-0 bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors text-sm"
+          className="shrink-0 bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-xl hover:bg-brand-300 transition-colors text-sm"
         >
           + Suggest Feature
         </button>
@@ -166,7 +166,7 @@ export default function FeatureRequestsPage() {
       {user && (
         <button
           onClick={() => setShowMine(v => !v)}
-          className="text-sm text-amber-400 hover:text-amber-300 mb-6 transition-colors"
+          className="text-sm text-brand-400 hover:text-brand-300 mb-6 transition-colors"
         >
           {showMine ? '▼' : '▶'} My submissions
         </button>
@@ -220,7 +220,7 @@ export default function FeatureRequestsPage() {
                 <div className="text-stone-100 font-semibold mb-1">{req.title}</div>
                 <div className="text-stone-400 text-sm leading-relaxed whitespace-pre-line line-clamp-3">{req.description}</div>
                 {req.adminNote && (
-                  <div className="mt-2 text-xs text-amber-400/80 bg-amber-900/10 border border-amber-900/20 rounded-lg px-3 py-2">
+                  <div className="mt-2 text-xs text-brand-400/80 bg-brand-900/10 border border-brand-900/20 rounded-lg px-3 py-2">
                     <span className="font-semibold">Admin note:</span> {req.adminNote}
                   </div>
                 )}
@@ -236,7 +236,7 @@ export default function FeatureRequestsPage() {
 
       {!user && requests.length > 0 && (
         <p className="text-center text-stone-600 text-sm mt-8">
-          <a href="/login" className="text-amber-400 hover:text-amber-300">Log in</a> to vote and submit feature requests
+          <a href="/login" className="text-brand-400 hover:text-brand-300">Log in</a> to vote and submit feature requests
         </p>
       )}
 

@@ -78,7 +78,7 @@ function ManualColorEditor({
                 value={c}
                 maxLength={7}
                 onChange={(e) => setColor(i, e.target.value)}
-                className="w-24 px-2 py-1.5 rounded-lg bg-stone-800 border border-stone-700 text-stone-200 text-xs font-mono focus:outline-none focus:border-amber-500"
+                className="w-24 px-2 py-1.5 rounded-lg bg-stone-800 border border-stone-700 text-stone-200 text-xs font-mono focus:outline-none focus:border-brand-500"
                 placeholder="#rrggbb"
               />
             </div>
@@ -89,7 +89,7 @@ function ManualColorEditor({
           type="button"
           disabled={saving}
           onClick={handleSave}
-          className="mb-0.5 px-3 py-1.5 text-xs rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold transition-colors disabled:opacity-50"
+          className="mb-0.5 px-3 py-1.5 text-xs rounded-lg bg-brand-600 hover:bg-brand-500 text-stone-950 font-semibold transition-colors disabled:opacity-50"
         >
           {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Colors'}
         </button>
@@ -293,7 +293,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 text-sm transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-brand-500 hover:text-brand-400 text-sm transition-colors disabled:opacity-50"
               >
                 {uploading ? 'Uploading…' : previewUrl ? 'Change image' : 'Upload image'}
               </button>
@@ -340,7 +340,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
           type="checkbox"
           checked={form.iossImplemented}
           onChange={(e) => setForm((f) => ({ ...f, iossImplemented: e.target.checked }))}
-          className="accent-amber-400 w-4 h-4"
+          className="accent-brand-400 w-4 h-4"
         />
         IOSS Implemented
       </label>
@@ -351,7 +351,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
           type="checkbox"
           checked={form.hasOfficialImagePermission}
           onChange={(e) => setForm((f) => ({ ...f, hasOfficialImagePermission: e.target.checked }))}
-          className="accent-amber-400 w-4 h-4"
+          className="accent-brand-400 w-4 h-4"
         />
         Permission to use brand images
       </label>
@@ -359,7 +359,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
       <button
         type="submit"
         disabled={submitting || uploading}
-        className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
+        className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
       >
         {submitting ? 'Saving…' : submitLabel}
       </button>
@@ -424,7 +424,7 @@ export default function AdminCompaniesPage() {
     {
       key: 'website', label: 'Website', render: (row: ApiBookBoxCompany) =>
         row.website
-          ? <a href={row.website} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline text-xs">{row.website.replace(/^https?:\/\//, '')}</a>
+          ? <a href={row.website} target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:underline text-xs">{row.website.replace(/^https?:\/\//, '')}</a>
           : '—',
     },
     {
@@ -459,13 +459,13 @@ export default function AdminCompaniesPage() {
             placeholder="Search by name or country…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400 text-sm"
+            className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-400 text-sm"
           />
         </div>
         {!isManager && !createModal.isOpen && !editCompany && (
           <button
             onClick={() => createModal.open()}
-            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
           >
             + Add Book Box
           </button>
@@ -490,7 +490,7 @@ export default function AdminCompaniesPage() {
 
       {/* Inline Edit form */}
       {editCompany && (
-        <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 space-y-4">
+        <div className="bg-stone-900 border border-brand-500/30 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-stone-100">Edit — {editCompany.name}</h2>
             <button onClick={() => setEditCompany(null)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>

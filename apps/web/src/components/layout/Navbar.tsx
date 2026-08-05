@@ -92,7 +92,7 @@ export function Navbar() {
             className="h-9 w-auto"
             priority
           />
-          <span className="hidden sm:inline font-serif font-bold tracking-widest text-amber-400 text-lg sm:text-xl">
+          <span className="hidden sm:inline font-serif font-bold tracking-widest text-brand-400 text-lg sm:text-xl">
             LuxGrimoire
           </span>
         </Link>
@@ -102,14 +102,14 @@ export function Navbar() {
           <SearchDropdown />
         </div>
         {/* Mobile search icon */}
-        <Link href="/search" className="relative z-10 sm:hidden p-1.5 text-stone-400 hover:text-amber-400 transition-colors">
+        <Link href="/search" className="relative z-10 sm:hidden p-1.5 text-stone-400 hover:text-brand-400 transition-colors">
           <Search size={17} />
         </Link>
 
         <div className="relative z-10 ml-auto flex items-center gap-1 sm:gap-2">
           {/* Mobile hamburger — shown only on small screens */}
           <button
-            className="md:hidden p-1.5 text-stone-400 hover:text-amber-400 transition-colors"
+            className="md:hidden p-1.5 text-stone-400 hover:text-brand-400 transition-colors"
             onClick={() => setMobileNavOpen(v => !v)}
             aria-label="Toggle navigation"
           >
@@ -119,7 +119,7 @@ export function Navbar() {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-amber-400 transition-colors"
+            className="p-1.5 rounded-lg text-stone-400 hover:text-brand-400 transition-colors"
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
@@ -136,7 +136,7 @@ export function Navbar() {
             <div ref={dropdownRef} className="relative">
               <button
                 onClick={() => setDropdownOpen((o) => !o)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-700 hover:border-amber-600 text-stone-300 hover:text-amber-400 transition-colors text-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-700 hover:border-brand-600 text-stone-300 hover:text-brand-400 transition-colors text-sm"
               >
                 <User size={14} />
                 <span className="hidden sm:inline max-w-[100px] truncate">{user.username}</span>
@@ -164,7 +164,7 @@ export function Navbar() {
                         key={href}
                         href={href}
                         onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-300 hover:bg-stone-700 hover:text-amber-400 transition-colors"
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-300 hover:bg-stone-700 hover:text-brand-400 transition-colors"
                       >
                         <Icon size={14} /> {label}
                       </Link>
@@ -180,7 +180,7 @@ export function Navbar() {
                         key={href}
                         href={href}
                         onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-300 hover:bg-stone-700 hover:text-amber-400 transition-colors"
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-300 hover:bg-stone-700 hover:text-brand-400 transition-colors"
                       >
                         <Icon size={14} /> {label}
                       </Link>
@@ -192,7 +192,7 @@ export function Navbar() {
                         <Link
                           href="/admin"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-400 hover:bg-stone-700 hover:text-amber-400 transition-colors"
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-400 hover:bg-stone-700 hover:text-brand-400 transition-colors"
                         >
                           <LayoutDashboard size={14} /> Admin Panel
                         </Link>
@@ -213,7 +213,7 @@ export function Navbar() {
           ) : (
             <Link
               href={`/login${pathname && !pathname.startsWith('/login') && !pathname.startsWith('/register') ? `?returnTo=${encodeURIComponent(pathname)}` : ''}`}
-              className="px-4 py-1.5 rounded-full border border-amber-700 text-amber-400 hover:bg-amber-700 hover:text-stone-950 transition-colors text-xs font-semibold font-serif tracking-wide"
+              className="px-4 py-1.5 rounded-full border border-brand-700 text-brand-400 hover:bg-brand-700 hover:text-stone-950 transition-colors text-xs font-semibold font-serif tracking-wide"
             >
               Sign in
             </Link>
@@ -231,7 +231,7 @@ export function Navbar() {
               className={`
                 flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
                 ${isActive(href)
-                  ? 'border-amber-400 text-amber-400'
+                  ? 'border-brand-400 text-brand-400'
                   : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
               `}
             >
@@ -248,7 +248,7 @@ export function Navbar() {
                 className={`
                   flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
                   ${['/collection', '/calendar', '/wishlist', '/my-subscriptions', '/statistics', '/sold'].some(p => pathname.startsWith(p))
-                    ? 'border-amber-400 text-amber-400'
+                    ? 'border-brand-400 text-brand-400'
                     : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
                 `}
               >
@@ -267,8 +267,8 @@ export function Navbar() {
                 className={`
                   flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap
                   ${isActive('/admin')
-                    ? 'border-amber-400 text-amber-400'
-                    : 'border-transparent text-amber-600 hover:text-amber-400 hover:border-amber-700'}
+                    ? 'border-brand-400 text-brand-400'
+                    : 'border-transparent text-brand-600 hover:text-brand-400 hover:border-brand-700'}
                 `}
               >
                 <LayoutDashboard size={13} />
@@ -291,7 +291,7 @@ export function Navbar() {
                 className={`
                   flex items-center px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest transition-colors
                   ${isActive(href)
-                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
                     : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800'}
                 `}
               >
@@ -309,7 +309,7 @@ export function Navbar() {
                     className={`
                       flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest transition-colors
                       ${isActive(href)
-                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
                         : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800'}
                     `}
                   >
@@ -325,7 +325,7 @@ export function Navbar() {
                 <Link
                   href="/admin"
                   onClick={() => setMobileNavOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest text-amber-600 hover:text-amber-400 hover:bg-stone-800 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest text-brand-600 hover:text-brand-400 hover:bg-stone-800 transition-colors"
                 >
                   <LayoutDashboard size={15} />
                   Admin

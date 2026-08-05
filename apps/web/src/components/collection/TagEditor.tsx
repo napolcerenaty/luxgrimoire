@@ -76,7 +76,7 @@ export function TagEditor({
           {localTags.map(t => (
             <span
               key={t}
-              className="inline-flex items-center gap-0.5 text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/25 px-1.5 py-0.5 rounded-full"
+              className="inline-flex items-center gap-0.5 text-[10px] bg-brand-500/15 text-brand-400 border border-brand-500/25 px-1.5 py-0.5 rounded-full"
             >
               {t}
               <button
@@ -101,7 +101,7 @@ export function TagEditor({
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Add tag…"
-            className="w-full bg-stone-800 border border-amber-500/40 rounded-lg px-2 py-1 text-[11px] text-stone-100 placeholder:text-stone-600 focus:outline-none"
+            className="w-full bg-stone-800 border border-brand-500/40 rounded-lg px-2 py-1 text-[11px] text-stone-100 placeholder:text-stone-600 focus:outline-none"
           />
           {(suggestions.length > 0 || input.trim()) && (
             <div className="absolute top-full left-0 right-0 mt-0.5 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl overflow-hidden max-h-32 overflow-y-auto">
@@ -109,7 +109,7 @@ export function TagEditor({
                 <button
                   type="button"
                   onClick={() => addTag(input)}
-                  className="w-full text-left text-[11px] px-2.5 py-1.5 hover:bg-stone-800 text-amber-400 transition-colors"
+                  className="w-full text-left text-[11px] px-2.5 py-1.5 hover:bg-stone-800 text-brand-400 transition-colors"
                 >
                   + Add &ldquo;{input.trim()}&rdquo;
                 </button>
@@ -131,7 +131,7 @@ export function TagEditor({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1 text-[10px] text-stone-600 hover:text-amber-400 transition-colors"
+          className="inline-flex items-center gap-1 text-[10px] text-stone-600 hover:text-brand-400 transition-colors"
         >
           <Tag size={10} />
           {localTags.length === 0 ? 'Add tag' : 'Edit tags'}

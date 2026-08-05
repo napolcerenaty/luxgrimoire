@@ -19,7 +19,7 @@ const STATUS_BADGE: Record<string, string> = {
   implemented: 'bg-purple-900/40 text-purple-400',
 }
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 
 function ReviewPanel({ req, onDone }: { req: ApiFeatureRequest; onDone: () => void }) {
   const [adminNote, setAdminNote] = useState(req.adminNote ?? '')
@@ -171,7 +171,7 @@ export default function AdminFeatureRequestsPage() {
           {['', 'pending', 'accepted', 'implemented', 'rejected'].map(s => (
             <button key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-amber-400 text-stone-950' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-brand-400 text-stone-950' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}
             >
               {s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
@@ -186,8 +186,8 @@ export default function AdminFeatureRequestsPage() {
           {/* Pending queue */}
           {(!statusFilter || statusFilter === 'pending') && pending.length > 0 && (
             <section>
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-amber-500 mb-3 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold">{pending.length}</span>
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-brand-500 mb-3 flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-500/20 text-brand-400 text-[10px] font-bold">{pending.length}</span>
                 Pending Review
               </h2>
               <div className="space-y-2">

@@ -441,13 +441,13 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         <div>
           <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">Billing period</label>
           <div className="space-y-2">
-            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
+            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/5">
               <input
                 type="radio"
                 name="billingPeriod"
                 checked={selectedPrepayOptionId === null}
                 onChange={() => handleSelectPrepay(null)}
-                className="text-amber-600 focus:ring-amber-600/30"
+                className="text-brand-600 focus:ring-brand-600/30"
               />
               <div className="flex-1 flex items-center justify-between">
                 <span className="text-sm text-stone-200">Monthly</span>
@@ -457,13 +457,13 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               </div>
             </label>
             {displayedOptions.map(opt => (
-              <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
+              <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/5">
                 <input
                   type="radio"
                   name="billingPeriod"
                   checked={selectedPrepayOptionId === opt.id}
                   onChange={() => handleSelectPrepay(opt.id)}
-                  className="text-amber-600 focus:ring-amber-600/30"
+                  className="text-brand-600 focus:ring-brand-600/30"
                 />
                 <div className="flex-1 flex items-center justify-between">
                   <span className="text-sm text-stone-200">{opt.label ?? `${opt.months} months`}</span>
@@ -650,7 +650,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                   </div>
                 )}
                 <p>
-                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-brand-400">Request data</span> form in the site footer.
                 </p>
               </>
             )
@@ -669,7 +669,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           if (currencyPriceChanges.length === 0) {
             return (
               <p>
-                As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-brand-400">Request data</span> form in the site footer.
               </p>
             )
           }
@@ -760,11 +760,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               )}
               {visiblePriceChanges.length > 0 ? (
                 <p>
-                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-brand-400">Request data</span> form in the site footer.
                 </p>
               ) : (
                 <p>
-                  No historical price change information is available for this subscription. If you&apos;ve been a long-time subscriber and can provide pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                  No historical price change information is available for this subscription. If you&apos;ve been a long-time subscriber and can provide pricing data, please submit it via the <span className="text-brand-400">Request data</span> form in the site footer.
                 </p>
               )}
             </>
@@ -787,7 +787,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                     id={`ft-${t.id}`}
                     checked={!!linked}
                     onChange={() => toggleTemplate(t)}
-                    className="mt-1 rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+                    className="mt-1 rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
                   />
                   <label htmlFor={`ft-${t.id}`} className="flex-1 text-sm text-stone-200 cursor-pointer pt-0.5">
                     {t.name}
@@ -832,7 +832,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         ) : templatesLoaded ? (
           <p className="text-xs text-stone-500 mb-2">
             No fee templates defined.{' '}
-            <a href="/profile" className="text-amber-400 underline" target="_blank" rel="noreferrer">Add them in settings.</a>
+            <a href="/profile" className="text-brand-400 underline" target="_blank" rel="noreferrer">Add them in settings.</a>
           </p>
         ) : (
           <p className="text-xs text-stone-600 mb-2">Loading…</p>
@@ -852,7 +852,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           type="checkbox"
           checked={isForwarding}
           onChange={e => setIsForwarding(e.target.checked)}
-          className="rounded border-stone-600 bg-stone-800 text-amber-500"
+          className="rounded border-stone-600 bg-stone-800 text-brand-500"
         />
         <span className="text-sm text-stone-300">📦 Forwarding packages</span>
       </label>
@@ -869,7 +869,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               type="checkbox"
               checked={alreadyCancelled}
               onChange={e => setAlreadyCancelled(e.target.checked)}
-              className="rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+              className="rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
             />
             <span className="text-sm text-stone-300">Already cancelled (historical entry)</span>
           </label>
@@ -913,7 +913,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       {dateError && <p className="text-xs text-red-400">{dateError}</p>}
       <button
         type="submit"
-        className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+        className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
       >
         Continue
       </button>
@@ -1006,20 +1006,20 @@ function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, joinWindowYear,
           return (
             <label
               key={key}
-              className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${choice === key ? 'border-amber-500 bg-amber-500/5' : 'border-stone-700 hover:border-stone-500'}`}
+              className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${choice === key ? 'border-brand-500 bg-brand-500/5' : 'border-stone-700 hover:border-stone-500'}`}
             >
               <input
                 type="radio"
                 name="firstBoxChoice"
                 checked={choice === key}
                 onChange={() => setChoice(key)}
-                className="mt-1 text-amber-600 focus:ring-amber-600/30"
+                className="mt-1 text-brand-600 focus:ring-brand-600/30"
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-stone-100">{label}</span>
                   {key === candidates.suggested && (
-                    <span className="text-[10px] uppercase tracking-wide text-amber-500/80">Suggested</span>
+                    <span className="text-[10px] uppercase tracking-wide text-brand-500/80">Suggested</span>
                   )}
                 </div>
                 {titles.length > 0 ? (
@@ -1034,7 +1034,7 @@ function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, joinWindowYear,
       </div>
       <button
         onClick={submit}
-        className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+        className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
       >
         Continue
       </button>
@@ -1214,7 +1214,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
           <div className="flex gap-3">
             <button
               onClick={() => setWantBackfill(true)}
-              className="flex-1 py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+              className="flex-1 py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
             >
               Yes, add past boxes
             </button>
@@ -1243,7 +1243,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
         {!isBundleMode && (
           <button
             onClick={toggleAll}
-            className="text-xs text-amber-500 hover:text-amber-400 underline"
+            className="text-xs text-brand-500 hover:text-brand-400 underline"
           >
             {allSelected ? 'Deselect all' : 'Select all'}
           </button>
@@ -1284,7 +1284,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
                   type="checkbox"
                   checked={allBundleSelected}
                   onChange={() => toggleBundle(bundleMonthIds)}
-                  className="mt-0.5 rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+                  className="mt-0.5 rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-stone-100">{bundle.label}</p>
@@ -1318,7 +1318,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
             {/* Series groups */}
             {Array.from(seriesGroups.values()).map(({ series, months }) => (
               <div key={series!.id} className="border border-stone-700 rounded-lg overflow-hidden">
-                <div className="bg-stone-800/60 px-3 py-1.5 text-xs font-medium text-amber-400 uppercase tracking-wider">
+                <div className="bg-stone-800/60 px-3 py-1.5 text-xs font-medium text-brand-400 uppercase tracking-wider">
                   {series!.name}
                 </div>
                 {months.map(m => (
@@ -1344,7 +1344,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
         <button
           onClick={submit}
           disabled={submitting || hasUnresolvedChoices}
-          className="flex-1 py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-60 text-stone-100 text-sm font-medium transition-colors"
+          className="flex-1 py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 disabled:opacity-60 text-stone-100 text-sm font-medium transition-colors"
         >
           {submitting ? 'Saving…' : 'Confirm'}
         </button>
@@ -1393,7 +1393,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
           type="checkbox"
           checked={checked}
           onChange={onToggle}
-          className="mt-0.5 rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+          className="mt-0.5 rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
         />
         {mainBook?.edition?.additionalImages?.[0] && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -1406,7 +1406,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
           />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-amber-400/80 font-medium mb-0.5">{monthLabel(month)}</p>
+          <p className="text-xs text-brand-400/80 font-medium mb-0.5">{monthLabel(month)}</p>
           {allBooks.length <= 1 ? (
             <>
               <p className="text-sm text-stone-100 leading-snug truncate">
@@ -1483,7 +1483,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
                   placeholder="auto"
                   value={bookPrices[key] ?? ''}
                   onChange={e => onPriceChange(key, e.target.value)}
-                  className="w-20 bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-right focus:outline-none focus:ring-1 focus:ring-amber-600/40"
+                  className="w-20 bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-right focus:outline-none focus:ring-1 focus:ring-brand-600/40"
                 />
               </label>
             )
@@ -1825,7 +1825,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                 setDidChange(false)
               }
             }}
-            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-amber-500 text-stone-200 text-sm text-left transition-colors hover:bg-amber-500/5"
+            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-brand-500 text-stone-200 text-sm text-left transition-colors hover:bg-brand-500/5"
           >
             <span className="font-medium text-stone-100">No, all payments were {periodLabel}</span>
             <span className="block text-xs text-stone-500 mt-0.5">
@@ -1836,7 +1836,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           </button>
           <button
             onClick={() => setDidChange(true)}
-            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-amber-500 text-stone-200 text-sm text-left transition-colors hover:bg-amber-500/5"
+            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-brand-500 text-stone-200 text-sm text-left transition-colors hover:bg-brand-500/5"
           >
             <span className="font-medium text-stone-100">Yes, I used different billing periods</span>
             <span className="block text-xs text-stone-500 mt-0.5">Enter actual payment dates; we&apos;ll look up amounts from price history</span>
@@ -1867,7 +1867,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
             return (
               <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-amber-400">Billing period {i + 1}</span>
+                  <span className="text-xs font-medium text-brand-400">Billing period {i + 1}</span>
                   <span className="text-xs text-stone-400">{b.billingDate}</span>
                 </div>
                 <p className="text-xs text-stone-400">{months.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
@@ -1979,7 +1979,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                     {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                   ) : (
-                    <button onClick={() => setAddFeePickerBatch(i)} className="text-[10px] text-amber-600 hover:text-amber-400">+ fee</button>
+                    <button onClick={() => setAddFeePickerBatch(i)} className="text-[10px] text-brand-600 hover:text-brand-400">+ fee</button>
                   )}
                   <button onClick={() => addAutoOverrideDiscount(i)} className="text-[10px] text-blue-400 hover:text-blue-300">+ discount</button>
                 </div>
@@ -1994,7 +1994,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
         <button
           onClick={submitAuto}
           disabled={submitting}
-          className="w-full py-2.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+          className="w-full py-2.5 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
         >
           {submitting ? 'Saving…' : 'Confirm'}
         </button>
@@ -2144,7 +2144,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                       {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                   ) : (
-                    <button onClick={() => setAddFeePickerRow(i)} className="text-[10px] text-amber-600 hover:text-amber-400">+ fee</button>
+                    <button onClick={() => setAddFeePickerRow(i)} className="text-[10px] text-brand-600 hover:text-brand-400">+ fee</button>
                   )}
                   <button onClick={() => addRowDiscount(i)} className="text-[10px] text-blue-400 hover:text-blue-300">+ discount</button>
                 </div>
@@ -2153,14 +2153,14 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           )
         })}
       </div>
-      <button onClick={addRow} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
+      <button onClick={addRow} className="text-xs text-brand-500 hover:text-brand-400 transition-colors">
         + Add payment
       </button>
       {error && <p className="text-sm text-red-400">{error}</p>}
       <button
         onClick={submitYes}
         disabled={submitting || yesRows.every(r => !r.date)}
-        className="w-full py-2.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+        className="w-full py-2.5 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
       >
         {submitting ? 'Saving…' : 'Save billing'}
       </button>
@@ -2425,14 +2425,14 @@ export default function JoinSubscriptionModal({
             {hasBookChoiceMonths && (
               <p className="text-xs text-stone-400 max-w-xs mx-auto">
                 Some months let you pick between book options — reminders for that are off by default.{' '}
-                <Link href="/profile?tab=notifications" className="text-amber-400 hover:text-amber-300 underline">
+                <Link href="/profile?tab=notifications" className="text-brand-400 hover:text-brand-300 underline">
                   Turn them on
                 </Link>
               </p>
             )}
             <button
               onClick={onClose}
-              className="mt-2 py-2 px-6 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+              className="mt-2 py-2 px-6 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
             >
               Close
             </button>

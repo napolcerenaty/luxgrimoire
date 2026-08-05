@@ -139,7 +139,7 @@ export default function AdminSeriesPage() {
           href={`/series/${row.slug}`}
           target="_blank"
           rel="noreferrer"
-          className="text-amber-400 hover:text-amber-300 font-medium"
+          className="text-brand-400 hover:text-brand-300 font-medium"
         >
           {row.name}
         </a>
@@ -169,7 +169,7 @@ export default function AdminSeriesPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setEditSeries(row); setEditName(row.name) }}
-            className="bg-amber-400/10 text-amber-400 border border-amber-400/20 px-3 py-1 rounded text-xs font-medium hover:bg-amber-400/20 transition-colors"
+            className="bg-brand-400/10 text-brand-400 border border-brand-400/20 px-3 py-1 rounded text-xs font-medium hover:bg-brand-400/20 transition-colors"
           >
             Edit
           </button>
@@ -208,7 +208,7 @@ export default function AdminSeriesPage() {
         <h1 className="text-2xl font-bold text-stone-100">Book Series</h1>
         <button
           onClick={() => { createModal.open(); setNewName('') }}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
         >
           Add Series
         </button>
@@ -220,7 +220,7 @@ export default function AdminSeriesPage() {
           placeholder="Search series…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          className="w-full max-w-sm bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400 text-sm"
+          className="w-full max-w-sm bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-400 text-sm"
         />
       </div>
 
@@ -252,7 +252,7 @@ export default function AdminSeriesPage() {
           <button
             type="submit"
             disabled={createMutation.isPending}
-            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
+            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
           >
             {createMutation.isPending ? 'Saving…' : 'Create Series'}
           </button>
@@ -282,7 +282,7 @@ export default function AdminSeriesPage() {
             <button
               type="submit"
               disabled={editMutation.isPending}
-              className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
+              className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
             >
               {editMutation.isPending ? 'Saving…' : 'Save Changes'}
             </button>
@@ -309,7 +309,7 @@ export default function AdminSeriesPage() {
               </p>
               <button
                 onClick={closeSwitchModal}
-                className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+                className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
               >
                 Done
               </button>
@@ -391,7 +391,7 @@ export default function AdminSeriesPage() {
                   ),
                 })}
                 disabled={!switchTarget || switchMutation.isPending}
-                className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
+                className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
               >
                 {switchMutation.isPending ? 'Switching…' : 'Switch primary series'}
               </button>

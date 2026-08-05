@@ -15,10 +15,10 @@ import { Pagination } from '@/components/admin/Pagination'
 import { isValidCalendarDate } from '@/lib/dateValidation'
 
 const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
+  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 const SELECT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
+  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400'
 
 const LANGUAGES = ['English', 'Polish', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Czech', 'Hungarian', 'Romanian', 'Ukrainian', 'Japanese', 'Korean', 'Chinese']
 
@@ -468,7 +468,7 @@ function SkipPolicyEditor({ draft, onChange, usedBillingTypes, onSave, onCancel,
 
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onSave}
-          className="px-4 py-1.5 rounded-lg bg-amber-500 text-stone-950 text-sm font-semibold hover:bg-amber-400 transition-colors">
+          className="px-4 py-1.5 rounded-lg bg-brand-500 text-stone-950 text-sm font-semibold hover:bg-brand-400 transition-colors">
           Save policy
         </button>
         <button type="button" onClick={onCancel}
@@ -718,7 +718,7 @@ function SubscriptionForm({
             <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
               <input type="checkbox" checked={form.renewalDayUserSet}
                 onChange={(e) => setField('renewalDayUserSet', e.target.checked)}
-                className="accent-amber-400 w-4 h-4" />
+                className="accent-brand-400 w-4 h-4" />
               Use subscriber's sign-up day
             </label>
             {!form.renewalDayUserSet && (
@@ -765,7 +765,7 @@ function SubscriptionForm({
                 value={form.settingsEffectiveFrom}
                 onChange={setStr('settingsEffectiveFrom')}
               />
-              <p className="text-xs text-amber-700">
+              <p className="text-xs text-brand-700">
                 New renewal settings take effect from this date. Subscribers whose next renewal is on or after this date will be updated.
                 Defaults to 1st of next month if unsure.
               </p>
@@ -788,15 +788,15 @@ function SubscriptionForm({
               <label key={field} className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
                 <input type="checkbox" checked={form[field] as boolean}
                   onChange={(e) => setField(field, e.target.checked)}
-                  className="accent-amber-400 w-4 h-4" />
+                  className="accent-brand-400 w-4 h-4" />
                 {label}
               </label>
             ))}
             {(parseInt(form.intervalMonths, 10) > 2 || form.intervalMonths === 'custom') && (
-              <label className="flex items-center gap-2 text-amber-300 text-sm cursor-pointer">
+              <label className="flex items-center gap-2 text-brand-300 text-sm cursor-pointer">
                 <input type="checkbox" checked={form.isBundleSubscription}
                   onChange={(e) => setField('isBundleSubscription', e.target.checked)}
-                  className="accent-amber-400 w-4 h-4" />
+                  className="accent-brand-400 w-4 h-4" />
                 Bundle — ships multiple months as one package
               </label>
             )}
@@ -845,7 +845,7 @@ function SubscriptionForm({
         <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer mb-2">
           <input type="checkbox" checked={form.isCombo}
             onChange={(e) => setField('isCombo', e.target.checked)}
-            className="accent-amber-400 w-4 h-4" />
+            className="accent-brand-400 w-4 h-4" />
           Combo / Bundle subscription
         </label>
         {form.isCombo && (
@@ -877,10 +877,10 @@ function SubscriptionForm({
       {/* Skip Policies */}
       <div className="border border-stone-700 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-amber-400">Skip Policies</p>
+          <p className="text-sm font-semibold text-brand-400">Skip Policies</p>
           {availableBillingTypes.length > 0 && !addingPolicy && (
             <button type="button" onClick={startAddPolicy}
-              className="text-xs px-2.5 py-1 rounded-lg bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors">
+              className="text-xs px-2.5 py-1 rounded-lg bg-stone-800 border border-stone-600 text-stone-300 hover:border-brand-500 hover:text-brand-400 transition-colors">
               + Add policy
             </button>
           )}
@@ -906,11 +906,11 @@ function SubscriptionForm({
               />
             ) : (
               <div className="flex items-center gap-3 px-3 py-2">
-                <span className="text-xs font-medium text-amber-400 shrink-0 w-28">{BILLING_TYPE_LABELS[d.billingType] ?? d.billingType}</span>
+                <span className="text-xs font-medium text-brand-400 shrink-0 w-28">{BILLING_TYPE_LABELS[d.billingType] ?? d.billingType}</span>
                 <span className="text-xs text-stone-300 flex-1">{SKIP_TYPE_LABELS[d.type] ?? d.type}</span>
                 {d.allowUnskip && <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-900/50 border border-teal-700/50 text-teal-400">Unskip ✓</span>}
                 <button type="button" onClick={() => startEditPolicy(d)}
-                  className="text-xs text-stone-500 hover:text-amber-400 transition-colors px-1.5">Edit</button>
+                  className="text-xs text-stone-500 hover:text-brand-400 transition-colors px-1.5">Edit</button>
                 <button type="button" onClick={() => deletePolicy(d._key)}
                   className="text-xs text-stone-500 hover:text-red-400 transition-colors px-1.5">✕</button>
               </div>
@@ -920,7 +920,7 @@ function SubscriptionForm({
 
         {/* Add new policy inline */}
         {addingPolicy && policyDraft && (
-          <div className="border border-amber-600/40 rounded-lg overflow-hidden">
+          <div className="border border-brand-600/40 rounded-lg overflow-hidden">
             <SkipPolicyEditor
               draft={policyDraft}
               onChange={setPolicyDraft}
@@ -936,7 +936,7 @@ function SubscriptionForm({
       </div>
 
       <button type="submit" disabled={submitting}
-        className="bg-amber-400 text-stone-950 font-semibold px-6 py-2.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors">
+        className="bg-brand-400 text-stone-950 font-semibold px-6 py-2.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors">
         {submitting ? 'Saving…' : submitLabel}
       </button>
     </form>
@@ -1006,7 +1006,7 @@ function SkipWindowRecomputePanel({ slug, policies }: { slug: string; policies: 
 
   return (
     <div className="border border-stone-700 rounded-lg p-4 space-y-3">
-      <p className="text-sm font-semibold text-amber-400">Recompute Skip Windows</p>
+      <p className="text-sm font-semibold text-brand-400">Recompute Skip Windows</p>
       <p className="text-xs text-stone-500">
         Run this after changing a policy&apos;s type or reset period above (and saving) — it re-buckets
         every active user&apos;s skip history under the currently saved policy. Nothing recomputes
@@ -1021,12 +1021,12 @@ function SkipWindowRecomputePanel({ slug, policies }: { slug: string; policies: 
           </select>
         </div>
         <button type="button" onClick={runPreview} disabled={previewing}
-          className="text-xs px-3 py-2 rounded-lg bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors disabled:opacity-50">
+          className="text-xs px-3 py-2 rounded-lg bg-stone-800 border border-stone-600 text-stone-300 hover:border-brand-500 hover:text-brand-400 transition-colors disabled:opacity-50">
           {previewing ? 'Checking…' : 'Preview impact'}
         </button>
         {preview && (
           <button type="button" onClick={runApply} disabled={applying}
-            className="text-xs px-3 py-2 rounded-lg bg-amber-500 text-stone-950 font-semibold hover:bg-amber-400 transition-colors disabled:opacity-50">
+            className="text-xs px-3 py-2 rounded-lg bg-brand-500 text-stone-950 font-semibold hover:bg-brand-400 transition-colors disabled:opacity-50">
             {applying ? 'Recomputing…' : 'Recompute now'}
           </button>
         )}
@@ -1172,7 +1172,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                               type="button"
                               disabled={saving}
                               onClick={() => handleEditSave(r)}
-                              className="text-amber-400 hover:text-amber-200 disabled:opacity-50 px-1"
+                              className="text-brand-400 hover:text-brand-200 disabled:opacity-50 px-1"
                             >
                               {saving ? '…' : '✓ Save'}
                             </button>
@@ -1189,7 +1189,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             <button
                               type="button"
                               onClick={() => startEdit(r)}
-                              className="text-stone-500 hover:text-amber-400 transition-colors px-1"
+                              className="text-stone-500 hover:text-brand-400 transition-colors px-1"
                               title="Edit"
                             >
                               ✏️
@@ -1220,7 +1220,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                               type="date"
                               value={editState.effectiveFrom}
                               onChange={e => setField('effectiveFrom', e.target.value)}
-                              className="bg-stone-800 border border-amber-500 rounded px-1.5 py-0.5 text-stone-100 text-xs"
+                              className="bg-stone-800 border border-brand-500 rounded px-1.5 py-0.5 text-stone-100 text-xs"
                             />
                           </label>
                         )}
@@ -1252,7 +1252,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             type="checkbox"
                             checked={editState.renewalDayUserSet}
                             onChange={e => setField('renewalDayUserSet', e.target.checked)}
-                            className="accent-amber-500"
+                            className="accent-brand-500"
                           />
                           <span className="text-stone-400">User-set day</span>
                         </label>
@@ -1261,7 +1261,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             type="checkbox"
                             checked={editState.paymentOnStartup}
                             onChange={e => setField('paymentOnStartup', e.target.checked)}
-                            className="accent-amber-500"
+                            className="accent-brand-500"
                           />
                           <span className="text-stone-400">Prepaid</span>
                         </label>
@@ -1270,7 +1270,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             type="checkbox"
                             checked={editState.signupIncludesCurrentMonth}
                             onChange={e => setField('signupIncludesCurrentMonth', e.target.checked)}
-                            className="accent-amber-500"
+                            className="accent-brand-500"
                           />
                           <span className="text-stone-400">Includes current month</span>
                         </label>
@@ -1402,12 +1402,12 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
   return (
     <div className="border border-stone-700 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-amber-400">Prepay Options</p>
+        <p className="text-sm font-semibold text-brand-400">Prepay Options</p>
         {!adding && (
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="text-xs bg-amber-400 text-stone-950 px-2 py-1 rounded hover:bg-amber-300 transition-colors"
+            className="text-xs bg-brand-400 text-stone-950 px-2 py-1 rounded hover:bg-brand-300 transition-colors"
           >
             + Add Option
           </button>
@@ -1461,7 +1461,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
             <div className="flex gap-2 mt-4">
               <button type="button" disabled={updateMutation.isPending}
                 onClick={() => { if (validDates(editForm.validFrom, editForm.validUntil)) updateMutation.mutate(o.id) }}
-                className="text-xs bg-amber-400 text-stone-950 px-3 py-1.5 rounded hover:bg-amber-300 disabled:opacity-50">
+                className="text-xs bg-brand-400 text-stone-950 px-3 py-1.5 rounded hover:bg-brand-300 disabled:opacity-50">
                 {updateMutation.isPending ? 'Saving…' : 'Save'}
               </button>
               <button type="button" onClick={() => setEditingId(null)}
@@ -1483,7 +1483,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
             </span>
             <div className="flex gap-2">
               <button type="button" onClick={() => startEdit(o)}
-                className="text-xs text-amber-400 hover:underline">Edit</button>
+                className="text-xs text-brand-400 hover:underline">Edit</button>
               <button type="button" disabled={deleteMutation.isPending}
                 onClick={() => { if (confirm('Delete this prepay option?')) deleteMutation.mutate(o.id) }}
                 className="text-xs text-red-400 hover:underline disabled:opacity-50">Delete</button>
@@ -1532,7 +1532,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
           <div className="flex gap-2 mt-4">
             <button type="button" disabled={createMutation.isPending || !newForm.months || !newForm.price}
               onClick={() => { if (validDates(newForm.validFrom, newForm.validUntil)) createMutation.mutate() }}
-              className="text-xs bg-amber-400 text-stone-950 px-3 py-1.5 rounded hover:bg-amber-300 disabled:opacity-50">
+              className="text-xs bg-brand-400 text-stone-950 px-3 py-1.5 rounded hover:bg-brand-300 disabled:opacity-50">
               {createMutation.isPending ? 'Adding…' : 'Add'}
             </button>
             <button type="button" onClick={() => setAdding(false)}
@@ -1702,7 +1702,7 @@ export default function AdminSubscriptionsPage() {
       label: 'Merch',
       render: (row: ApiSubscription) =>
         row.bookishMerch ? (
-          <span className="text-amber-400 text-xs font-medium">✓ Merch</span>
+          <span className="text-brand-400 text-xs font-medium">✓ Merch</span>
         ) : null,
     },
     {
@@ -1717,7 +1717,7 @@ export default function AdminSubscriptionsPage() {
           ) : row.isDiscontinued ? (
             <span className="text-red-400 text-xs font-medium">Discontinued</span>
           ) : row.isUpcoming ? (
-            <span className="text-amber-300 text-xs font-medium">Upcoming</span>
+            <span className="text-brand-300 text-xs font-medium">Upcoming</span>
           ) : (
             <span className="text-emerald-400 text-xs font-medium">Active</span>
           )}
@@ -1747,7 +1747,7 @@ export default function AdminSubscriptionsPage() {
           {row.contentType !== 'SERIES' && !row.isCombo && !row.parentSubscriptionId && (
             <Link
               href={`/admin/subscriptions/${row.slug}/months`}
-              className="text-amber-400 text-xs hover:underline"
+              className="text-brand-400 text-xs hover:underline"
             >
               View Months →
             </Link>
@@ -1779,7 +1779,7 @@ export default function AdminSubscriptionsPage() {
         {!createModal.isOpen && !editSub && (
           <button
             onClick={() => createModal.open()}
-            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
           >
             + Add Subscription
           </button>
@@ -1805,12 +1805,12 @@ export default function AdminSubscriptionsPage() {
 
       {/* Inline Edit panel */}
       {editSubLoading && (
-        <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 text-center text-stone-400 text-sm">
+        <div className="bg-stone-900 border border-brand-500/30 rounded-2xl p-6 text-center text-stone-400 text-sm">
           Loading subscription…
         </div>
       )}
       {editSub && (
-        <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 space-y-4">
+        <div className="bg-stone-900 border border-brand-500/30 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-stone-100">Edit — {editSub.name}</h2>
             <button onClick={() => setEditSub(null)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
@@ -1840,13 +1840,13 @@ export default function AdminSubscriptionsPage() {
               placeholder="Search by name…"
               value={search}
               onChange={(e) => { setSearch(e.target.value) }}
-              className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 w-64"
+              className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-400 w-64"
             />
             {!isManager && companies.length > 0 && (
               <select
                 value={filterCompanyId}
                 onChange={(e) => { setFilterCompanyId(e.target.value) }}
-                className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-400"
               >
                 <option value="">All companies</option>
                 {companies.map((c) => (

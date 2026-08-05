@@ -43,7 +43,7 @@ export function MultiSelect({ label, options, selected, onChange, className = ''
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className={`w-full flex items-center justify-between gap-2 bg-stone-800 border text-sm rounded-lg px-3 py-1.5 focus:outline-none transition-colors ${
-          selected.length > 0 ? 'border-amber-600 text-amber-400' : 'border-stone-700 text-stone-200 hover:border-stone-500'
+          selected.length > 0 ? 'border-brand-600 text-brand-400' : 'border-stone-700 text-stone-200 hover:border-stone-500'
         }`}
       >
         <span className="truncate">{buttonLabel}</span>
@@ -60,7 +60,7 @@ export function MultiSelect({ label, options, selected, onChange, className = ''
                   type="checkbox"
                   checked={selected.includes(opt)}
                   onChange={() => toggleOption(opt)}
-                  className="accent-amber-500 w-3.5 h-3.5 shrink-0"
+                  className="accent-brand-500 w-3.5 h-3.5 shrink-0"
                 />
                 <span className="truncate">{opt}</span>
               </label>

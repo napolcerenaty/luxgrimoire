@@ -5,7 +5,7 @@ import { CURRENCIES, SALE_PLATFORMS } from '@/lib/currencies'
 
 export { CURRENCIES, SALE_PLATFORMS }
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
 /** Swaps the border color of an INP-based class string to flag an invalid field. */
 const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
@@ -93,7 +93,7 @@ export function SaleFormFields({
       </div>
       {beforeSubmit}
       <button type="submit" disabled={pending}
-        className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
+        className="bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
       >
         {pending ? 'Saving…' : submitLabel}
       </button>

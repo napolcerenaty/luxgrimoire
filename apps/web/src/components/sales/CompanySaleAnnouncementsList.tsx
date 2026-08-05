@@ -52,20 +52,20 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search announcements…"
-            className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500 text-sm"
+            className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-500 text-sm"
           />
         </div>
 
         <div className="inline-flex items-center gap-1 rounded-xl border border-stone-700 bg-stone-800 p-1 shrink-0">
           <button
             onClick={() => setTab('live')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'live' ? 'bg-stone-700 text-amber-400' : 'text-stone-400 hover:text-stone-200'}`}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'live' ? 'bg-stone-700 text-brand-400' : 'text-stone-400 hover:text-stone-200'}`}
           >
             Live &amp; Upcoming
           </button>
           <button
             onClick={() => setTab('past')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'past' ? 'bg-stone-700 text-amber-400' : 'text-stone-400 hover:text-stone-200'}`}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'past' ? 'bg-stone-700 text-brand-400' : 'text-stone-400 hover:text-stone-200'}`}
           >
             Past
           </button>
@@ -74,14 +74,14 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
         <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-xl px-1 shrink-0">
           <button
             onClick={() => setView('grid')}
-            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
             aria-label="Grid view"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
           <button
             onClick={() => setView('list')}
-            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
             aria-label="List view"
           >
             <List className="w-4 h-4" />

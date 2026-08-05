@@ -420,7 +420,7 @@ function YearSwitcher({ years, selected, onChange }: { years: number[]; selected
             onClick={() => onChange(y)}
             className={`px-3 py-1 rounded-lg text-sm border transition-colors ${
               y === selected
-                ? 'bg-amber-900/40 border-amber-700/60 text-amber-400'
+                ? 'bg-brand-900/40 border-brand-700/60 text-brand-400'
                 : 'border-stone-700 text-stone-500 hover:border-stone-500 hover:text-stone-300'
             }`}
           >
@@ -876,7 +876,7 @@ export default function SpendingPage() {
           <select
             value={currency}
             onChange={e => { setCurrency(e.target.value) }}
-            className="bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+            className="bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
           >
             {(currencyData?.currencies?.length ? currencyData.currencies : CURRENCIES).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -928,14 +928,14 @@ export default function SpendingPage() {
               onClick={() => handleTabChange(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors rounded-lg relative ${
                 activeTab === tab.id
-                  ? 'bg-stone-800 text-amber-400 border border-stone-700'
+                  ? 'bg-stone-800 text-brand-400 border border-stone-700'
                   : 'text-stone-500 hover:text-stone-300 hover:bg-stone-800/50'
               }`}
             >
               <tab.icon size={13} />
               {tab.label}
               {tabIsStale && loadedTabs.has(tab.id) && (
-                <span className="absolute top-1.5 right-1 w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span className="absolute top-1.5 right-1 w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
               )}
             </button>
           )
@@ -962,7 +962,7 @@ export default function SpendingPage() {
                   onClick={() => setSelectedCollectionYear(0)}
                   className={`px-3 py-1 rounded-lg text-sm border transition-colors ${
                     selectedCollectionYear === 0
-                      ? 'bg-amber-900/40 border-amber-700/60 text-amber-400'
+                      ? 'bg-brand-900/40 border-brand-700/60 text-brand-400'
                       : 'border-stone-700 text-stone-500 hover:border-stone-500 hover:text-stone-300'
                   }`}
                 >
@@ -974,7 +974,7 @@ export default function SpendingPage() {
                     onClick={() => setSelectedCollectionYear(y)}
                     className={`px-3 py-1 rounded-lg text-sm border transition-colors ${
                       selectedCollectionYear === y
-                        ? 'bg-amber-900/40 border-amber-700/60 text-amber-400'
+                        ? 'bg-brand-900/40 border-brand-700/60 text-brand-400'
                         : 'border-stone-700 text-stone-500 hover:border-stone-500 hover:text-stone-300'
                     }`}
                   >

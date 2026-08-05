@@ -71,12 +71,12 @@ export default function SaleAnnouncementsPage() {
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Megaphone size={24} className="text-amber-400" />
+          <Megaphone size={24} className="text-brand-400" />
           <h1 className="text-3xl font-serif font-bold text-stone-100">Sales</h1>
         </div>
         <Link
           href="/sale-announcement-requests"
-          className="text-xs text-amber-500 hover:text-amber-400 border border-stone-700 hover:border-amber-700 px-3 py-1.5 rounded-full transition-colors font-serif"
+          className="text-xs text-brand-500 hover:text-brand-400 border border-stone-700 hover:border-brand-700 px-3 py-1.5 rounded-full transition-colors font-serif"
         >
           + Report a sale
         </Link>
@@ -91,7 +91,7 @@ export default function SaleAnnouncementsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by sale title…"
-            className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500 text-sm"
+            className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-500 text-sm"
           />
         </div>
 
@@ -100,7 +100,7 @@ export default function SaleAnnouncementsPage() {
           value={companyId}
           onChange={(e) => setCompanyId(e.target.value)}
           disabled={companiesLoading}
-          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[160px] disabled:opacity-60"
+          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-brand-500 min-w-[160px] disabled:opacity-60"
         >
           <option value="">{companiesLoading ? 'Loading…' : 'All companies'}</option>
           {companies.map((c) => (
@@ -112,7 +112,7 @@ export default function SaleAnnouncementsPage() {
         <select
           value={saleType}
           onChange={(e) => setSaleType(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-amber-500 min-w-[150px]"
+          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-brand-500 min-w-[150px]"
         >
           <option value="">All types</option>
           <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
@@ -122,7 +122,7 @@ export default function SaleAnnouncementsPage() {
         </select>
 
         {/* Date from */}
-        <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-amber-500">
+        <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-brand-500">
           <span className="shrink-0 text-stone-500 text-xs">From</span>
           <input
             type="date"
@@ -134,7 +134,7 @@ export default function SaleAnnouncementsPage() {
         </label>
 
         {/* Date to */}
-        <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-amber-500">
+        <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-brand-500">
           <span className="shrink-0 text-stone-500 text-xs">To</span>
           <input
             type="date"
@@ -149,14 +149,14 @@ export default function SaleAnnouncementsPage() {
         <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-xl px-1">
           <button
             onClick={() => setView('grid')}
-            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
             aria-label="Grid view"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
           <button
             onClick={() => setView('list')}
-            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
             aria-label="List view"
           >
             <List className="w-4 h-4" />
@@ -192,7 +192,7 @@ export default function SaleAnnouncementsPage() {
           {!hasFilters && (
             <p className="text-sm mt-2">
               Spotted one?{' '}
-              <Link href="/sale-announcement-requests" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+              <Link href="/sale-announcement-requests" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
                 Let us know!
               </Link>
             </p>
@@ -225,7 +225,7 @@ export default function SaleAnnouncementsPage() {
 
       <div className="mt-12 text-center text-stone-500 text-sm">
         Don&apos;t see a sale you know about?{' '}
-        <Link href="/sale-announcement-requests" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+        <Link href="/sale-announcement-requests" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
           Let us know!
         </Link>
       </div>

@@ -121,9 +121,9 @@ export default function FeeTemplateManager() {
   }
 
   const inputCls =
-    'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
+    'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors'
   const selectCls =
-    'bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-amber-400 transition-colors'
+    'bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400 transition-colors'
 
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
@@ -136,7 +136,7 @@ export default function FeeTemplateManager() {
         </div>
         <button
           onClick={() => { setShowAddForm(true); setFormError(null) }}
-          className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-xl text-sm transition-colors"
+          className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-xl text-sm transition-colors"
         >
           <Plus size={14} />
           Add template
@@ -146,7 +146,7 @@ export default function FeeTemplateManager() {
       {/* Add form */}
       {showAddForm && (
         <div className="bg-stone-800/60 border border-stone-700 rounded-xl p-4 mb-4 space-y-3">
-          <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider">New template</p>
+          <p className="text-xs font-semibold text-brand-400 uppercase tracking-wider">New template</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-stone-400 mb-1">Name *</label>
@@ -206,7 +206,7 @@ export default function FeeTemplateManager() {
             <button
               onClick={() => createMutation.mutate()}
               disabled={createMutation.isPending || !addForm.name.trim()}
-              className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
+              className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
             >
               {createMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
               Save
@@ -281,7 +281,7 @@ export default function FeeTemplateManager() {
                     <button
                       onClick={() => saveEdit(t.id)}
                       disabled={updateMutation.isPending}
-                      className="p-1 text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-50"
+                      className="p-1 text-brand-400 hover:text-brand-300 transition-colors disabled:opacity-50"
                       title="Save"
                     >
                       {updateMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
@@ -312,14 +312,14 @@ export default function FeeTemplateManager() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => toggleActive(t)}
-                      className="p-1.5 text-stone-500 hover:text-amber-400 transition-colors rounded"
+                      className="p-1.5 text-stone-500 hover:text-brand-400 transition-colors rounded"
                       title={t.isActive ? 'Archive' : 'Unarchive'}
                     >
                       {t.isActive ? <Archive size={14} /> : <ArchiveRestore size={14} />}
                     </button>
                     <button
                       onClick={() => startEdit(t)}
-                      className="p-1.5 text-stone-500 hover:text-amber-400 transition-colors rounded"
+                      className="p-1.5 text-stone-500 hover:text-brand-400 transition-colors rounded"
                       title="Edit"
                     >
                       <Pencil size={14} />

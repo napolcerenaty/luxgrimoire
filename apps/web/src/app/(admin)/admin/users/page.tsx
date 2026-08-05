@@ -7,7 +7,7 @@ import type { ApiAdminUser, ApiBookBoxCompany, PaginatedResponse } from '@luxgri
 import FormModal from '@/components/admin/FormModal'
 
 const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
+  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 
 const ROLES = ['USER', 'MODERATOR', 'COMPANY_MANAGER', 'ADMIN'] as const
@@ -15,7 +15,7 @@ const ROLES = ['USER', 'MODERATOR', 'COMPANY_MANAGER', 'ADMIN'] as const
 const ROLE_COLORS: Record<string, string> = {
   ADMIN: 'text-red-400 bg-red-400/10 border border-red-400/20',
   MODERATOR: 'text-blue-400 bg-blue-400/10 border border-blue-400/20',
-  COMPANY_MANAGER: 'text-amber-400 bg-amber-400/10 border border-amber-400/20',
+  COMPANY_MANAGER: 'text-brand-400 bg-brand-400/10 border border-brand-400/20',
   USER: 'text-stone-400 bg-stone-800 border border-stone-700',
 }
 
@@ -97,7 +97,7 @@ function AssignRoleForm({
       <button
         type="submit"
         disabled={submitting || (form.role === 'COMPANY_MANAGER' && !form.managedCompanyId)}
-        className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
+        className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
       >
         {submitting ? 'Saving…' : 'Save Role'}
       </button>
@@ -170,7 +170,7 @@ export default function AdminUsersPage() {
       {/* Search */}
       <div className="mb-4">
         <input
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 w-full max-w-xs"
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 w-full max-w-xs"
           placeholder="Search by username or email…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1) }}
@@ -212,7 +212,7 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3 text-stone-400 text-xs">
                       {u.managedCompany ? (
-                        <span className="text-amber-400">{u.managedCompany.name}</span>
+                        <span className="text-brand-400">{u.managedCompany.name}</span>
                       ) : (
                         '—'
                       )}
@@ -224,7 +224,7 @@ export default function AdminUsersPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setEditUser(u)}
-                          className="text-xs px-3 py-1 rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 transition-colors"
+                          className="text-xs px-3 py-1 rounded-lg border border-stone-700 text-stone-300 hover:border-brand-500 hover:text-brand-400 transition-colors"
                         >
                           Assign Role
                         </button>
@@ -248,7 +248,7 @@ export default function AdminUsersPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm"
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-brand-500 hover:text-brand-400 transition-colors text-sm"
               >
                 Prev
               </button>
@@ -258,7 +258,7 @@ export default function AdminUsersPage() {
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-amber-500 hover:text-amber-400 transition-colors text-sm"
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-brand-500 hover:text-brand-400 transition-colors text-sm"
               >
                 Next
               </button>

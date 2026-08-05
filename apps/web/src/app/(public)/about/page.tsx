@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className="container mx-auto max-w-2xl px-4 py-16">
-      <h1 className="text-4xl font-serif font-bold text-amber-400 mb-8 tracking-wide">About LuxGrimoire</h1>
+      <h1 className="text-4xl font-serif font-bold text-brand-400 mb-8 tracking-wide">About LuxGrimoire</h1>
 
       <div className="prose prose-invert prose-stone max-w-none space-y-6 text-stone-300 text-sm leading-relaxed">
         <p>
@@ -53,11 +53,11 @@ export default function AboutPage() {
         <h2 className="text-xl font-serif font-semibold text-stone-100 mt-8 mb-2">Get involved</h2>
         <p>
           Found missing data? Want to help moderate?{' '}
-          <Link href="/data-requests" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+          <Link href="/data-requests" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
             Submit a data request
           </Link>{' '}
           or{' '}
-          <Link href="/contact" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+          <Link href="/contact" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
             get in touch
           </Link>.
         </p>

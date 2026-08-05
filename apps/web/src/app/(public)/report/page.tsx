@@ -95,7 +95,7 @@ export default function ReportPage() {
                   key={rt.value}
                   className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                     type === rt.value
-                      ? 'border-amber-600 bg-amber-950/20'
+                      ? 'border-brand-600 bg-brand-950/20'
                       : 'border-stone-700 hover:border-stone-500'
                   }`}
                 >
@@ -105,7 +105,7 @@ export default function ReportPage() {
                     value={rt.value}
                     checked={type === rt.value}
                     onChange={() => setType(rt.value)}
-                    className="mt-0.5 accent-amber-500"
+                    className="mt-0.5 accent-brand-500"
                   />
                   <div>
                     <p className="text-sm text-stone-200">{rt.label}</p>
@@ -126,7 +126,7 @@ export default function ReportPage() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://luxgrimoire.com/editions/..."
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-500 transition-colors"
             />
           </div>
 
@@ -140,7 +140,7 @@ export default function ReportPage() {
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
               placeholder="Please describe the issue in detail…"
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-500 transition-colors resize-none"
+              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-500 transition-colors resize-none"
               required
             />
           </div>
@@ -155,7 +155,7 @@ export default function ReportPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-500 transition-colors"
             />
           </div>
 

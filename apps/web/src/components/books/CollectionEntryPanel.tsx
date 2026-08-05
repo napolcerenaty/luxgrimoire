@@ -199,7 +199,7 @@ function fmtDate(dateStr: string | null | undefined): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const INP_BASE = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP_BASE = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 const INP = INP_BASE + ' w-full'
 const INP_FLEX = INP_BASE + ' flex-1 min-w-0'
 /** Swaps the border color of an INP_* class string to flag an invalid field. */
@@ -218,7 +218,7 @@ function EditBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="ml-2 text-stone-500 hover:text-amber-400 transition-colors"
+      className="ml-2 text-stone-500 hover:text-brand-400 transition-colors"
       title="Edit"
     >
       <Pencil size={13} />
@@ -232,7 +232,7 @@ function SaveCancelBtns({ onSave, onCancel, saving }: { onSave: () => void; onCa
       <button
         onClick={onSave}
         disabled={saving}
-        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs hover:bg-brand-500/20 transition-colors disabled:opacity-50"
       >
         <Check size={12} /> Save
       </button>
@@ -260,7 +260,7 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
       <select
         value={status}
         onChange={e => setStatus(e.target.value)}
-        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
       >
         {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const).map(s => (
           <option key={s} value={s}>{s}</option>
@@ -270,12 +270,12 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
         type="date"
         value={date}
         onChange={e => setDate(e.target.value)}
-        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
       />
       <button
         onClick={() => onSave(status, date)}
         disabled={saving}
-        className="text-xs text-amber-400 hover:text-amber-300 disabled:opacity-50"
+        className="text-xs text-brand-400 hover:text-brand-300 disabled:opacity-50"
       ><Check size={11} /></button>
       <button onClick={onCancel} className="text-xs text-stone-500 hover:text-stone-300"><X size={11} /></button>
     </div>
@@ -301,18 +301,18 @@ function AddReadingHistoryForm({ onSave, onCancel, saving }: {
           type="date"
           value={startedAt}
           onChange={e => setStartedAt(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 w-full"
+          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 w-full"
         />
         <label className="text-stone-500 shrink-0">Finished</label>
         <input
           type="date"
           value={finishedAt}
           onChange={e => setFinishedAt(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 w-full"
+          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 w-full"
         />
       </div>
       <label className="flex items-center gap-1.5 text-stone-400 cursor-pointer w-fit">
-        <input type="checkbox" checked={isDnf} onChange={e => setIsDnf(e.target.checked)} className="accent-amber-400" />
+        <input type="checkbox" checked={isDnf} onChange={e => setIsDnf(e.target.checked)} className="accent-brand-400" />
         DNF
       </label>
       <input
@@ -320,10 +320,10 @@ function AddReadingHistoryForm({ onSave, onCancel, saving }: {
         placeholder="Notes (optional)"
         value={notes}
         onChange={e => setNotes(e.target.value)}
-        className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 w-full"
+        className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 w-full"
       />
       <div className="flex gap-2">
-        <button onClick={() => onSave({ startedAt, finishedAt, isDnf, notes })} disabled={saving} className="text-amber-400 hover:text-amber-300 disabled:opacity-50"><Check size={11} /></button>
+        <button onClick={() => onSave({ startedAt, finishedAt, isDnf, notes })} disabled={saving} className="text-brand-400 hover:text-brand-300 disabled:opacity-50"><Check size={11} /></button>
         <button onClick={onCancel} className="text-stone-500 hover:text-stone-300"><X size={11} /></button>
       </div>
     </div>
@@ -1179,7 +1179,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               onClick={() => { setSelectedCopyIdx(i); setEntry(allEntries[i]) }}
               className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
                 i === selectedCopyIdx
-                  ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
+                  ? 'border-brand-500/50 bg-brand-500/10 text-brand-400'
                   : 'border-stone-700 text-stone-400 hover:border-stone-500'
               }`}
             >
@@ -1311,7 +1311,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <input type="date" value={editFeeDate} onChange={e => { setEditFeeDate(e.target.value); if (editFeeErrorField === 'date') { setEditFeeError(null); setEditFeeErrorField(null) } }} className={inpErr(INP, editFeeErrorField === 'date')} />
                           {editFeeError && <p className="text-xs text-red-400">{editFeeError}</p>}
                           <div className="flex gap-1.5">
-                            <button onClick={saveEditFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                            <button onClick={saveEditFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-brand-500/10 border border-brand-500/30 text-brand-400 hover:bg-brand-500/20 transition-colors disabled:opacity-50">
                               <Check size={11} /> Save
                             </button>
                             <button onClick={() => { setEditingFeeId(null); setEditFeeError(null); setEditFeeErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
@@ -1325,7 +1325,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <span className="text-stone-500">{FEE_CATEGORIES.find(c => c.value === fee.category)?.label ?? fee.category}</span>
                           <span style={{ color: 'var(--text-dim)' }}>{parseFloat(fee.amount).toFixed(2)} {fee.currency}</span>
                           <span className="text-stone-500">{fee.date ? fee.date.slice(0, 10) : ''}</span>
-                          <button onClick={() => openEditFee(fee)} className="text-stone-600 hover:text-amber-400 transition-colors shrink-0">
+                          <button onClick={() => openEditFee(fee)} className="text-stone-600 hover:text-brand-400 transition-colors shrink-0">
                             <Pencil size={11} />
                           </button>
                           <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
@@ -1349,7 +1349,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                                   if (t.defaultCurrency) setNewFeeCurrency(t.defaultCurrency)
                                   if (t.category) setNewFeeCategory(t.category)
                                 }}
-                                className={`px-2 py-0.5 rounded text-xs border transition-colors ${newFeeTemplateId === t.id ? 'border-amber-500/60 text-amber-400' : 'border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400'}`}
+                                className={`px-2 py-0.5 rounded text-xs border transition-colors ${newFeeTemplateId === t.id ? 'border-brand-500/60 text-brand-400' : 'border-stone-600 text-stone-400 hover:border-brand-500/40 hover:text-brand-400'}`}
                               >
                                 {t.name}
                               </button>
@@ -1381,7 +1381,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                         <input type="date" value={newFeeDate} onChange={e => { setNewFeeDate(e.target.value); if (newFeeErrorField === 'date') { setNewFeeError(null); setNewFeeErrorField(null) } }} className={inpErr(INP, newFeeErrorField === 'date')} />
                         {newFeeError && <p className="text-xs text-red-400">{newFeeError}</p>}
                         <div className="flex gap-1.5">
-                          <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                          <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-brand-500/10 border border-brand-500/30 text-brand-400 hover:bg-brand-500/20 transition-colors disabled:opacity-50">
                             <Check size={11} /> Add
                           </button>
                           <button onClick={() => { setAddingFee(false); setNewFeeError(null); setNewFeeErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
@@ -1575,7 +1575,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           Per book <span className="opacity-60">({bookCount} in set)</span>
                         </span>
                         <span className="text-right">
-                          <span className="text-xs font-semibold text-amber-400">
+                          <span className="text-xs font-semibold text-brand-400">
                             {perBook.toFixed(2)} {pg.currency}
                           </span>
                           {converted(perBook, pg.currency, pg.purchasedAt) && (
@@ -1912,7 +1912,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           }
                         }}
                         disabled={savingEditTracking || !editTrackingNumber.trim()}
-                        className="flex-1 text-xs py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
+                        className="flex-1 text-xs py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
                       >
                         {savingEditTracking ? '…' : 'Save'}
                       </button>
@@ -1932,7 +1932,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                         href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(tn.trackingNumber)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 break-all"
+                        className="text-sm hover:text-brand-400 transition-colors flex items-center gap-1 break-all"
                         style={{ color: 'var(--text-secondary)' }}
                       >
                         {tn.trackingNumber}
@@ -1995,7 +1995,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       }
                     }}
                     disabled={savingTracking || !newTrackingNumber.trim()}
-                    className="flex-1 text-xs py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
+                    className="flex-1 text-xs py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
                   >
                     {savingTracking ? '…' : 'Save'}
                   </button>
@@ -2008,7 +2008,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                 </div>
               </div>
             ) : (
-              <button onClick={() => setAddingTracking(true)} className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 text-left mt-1" style={{ color: 'var(--text-muted)' }}>
+              <button onClick={() => setAddingTracking(true)} className="text-sm hover:text-brand-400 transition-colors flex items-center gap-1 text-left mt-1" style={{ color: 'var(--text-muted)' }}>
                 + Add tracking number
               </button>
             )}
@@ -2037,7 +2037,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               </button>
             </div>
           ) : (
-            <button onClick={openOrderNumberEdit} className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 text-left" style={{ color: 'var(--text-muted)' }}>
+            <button onClick={openOrderNumberEdit} className="text-sm hover:text-brand-400 transition-colors flex items-center gap-1 text-left" style={{ color: 'var(--text-muted)' }}>
               + Add order number
             </button>
           )}
@@ -2082,7 +2082,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <select
                             value={historyEditStatus}
                             onChange={e => setHistoryEditStatus(e.target.value)}
-                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
                           >
                             {OWNERSHIP_STATUSES.map(s => <option key={s} value={s}>{fmtOwnership(s)}</option>)}
                           </select>
@@ -2090,12 +2090,12 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             type="date"
                             value={historyEditDate}
                             onChange={e => setHistoryEditDate(e.target.value)}
-                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
                           />
                           <button
                             onClick={() => saveHistoryEdit(h.id)}
                             disabled={historySaving}
-                            className="text-xs text-amber-400 hover:text-amber-300 disabled:opacity-50"
+                            className="text-xs text-brand-400 hover:text-brand-300 disabled:opacity-50"
                           ><Check size={11} /></button>
                           <button onClick={() => setHistoryEditId(null)} className="text-xs text-stone-500 hover:text-stone-300"><X size={11} /></button>
                         </div>
@@ -2109,7 +2109,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <span className="ml-auto flex items-center gap-2">
                             <button
                               onClick={() => { setHistoryEditId(h.id); setHistoryEditStatus(h.status); setHistoryEditDate(h.changedAt.slice(0, 10)) }}
-                              className="text-stone-500 hover:text-amber-400 transition-colors p-1.5 -m-1.5"
+                              className="text-stone-500 hover:text-brand-400 transition-colors p-1.5 -m-1.5"
                             ><Pencil size={12} /></button>
                             <button
                               onClick={() => deleteHistoryEntry(h.id)}
@@ -2169,14 +2169,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                               type="date"
                               value={readingHistoryEditStartedAt}
                               onChange={e => setReadingHistoryEditStartedAt(e.target.value)}
-                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs w-full"
+                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 text-xs w-full"
                             />
                             <label className="text-stone-500 shrink-0">Finished</label>
                             <input
                               type="date"
                               value={readingHistoryEditFinishedAt}
                               onChange={e => setReadingHistoryEditFinishedAt(e.target.value)}
-                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs w-full"
+                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 text-xs w-full"
                             />
                           </div>
                           <label className="flex items-center gap-1.5 text-stone-400 cursor-pointer w-fit">
@@ -2184,7 +2184,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                               type="checkbox"
                               checked={readingHistoryEditIsDnf}
                               onChange={e => setReadingHistoryEditIsDnf(e.target.checked)}
-                              className="accent-amber-400"
+                              className="accent-brand-400"
                             />
                             DNF
                           </label>
@@ -2193,10 +2193,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             placeholder="Notes (optional)"
                             value={readingHistoryEditNotes}
                             onChange={e => setReadingHistoryEditNotes(e.target.value)}
-                            className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs w-full"
+                            className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 text-xs w-full"
                           />
                           <div className="flex gap-2">
-                            <button onClick={() => saveReadingHistoryEdit(rh.id)} disabled={readingHistorySaving} className="text-amber-400 hover:text-amber-300 disabled:opacity-50"><Check size={11} /></button>
+                            <button onClick={() => saveReadingHistoryEdit(rh.id)} disabled={readingHistorySaving} className="text-brand-400 hover:text-brand-300 disabled:opacity-50"><Check size={11} /></button>
                             <button onClick={() => setReadingHistoryEditId(null)} className="text-stone-500 hover:text-stone-300"><X size={11} /></button>
                           </div>
                         </div>
@@ -2231,7 +2231,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                                   setReadingHistoryEditIsDnf(rh.isDnf)
                                   setReadingHistoryEditNotes(rh.notes ?? '')
                                 }}
-                                className="text-stone-500 hover:text-amber-400 transition-colors p-1.5 -m-1.5"
+                                className="text-stone-500 hover:text-brand-400 transition-colors p-1.5 -m-1.5"
                               ><Pencil size={12} /></button>
                               <button onClick={() => deleteReadingHistoryEntry(rh.id)} className="text-stone-500 hover:text-red-400 transition-colors p-1.5 -m-1.5"><Trash2 size={12} /></button>
                             </span>

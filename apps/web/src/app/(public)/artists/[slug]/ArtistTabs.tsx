@@ -52,7 +52,7 @@ function LoadMoreButton({ onClick, loading }: { onClick: () => void; loading: bo
       <button
         onClick={onClick}
         disabled={loading}
-        className="px-6 py-2.5 rounded-full border border-stone-700 text-stone-300 text-sm hover:border-amber-600 hover:text-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="px-6 py-2.5 rounded-full border border-stone-700 text-stone-300 text-sm hover:border-brand-600 hover:text-brand-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? 'Loading…' : 'Load more'}
       </button>
@@ -107,7 +107,7 @@ function EditionGrid({ artistSlug }: { artistSlug: string }) {
             <Link
               key={edition.id}
               href={`/editions/${edition.slug}`}
-              className="group flex flex-col rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10"
+              className="group flex flex-col rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10"
             >
               <div className="relative aspect-[2/3] bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 overflow-hidden">
                 {cover ? (
@@ -203,7 +203,7 @@ function CardMonthGrid({ artistSlug }: { artistSlug: string }) {
             <Link
               key={m.id}
               href={`/subscriptions/${m.subscription.slug}`}
-              className="group flex flex-col rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10"
+              className="group flex flex-col rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10"
             >
               <div className="relative aspect-square bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 overflow-hidden">
                 {cover ? (
@@ -225,7 +225,7 @@ function CardMonthGrid({ artistSlug }: { artistSlug: string }) {
                 </div>
               </div>
               <div className="p-3 flex flex-col gap-1">
-                <p className="text-xs font-semibold text-amber-400">{label}</p>
+                <p className="text-xs font-semibold text-brand-400">{label}</p>
                 {m.theme && <p className="text-xs text-stone-400 line-clamp-1">{m.theme}</p>}
               </div>
             </Link>
@@ -260,7 +260,7 @@ export function ArtistTabs({ artistSlug }: { artistSlug: string }) {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
               activeTab === tab.id
-                ? 'border-amber-500 text-amber-400'
+                ? 'border-brand-500 text-brand-400'
                 : 'border-transparent text-stone-400 hover:text-stone-200'
             }`}
           >

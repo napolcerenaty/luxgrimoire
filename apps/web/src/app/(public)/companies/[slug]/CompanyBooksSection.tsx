@@ -27,9 +27,9 @@ const SEARCH_DEBOUNCE_MS = 300
 type OwnershipBucket = 'have-it' | 'coming' | 'gone'
 type StatusFilter = OwnershipBucket | 'skipped'
 
-// Dot colors are hardcoded CSS classes (status-dot-*, globals.css), not Tailwind bg-amber-*/
+// Dot colors are hardcoded CSS classes (status-dot-*, globals.css), not Tailwind bg-brand-*/
 // bg-stone-* utilities — this site's @theme block remaps those palettes to its blue/navy brand
-// accent, so e.g. "bg-amber-400" renders blue here, not gold. Each status-dot-* class matches
+// accent, so e.g. "bg-brand-400" renders blue here, not gold. Each status-dot-* class matches
 // the RGB of its corresponding .edition-glow-* box-shadow so the filter dot and the card glow
 // it represents can never visually disagree.
 const STATUS_FILTER_META: { value: StatusFilter; label: string; dotClass: string }[] = [
@@ -327,7 +327,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search books…"
-            className="pl-8 pr-3 py-1.5 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-200 placeholder-stone-500 focus:outline-none focus:border-amber-600/60 w-full"
+            className="pl-8 pr-3 py-1.5 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-200 placeholder-stone-500 focus:outline-none focus:border-brand-600/60 w-full"
           />
         </div>
       </div>
@@ -357,7 +357,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
               onClick={() => handleChipClick(idx)}
               className={`shrink-0 snap-start whitespace-nowrap flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
                 activeTab === idx
-                  ? 'bg-amber-900/30 border-amber-600 text-amber-400'
+                  ? 'bg-brand-900/30 border-brand-600 text-brand-400'
                   : 'bg-stone-800 border-stone-700 text-stone-400'
               }`}
             >
@@ -424,7 +424,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
               <button
                 onClick={loadMore}
                 disabled={isFetchingMore}
-                className="px-5 py-2 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-300 hover:bg-stone-700 hover:text-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-300 hover:bg-stone-700 hover:text-brand-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isFetchingMore ? 'Loading…' : `Load more (${serverTotal - displayed.length} remaining)`}
               </button>

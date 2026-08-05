@@ -36,7 +36,7 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
     <Link
       key={card.id}
       href={card.href}
-      className="flex-shrink-0 w-40 group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-600/60 transition-all duration-250"
+      className="flex-shrink-0 w-40 group rounded-lg overflow-hidden border border-stone-700 hover:border-brand-600/60 transition-all duration-250"
       style={{ background: 'var(--bg-raised)' }}
     >
       {/* Cover */}
@@ -92,12 +92,12 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
       {/* Info */}
       <div className="px-2.5 pt-2 pb-2 flex flex-col">
         {/* Series / subtitle – always rendered for height consistency, amber like EditionCard */}
-        <p className="text-[10px] text-amber-600 font-medium tracking-wide truncate leading-tight min-h-[1em]">
+        <p className="text-[10px] text-brand-600 font-medium tracking-wide truncate leading-tight min-h-[1em]">
           {card.subtitle || '\u00A0'}
         </p>
         {/* Title – fixed 2-line slot so cards align regardless of title length */}
         <div className="h-[2.25rem] overflow-hidden my-0.5">
-          <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+          <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
             {card.title}
           </p>
         </div>
@@ -138,7 +138,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
           {viewAllHref && (
             <Link
               href={viewAllHref}
-              className="text-xs text-amber-500 hover:text-amber-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-amber-700 px-3 py-1 rounded-full"
+              className="text-xs text-brand-500 hover:text-brand-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-brand-700 px-3 py-1 rounded-full"
             >
               View all →
             </Link>
@@ -150,7 +150,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
           {viewAllHref && (
             <Link
               href={viewAllHref}
-              className="text-xs text-amber-500 hover:text-amber-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-amber-700 px-3 py-1 rounded-full"
+              className="text-xs text-brand-500 hover:text-brand-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-brand-700 px-3 py-1 rounded-full"
             >
               View all →
             </Link>
@@ -167,7 +167,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
           className="absolute left-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                      bg-gradient-to-r from-[var(--bg)] to-transparent
                      opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
-                     text-stone-400 hover:text-amber-400"
+                     text-stone-400 hover:text-brand-400"
         >
           <ChevronLeft size={24} />
         </button>
@@ -179,7 +179,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
           className="absolute right-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                      bg-gradient-to-l from-[var(--bg)] to-transparent
                      opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
-                     text-stone-400 hover:text-amber-400"
+                     text-stone-400 hover:text-brand-400"
         >
           <ChevronRight size={24} />
         </button>

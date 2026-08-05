@@ -122,7 +122,7 @@ export default function AnalyticsPage() {
             <select
               value={metric}
               onChange={e => handleMetricChange(e.target.value)}
-              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-amber-500"
+              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
             >
               {METRICS.map(m => (
                 <option key={m.id} value={m.id}>{m.label}</option>
@@ -136,7 +136,7 @@ export default function AnalyticsPage() {
             <select
               value={groupBy}
               onChange={e => { setGroupBy(e.target.value); setActiveKey(null) }}
-              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-amber-500"
+              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
             >
               {GROUP_BY_OPTIONS.map(g => (
                 <option key={g.id} value={g.id}>{g.label}</option>
@@ -150,7 +150,7 @@ export default function AnalyticsPage() {
             <select
               value={period}
               onChange={e => { setPeriod(e.target.value); setActiveKey(null) }}
-              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-amber-500"
+              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
             >
               {PERIODS.map(p => (
                 <option key={p.id} value={p.id}>{p.label}</option>
@@ -164,7 +164,7 @@ export default function AnalyticsPage() {
             <select
               value={limit}
               onChange={e => { setLimit(Number(e.target.value)); setActiveKey(null) }}
-              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-amber-500"
+              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
             >
               {LIMITS.map(n => (
                 <option key={n} value={n}>Top {n}</option>
@@ -176,7 +176,7 @@ export default function AnalyticsPage() {
         <button
           onClick={handleRun}
           disabled={isLoading || isFetching}
-          className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold px-6 py-2 rounded-lg text-sm transition-colors"
+          className="bg-brand-700 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-6 py-2 rounded-lg text-sm transition-colors"
         >
           {isLoading || isFetching ? 'Running…' : '▶ Run Query'}
         </button>
@@ -228,12 +228,12 @@ export default function AnalyticsPage() {
                     {/* Bar */}
                     <div className="mt-1 h-1 rounded bg-stone-700 overflow-hidden">
                       <div
-                        className="h-full rounded bg-amber-600"
+                        className="h-full rounded bg-brand-600"
                         style={{ width: `${Math.round((row.count / maxCount) * 100)}%` }}
                       />
                     </div>
                   </div>
-                  <span className="text-sm font-semibold text-amber-400 flex-shrink-0 tabular-nums">
+                  <span className="text-sm font-semibold text-brand-400 flex-shrink-0 tabular-nums">
                     {row.count.toLocaleString()}
                   </span>
                 </div>

@@ -79,7 +79,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
             </div>
           )}
           <div className="flex items-center gap-2">
-            <span className="text-amber-400 font-medium">Current edition</span>
+            <span className="text-brand-400 font-medium">Current edition</span>
             {prev && (
               <button type="button" onClick={handleUnlink} disabled={linking} className={BTN_DANGER}>
                 Unlink from previous

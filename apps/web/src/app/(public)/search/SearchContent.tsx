@@ -100,7 +100,7 @@ export function SearchContent() {
           value={query}
           onChange={(e) => handleQueryChange(e.target.value)}
           placeholder="Search books, authors, artists, subscriptions, companies…"
-          className="w-full bg-stone-800 border border-stone-700 rounded-full px-5 py-3 pr-12 text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-600 transition-colors"
+          className="w-full bg-stone-800 border border-stone-700 rounded-full px-5 py-3 pr-12 text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-brand-600 transition-colors"
           autoFocus
         />
         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500">
@@ -110,7 +110,7 @@ export function SearchContent() {
             <button
               type="button"
               onClick={() => handleQueryChange('')}
-              className="text-stone-400 hover:text-amber-400 transition-colors"
+              className="text-stone-400 hover:text-brand-400 transition-colors"
             >
               <X size={18} />
             </button>
@@ -135,7 +135,7 @@ export function SearchContent() {
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                  activeTab === tab.id ? 'bg-amber-700 text-white' : 'text-stone-400 hover:text-stone-200'
+                  activeTab === tab.id ? 'bg-brand-700 text-white' : 'text-stone-400 hover:text-stone-200'
                 }`}
               >
                 {tab.label}
@@ -153,7 +153,7 @@ export function SearchContent() {
               <div className="flex items-center justify-center gap-3 flex-wrap">
                 <Link
                   href="/data-requests"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-700 hover:bg-amber-600 text-stone-950 font-semibold rounded-full text-sm transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-700 hover:bg-brand-600 text-stone-950 font-semibold rounded-full text-sm transition-colors"
                 >
                   Request missing data
                 </Link>
@@ -174,9 +174,9 @@ export function SearchContent() {
               <div className="space-y-2">
                 {results.books!.map((book) => (
                   <Link key={book.id} href={`/books/${book.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
-                    <div className="w-2 h-8 rounded-sm bg-amber-900/50 shrink-0" />
+                    <div className="w-2 h-8 rounded-sm bg-brand-900/50 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{book.title}</p>
+                      <p className="text-sm font-medium text-stone-100 group-hover:text-brand-400 transition-colors truncate">{book.title}</p>
                       {book.authors?.length > 0 && <p className="text-xs text-stone-400 truncate">{book.authors.map((a) => a.author.name).join(', ')}</p>}
                     </div>
                   </Link>
@@ -198,15 +198,15 @@ export function SearchContent() {
                     <Link key={ed.id} href={`/editions/${ed.slug}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-800 transition-colors group">
                       <div className="relative w-10 h-14 rounded overflow-hidden bg-stone-800 shrink-0">
                         {cover ? <Image src={cover} alt={displayTitle} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-800 flex items-center justify-center text-stone-600 text-[10px]">no img</div>}
-                        {isUpcoming && <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-amber-400 uppercase bg-black/60">soon</span>}
+                        {isUpcoming && <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-brand-400 uppercase bg-black/60">soon</span>}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{displayTitle}</p>
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-brand-400 transition-colors truncate">{displayTitle}</p>
                         <p className="text-xs text-stone-500 truncate">
                           {[ed.bookBoxCompany?.name, ed.publisher].filter(Boolean).join(' · ')}
                         </p>
                       </div>
-                      {isUpcoming && <span className="text-[9px] text-amber-500 border border-amber-700 rounded px-1.5 py-0.5 shrink-0">Upcoming</span>}
+                      {isUpcoming && <span className="text-[9px] text-brand-500 border border-brand-700 rounded px-1.5 py-0.5 shrink-0">Upcoming</span>}
                     </Link>
                   )
                 })}
@@ -227,7 +227,7 @@ export function SearchContent() {
                         {photo ? <Image src={photo} alt={author.name} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">{author.name.charAt(0)}</div>}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">{author.name}</p>
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-brand-400 transition-colors">{author.name}</p>
                         {author.nationality && <p className="text-xs text-stone-500">{author.nationality}</p>}
                       </div>
                     </Link>
@@ -250,7 +250,7 @@ export function SearchContent() {
                         {photo ? <Image src={photo} alt={artist.name} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">{artist.name.charAt(0)}</div>}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">{artist.name}</p>
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-brand-400 transition-colors">{artist.name}</p>
                         {artist.specialty && <p className="text-xs text-stone-500">{artist.specialty}</p>}
                       </div>
                     </Link>
@@ -273,7 +273,7 @@ export function SearchContent() {
                         {logo ? <Image src={logo} alt={sub.name} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">{sub.name.charAt(0)}</div>}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">{sub.name}</p>
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-brand-400 transition-colors">{sub.name}</p>
                         <p className="text-xs text-stone-500">{[sub.company?.name, sub.type, sub.isDiscontinued ? 'Discontinued' : null].filter(Boolean).join(' · ')}</p>
                       </div>
                     </Link>
@@ -295,7 +295,7 @@ export function SearchContent() {
                       <div className="relative w-10 h-10 rounded overflow-hidden bg-stone-800 shrink-0">
                         {logo ? <Image src={logo} alt={company.name} fill className="object-cover" unoptimized /> : <div className="w-full h-full bg-stone-700 flex items-center justify-center text-xs text-stone-500">{company.name.charAt(0)}</div>}
                       </div>
-                      <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors">{company.name}</p>
+                      <p className="text-sm font-medium text-stone-100 group-hover:text-brand-400 transition-colors">{company.name}</p>
                     </Link>
                   )
                 })}
@@ -317,18 +317,18 @@ export function SearchContent() {
                       <div className="relative w-10 h-10 rounded bg-stone-800 shrink-0 overflow-hidden flex items-center justify-center">
                         {saleImage
                           ? <Image src={saleImage} alt={sale.title} fill className="object-cover" unoptimized />
-                          : <Megaphone size={18} className="text-amber-700/60" />
+                          : <Megaphone size={18} className="text-brand-700/60" />
                         }
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{sale.title}</p>
+                        <p className="text-sm font-medium text-stone-100 group-hover:text-brand-400 transition-colors truncate">{sale.title}</p>
                         <p className="text-xs text-stone-500 truncate">
                           {[sale.company?.name, sale.isBundle ? 'Bundle' : null].filter(Boolean).join(' · ')}
                         </p>
                       </div>
                       {isPast
                         ? <span className="text-[9px] text-stone-500 border border-stone-700 rounded px-1.5 py-0.5 shrink-0">Past</span>
-                        : <span className="text-[9px] text-amber-500 border border-amber-700 rounded px-1.5 py-0.5 shrink-0">Upcoming</span>
+                        : <span className="text-[9px] text-brand-500 border border-brand-700 rounded px-1.5 py-0.5 shrink-0">Upcoming</span>
                       }
                     </Link>
                   )

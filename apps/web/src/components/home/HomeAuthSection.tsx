@@ -73,12 +73,12 @@ function HeroShell({
       />
       <div className="relative container mx-auto max-w-3xl">
         {isLoggedIn && username && (
-          <p className="mb-3 text-sm font-medium text-amber-300">
+          <p className="mb-3 text-sm font-medium text-brand-300">
             Welcome back, {username}!
           </p>
         )}
         <h1
-          className="mb-4 font-serif text-4xl font-bold tracking-wide text-amber-400 sm:text-6xl sm:tracking-widest lg:text-7xl"
+          className="mb-4 font-serif text-4xl font-bold tracking-wide text-brand-400 sm:text-6xl sm:tracking-widest lg:text-7xl"
           style={{ textShadow: '0 0 40px rgba(0,150,200,0.35)' }}
         >
           LuxGrimoire
@@ -129,7 +129,7 @@ function HeroShell({
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/companies"
-              className="rounded-full bg-amber-600 px-6 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-amber-500"
+              className="rounded-full bg-brand-600 px-6 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-brand-500"
             >
               Browse Book Boxes
             </Link>
@@ -177,7 +177,7 @@ export function HomeGuestFeatures() {
       <div className="mt-6 flex justify-center">
         <Link
           href="/register"
-          className="rounded-full bg-amber-600 px-8 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-amber-500"
+          className="rounded-full bg-brand-600 px-8 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-brand-500"
         >
           Get started free →
         </Link>

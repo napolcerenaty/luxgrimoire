@@ -66,7 +66,7 @@ export default function SubscriptionMonthGapsPage() {
           placeholder="Search by subscription or company name…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 w-64"
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-400 w-64"
         />
       </div>
 
@@ -90,7 +90,7 @@ export default function SubscriptionMonthGapsPage() {
             <Link
               key={`${g.subscriptionId}-${g.status}`}
               href={`/admin/subscriptions/${g.slug}/months?year=${year}&month=${month}`}
-              className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 transition-colors hover:border-amber-700/60"
+              className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 transition-colors hover:border-brand-700/60"
             >
               <div className="min-w-0">
                 <span className="font-medium text-stone-100">{g.name}</span>
@@ -106,7 +106,7 @@ export default function SubscriptionMonthGapsPage() {
                   g.status === 'missing_month'
                     ? 'bg-red-500/15 text-red-400'
                     : g.status === 'missing_book'
-                    ? 'bg-amber-500/15 text-amber-400'
+                    ? 'bg-brand-500/15 text-brand-400'
                     : 'bg-violet-500/15 text-violet-400'
                 }`}
               >

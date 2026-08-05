@@ -92,22 +92,22 @@ export default function AdminAuditLogsPage() {
           placeholder="Search user, action, entity…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          className="flex-1 min-w-[200px] bg-stone-900 border border-stone-800 rounded-xl px-4 py-2 text-sm text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-500 transition-colors"
+          className="flex-1 min-w-[200px] bg-stone-900 border border-stone-800 rounded-xl px-4 py-2 text-sm text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-brand-500 transition-colors"
         />
         <select value={entityType} onChange={(e) => { setEntityType(e.target.value); setPage(1) }}
-          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-amber-500">
+          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-brand-500">
           <option value="">All entities</option>
           {['edition', 'book', 'author', 'artist', 'company', 'subscription'].map(t => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
         <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1) }}
-          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-amber-500">
+          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-brand-500">
           <option value="createdAt">Sort: Time</option>
           <option value="action">Sort: Action</option>
         </select>
         <select value={order} onChange={(e) => { setOrder(e.target.value); setPage(1) }}
-          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-amber-500">
+          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-brand-500">
           <option value="desc">Newest first</option>
           <option value="asc">Oldest first</option>
         </select>

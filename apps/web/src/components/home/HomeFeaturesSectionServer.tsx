@@ -51,7 +51,7 @@ export async function HomeFeaturesSection() {
       <div className="mt-6 flex justify-center">
         <Link
           href="/register"
-          className="rounded-full bg-amber-600 px-8 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-amber-500"
+          className="rounded-full bg-brand-600 px-8 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-brand-500"
         >
           Get started free →
         </Link>

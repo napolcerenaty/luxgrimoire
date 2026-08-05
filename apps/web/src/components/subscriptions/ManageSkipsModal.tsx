@@ -195,7 +195,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                   {isBundleMode ? (
                     <>
                       <p className="text-xs text-stone-500 mb-1">
-                        Click a bundle to toggle skip. <span className="text-amber-400">Highlighted</span> = skipped.
+                        Click a bundle to toggle skip. <span className="text-brand-400">Highlighted</span> = skipped.
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {groupIntoBundles(data.months, data.intervalMonths, data.startingMonth).map(bundle => {
@@ -284,7 +284,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                 {hasChanges ? (
                   <span>
                     {toSkip.length > 0 && (
-                      <span className="text-amber-400">
+                      <span className="text-brand-400">
                         {isBundleMode
                           ? `${bundlesToSkip} bundle${bundlesToSkip !== 1 ? 's' : ''} to skip`
                           : `${toSkip.length} to skip`}
@@ -315,7 +315,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                   type="button"
                   disabled={!hasChanges}
                   onClick={() => (hasFutureOnlyChanges ? save(false, false) : setStep('confirm-books'))}
-                  className="bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-stone-950 font-semibold px-4 py-1.5 rounded text-sm transition-colors"
+                  className="bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-stone-950 font-semibold px-4 py-1.5 rounded text-sm transition-colors"
                 >
                   Save Changes
                 </button>
@@ -393,7 +393,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                 type="button"
                 disabled={saving}
                 onClick={() => save(pastToUnskip.length > 0, pastToSkip.length > 0)}
-                className="bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-stone-950 font-semibold px-3 py-2 rounded-lg text-sm transition-colors"
+                className="bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-stone-950 font-semibold px-3 py-2 rounded-lg text-sm transition-colors"
               >
                 {saving ? 'Saving…' : 'Save + Update collection'}
               </button>

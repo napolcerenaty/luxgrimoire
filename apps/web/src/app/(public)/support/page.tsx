@@ -11,10 +11,10 @@ export default function SupportPage() {
   return (
     <div className="container mx-auto max-w-2xl px-4 py-16">
       <div className="text-center mb-12">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-900/30 border border-amber-700/50 mb-6">
-          <Heart size={28} className="text-amber-400" />
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-900/30 border border-brand-700/50 mb-6">
+          <Heart size={28} className="text-brand-400" />
         </div>
-        <h1 className="text-4xl font-serif font-bold text-amber-400 mb-4 tracking-wide">
+        <h1 className="text-4xl font-serif font-bold text-brand-400 mb-4 tracking-wide">
           Support LuxGrimoire
         </h1>
         <p className="text-stone-400 text-base leading-relaxed">
@@ -55,7 +55,7 @@ export default function SupportPage() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-amber-800/40 bg-amber-950/20 p-6">
+        <div className="rounded-xl border border-brand-800/40 bg-brand-950/20 p-6">
           <h2 className="font-serif text-lg text-stone-100 font-semibold mb-3">☕ Support the project</h2>
           <p className="mb-5">
             If LuxGrimoire has helped you discover a new edition, avoid missing a preorder, organize your collection, or
@@ -70,7 +70,7 @@ export default function SupportPage() {
             href="https://buymeacoffee.com/luxgrimoire"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold font-serif text-sm transition-colors shadow-lg shadow-amber-900/30"
+            className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold font-serif text-sm transition-colors shadow-lg shadow-brand-900/30"
           >
             <Coffee size={18} />
             Buy me a coffee
@@ -79,11 +79,11 @@ export default function SupportPage() {
 
         <p className="text-stone-500 text-xs text-center pt-2">
           You can also support the project by{' '}
-          <Link href="/data-requests" className="text-amber-600 hover:text-amber-500 underline underline-offset-2">
+          <Link href="/data-requests" className="text-brand-600 hover:text-brand-500 underline underline-offset-2">
             contributing data
           </Link>
           ,{' '}
-          <Link href="/sale-announcement-requests" className="text-amber-600 hover:text-amber-500 underline underline-offset-2">
+          <Link href="/sale-announcement-requests" className="text-brand-600 hover:text-brand-500 underline underline-offset-2">
             reporting sale announcements
           </Link>
           , or simply spreading the word. Thank you! 💛

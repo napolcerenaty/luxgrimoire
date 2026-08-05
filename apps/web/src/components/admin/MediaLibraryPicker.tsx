@@ -17,7 +17,7 @@ interface Props {
 }
 
 const INPUT =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-100 focus:outline-none focus:border-amber-400'
+  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-100 focus:outline-none focus:border-brand-400'
 const BUTTON =
   'px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 disabled:hover:bg-stone-700 transition-colors'
 
@@ -167,7 +167,7 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
                     <div
                       className={`overflow-hidden rounded-xl border bg-stone-800 transition-all ${
                         isSelected
-                          ? 'border-amber-500 ring-2 ring-amber-500/40'
+                          ? 'border-brand-500 ring-2 ring-brand-500/40'
                           : 'border-stone-700 hover:border-stone-500'
                       }`}
                     >
@@ -179,8 +179,8 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
                           <div className="flex h-full items-center justify-center text-xs text-stone-600">No image</div>
                         )}
                         {isSelected && (
-                          <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
-                            <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center shadow-lg">
+                          <div className="absolute inset-0 bg-brand-500/20 flex items-center justify-center">
+                            <div className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center shadow-lg">
                               <Check size={16} className="text-stone-950" />
                             </div>
                           </div>
@@ -221,7 +221,7 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
                 type="button"
                 onClick={confirmSelection}
                 disabled={selected.size === 0}
-                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 text-stone-950 hover:bg-amber-500 disabled:opacity-40 disabled:hover:bg-amber-600 transition-colors"
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-stone-950 hover:bg-brand-500 disabled:opacity-40 disabled:hover:bg-brand-600 transition-colors"
               >
                 Add {selected.size > 0 ? `${selected.size} ` : ''}image{selected.size !== 1 ? 's' : ''}
               </button>

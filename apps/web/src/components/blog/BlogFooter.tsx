@@ -10,7 +10,7 @@ export default function BlogFooter() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
           {/* Brand */}
           <div className="flex flex-col items-center sm:items-start gap-1">
-            <span className="font-serif font-bold tracking-widest text-amber-400 text-base">LuxGrimoire</span>
+            <span className="font-serif font-bold tracking-widest text-brand-400 text-base">LuxGrimoire</span>
             <p className="text-[11px] font-serif uppercase tracking-[0.2em]" style={{ color: 'var(--accent-bright)', opacity: 0.7 }}>
               Limited books. Unlimited obsession.
             </p>
@@ -25,7 +25,7 @@ export default function BlogFooter() {
             <Link href="/contact" className="transition-colors hover:text-[var(--accent-bright)]">Contact</Link>
             <Link
               href="/"
-              className="ml-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold font-serif transition-colors hover:bg-amber-700 hover:text-stone-950"
+              className="ml-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold font-serif transition-colors hover:bg-brand-700 hover:text-stone-950"
               style={{ borderColor: 'var(--accent-border)', color: 'var(--accent-bright)' }}
             >
               Open App →
