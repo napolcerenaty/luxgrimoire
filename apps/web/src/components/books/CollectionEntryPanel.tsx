@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
   ExternalLink, Pencil, Check, X, ChevronDown, ChevronUp,
   Clock, Tag, Package, Wallet, Plus, Trash2, Hash,
@@ -966,10 +966,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
 
   // ── Tags section ──────────────────────────────────────────────────────────
 
-  const handleTagsSaved = useCallback((_entryId: string, tags: string[]) => {
+  function handleTagsSaved(_entryId: string, tags: string[]) {
     setEntry(prev => prev ? { ...prev, tags } : prev)
     void queryClient.invalidateQueries({ queryKey: ['collection-tags'] })
-  }, [queryClient])
+  }
 
   // ── History section ───────────────────────────────────────────────────────
 
