@@ -143,12 +143,12 @@ function StatCard({ label, value, sub, icon: Icon, accent, color }: {
   label: string; value: string; sub?: string; icon: React.ElementType; accent?: boolean; color?: string
 }) {
   return (
-    <div className={`rounded-2xl p-5 border flex flex-col gap-2 ${accent ? 'bg-amber-950/30 border-amber-700/40' : 'bg-stone-900 border-stone-800'}`}>
+    <div className={`rounded-2xl p-5 border flex flex-col gap-2 ${accent ? 'bg-brand-950/30 border-brand-700/40' : 'bg-stone-900 border-stone-800'}`}>
       <div className="flex items-center gap-2">
-        <Icon size={14} className={color ?? (accent ? 'text-amber-400' : 'text-stone-500')} />
+        <Icon size={14} className={color ?? (accent ? 'text-brand-400' : 'text-stone-500')} />
         <span className="text-xs uppercase tracking-wider text-stone-500">{label}</span>
       </div>
-      <p className={`text-base sm:text-xl font-serif font-bold leading-tight ${color ?? (accent ? 'text-amber-400' : 'text-stone-100')}`}>{value}</p>
+      <p className={`text-base sm:text-xl font-serif font-bold leading-tight ${color ?? (accent ? 'text-brand-400' : 'text-stone-100')}`}>{value}</p>
       {sub && <p className="text-xs text-stone-500">{sub}</p>}
     </div>
   )
@@ -250,7 +250,7 @@ function YearBarChart({ data, currency }: { data: Array<{ year: number; amount: 
               {fmt(d.amount, currency)}
             </div>
             <div
-              className="absolute left-0.5 right-0.5 rounded-t-sm bg-amber-600/70 transition-all"
+              className="absolute left-0.5 right-0.5 rounded-t-sm bg-brand-600/70 transition-all"
               style={{ bottom: LABEL_H, height: barH }}
             />
             <span
@@ -338,7 +338,7 @@ function CountBar({ label, count, total, color }: { label: string; count: number
   )
 }
 
-/** Dual bar chart — spending (amber) vs sales revenue (green) per month */
+/** Dual bar chart — spending (brand blue) vs sales revenue (green) per month */
 function DualMonthChart({
   spending, sales, currency,
 }: {
@@ -365,12 +365,12 @@ function DualMonthChart({
                 className="absolute z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity bg-stone-800 border border-stone-700 rounded px-2 py-1 text-[10px] whitespace-nowrap space-y-0.5"
                 style={{ bottom: LABEL_H + Math.max(spH, saleH) + 4, left: '50%', transform: 'translateX(-50%)' }}
               >
-                {d.amount > 0 && <div className="text-amber-400">📚 {fmt(d.amount, currency)}</div>}
+                {d.amount > 0 && <div className="text-brand-400">📚 {fmt(d.amount, currency)}</div>}
                 {saleAmt > 0 && <div className="text-green-400">💰 {fmt(saleAmt, currency)}</div>}
               </div>
             )}
             <div
-              className="absolute rounded-t-sm bg-amber-500/70 transition-all"
+              className="absolute rounded-t-sm bg-brand-500/70 transition-all"
               style={{ bottom: LABEL_H, left: 1, right: '50%', height: spH }}
             />
             <div
@@ -432,7 +432,7 @@ function YearSwitcher({ years, selected, onChange }: { years: number[]; selected
   )
 }
 
-/** Spending (amber) vs Sales revenue (green) bars per year */
+/** Spending (brand blue) vs Sales revenue (green) bars per year */
 function DualYearBarChart({ spending, sales, currency }: {
   spending: Array<{ year: number; amount: number }>
   sales: Array<{ year: number; amount: number }>
@@ -457,10 +457,10 @@ function DualYearBarChart({ spending, sales, currency }: {
               className="absolute z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity bg-stone-800 border border-stone-700 rounded px-2 py-1 text-[10px] whitespace-nowrap space-y-0.5"
               style={{ bottom: LABEL_H + Math.max(spH, salH) + 4, left: '50%', transform: 'translateX(-50%)' }}
             >
-              {spAmt > 0 && <div className="text-amber-400">Spent: {fmt(spAmt, currency)}</div>}
+              {spAmt > 0 && <div className="text-brand-400">Spent: {fmt(spAmt, currency)}</div>}
               {salAmt > 0 && <div className="text-green-400">Sales: {fmt(salAmt, currency)}</div>}
             </div>
-            <div className="absolute rounded-t-sm bg-amber-600/70 transition-all" style={{ bottom: LABEL_H, left: 1, right: '55%', height: spH }} />
+            <div className="absolute rounded-t-sm bg-brand-600/70 transition-all" style={{ bottom: LABEL_H, left: 1, right: '55%', height: spH }} />
             <div className="absolute rounded-t-sm bg-green-500/60 transition-all" style={{ bottom: LABEL_H, left: '55%', right: 1, height: salH }} />
             <span className="absolute left-0 right-0 text-center text-[9px] text-stone-500 bottom-0" style={{ height: LABEL_H, lineHeight: LABEL_H + 'px' }}>
               {year}
@@ -894,10 +894,10 @@ export default function SpendingPage() {
       </div>
 
       {anyStale && (
-        <div className="bg-amber-950/30 border border-amber-800/40 rounded-2xl px-5 py-3 flex items-center gap-3">
-          <RefreshCw size={14} className="text-amber-400 animate-spin shrink-0" />
+        <div className="bg-brand-950/30 border border-brand-800/40 rounded-2xl px-5 py-3 flex items-center gap-3">
+          <RefreshCw size={14} className="text-brand-400 animate-spin shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-amber-300 font-medium">Refreshing statistics…</p>
+            <p className="text-sm text-brand-300 font-medium">Refreshing statistics…</p>
             {activeModuleData?.computedAt && (
               <p className="text-xs text-stone-500 mt-0.5">
                 Showing data from {formatTimeAgo(activeModuleData.computedAt)}
@@ -1040,7 +1040,7 @@ export default function SpendingPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
                     <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
-                      <Layers size={14} className="text-amber-400" />
+                      <Layers size={14} className="text-brand-400" />
                       <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Books by Company</h2>
                       <span className="ml-auto text-[10px] text-stone-600">{collection.byCompanyAll.length} companies</span>
                     </div>
@@ -1066,7 +1066,7 @@ export default function SpendingPage() {
 
                   <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <ShoppingBag size={14} className="text-amber-400" />
+                      <ShoppingBag size={14} className="text-brand-400" />
                       <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Acquisition Sources</h2>
                     </div>
                     {(() => {
@@ -1092,7 +1092,7 @@ export default function SpendingPage() {
                                 <span className="text-stone-300 font-medium ml-2 shrink-0">{s.books}</span>
                               </div>
                               <div className="h-1 bg-stone-800 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full bg-amber-500/50" style={{ width: `${barPct}%` }} />
+                                <div className="h-full rounded-full bg-brand-500/50" style={{ width: `${barPct}%` }} />
                               </div>
                             </div>
                           )
@@ -1178,12 +1178,12 @@ export default function SpendingPage() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5">
                   <div className="flex items-center gap-2">
-                    <BarChart2 size={14} className="text-amber-400" />
+                    <BarChart2 size={14} className="text-brand-400" />
                     {effectiveSettings.sales && spending.salesByMonth.some(m => m.amount > 0) ? (
                       <>
                         <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Spending vs Sales — {selectedYear}</h2>
                         <div className="ml-auto flex items-center gap-3 text-[10px] text-stone-500">
-                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-500/70 inline-block" /> Spending</span>
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-brand-500/70 inline-block" /> Spending</span>
                           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-500/70 inline-block" /> Sales</span>
                         </div>
                       </>
@@ -1224,7 +1224,7 @@ export default function SpendingPage() {
                 {/* By Year — spending + sales + books */}
                 <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5">
                   <div className="flex items-center gap-2">
-                    <Calendar size={14} className="text-amber-400" />
+                    <Calendar size={14} className="text-brand-400" />
                     <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">By Year</h2>
                   </div>
                   {spending.byYear.length === 0 ? (
@@ -1232,7 +1232,7 @@ export default function SpendingPage() {
                   ) : effectiveSettings.sales && spending.salesByYear && spending.salesByYear.length > 0 ? (
                     <>
                       <div className="flex items-center gap-3 text-[10px] text-stone-500">
-                        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-600/70" /> Spending</span>
+                        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-brand-600/70" /> Spending</span>
                         <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-500/60" /> Sales</span>
                       </div>
                       <DualYearBarChart spending={spending.byYear} sales={spending.salesByYear} currency={currency} />
@@ -1256,7 +1256,7 @@ export default function SpendingPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Receipt size={14} className="text-amber-400" />
+                    <Receipt size={14} className="text-brand-400" />
                     <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Cost Breakdown</h2>
                   </div>
                   <CategoryBar label="Books (base price)" amount={spending.totalBasePrice} total={totalGross} currency={currency} color="#d97706" />
@@ -1274,7 +1274,7 @@ export default function SpendingPage() {
                       </div>
                       <div className="flex justify-between text-xs font-semibold">
                         <span className="text-stone-300">Net total</span>
-                        <span className="text-amber-400">{fmt(spending.totalAllTime, currency)}</span>
+                        <span className="text-brand-400">{fmt(spending.totalAllTime, currency)}</span>
                       </div>
                     </div>
                   )}
@@ -1282,7 +1282,7 @@ export default function SpendingPage() {
 
                 <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
                   <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
-                    <Tag size={14} className="text-amber-400" />
+                    <Tag size={14} className="text-brand-400" />
                     <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Spending by Subscription</h2>
                   </div>
                   {spending.bySubscription.length === 0 ? (
@@ -1298,12 +1298,12 @@ export default function SpendingPage() {
                             <div className="flex items-center gap-3 mb-1.5">
                               <span className="text-xs text-stone-600 w-4 text-right font-mono shrink-0">{i + 1}</span>
                               <span className="flex-1 text-sm font-medium text-stone-200 truncate">{s.name}</span>
-                              <span className="text-sm font-semibold text-amber-400 shrink-0">{fmt(s.amount, currency)}</span>
+                              <span className="text-sm font-semibold text-brand-400 shrink-0">{fmt(s.amount, currency)}</span>
                               <span className="text-xs text-stone-600 shrink-0">· {s.books}b</span>
                               <span className="text-[10px] text-stone-500 w-8 text-right shrink-0">{pct.toFixed(0)}%</span>
                             </div>
                             <div className="ml-7 h-1 bg-stone-800 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full bg-amber-500/60 transition-all duration-700" style={{ width: `${barPct}%` }} />
+                              <div className="h-full rounded-full bg-brand-500/60 transition-all duration-700" style={{ width: `${barPct}%` }} />
                             </div>
                           </div>
                         )
@@ -1317,7 +1317,7 @@ export default function SpendingPage() {
               {spending.byCompany.length > 0 && (
                 <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
                   <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
-                    <Tag size={14} className="text-amber-400" />
+                    <Tag size={14} className="text-brand-400" />
                     <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Spending by Company</h2>
                     <span className="ml-auto text-[10px] text-stone-600 font-medium">{spending.byCompany.length} companies</span>
                   </div>
@@ -1331,7 +1331,7 @@ export default function SpendingPage() {
                           <div className="flex items-center gap-4 mb-2">
                             <span className="text-xs text-stone-600 w-5 text-right font-mono shrink-0">{i + 1}</span>
                             <span className="flex-1 text-sm font-medium text-stone-200 truncate">{c.name}</span>
-                            <span className="text-sm font-semibold text-amber-400 shrink-0">{fmt(c.amount, currency)}</span>
+                            <span className="text-sm font-semibold text-brand-400 shrink-0">{fmt(c.amount, currency)}</span>
                             <span className="text-xs text-stone-600 shrink-0">· {c.books} book{c.books !== 1 ? 's' : ''}</span>
                             <span className="text-[11px] text-stone-500 w-10 text-right shrink-0">{pct.toFixed(1)}%</span>
                           </div>
@@ -1349,7 +1349,7 @@ export default function SpendingPage() {
               {spending.topExpensive.length > 0 && (
                 <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
                   <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
-                    <Award size={14} className="text-amber-400" />
+                    <Award size={14} className="text-brand-400" />
                     <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Top 10 Most Expensive</h2>
                   </div>
                   <div className="divide-y divide-stone-800/50">
@@ -1361,7 +1361,7 @@ export default function SpendingPage() {
                           <p className="text-xs text-stone-500 truncate">{book.author}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-sm font-semibold text-amber-400">{fmt(book.amount, currency)}</p>
+                          <p className="text-sm font-semibold text-brand-400">{fmt(book.amount, currency)}</p>
                           <p className="text-xs text-stone-600">{book.date}</p>
                         </div>
                       </div>
@@ -1606,7 +1606,7 @@ export default function SpendingPage() {
                   </div>
                   <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
                     <div className="flex items-center gap-2">
-                      <Award size={14} className="text-amber-400" />
+                      <Award size={14} className="text-brand-400" />
                       <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Hold Time vs ROI</h2>
                       <span className="ml-auto text-[10px] text-stone-600">days held → profit %</span>
                     </div>
@@ -1619,7 +1619,7 @@ export default function SpendingPage() {
               {sales.plByCompany && sales.plByCompany.length > 0 && (
                 <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
                   <div className="flex items-center gap-2">
-                    <Tag size={14} className="text-amber-400" />
+                    <Tag size={14} className="text-brand-400" />
                     <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">P&amp;L by Publisher</h2>
                   </div>
                   <PLByCompanyChart data={sales.plByCompany} currency={currency} />
@@ -1692,7 +1692,7 @@ export default function SpendingPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Object.entries(features.byGroup).map(([group, items]) => (
                   <div key={group} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-3">
-                    <h3 className="text-xs uppercase tracking-wider text-amber-500 font-semibold capitalize">{group}</h3>
+                    <h3 className="text-xs uppercase tracking-wider text-brand-500 font-semibold capitalize">{group}</h3>
                     {items.map(item => (
                       <div key={item.slug} className="space-y-1">
                         <div className="flex justify-between text-xs">
@@ -1700,7 +1700,7 @@ export default function SpendingPage() {
                           <span className="text-stone-500 ml-2 shrink-0">{item.count} ({item.percent}%)</span>
                         </div>
                         <div className="h-1 bg-stone-800 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-amber-500/40" style={{ width: `${item.percent}%` }} />
+                          <div className="h-full rounded-full bg-brand-500/40" style={{ width: `${item.percent}%` }} />
                         </div>
                       </div>
                     ))}
@@ -1734,7 +1734,7 @@ export default function SpendingPage() {
                 {total > 0 && (
                   <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <BookOpen size={14} className="text-amber-400" />
+                      <BookOpen size={14} className="text-brand-400" />
                       <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Reading Progress</h2>
                     </div>
                     <div className="h-3 bg-stone-800 rounded-full overflow-hidden flex">
@@ -1756,7 +1756,7 @@ export default function SpendingPage() {
                   {rc.readingBySubscription?.length > 0 && (
                     <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
                       <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
-                        <Tag size={14} className="text-amber-400" />
+                        <Tag size={14} className="text-brand-400" />
                         <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Reading by Subscription</h2>
                       </div>
                       <div className="divide-y divide-stone-800/50">
@@ -1790,7 +1790,7 @@ export default function SpendingPage() {
                   {rc.readingByCompany?.length > 0 && (
                     <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
                       <div className="flex items-center gap-2 px-6 py-4 border-b border-stone-800">
-                        <Layers size={14} className="text-amber-400" />
+                        <Layers size={14} className="text-brand-400" />
                         <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider">Reading by Company</h2>
                       </div>
                       <div className="divide-y divide-stone-800/50">
