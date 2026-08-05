@@ -754,9 +754,9 @@ function SubscriptionForm({
 
           {/* Settings effective from — shown only when tracked renewal settings are changed */}
           {trackedSettingsDirty && (
-            <div className="border border-amber-600 bg-amber-950/30 rounded-lg p-3 space-y-1">
-              <label className={`${LABEL_CLASS} text-amber-400`}>
-                Settings effective from * <span className="font-normal text-amber-300">(required — renewal settings changed)</span>
+            <div className="border border-brand-600 bg-brand-950/30 rounded-lg p-3 space-y-1">
+              <label className={`${LABEL_CLASS} text-brand-400`}>
+                Settings effective from * <span className="font-normal text-brand-300">(required — renewal settings changed)</span>
               </label>
               <input
                 type="date"
@@ -1157,7 +1157,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                 const sentinel = isInitialSentinel(r.effectiveFrom)
                 const isEditing = editingId === r.id
                 return (
-                  <div key={r.id} className={`border rounded p-2 ${sentinel ? 'border-amber-700/50 bg-amber-950/20' : 'border-stone-800'}`}>
+                  <div key={r.id} className={`border rounded p-2 ${sentinel ? 'border-brand-700/50 bg-brand-950/20' : 'border-stone-800'}`}>
                     {/* Header row */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-stone-300">

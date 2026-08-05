@@ -416,9 +416,9 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
 
       {/* Skipped banner */}
       {skipped && (
-        <div className="border-t border-stone-800 px-4 py-3 bg-amber-900/10">
-          <p className="text-amber-400 text-sm font-medium">⏭ Skipped — this month doesn&apos;t happen for this subscription&apos;s subscribers</p>
-          {skipped.reason && <p className="text-amber-500/80 text-xs mt-0.5">{skipped.reason}</p>}
+        <div className="border-t border-stone-800 px-4 py-3 bg-brand-900/10">
+          <p className="text-brand-400 text-sm font-medium">⏭ Skipped — this month doesn&apos;t happen for this subscription&apos;s subscribers</p>
+          {skipped.reason && <p className="text-brand-500/80 text-xs mt-0.5">{skipped.reason}</p>}
         </div>
       )}
 
@@ -429,12 +429,12 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             This month already has content — skipping will <strong>permanently delete</strong> its theme, cover image{month.books.length > 0 ? `, and ${month.books.length} linked book${month.books.length !== 1 ? 's' : ''}` : ''}. This cannot be undone.
           </p>
           {isContentStream && (
-            <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
+            <p className="text-brand-400 text-xs bg-brand-900/20 border border-brand-700/40 rounded-lg px-3 py-2">
               This subscription is a content stream — skipping applies to every variant that shares it.
             </p>
           )}
           {isBundleSubscription && (
-            <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
+            <p className="text-brand-400 text-xs bg-brand-900/20 border border-brand-700/40 rounded-lg px-3 py-2">
               This is a bundle — skipping one month still ships whatever content remains in the bundle, it doesn&apos;t stop the bundle itself. Company-wide skip of a single bundle month isn&apos;t specially modeled; verify the result manually.
             </p>
           )}
@@ -1394,12 +1394,12 @@ function MarkMonthSkippedForm({ slug, isBundleSubscription, isContentStream, onC
       {open && (
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 mt-3 space-y-3">
           {isContentStream && (
-            <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
+            <p className="text-brand-400 text-xs bg-brand-900/20 border border-brand-700/40 rounded-lg px-3 py-2">
               This subscription is a content stream — skipping applies to every variant that shares it.
             </p>
           )}
           {isBundleSubscription && (
-            <p className="text-amber-400 text-xs bg-amber-900/20 border border-amber-700/40 rounded-lg px-3 py-2">
+            <p className="text-brand-400 text-xs bg-brand-900/20 border border-brand-700/40 rounded-lg px-3 py-2">
               This is a bundle — skipping one month still ships whatever content remains in the bundle, it doesn&apos;t stop the bundle itself. Company-wide skip of a single bundle month isn&apos;t specially modeled; verify the result manually.
             </p>
           )}
@@ -1640,12 +1640,12 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
 
       <div className="space-y-4">
         {subscription?.parentSubscriptionId && (
-          <div className="bg-amber-900/20 border border-amber-700/40 rounded-lg p-4 mb-6 flex items-center gap-3">
-            <span className="text-amber-400 text-sm">
+          <div className="bg-brand-900/20 border border-brand-700/40 rounded-lg p-4 mb-6 flex items-center gap-3">
+            <span className="text-brand-400 text-sm">
               This is a variant subscription. Months are managed on the parent subscription.
             </span>
             {subscription.parent?.slug && (
-              <Link href={`/admin/subscriptions/${subscription.parent.slug}/months`} className="text-amber-400 underline text-sm ml-2">
+              <Link href={`/admin/subscriptions/${subscription.parent.slug}/months`} className="text-brand-400 underline text-sm ml-2">
                 Go to parent months →
               </Link>
             )}

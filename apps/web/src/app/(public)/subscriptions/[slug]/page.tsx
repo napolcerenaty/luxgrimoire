@@ -292,7 +292,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           </div>
 
           {sub.isUpcoming && sub.upcomingNote && (
-            <p className="mt-3 text-sm text-amber-400">🔔 {sub.upcomingNote}</p>
+            <p className="mt-3 text-sm text-brand-400">🔔 {sub.upcomingNote}</p>
           )}
         </div>
 
@@ -526,8 +526,8 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
 
   if (skipped) {
     return (
-      <div className="rounded-2xl overflow-hidden bg-stone-900 border border-amber-800/40">
-        <div className={`relative flex flex-col items-center justify-center gap-2 bg-amber-950/20 ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
+      <div className="rounded-2xl overflow-hidden bg-stone-900 border border-brand-800/40">
+        <div className={`relative flex flex-col items-center justify-center gap-2 bg-brand-950/20 ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
           <div className="absolute top-3 left-3">
             <span
               className={`text-xs font-semibold font-serif uppercase tracking-wider px-3 py-1 rounded-full ${
@@ -537,14 +537,14 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
               {label}
             </span>
           </div>
-          <span className="text-amber-400 font-serif text-2xl">⏭</span>
-          <span className="text-amber-400 font-serif text-sm uppercase tracking-widest">Skipped</span>
+          <span className="text-brand-400 font-serif text-2xl">⏭</span>
+          <span className="text-brand-400 font-serif text-sm uppercase tracking-widest">Skipped</span>
         </div>
         <div className={compact ? 'p-3' : 'p-5'}>
           <p className={`text-stone-100 font-serif font-bold mb-1 ${compact ? 'text-sm' : 'text-lg'}`}>
             {monthName} {monthData.year}
           </p>
-          <p className={`text-amber-500/90 italic ${compact ? 'text-xs' : 'text-sm'}`}>
+          <p className={`text-brand-500/90 italic ${compact ? 'text-xs' : 'text-sm'}`}>
             {skipped.reason || 'This month is skipped — no box this cycle.'}
           </p>
         </div>

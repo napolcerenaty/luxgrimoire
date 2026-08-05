@@ -98,7 +98,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
 
       {/* Re-routing notice */}
       {rerouted && (
-        <div className="p-2 bg-amber-900/30 border border-amber-700/40 rounded-lg text-xs text-amber-300">
+        <div className="p-2 bg-brand-900/30 border border-brand-700/40 rounded-lg text-xs text-brand-300">
           ↻ Chain re-linked: {rerouted.chain.map(e => e.slug).join(' → ')}
         </div>
       )}

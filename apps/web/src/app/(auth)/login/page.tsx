@@ -131,11 +131,11 @@ function LoginForm() {
         )}
 
         {unverified && (
-          <div className="text-sm text-amber-300 bg-amber-950/30 border border-amber-800 rounded-lg px-4 py-3 space-y-1">
+          <div className="text-sm text-brand-300 bg-brand-950/30 border border-brand-800 rounded-lg px-4 py-3 space-y-1">
             <p>Please verify your email address before signing in.</p>
             <Link
               href={`/resend-verification?email=${encodeURIComponent(email)}`}
-              className="inline-block font-semibold underline hover:text-amber-200 transition-colors"
+              className="inline-block font-semibold underline hover:text-brand-200 transition-colors"
             >
               Resend verification email
             </Link>

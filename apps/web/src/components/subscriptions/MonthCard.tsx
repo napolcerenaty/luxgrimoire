@@ -57,10 +57,10 @@ export default function MonthCard({
 
   if (skipped) {
     return (
-      <div className="relative rounded-xl overflow-hidden bg-stone-900 border border-amber-800/40 select-none flex flex-col h-full">
-        <div className="aspect-[2/3] overflow-hidden bg-amber-950/20 relative flex flex-col items-center justify-center gap-1.5 px-3">
-          <span className="text-amber-400 font-serif text-xl">⏭</span>
-          <span className="text-amber-400 font-serif text-xs tracking-widest uppercase text-center">Skipped</span>
+      <div className="relative rounded-xl overflow-hidden bg-stone-900 border border-brand-800/40 select-none flex flex-col h-full">
+        <div className="aspect-[2/3] overflow-hidden bg-brand-950/20 relative flex flex-col items-center justify-center gap-1.5 px-3">
+          <span className="text-brand-400 font-serif text-xl">⏭</span>
+          <span className="text-brand-400 font-serif text-xs tracking-widest uppercase text-center">Skipped</span>
           <div className="card-ribbon absolute bottom-0 left-0 right-0 px-2 py-2">
             <p
               className="card-ribbon-text text-center font-serif uppercase tracking-widest leading-none font-semibold text-white"

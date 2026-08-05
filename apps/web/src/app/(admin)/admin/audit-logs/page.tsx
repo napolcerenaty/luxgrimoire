@@ -10,22 +10,22 @@ const PAGE_SIZE = 15
 
 const ACTION_COLORS: Record<string, string> = {
   CREATE_EDITION: 'bg-emerald-900/60 text-emerald-300 border-emerald-700',
-  UPDATE_EDITION: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_EDITION: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_EDITION: 'bg-red-900/60 text-red-300 border-red-700',
   CREATE_BOOK: 'bg-emerald-900/60 text-emerald-300 border-emerald-700',
-  UPDATE_BOOK: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_BOOK: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_BOOK: 'bg-red-900/60 text-red-300 border-red-700',
   CREATE_COMPANY: 'bg-sky-900/60 text-sky-300 border-sky-700',
-  UPDATE_COMPANY: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_COMPANY: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_COMPANY: 'bg-red-900/60 text-red-300 border-red-700',
   CREATE_AUTHOR: 'bg-violet-900/60 text-violet-300 border-violet-700',
-  UPDATE_AUTHOR: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_AUTHOR: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_AUTHOR: 'bg-red-900/60 text-red-300 border-red-700',
   CREATE_ARTIST: 'bg-pink-900/60 text-pink-300 border-pink-700',
-  UPDATE_ARTIST: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_ARTIST: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_ARTIST: 'bg-red-900/60 text-red-300 border-red-700',
   CREATE_SUBSCRIPTION: 'bg-teal-900/60 text-teal-300 border-teal-700',
-  UPDATE_SUBSCRIPTION: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_SUBSCRIPTION: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_SUBSCRIPTION: 'bg-red-900/60 text-red-300 border-red-700',
 }
 

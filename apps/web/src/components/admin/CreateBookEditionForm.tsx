@@ -635,7 +635,7 @@ export default function CreateBookEditionForm({
           className={INP}
         />
         {sourceEditionId && (
-          <p className="text-xs text-amber-500/80 mt-1">This will be linked as a variant of the edition you duplicated from.</p>
+          <p className="text-xs text-brand-500/80 mt-1">This will be linked as a variant of the edition you duplicated from.</p>
         )}
       </div>
 

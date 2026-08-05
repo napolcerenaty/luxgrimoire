@@ -738,7 +738,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                       {' '}from{' '}
                       <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
                       {isGrandfatheredFutureChange(pc) && (
-                        <span className="text-amber-500/80"> (grandfathered — won&apos;t affect you)</span>
+                        <span className="text-brand-500/80"> (grandfathered — won&apos;t affect you)</span>
                       )}
                     </span>
                   ))}
@@ -861,7 +861,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       <div className="border-t border-stone-700/50 pt-4 space-y-3">
         {isDiscontinued ? (
           <p className="text-sm text-stone-400">
-            <span className="text-amber-500 font-medium">Discontinued subscription</span> — this entry will be saved as cancelled.
+            <span className="text-brand-500 font-medium">Discontinued subscription</span> — this entry will be saved as cancelled.
           </p>
         ) : (
           <label className="flex items-center gap-3 cursor-pointer">
@@ -1336,7 +1336,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
       </div>
 
       {hasUnresolvedChoices && (
-        <p className="text-xs text-amber-400">Pick which book you received for the highlighted month(s) above before continuing.</p>
+        <p className="text-xs text-brand-400">Pick which book you received for the highlighted month(s) above before continuing.</p>
       )}
       {error && <p className="text-sm text-red-400">{error}</p>}
 
@@ -1437,10 +1437,10 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
             const picked = choicePicks[groupId] ?? []
             const unresolved = picked.length === 0
             return (
-              <div key={groupId} className={`rounded-lg border p-2 space-y-1 ${unresolved ? 'border-amber-500/60 bg-amber-500/5' : 'border-stone-700 bg-stone-800/40'}`}>
-                <p className="text-[10px] uppercase tracking-wider text-amber-400">
+              <div key={groupId} className={`rounded-lg border p-2 space-y-1 ${unresolved ? 'border-brand-500/60 bg-brand-500/5' : 'border-stone-700 bg-stone-800/40'}`}>
+                <p className="text-[10px] uppercase tracking-wider text-brand-400">
                   {meta?.label || 'Which did you receive?'}
-                  {unresolved && <span className="text-amber-300 normal-case"> — required</span>}
+                  {unresolved && <span className="text-brand-300 normal-case"> — required</span>}
                 </p>
                 {books.map(b => (
                   <label key={b.id} className="flex items-center gap-2 text-xs text-stone-200 cursor-pointer">

@@ -211,7 +211,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                               onClick={() => toggleBundle(bundle.items)}
                               className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-all min-w-[120px] ${
                                 isBundleSkipped
-                                  ? 'border-amber-600 bg-amber-950/50 text-amber-300'
+                                  ? 'border-brand-600 bg-brand-950/50 text-brand-300'
                                   : 'border-stone-700 bg-stone-800/60 text-stone-300 hover:border-stone-500'
                               }`}
                             >
@@ -236,7 +236,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                   ) : (
                     <>
                       <p className="text-xs text-stone-500 mb-1">
-                        Click a month to toggle skip. <span className="text-amber-400">Highlighted</span> = skipped.
+                        Click a month to toggle skip. <span className="text-brand-400">Highlighted</span> = skipped.
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {data.months.map(m => {
@@ -249,7 +249,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                               onClick={() => toggle(m.year, m.month)}
                               className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-all min-w-[90px] ${
                                 isSkipped
-                                  ? 'border-amber-600 bg-amber-950/50 text-amber-300'
+                                  ? 'border-brand-600 bg-brand-950/50 text-brand-300'
                                   : 'border-stone-700 bg-stone-800/60 text-stone-300 hover:border-stone-500'
                               }`}
                             >
@@ -361,8 +361,8 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
             )}
 
             {pastToSkip.length > 0 && (
-              <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 px-4 py-3">
-                <p className="text-amber-300 text-xs font-semibold uppercase tracking-wide">
+              <div className="rounded-lg border border-brand-800/60 bg-brand-950/30 px-4 py-3">
+                <p className="text-brand-300 text-xs font-semibold uppercase tracking-wide">
                   {isBundleMode
                     ? `${bundlesToSkipPast} bundle${bundlesToSkipPast !== 1 ? 's' : ''} skipped`
                     : `${pastToSkip.length} month${pastToSkip.length !== 1 ? 's' : ''} skipped`}

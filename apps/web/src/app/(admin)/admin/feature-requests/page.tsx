@@ -13,7 +13,7 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import { useAuth } from '@/components/AuthProvider'
 
 const STATUS_BADGE: Record<string, string> = {
-  pending: 'bg-amber-900/40 text-amber-400',
+  pending: 'bg-brand-900/40 text-brand-400',
   accepted: 'bg-green-900/40 text-green-400',
   rejected: 'bg-red-900/40 text-red-400',
   implemented: 'bg-purple-900/40 text-purple-400',
@@ -96,7 +96,7 @@ function RequestCard({ req, onDelete }: { req: ApiFeatureRequest; onDelete: () =
           </div>
           <p className="text-stone-400 text-sm leading-relaxed whitespace-pre-line">{req.description}</p>
           {req.adminNote && (
-            <div className="mt-2 text-xs text-amber-400/80 bg-amber-900/10 border border-amber-900/20 rounded-lg px-3 py-2">
+            <div className="mt-2 text-xs text-brand-400/80 bg-brand-900/10 border border-brand-900/20 rounded-lg px-3 py-2">
               <span className="font-semibold">Note:</span> {req.adminNote}
             </div>
           )}

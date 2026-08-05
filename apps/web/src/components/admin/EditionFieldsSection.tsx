@@ -496,7 +496,7 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
               <span key={cat.slug}
                 className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${
                   isManual
-                    ? 'bg-amber-900/40 border-amber-700 text-amber-200'
+                    ? 'bg-brand-900/40 border-brand-700 text-brand-200'
                     : 'bg-stone-700 border-stone-600 text-stone-200'
                 }`}>
                 {cat.label}
@@ -548,7 +548,7 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
       </div>
       <p className="text-[10px] text-stone-500 mb-2">
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-stone-700 border border-stone-600 mr-1" />auto-detected
-        <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-900/40 border border-amber-700 mr-1 ml-3" />manually set
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-brand-900/40 border border-brand-700 mr-1 ml-3" />manually set
       </p>
 
       {tags.length > 0 ? (
@@ -573,7 +573,7 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                 {newCategories.map(slug => {
                   const cat = allCategories.find(c => c.slug === slug)
                   return (
-                    <span key={slug} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900/40 border border-amber-700 text-amber-200">
+                    <span key={slug} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-brand-900/40 border border-brand-700 text-brand-200">
                       {cat?.label ?? slug}
                       <button type="button" onClick={() => setNewCategories(prev => prev.filter(s => s !== slug))}
                         className="text-brand-500 hover:text-red-400 leading-none">×</button>
