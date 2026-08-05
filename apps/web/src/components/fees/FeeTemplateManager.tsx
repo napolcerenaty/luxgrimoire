@@ -295,7 +295,7 @@ export default function FeeTemplateManager() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-stone-100 truncate">{t.name}</span>
                       <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[t.category]}`}>
-                        {t.category}
+                        {CATEGORIES.find((c) => c.value === t.category)?.label ?? t.category}
                       </span>
                       {!t.isActive && (
                         <span className="text-xs px-1.5 py-0.5 rounded-full bg-stone-700 text-stone-400">

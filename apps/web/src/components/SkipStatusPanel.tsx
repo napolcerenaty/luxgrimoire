@@ -143,7 +143,7 @@ export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '
       )}
 
       {status.warnings.map((w, i) => (
-        <div key={i} className="text-xs text-amber-400 bg-amber-950/30 rounded px-2 py-1">
+        <div key={i} className="text-xs text-brand-400 bg-brand-950/30 rounded px-2 py-1">
           ⚠ {w}
         </div>
       ))}

@@ -82,7 +82,7 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
           )}
 
           {!status.canSkip && status.isPastDeadline && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">Skip deadline has already passed for the next eligible box.</p>
+            <p className="text-xs text-brand-600 dark:text-brand-400">Skip deadline has already passed for the next eligible box.</p>
           )}
 
           {status.warnings.length > 0 && (() => {
@@ -101,7 +101,7 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
                       <p className="text-xs font-semibold text-red-700 dark:text-red-300">{warning}</p>
                     </div>
                   ) : (
-                    <p key={warning} className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700 dark:border-transparent dark:bg-amber-500/10 dark:text-amber-300">
+                    <p key={warning} className="rounded-lg border border-brand-200 bg-brand-50 px-2 py-1 text-xs text-brand-700 dark:border-transparent dark:bg-brand-500/10 dark:text-brand-300">
                       {warning}
                     </p>
                   )
@@ -123,7 +123,7 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
                   type="button"
                   onClick={() => skipMutation.mutate(status.targetMonth!)}
                   disabled={skipMutation.isPending}
-                  className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-500/30 disabled:opacity-50 dark:text-amber-300"
+                  className="rounded-lg bg-brand-500/20 px-3 py-1.5 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-500/30 disabled:opacity-50 dark:text-brand-300"
                 >
                   {skipMutation.isPending ? 'Skipping…' : isBundleMode ? 'Skip bundle' : 'Skip'}
                 </button>
@@ -145,7 +145,7 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
                     })()
                   : `${status.skippedMonths.length} skipped month${status.skippedMonths.length !== 1 ? 's' : ''}`}
               </p>
-              <Link href={`/my-subscriptions/skipped-months?sub=${subscriptionSlug}`} className="text-xs text-amber-600 transition-colors hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300">View all →</Link>
+              <Link href={`/my-subscriptions/skipped-months?sub=${subscriptionSlug}`} className="text-xs text-brand-600 transition-colors hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300">View all →</Link>
             </div>
           )}
 

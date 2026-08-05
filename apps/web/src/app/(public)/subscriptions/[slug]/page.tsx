@@ -531,7 +531,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
           <div className="absolute top-3 left-3">
             <span
               className={`text-xs font-semibold font-serif uppercase tracking-wider px-3 py-1 rounded-full ${
-                labelVariant === 'current' ? 'bg-amber-500 text-stone-950' : 'bg-stone-700 text-amber-400 border border-amber-700/50'
+                labelVariant === 'current' ? 'bg-brand-500 text-stone-950' : 'bg-stone-700 text-brand-400 border border-brand-700/50'
               }`}
             >
               {label}
@@ -644,8 +644,8 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
         <span
           className={`text-xs font-semibold font-serif uppercase tracking-wider px-3 py-1 rounded-full ${
             labelVariant === 'current'
-              ? 'bg-amber-500 text-stone-950'
-              : 'bg-stone-700 text-amber-400 border border-amber-700/50'
+              ? 'bg-brand-500 text-stone-950'
+              : 'bg-stone-700 text-brand-400 border border-brand-700/50'
           }`}
         >
           {label}
