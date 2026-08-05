@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
+import { mapAssetFields } from '../../common/media-asset.helper';
 
 @Injectable()
 export class SaleInterestsService {
@@ -60,6 +61,7 @@ export class SaleInterestsService {
             id: true,
             title: true,
             imageUrl: true,
+            imageAsset: { select: { publicId: true } },
             basePrice: true,
             subscriberBasePrice: true,
             currency: true,
@@ -75,6 +77,7 @@ export class SaleInterestsService {
                 name: true,
                 slug: true,
                 logoUrl: true,
+                logoAsset: { select: { publicId: true } },
                 brandColors: true,
               },
             },
@@ -85,7 +88,15 @@ export class SaleInterestsService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return rows;
+    return rows.map((r) => ({
+      ...r,
+      announcement: r.announcement
+        ? {
+            ...mapAssetFields(r.announcement, { imageUrl: 'imageAsset' }),
+            company: mapAssetFields(r.announcement.company, { logoUrl: 'logoAsset' }),
+          }
+        : r.announcement,
+    }));
   }
 
   async findOne(userId: string, announcementId: string) {
@@ -126,6 +137,7 @@ export class SaleInterestsService {
             generalSaleDate: true,
             endsAt: true,
             imageUrl: true,
+            imageAsset: { select: { publicId: true } },
             company: { select: { name: true, slug: true } },
           },
         },
@@ -135,6 +147,9 @@ export class SaleInterestsService {
       take: limit,
     });
 
-    return rows;
+    return rows.map((r) => ({
+      ...r,
+      announcement: r.announcement ? mapAssetFields(r.announcement, { imageUrl: 'imageAsset' }) : r.announcement,
+    }));
   }
 }

@@ -15,6 +15,7 @@ import {
 } from './books.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+import { mapAssetFields } from '../../common/media-asset.helper';
 
 const GENRES_TTL = 24 * 60 * 60 * 1000;  // 24 hours — genres change rarely
 const SERIES_TTL = 24 * 60 * 60 * 1000;  // 24 hours — series change rarely
@@ -336,7 +337,7 @@ export class BooksService {
         authors: {
           select: {
             author: {
-              select: { id: true, name: true, slug: true, photoUrl: true, bio: true, nationality: true },
+              select: { id: true, name: true, slug: true, photoUrl: true, photoAsset: { select: { publicId: true } }, bio: true, nationality: true },
             },
           },
         },
@@ -376,7 +377,7 @@ export class BooksService {
     const { componentOf, ...rest } = book;
     return {
       ...rest,
-      authors: book.authors.map(ba => ba.author),
+      authors: book.authors.map(ba => mapAssetFields(ba.author, { photoUrl: 'photoAsset' })),
       appearsInOmnibus: componentOf.map((c) => {
         const firstEdition = c.omnibusBook.editions[0];
         return {

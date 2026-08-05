@@ -7,6 +7,7 @@ import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 import { StatsService } from '../stats/stats.service';
 import { parsePagination } from '../../common/pagination';
+import { mapAssetFields } from '../../common/media-asset.helper';
 
 type ReadingHistoryDelegate = {
   create(args: unknown): Promise<unknown>;
@@ -139,7 +140,7 @@ export class CollectionService {
               publisher: true,
               additionalImages: true,
               variantLabel: true,
-              bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true, brandColors: true } },
+              bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true, logoAsset: { select: { publicId: true } }, brandColors: true } },
               communityImages: {
                 where: { status: 'APPROVED' },
                 orderBy: { sortOrder: 'asc' },
@@ -212,6 +213,7 @@ export class CollectionService {
               ...edition,
               tags: undefined,
               communityImages: undefined,
+              bookBoxCompany: mapAssetFields(edition.bookBoxCompany, { logoUrl: 'logoAsset' }),
               communityPhotoCover: (edition.additionalImages as string[]).length === 0
                 ? (edition.communityImages?.[0]?.url ?? null)
                 : null,

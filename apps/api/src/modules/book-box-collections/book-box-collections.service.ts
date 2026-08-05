@@ -9,6 +9,7 @@ import {
 } from './book-box-collections.dto';
 import { generateSlug } from '../../common/utils/slug.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
+import { mapAssetFields } from '../../common/media-asset.helper';
 
 const companySlugKey = (slug: string) => `companies:slug:${slug}`;
 
@@ -20,9 +21,13 @@ const COLLECTION_SELECT = {
   companyId: true,
   createdAt: true,
   updatedAt: true,
-  company: { select: { id: true, slug: true, name: true, logoUrl: true, brandColors: true } },
+  company: { select: { id: true, slug: true, name: true, logoUrl: true, logoAsset: { select: { publicId: true } }, brandColors: true } },
   _count: { select: { editions: true } },
 };
+
+function mapCollectionCompany<T extends { company?: any }>(collection: T): T {
+  return { ...collection, company: mapAssetFields(collection.company, { logoUrl: 'logoAsset' }) };
+}
 
 @Injectable()
 export class BookBoxCollectionsService {
@@ -49,7 +54,7 @@ export class BookBoxCollectionsService {
       this.prisma.bookBoxCollection.count({ where }),
     ]);
 
-    return { data, ...buildPageMeta(total, page, pageSize) };
+    return { data: data.map(mapCollectionCompany), ...buildPageMeta(total, page, pageSize) };
   }
 
   async findBySlug(slug: string) {
@@ -69,7 +74,7 @@ export class BookBoxCollectionsService {
     });
     if (!collection) throw new NotFoundException(`Collection '${slug}' not found`);
 
-    return {
+    return mapCollectionCompany({
       ...collection,
       editions: collection.editions.map((e) => ({
         ...e,
@@ -77,7 +82,7 @@ export class BookBoxCollectionsService {
           ? { ...e.book, authors: e.book.authors.map((ba) => ba.author) }
           : e.book,
       })),
-    };
+    });
   }
 
   async create(dto: CreateBookBoxCollectionDto) {
@@ -102,13 +107,13 @@ export class BookBoxCollectionsService {
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     const result = await this.prisma.bookBoxCollection.update({ where: { slug }, data, select: COLLECTION_SELECT });
     if (existing.company?.slug) await this.cache.del(companySlugKey(existing.company.slug));
-    return result;
+    return mapCollectionCompany(result);
   }
 
   async delete(slug: string) {
     const existing = await this.findBySlug(slug);
     const result = await this.prisma.bookBoxCollection.delete({ where: { slug }, select: COLLECTION_SELECT });
     if (existing.company?.slug) await this.cache.del(companySlugKey(existing.company.slug));
-    return result;
+    return mapCollectionCompany(result);
   }
 }

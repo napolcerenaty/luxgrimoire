@@ -2,6 +2,12 @@ import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { TypesenseService } from '../typesense/typesense.service'
 import { EditionsService } from '../editions/editions.service'
+import { mapAssetFields } from '../../common/media-asset.helper'
+
+const COMPANY_ASSET_SELECT = { logoAsset: { select: { publicId: true } } } as const
+function mapCompanyAsset(company: any) {
+  return mapAssetFields(company, { logoUrl: 'logoAsset' })
+}
 
 const LIMIT_PER_GROUP = 6
 
@@ -129,7 +135,7 @@ export class SearchService {
               },
               editions: {
                 select: {
-                  bookBoxCompany: { select: { slug: true, name: true, logoUrl: true } },
+                  bookBoxCompany: { select: { slug: true, name: true, logoUrl: true, ...COMPANY_ASSET_SELECT } },
                 },
                 orderBy: { createdAt: 'desc' as const },
                 take: 1,
@@ -148,7 +154,7 @@ export class SearchService {
               publisher: true,
               generalSaleDate: true,
               variantLabel: true,
-              bookBoxCompany: { select: { name: true, slug: true, logoUrl: true } },
+              bookBoxCompany: { select: { name: true, slug: true, logoUrl: true, ...COMPANY_ASSET_SELECT } },
               communityImages: {
                 where: { status: 'APPROVED' },
                 orderBy: { sortOrder: 'asc' },
@@ -170,6 +176,7 @@ export class SearchService {
             where: { id: { in: authorIds } },
             select: {
               id: true, name: true, slug: true, photoUrl: true, nationality: true,
+              photoAsset: { select: { publicId: true } },
               _count: { select: { books: true } },
             },
           })
@@ -178,7 +185,7 @@ export class SearchService {
       artistIds.length
         ? this.prisma.artist.findMany({
             where: { id: { in: artistIds } },
-            select: { id: true, name: true, slug: true, photoUrl: true, specialty: true },
+            select: { id: true, name: true, slug: true, photoUrl: true, specialty: true, photoAsset: { select: { publicId: true } } },
           })
         : [],
 
@@ -187,7 +194,8 @@ export class SearchService {
             where: { id: { in: subscriptionIds }, isHidden: false },
             select: {
               id: true, slug: true, name: true, coverImage: true, intervalMonths: true, isDiscontinued: true,
-              company: { select: { slug: true, name: true, logoUrl: true } },
+              coverImageAsset: { select: { publicId: true } },
+              company: { select: { slug: true, name: true, logoUrl: true, ...COMPANY_ASSET_SELECT } },
             },
           })
         : [],
@@ -195,7 +203,7 @@ export class SearchService {
       companyIds.length
         ? this.prisma.bookBoxCompany.findMany({
             where: { id: { in: companyIds } },
-            select: { id: true, slug: true, name: true, logoUrl: true, country: true },
+            select: { id: true, slug: true, name: true, logoUrl: true, country: true, ...COMPANY_ASSET_SELECT },
           })
         : [],
 
@@ -206,10 +214,11 @@ export class SearchService {
               id: true,
               title: true,
               imageUrl: true,
+              imageAsset: { select: { publicId: true } },
               generalSaleDate: true,
               isBundle: true,
               availableForPurchase: true,
-              company: { select: { name: true, slug: true, logoUrl: true } },
+              company: { select: { name: true, slug: true, logoUrl: true, ...COMPANY_ASSET_SELECT } },
               // Selects every tier (not just regionId: null) plus each region's isDefault flag so
               // getEarliestTierDate can resolve client-side via the default region, the same
               // fallback resolveEditionSaleDate uses server-side — a sale with tiers only on its
@@ -223,14 +232,32 @@ export class SearchService {
 
     const resolvedEditionDates = await this.editionsService.resolveEditionSaleDates(editions.map((e) => e.id))
 
-    return { books, editions: editions.map((e: any) => {
-      const { communityImages, ...rest } = e;
-      const resolved = resolvedEditionDates.get(e.id) ?? null;
-      return { ...rest, communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null, resolvedSaleDate: resolved ? { label: resolved.label, date: resolved.date } : null };
-    }), authors, artists, subscriptions: subscriptions.map((s: any) => {
-      const { intervalMonths, ...rest } = s;
-      return { ...rest, type: formatSearchInterval(intervalMonths ?? 1) };
-    }), companies, sales, query: trimmed, filter }
+    return {
+      books: books.map((b: any) => ({
+        ...b,
+        editions: b.editions.map((be: any) => ({ ...be, bookBoxCompany: mapCompanyAsset(be.bookBoxCompany) })),
+      })),
+      editions: editions.map((e: any) => {
+        const { communityImages, ...rest } = e;
+        const resolved = resolvedEditionDates.get(e.id) ?? null;
+        return {
+          ...rest,
+          bookBoxCompany: mapCompanyAsset(rest.bookBoxCompany),
+          communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null,
+          resolvedSaleDate: resolved ? { label: resolved.label, date: resolved.date } : null,
+        };
+      }),
+      authors: authors.map((a: any) => mapAssetFields(a, { photoUrl: 'photoAsset' })),
+      artists: artists.map((a: any) => mapAssetFields(a, { photoUrl: 'photoAsset' })),
+      subscriptions: subscriptions.map((s: any) => {
+        const { intervalMonths, ...rest } = s;
+        return { ...mapAssetFields(rest, { coverImage: 'coverImageAsset' }), company: mapCompanyAsset(rest.company), type: formatSearchInterval(intervalMonths ?? 1) };
+      }),
+      companies: companies.map((c: any) => mapCompanyAsset(c)),
+      sales: sales.map((s: any) => ({ ...mapAssetFields(s, { imageUrl: 'imageAsset' }), company: mapCompanyAsset(s.company) })),
+      query: trimmed,
+      filter,
+    }
   }
 
   private async postgresSearch(trimmed: string, filter: string) {
@@ -261,7 +288,7 @@ export class SearchService {
               },
               editions: {
                 select: {
-                  bookBoxCompany: { select: { slug: true, name: true, logoUrl: true } },
+                  bookBoxCompany: { select: { slug: true, name: true, logoUrl: true, ...COMPANY_ASSET_SELECT } },
                 },
                 orderBy: { createdAt: 'desc' as const },
                 take: 1,
@@ -288,7 +315,7 @@ export class SearchService {
               publisher: true,
               generalSaleDate: true,
               variantLabel: true,
-              bookBoxCompany: { select: { name: true, slug: true, logoUrl: true } },
+              bookBoxCompany: { select: { name: true, slug: true, logoUrl: true, ...COMPANY_ASSET_SELECT } },
               communityImages: {
                 where: { status: 'APPROVED' },
                 orderBy: { sortOrder: 'asc' },
@@ -313,6 +340,7 @@ export class SearchService {
             where: { OR: v.map(q => ({ name: { contains: q, mode: 'insensitive' as const } })) },
             select: {
               id: true, name: true, slug: true, photoUrl: true, nationality: true,
+              photoAsset: { select: { publicId: true } },
               _count: { select: { books: true } },
             },
             take,
@@ -323,7 +351,7 @@ export class SearchService {
       (all || filter === 'artists')
         ? this.prisma.artist.findMany({
             where: { OR: v.map(q => ({ name: { contains: q, mode: 'insensitive' as const } })) },
-            select: { id: true, name: true, slug: true, photoUrl: true, specialty: true },
+            select: { id: true, name: true, slug: true, photoUrl: true, specialty: true, photoAsset: { select: { publicId: true } } },
             take,
           })
         : [],
@@ -334,7 +362,8 @@ export class SearchService {
             where: { isHidden: false, OR: v.map(q => ({ name: { contains: q, mode: 'insensitive' as const } })) },
             select: {
               id: true, slug: true, name: true, coverImage: true, intervalMonths: true, isDiscontinued: true,
-              company: { select: { slug: true, name: true, logoUrl: true } },
+              coverImageAsset: { select: { publicId: true } },
+              company: { select: { slug: true, name: true, logoUrl: true, ...COMPANY_ASSET_SELECT } },
             },
             take,
           })
@@ -344,7 +373,7 @@ export class SearchService {
       (all || filter === 'companies')
         ? this.prisma.bookBoxCompany.findMany({
             where: { OR: v.map(q => ({ name: { contains: q, mode: 'insensitive' as const } })) },
-            select: { id: true, slug: true, name: true, logoUrl: true, country: true },
+            select: { id: true, slug: true, name: true, logoUrl: true, country: true, ...COMPANY_ASSET_SELECT },
             take,
           })
         : [],
@@ -371,9 +400,10 @@ export class SearchService {
               id: true,
               title: true,
               imageUrl: true,
+              imageAsset: { select: { publicId: true } },
               isBundle: true,
               availableForPurchase: true,
-              company: { select: { name: true, slug: true, logoUrl: true } },
+              company: { select: { name: true, slug: true, logoUrl: true, ...COMPANY_ASSET_SELECT } },
               // Selects every tier (not just regionId: null) plus each region's isDefault flag so
               // getEarliestTierDate can resolve client-side via the default region, the same
               // fallback resolveEditionSaleDate uses server-side — a sale with tiers only on its
@@ -398,13 +428,31 @@ export class SearchService {
 
     const resolvedEditionDates = await this.editionsService.resolveEditionSaleDates((editions as any[]).map((e) => e.id))
 
-    return { books, editions: (editions as any[]).map((e) => {
-      const { communityImages, ...rest } = e;
-      const resolved = resolvedEditionDates.get(e.id) ?? null;
-      return { ...rest, communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null, resolvedSaleDate: resolved ? { label: resolved.label, date: resolved.date } : null };
-    }), authors, artists, subscriptions: (subscriptions as any[]).map((s) => {
-      const { intervalMonths, ...rest } = s;
-      return { ...rest, type: formatSearchInterval(intervalMonths ?? 1) };
-    }), companies, sales, query: trimmed, filter }
+    return {
+      books: (books as any[]).map((b) => ({
+        ...b,
+        editions: b.editions.map((be: any) => ({ ...be, bookBoxCompany: mapCompanyAsset(be.bookBoxCompany) })),
+      })),
+      editions: (editions as any[]).map((e) => {
+        const { communityImages, ...rest } = e;
+        const resolved = resolvedEditionDates.get(e.id) ?? null;
+        return {
+          ...rest,
+          bookBoxCompany: mapCompanyAsset(rest.bookBoxCompany),
+          communityPhotoCover: (e.additionalImages as string[]).length === 0 ? (communityImages?.[0]?.url ?? null) : null,
+          resolvedSaleDate: resolved ? { label: resolved.label, date: resolved.date } : null,
+        };
+      }),
+      authors: (authors as any[]).map((a) => mapAssetFields(a, { photoUrl: 'photoAsset' })),
+      artists: (artists as any[]).map((a) => mapAssetFields(a, { photoUrl: 'photoAsset' })),
+      subscriptions: (subscriptions as any[]).map((s) => {
+        const { intervalMonths, ...rest } = s;
+        return { ...mapAssetFields(rest, { coverImage: 'coverImageAsset' }), company: mapCompanyAsset(rest.company), type: formatSearchInterval(intervalMonths ?? 1) };
+      }),
+      companies: (companies as any[]).map((c) => mapCompanyAsset(c)),
+      sales: sales.map((s: any) => ({ ...mapAssetFields(s, { imageUrl: 'imageAsset' }), company: mapCompanyAsset(s.company) })),
+      query: trimmed,
+      filter,
+    }
   }
 }

@@ -86,6 +86,17 @@ async function fetchAllCloudinaryResources(): Promise<string[]> {
 
 /**
  * Collect all image publicIds/URLs stored in the database across every model.
+ *
+ * Two overlapping sources, unioned:
+ *  1. Every `MediaAsset.publicId` row — this alone covers everything the MediaAsset system
+ *     tracks (author/artist photos, company logos, subscription/series/month covers+spoilers,
+ *     sale main images, plus edition images and sale extra images via the BookEditionMediaAsset/
+ *     SaleAnnouncementMediaAsset join tables), regardless of which legacy column dual-write still
+ *     mirrors it into.
+ *  2. The legacy string/array columns directly — still needed because dual-write removal is
+ *     happening column-by-column (see media-asset dual-write cutover plan); until every column has
+ *     cut over, a legacy-only value (no MediaAsset row yet) must still count as "referenced".
+ *     Safe to keep unioned even after cutover — it just becomes a no-op superset.
  */
 async function fetchAllDbPublicIds(): Promise<Set<string>> {
   const ids = new Set<string>()
@@ -98,11 +109,21 @@ async function fetchAllDbPublicIds(): Promise<Set<string>> {
     for (const v of values) add(v)
   }
 
-  // User avatars
+  // MediaAsset rows — covers every asset-backed image field across the whole schema.
+  const mediaAssets = await prisma.mediaAsset.findMany({ select: { publicId: true } })
+  for (const a of mediaAssets) add(a.publicId)
+
+  // User avatars (no MediaAsset relation for this field)
   const users = await prisma.user.findMany({ select: { avatarUrl: true } })
   for (const u of users) add(u.avatarUrl)
 
-  // BookEdition additional images (the only image field on editions)
+  // Author / artist photos (legacy columns — previously missing from this script entirely)
+  const authors = await prisma.author.findMany({ select: { photoUrl: true } })
+  for (const a of authors) add(a.photoUrl)
+  const artists = await prisma.artist.findMany({ select: { photoUrl: true } })
+  for (const a of artists) add(a.photoUrl)
+
+  // BookEdition additional images (legacy array column, still primary source of truth)
   const editions = await prisma.bookEdition.findMany({ select: { additionalImages: true } })
   for (const e of editions) addMany(e.additionalImages)
 
@@ -127,7 +148,7 @@ async function fetchAllDbPublicIds(): Promise<Set<string>> {
     add(m.spoilerImage)
   }
 
-  // SaleAnnouncement images (imageUrl + extraImagesJson array)
+  // SaleAnnouncement images (imageUrl + extraImagesJson array, still primary source of truth)
   const sales = await prisma.saleAnnouncement.findMany({
     select: { imageUrl: true, extraImagesJson: true },
   })
@@ -136,15 +157,6 @@ async function fetchAllDbPublicIds(): Promise<Set<string>> {
     if (Array.isArray(s.extraImagesJson)) {
       for (const img of s.extraImagesJson as string[]) add(img)
     }
-  }
-
-  // PendingMonthImport images
-  const imports = await prisma.pendingMonthImport.findMany({
-    select: { coverImageUrl: true, allImages: true },
-  })
-  for (const i of imports) {
-    add(i.coverImageUrl)
-    addMany(i.allImages)
   }
 
   return ids
