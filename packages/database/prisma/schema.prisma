@@ -67,6 +67,7 @@ model User {
   saleAnnouncementRequests SaleAnnouncementRequest[]
   managedCompany           BookBoxCompany?             @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
   uploadedAssets           MediaAsset[]                @relation("MediaAssetUploads")
+  policyAcceptances        PolicyAcceptance[]
 
   @@index([shippingCountry])
   @@map("users")
@@ -1318,6 +1319,20 @@ model AuditLog {
   @@index([userId, createdAt])
   @@index([entityType, entityId, createdAt])
   @@map("audit_logs")
+}
+
+model PolicyAcceptance {
+  id         String   @id @default(uuid())
+  userId     String
+  docType    String // 'TERMS' | 'PRIVACY'
+  version    String // source doc's updated_at (ISO) at the moment of acceptance
+  acceptedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([docType])
+  @@index([userId, docType, acceptedAt])
+  @@map("policy_acceptances")
 }
 
 model BugReport {

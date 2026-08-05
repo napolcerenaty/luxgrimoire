@@ -47,22 +47,29 @@ describe('AuthService', () => {
       mailService as unknown as MailService,
       cacheManager as unknown as Cache,
     );
+
+    // Default: $transaction passes prisma itself as the tx callback arg
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (fn: (tx: typeof prisma) => Promise<unknown>) => fn(prisma),
+    );
   });
 
   // ─── register ────────────────────────────────────────────────────────────────
 
   describe('register', () => {
+    const CONSENT = { termsVersion: '2026-08-05T00:00:00.000Z', privacyVersion: '2026-08-04T00:00:00.000Z' };
+
     it('should throw ConflictException if email already exists', async () => {
       prisma.user.findFirst.mockResolvedValue({ id: '1', email: 'test@test.com' } as any);
       await expect(
-        service.register({ email: 'test@test.com', username: 'new', password: 'pass123', termsAccepted: true }),
+        service.register({ email: 'test@test.com', username: 'new', password: 'pass123', termsAccepted: true, ...CONSENT }),
       ).rejects.toThrow(ConflictException);
     });
 
     it('should throw ConflictException if username already taken', async () => {
       prisma.user.findFirst.mockResolvedValue({ id: '1', email: 'other@test.com' } as any);
       await expect(
-        service.register({ email: 'new@test.com', username: 'taken', password: 'pass123', termsAccepted: true }),
+        service.register({ email: 'new@test.com', username: 'taken', password: 'pass123', termsAccepted: true, ...CONSENT }),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -70,13 +77,37 @@ describe('AuthService', () => {
       prisma.user.findFirst.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue({ id: 'u1', email: 'new@test.com', role: 'USER', username: 'newuser' } as any);
       prisma.emailVerificationToken.create.mockResolvedValue({} as any);
+      prisma.policyAcceptance.createMany.mockResolvedValue({ count: 2 } as any);
 
-      const result = await service.register({ email: 'new@test.com', username: 'newuser', password: 'Pass1234!', termsAccepted: true });
+      const result = await service.register({ email: 'new@test.com', username: 'newuser', password: 'Pass1234!', termsAccepted: true, ...CONSENT });
 
       expect(result.message).toBeDefined();
       expect(prisma.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ email: 'new@test.com', username: 'newuser' }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            email: 'new@test.com',
+            username: 'newuser',
+            termsVersion: CONSENT.termsVersion,
+            privacyVersion: CONSENT.privacyVersion,
+          }),
+        }),
       );
+    });
+
+    it('should record independent PolicyAcceptance rows for terms and privacy on registration', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({ id: 'u1', email: 'new@test.com', role: 'USER', username: 'newuser' } as any);
+      prisma.emailVerificationToken.create.mockResolvedValue({} as any);
+      prisma.policyAcceptance.createMany.mockResolvedValue({ count: 2 } as any);
+
+      await service.register({ email: 'new@test.com', username: 'newuser', password: 'Pass1234!', termsAccepted: true, ...CONSENT });
+
+      expect(prisma.policyAcceptance.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({ userId: 'u1', docType: 'TERMS', version: CONSENT.termsVersion }),
+          expect.objectContaining({ userId: 'u1', docType: 'PRIVACY', version: CONSENT.privacyVersion }),
+        ],
+      });
     });
   });
 
@@ -218,6 +249,83 @@ describe('AuthService', () => {
       expect(prisma.passwordResetToken.findUnique).toHaveBeenCalledWith({
         where: { tokenHash: expectedHash },
       });
+    });
+  });
+
+  // ─── saveConsent ─────────────────────────────────────────────────────────────
+
+  describe('saveConsent', () => {
+    it('should throw BadRequestException if neither version is provided', async () => {
+      await expect(service.saveConsent('u1', {})).rejects.toThrow(BadRequestException);
+    });
+
+    it('should update only termsVersion/termsAcceptedAt when only terms changed', async () => {
+      prisma.user.update.mockResolvedValue({} as any);
+      prisma.policyAcceptance.createMany.mockResolvedValue({ count: 1 } as any);
+
+      await service.saveConsent('u1', { termsVersion: '2026-08-05T00:00:00.000Z' });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: {
+          termsAcceptedAt: expect.any(Date),
+          termsVersion: '2026-08-05T00:00:00.000Z',
+        },
+      });
+      expect(prisma.policyAcceptance.createMany).toHaveBeenCalledWith({
+        data: [expect.objectContaining({ userId: 'u1', docType: 'TERMS', version: '2026-08-05T00:00:00.000Z' })],
+      });
+    });
+
+    it('should update both docs independently when both changed', async () => {
+      prisma.user.update.mockResolvedValue({} as any);
+      prisma.policyAcceptance.createMany.mockResolvedValue({ count: 2 } as any);
+
+      await service.saveConsent('u1', {
+        termsVersion: '2026-08-05T00:00:00.000Z',
+        privacyVersion: '2026-08-04T00:00:00.000Z',
+      });
+
+      expect(prisma.policyAcceptance.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({ docType: 'TERMS', version: '2026-08-05T00:00:00.000Z' }),
+          expect.objectContaining({ docType: 'PRIVACY', version: '2026-08-04T00:00:00.000Z' }),
+        ],
+      });
+    });
+  });
+
+  // ─── getMe ───────────────────────────────────────────────────────────────────
+
+  describe('getMe', () => {
+    it('should return full consent field set and needsConsent=false when both accepted', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'u1',
+        termsAcceptedAt: new Date(),
+        termsVersion: '2026-08-05T00:00:00.000Z',
+        privacyAcceptedAt: new Date(),
+        privacyVersion: '2026-08-04T00:00:00.000Z',
+      } as any);
+
+      const result = await service.getMe('u1');
+
+      expect(result.needsConsent).toBe(false);
+      expect(result.termsVersion).toBe('2026-08-05T00:00:00.000Z');
+      expect(result.privacyVersion).toBe('2026-08-04T00:00:00.000Z');
+    });
+
+    it('should return needsConsent=true if privacy was never accepted, even if terms was', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'u1',
+        termsAcceptedAt: new Date(),
+        termsVersion: '2026-08-05T00:00:00.000Z',
+        privacyAcceptedAt: null,
+        privacyVersion: null,
+      } as any);
+
+      const result = await service.getMe('u1');
+
+      expect(result.needsConsent).toBe(true);
     });
   });
 });

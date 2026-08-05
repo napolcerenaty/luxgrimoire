@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { BookOpen, Heart, BarChart2, User, RefreshCw, CalendarDays, Banknote } from 'lucide-react'
 import { clsx } from 'clsx'
 import { PushEnableBanner } from '@/components/notifications/PushEnableBanner'
+import { useConsentStatus } from '@/lib/useConsentStatus'
 
 const NAV_LINKS = [
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
@@ -22,6 +23,7 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
   const { user, loading, isLoggingOut } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const { needsConsent } = useConsentStatus()
 
   useEffect(() => {
     if (!loading && !user && !isLoggingOut.current) {
@@ -29,7 +31,15 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router, pathname])
 
-  if (loading || !user) {
+  // Catches the case where a new ToS/Privacy version is published while the user already
+  // has an active session — the login/callback checks alone only cover fresh sign-ins.
+  useEffect(() => {
+    if (!loading && user && needsConsent) {
+      router.push(`/consent?returnTo=${encodeURIComponent(pathname)}`)
+    }
+  }, [user, loading, needsConsent, router, pathname])
+
+  if (loading || !user || needsConsent) {
     return (
       <div className="min-h-screen bg-stone-950 flex items-center justify-center">
         <div className="text-stone-400 font-serif text-lg animate-pulse">Loading…</div>

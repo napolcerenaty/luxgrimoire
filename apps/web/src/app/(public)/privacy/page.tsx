@@ -1,5 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { getPage } from '@/lib/ghost'
+import BlogPostContent from '@/components/blog/BlogPostContent'
+
+export const revalidate = 60
 
 export const metadata: Metadata = {
   title: 'Privacy Policy – LuxGrimoire',
@@ -9,7 +13,27 @@ export const metadata: Metadata = {
 const EFFECTIVE_DATE = 'May 1, 2025'
 const CONTACT_EMAIL = 'contact@luxgrimoire.com'
 
-export default function PrivacyPolicyPage() {
+function formatEffectiveDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+export default async function PrivacyPolicyPage() {
+  // Once Privacy is published as a Ghost Page (slug "privacy-policy"), that becomes the
+  // source of truth — its updated_at is the version used for re-consent enforcement, and
+  // custom_excerpt is the "what changed" summary shown on /consent. Until then, fall back
+  // to the hardcoded copy below (same pattern as the FAQ page).
+  const ghostPage = await getPage('privacy-policy')
+
+  if (ghostPage?.html) {
+    return (
+      <div className="container mx-auto max-w-3xl px-4 py-16">
+        <h1 className="text-4xl font-serif font-bold text-amber-400 mb-3 tracking-wide">{ghostPage.title}</h1>
+        <p className="text-stone-500 text-sm mb-12">Effective date: {formatEffectiveDate(ghostPage.updated_at)}</p>
+        <BlogPostContent html={ghostPage.html} />
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16">
       <h1 className="text-4xl font-serif font-bold text-amber-400 mb-3 tracking-wide">Privacy Policy</h1>
@@ -191,9 +215,10 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">12. Changes to This Policy</h2>
           <p>
-            We may update this Privacy Policy from time to time. We will notify registered users of significant
-            changes by email. Continued use of the service after the effective date constitutes acceptance of the
-            updated policy.
+            We may update this Privacy Policy from time to time. When we make a significant change, registered
+            users will be shown a summary of what changed and asked to review and accept the updated policy the
+            next time they log in — access to the Service is paused until you do. If you do not accept, you will
+            not be able to continue using the Service.
           </p>
         </section>
 
