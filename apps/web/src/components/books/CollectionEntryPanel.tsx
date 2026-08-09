@@ -2044,18 +2044,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
         </div>
 
           {/* Tags — below Tracking */}
-          <div className="rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
-              <Tag size={10} /> Tags
-            </span>
-            <div className="flex-1 min-w-0">
-              <TagEditor
-                entryId={entry.id}
-                tags={entry.tags}
-                allTags={allUserTags}
-                onSaved={handleTagsSaved}
-              />
-            </div>
+          <div className="rounded-xl border p-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <p className={SEC_HDR}><span className="flex items-center gap-1.5"><Tag size={11} /> Tags</span></p>
+            <TagEditor
+              entryId={entry.id}
+              tags={entry.tags}
+              allTags={allUserTags}
+              onSaved={handleTagsSaved}
+            />
           </div>
 
           {/* Ownership history — always directly under tags */}
