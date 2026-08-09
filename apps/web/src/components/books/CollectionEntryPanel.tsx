@@ -1783,7 +1783,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               <button
                 onClick={() => setActiveDropdown(prev => prev === 'signature' ? null : 'signature')}
                 disabled={savingStatus}
-                className="badge-signed px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50"
+                className="badge-signed px-2 py-0.5 rounded-full text-xs uppercase flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50"
               >
                 {SIGNATURE_LABELS[entry.signatureType ?? 'unsigned'] ?? 'Unsigned'}
                 <ChevronDown size={10} />
@@ -1792,7 +1792,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                 <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[150px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
                   <button
                     onClick={() => quickSaveStatus('signatureType', '')}
-                    className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${!entry.signatureType ? 'font-semibold' : ''}`}
+                    className={`text-left px-3 py-1.5 text-xs uppercase hover:bg-white/5 transition-colors ${!entry.signatureType ? 'font-semibold' : ''}`}
                     style={{ color: !entry.signatureType ? 'var(--text-bright)' : 'var(--text-dim)' }}
                   >
                     Unsigned
@@ -1801,7 +1801,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                     <button
                       key={s}
                       onClick={() => quickSaveStatus('signatureType', s)}
-                      className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.signatureType ? 'font-semibold' : ''}`}
+                      className={`text-left px-3 py-1.5 text-xs uppercase hover:bg-white/5 transition-colors ${s === entry.signatureType ? 'font-semibold' : ''}`}
                       style={{ color: s === entry.signatureType ? 'var(--text-bright)' : 'var(--text-dim)' }}
                     >
                       {SIGNATURE_LABELS[s]}
