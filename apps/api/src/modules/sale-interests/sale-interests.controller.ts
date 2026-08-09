@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, Body } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SaleInterestsService } from './sale-interests.service';
 import { UpsertSaleInterestDto } from './sale-interests.dto';
@@ -18,6 +18,13 @@ export class SaleInterestsController {
   @Get('upcoming')
   getUpcoming(@CurrentUser() user: { id: string }) {
     return this.service.getUpcoming(user.id, 3);
+  }
+
+  /** Batched lookup for card grids (e.g. homepage carousel) — avoids one GET per card. */
+  @Get('batch')
+  findBatch(@CurrentUser() user: { id: string }, @Query('ids') ids?: string) {
+    const announcementIds = ids ? ids.split(',').filter(Boolean) : [];
+    return this.service.findBatch(user.id, announcementIds);
   }
 
   @Get(':announcementId')
