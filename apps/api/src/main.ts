@@ -56,8 +56,9 @@ async function bootstrap() {
       // Allow server-to-server requests (no Origin header, e.g. Next.js SSR)
       if (!origin) return cb(null, true);
       const allowed = process.env.CORS_ORIGINS?.split(',') ?? ['http://localhost:3000'];
-      if (allowed.includes(origin)) return cb(null, true);
-      cb(new Error(`CORS: origin ${origin} not allowed`), false);
+      // Disallowed origins just don't get the CORS header (browser enforces the block);
+      // no thrown Error here so scanner/bot traffic with bogus Origin headers doesn't spam Sentry.
+      cb(null, allowed.includes(origin));
     },
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
