@@ -6,7 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
 import { CURRENCIES } from '@/components/sale/SaleFormFields'
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 const LABEL = 'block text-xs text-stone-400 mb-1'
 const BTN_SM = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors'
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -33,7 +33,7 @@ export default function SubscriptionPricesPage({ params }: { params: Promise<{ s
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/admin/subscriptions" className="text-stone-400 hover:text-amber-400 text-sm transition-colors">
+        <Link href="/admin/subscriptions" className="text-stone-400 hover:text-brand-400 text-sm transition-colors">
           ← Subscriptions
         </Link>
         <span className="text-stone-600">/</span>
@@ -43,7 +43,7 @@ export default function SubscriptionPricesPage({ params }: { params: Promise<{ s
       {subscription?.parentSubscriptionId && subscription.parent && (
         <div className="bg-stone-800/60 border border-stone-700 rounded-xl px-4 py-3 text-sm text-stone-400">
           Variant of{' '}
-          <Link href={`/admin/subscriptions/${subscription.parent.slug}/prices`} className="text-amber-400 hover:underline">
+          <Link href={`/admin/subscriptions/${subscription.parent.slug}/prices`} className="text-brand-400 hover:underline">
             {subscription.parent.name}
           </Link>
           {' '}— price changes apply to this variant only.
@@ -63,10 +63,10 @@ function GrandfatheredToggle({ value, onChange }: { value: boolean; onChange: (v
         id="grandfathered-toggle"
         checked={value}
         onChange={e => onChange(e.target.checked)}
-        className="mt-0.5 accent-amber-400 cursor-pointer"
+        className="mt-0.5 accent-brand-400 cursor-pointer"
       />
       <label htmlFor="grandfathered-toggle" className="text-xs text-stone-300 cursor-pointer leading-tight">
-        <span className="font-medium text-amber-400/90">Grandfathered price</span>
+        <span className="font-medium text-brand-400/90">Grandfathered price</span>
         <span className="text-stone-400"> — existing subscribers (joined before this effective month) keep their current price; new subscribers pay the new price.</span>
       </label>
     </div>
@@ -149,7 +149,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
         <h3 className="text-stone-100 font-semibold text-sm">💰 Price Change History</h3>
         <button
           onClick={() => setShowForm(v => !v)}
-          className={`${BTN_SM} ${showForm ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
+          className={`${BTN_SM} ${showForm ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
         >
           {showForm ? 'Cancel' : '+ Add Price Change'}
         </button>
@@ -194,7 +194,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
           <button
             disabled={addMutation.isPending || !price || !currency}
             onClick={() => addMutation.mutate()}
-            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm"
+            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm"
           >
             {addMutation.isPending ? 'Saving…' : 'Save Price Change'}
           </button>
@@ -211,10 +211,10 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
             const isSentinel = pc.effectiveYear === 1900
             const isEditing = editId === pc.id
             return (
-              <div key={pc.id} className={`rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-stone-800/50 border border-amber-900/40' : 'bg-stone-800'}`}>
+              <div key={pc.id} className={`rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-stone-800/50 border border-brand-900/40' : 'bg-stone-800'}`}>
                 {isEditing ? (
                   <div className="space-y-2">
-                    <p className="text-amber-400/80 text-xs font-medium">
+                    <p className="text-brand-400/80 text-xs font-medium">
                       {editIsSentinel ? '⚓ Editing initial base price' : `✏️ Editing price change — ${MONTH_NAMES[pc.effectiveMonth - 1]} ${pc.effectiveYear}`}
                       {' '}({pc.currency})
                     </p>
@@ -241,7 +241,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
                           notes: editNotes || undefined,
                           ...(!editIsSentinel && { grandfatheredPrice: editGrandfathered }),
                         })}
-                        className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs"
+                        className="bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs"
                       >
                         {updateMutation.isPending ? 'Saving…' : 'Save'}
                       </button>
@@ -253,7 +253,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
                     <div className="space-y-0.5">
                       <span className="text-stone-100 font-medium">
                         {isSentinel
-                          ? <span className="text-amber-400/80">⚓ Base price (sentinel)</span>
+                          ? <span className="text-brand-400/80">⚓ Base price (sentinel)</span>
                           : <>{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</>
                         }
                         {' '}— {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}
@@ -269,7 +269,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
                     <div className="flex gap-3 ml-3 shrink-0">
                       <button
                         onClick={() => startEdit(pc)}
-                        className="text-amber-500 hover:text-amber-400 text-xs transition-colors"
+                        className="text-brand-500 hover:text-brand-400 text-xs transition-colors"
                       >
                         Edit
                       </button>

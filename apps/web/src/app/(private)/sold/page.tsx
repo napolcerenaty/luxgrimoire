@@ -53,7 +53,7 @@ interface CollectionEntry {
   }
 }
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
 
 function RecordSaleModal({
@@ -157,7 +157,7 @@ function RecordSaleModal({
                   {visible.length === 0 && <p className="text-stone-500 text-sm px-3 py-2">No books found</p>}
                   {visible.map(e => (
                     <button key={e.id} type="button" onClick={() => toggle(e.id)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${selected.includes(e.id) ? 'bg-amber-500/10 text-amber-400' : 'text-stone-300 hover:bg-stone-800'}`}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${selected.includes(e.id) ? 'bg-brand-500/10 text-brand-400' : 'text-stone-300 hover:bg-stone-800'}`}
                     >
                       <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-stone-600">
                         {selected.includes(e.id) ? '✓' : ''}
@@ -175,7 +175,7 @@ function RecordSaleModal({
                   <div className="flex gap-2">
                     {(['EQUAL', 'CUSTOM'] as const).map(d => (
                       <button key={d} type="button" onClick={() => setDistribution(d)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${distribution === d ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'border-stone-700 text-stone-400 hover:border-stone-500'}`}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${distribution === d ? 'bg-brand-500/10 border-brand-500/30 text-brand-400' : 'border-stone-700 text-stone-400 hover:border-stone-500'}`}
                       >
                         {d === 'EQUAL' ? 'Equal' : 'Custom per book'}
                       </button>
@@ -355,7 +355,7 @@ function EditSaleModal({
                               type="number" step="0.01" min="0.01"
                               value={inputVal}
                               onChange={ev => setCustomAmounts(prev => ({ ...prev, [entry.id]: ev.target.value }))}
-                              className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-xs text-amber-400 focus:outline-none focus:border-amber-400"
+                              className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-xs text-brand-400 focus:outline-none focus:border-brand-400"
                             />
                             <span className="text-stone-500 text-xs">{sgCur}</span>
                           </div>
@@ -380,7 +380,7 @@ function EditSaleModal({
                       <span className="text-stone-300 truncate flex-1">{bookTitle}</span>
                       <div className="flex flex-col items-end gap-0.5 shrink-0 ml-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-amber-400 text-xs">{sold.toFixed(2)} {sgCur}</span>
+                          <span className="text-brand-400 text-xs">{sold.toFixed(2)} {sgCur}</span>
                           {soldConverted && <span className="text-stone-500 text-[10px]">{soldConverted}</span>}
                         </div>
                         {pl != null && (
@@ -399,7 +399,7 @@ function EditSaleModal({
               {isCustom && (
                 <div className="mt-2 flex justify-between items-center text-xs text-stone-400 border-t border-stone-800 pt-2">
                   <span>Total</span>
-                  <span className="text-amber-400 font-medium">{(customSum ?? 0).toFixed(2)} {saleGroup.currency}</span>
+                  <span className="text-brand-400 font-medium">{(customSum ?? 0).toFixed(2)} {saleGroup.currency}</span>
                 </div>
               )}
             </div>
@@ -632,11 +632,11 @@ export default function SoldPage() {
     if (totalPages <= 1) return null
     return (
       <div className="flex items-center justify-center gap-2 mt-6">
-        <button onClick={() => onPage(page - 1)} disabled={page <= 1} className="p-1.5 rounded-lg border border-stone-700 text-stone-400 hover:text-amber-400 hover:border-amber-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+        <button onClick={() => onPage(page - 1)} disabled={page <= 1} className="p-1.5 rounded-lg border border-stone-700 text-stone-400 hover:text-brand-400 hover:border-brand-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
           <ChevronLeft size={16} />
         </button>
         <span className="text-sm text-stone-400">Page <span className="text-stone-200 font-medium">{page}</span> of <span className="text-stone-200 font-medium">{totalPages}</span></span>
-        <button onClick={() => onPage(page + 1)} disabled={page >= totalPages} className="p-1.5 rounded-lg border border-stone-700 text-stone-400 hover:text-amber-400 hover:border-amber-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+        <button onClick={() => onPage(page + 1)} disabled={page >= totalPages} className="p-1.5 rounded-lg border border-stone-700 text-stone-400 hover:text-brand-400 hover:border-brand-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
           <ChevronRight size={16} />
         </button>
       </div>
@@ -653,7 +653,7 @@ export default function SoldPage() {
         </div>
         <button
           onClick={() => addSaleModal.open()}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 text-sm font-semibold rounded-xl transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-400 text-stone-950 text-sm font-semibold rounded-xl transition-colors"
         >
           <Plus size={14} /> Record Sale
         </button>
@@ -671,13 +671,13 @@ export default function SoldPage() {
             onClick={() => activateTab(tab.id)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
               activeTab === tab.id
-                ? 'border-amber-400 text-amber-400'
+                ? 'border-brand-400 text-brand-400'
                 : 'border-transparent text-stone-500 hover:text-stone-300'
             }`}
           >
             {tab.label}
             {tab.count > 0 && (
-              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-amber-400/20 text-amber-400' : 'bg-stone-800 text-stone-500'}`}>
+              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-brand-400/20 text-brand-400' : 'bg-stone-800 text-stone-500'}`}>
                 {tab.count}
               </span>
             )}
@@ -705,13 +705,13 @@ export default function SoldPage() {
                   value={bookFilterInput}
                   onChange={e => setBookFilterInput(e.target.value)}
                   placeholder="Search by title…"
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors min-w-[160px]"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors min-w-[160px]"
                 />
                 {companiesData.length > 0 && (
                   <select
                     value={companyFilter}
                     onChange={e => setCompanyFilter(e.target.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
                   >
                     <option value="ALL">Box: Any</option>
                     {companiesData.map(c => <option key={c} value={c}>{c}</option>)}
@@ -721,15 +721,15 @@ export default function SoldPage() {
                   <select
                     value={tagFilter}
                     onChange={e => setTagFilter(e.target.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-amber-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
                   >
                     <option value="ALL">Tag: Any</option>
                     {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 )}
                 <div className="ml-auto flex items-center gap-1 bg-stone-800 rounded-lg p-1">
-                  <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded transition-colors ${viewMode === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} title="Grid view"><LayoutGrid size={15} /></button>
-                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`} title="List view"><List size={15} /></button>
+                  <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded transition-colors ${viewMode === 'grid' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`} title="Grid view"><LayoutGrid size={15} /></button>
+                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`} title="List view"><List size={15} /></button>
                 </div>
               </div>
 
@@ -755,13 +755,13 @@ export default function SoldPage() {
                             <div className="flex flex-wrap gap-1 items-center">
                               <Badge variant="default">SOLD</Badge>
                               {entry.salePrice && entry.saleCurrency && (
-                                <span className="text-[10px] text-amber-400">{parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}</span>
+                                <span className="text-[10px] text-brand-400">{parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}</span>
                               )}
                             </div>
                             {entry.tags?.length > 0 && (
                               <div className="flex flex-wrap gap-1">
                                 {entry.tags.map(tag => (
-                                  <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">{tag}</span>
+                                  <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-500/15 text-brand-400 border border-brand-500/25">{tag}</span>
                                 ))}
                               </div>
                             )}
@@ -784,7 +784,7 @@ export default function SoldPage() {
                             : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}><BookOpen size={14} /></div>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate">{displayTitle}</p>
+                          <p className="text-sm font-medium text-stone-100 group-hover:text-brand-400 transition-colors truncate">{displayTitle}</p>
                           <p className="text-xs text-stone-400 truncate">{(entry.edition.book.authors as any[]).map(a => (a.author ?? a).name).join(', ')}</p>
                           {(entry.edition.book.seriesName || entry.edition.bookBoxCompany) && (
                             <p className="text-[10px] text-stone-500 truncate">
@@ -796,7 +796,7 @@ export default function SoldPage() {
                           {entry.tags?.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {entry.tags.map(tag => (
-                                <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">{tag}</span>
+                                <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-500/15 text-brand-400 border border-brand-500/25">{tag}</span>
                               ))}
                             </div>
                           )}
@@ -807,7 +807,7 @@ export default function SoldPage() {
                             <Badge variant="default">SOLD</Badge>
                           </div>
                           {entry.salePrice && entry.saleCurrency && (
-                            <p className="text-xs text-amber-400 font-medium">{parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}</p>
+                            <p className="text-xs text-brand-400 font-medium">{parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}</p>
                           )}
                           {entry.saleDate && <p className="text-[10px] text-stone-600">{new Date(entry.saleDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>}
                         </div>
@@ -841,7 +841,7 @@ export default function SoldPage() {
                   value={giftedFilterInput}
                   onChange={e => setGiftedFilterInput(e.target.value)}
                   placeholder="Search by title…"
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors min-w-[160px]"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors min-w-[160px]"
                 />
               </div>
               {giftedBooks.length === 0 ? (
@@ -896,7 +896,7 @@ export default function SoldPage() {
                   value={recordsSearchInput}
                   onChange={e => setRecordsSearchInput(e.target.value)}
                   placeholder="Search by sale title or book title…"
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors w-full max-w-sm"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors w-full max-w-sm"
                 />
               </div>
               {recordsTotal === 0 ? (
@@ -916,14 +916,14 @@ export default function SoldPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => setEditingSale(sg)} className="ml-1 p-1 text-stone-500 hover:text-amber-400 transition-colors" title="Edit sale"><Pencil size={14} /></button>
+                        <button onClick={() => setEditingSale(sg)} className="ml-1 p-1 text-stone-500 hover:text-brand-400 transition-colors" title="Edit sale"><Pencil size={14} /></button>
                         <button onClick={() => deleteSaleMut.mutate(sg.id)} className="p-1 text-stone-500 hover:text-red-400 transition-colors" title="Delete sale"><Trash2 size={14} /></button>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 mt-3">
                       <div>
                         <p className="text-xs text-stone-500">Sold for</p>
-                        <p className="text-lg font-bold text-amber-400">{sg.totalAmount} {sg.currency}</p>
+                        <p className="text-lg font-bold text-brand-400">{sg.totalAmount} {sg.currency}</p>
                         {(() => { const c = converted(sg.totalAmount, sg.currency, sg.soldAt); return c ? <p className="text-xs text-stone-500">{c}</p> : null })()}
                       </div>
                       {sg.profitLoss != null && (
@@ -947,7 +947,7 @@ export default function SoldPage() {
                             <div key={e.id} className="flex items-center justify-between gap-2">
                               <span className="text-xs text-stone-400 truncate">{title}</span>
                               {sg.entries.length > 1 && (
-                                <span className="text-xs text-amber-400 shrink-0">{Number(e.allocatedAmount).toFixed(2)} {sg.currency}</span>
+                                <span className="text-xs text-brand-400 shrink-0">{Number(e.allocatedAmount).toFixed(2)} {sg.currency}</span>
                               )}
                             </div>
                           )

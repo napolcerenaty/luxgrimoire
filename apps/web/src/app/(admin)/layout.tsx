@@ -148,7 +148,7 @@ function NavContent({
                     className={clsx(
                       'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
                       isActive
-                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
                         : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800',
                     )}
                   >
@@ -163,7 +163,7 @@ function NavContent({
       </nav>
       <div className="px-4 py-4 border-t border-stone-800">
         <p className="text-stone-500 text-xs truncate">{userEmail}</p>
-        <p className="text-amber-400/70 text-xs mt-0.5">{userRole}</p>
+        <p className="text-brand-400/70 text-xs mt-0.5">{userRole}</p>
       </div>
     </>
   )
@@ -196,7 +196,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (loading || !user) {
     return (
       <div className="min-h-screen bg-stone-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -213,7 +213,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-60 shrink-0 bg-stone-950 border-r border-stone-800">
         <div className="px-6 py-5 border-b border-stone-800">
-          <p className="text-amber-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
+          <p className="text-brand-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
         </div>
         <NavContent
           navGroups={navGroups}
@@ -239,7 +239,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         )}
       >
         <div className="flex items-center justify-between px-6 py-5 border-b border-stone-800">
-          <p className="text-amber-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
+          <p className="text-brand-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
           <button
             onClick={() => setDrawerOpen(false)}
             className="text-stone-400 hover:text-stone-100 transition-colors"
@@ -268,7 +268,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           >
             <Menu size={22} />
           </button>
-          <p className="text-amber-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
+          <p className="text-brand-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
         </header>
 
         <main className="flex-1 overflow-auto">

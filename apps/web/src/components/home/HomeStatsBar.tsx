@@ -8,7 +8,7 @@ interface Props {
 function Stat({ value, label }: { value: number | undefined; label: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="font-serif text-lg font-bold text-amber-400">{(value ?? 0).toLocaleString()}</span>
+      <span className="font-serif text-lg font-bold text-brand-400">{(value ?? 0).toLocaleString()}</span>
       <span className="text-xs uppercase tracking-[0.2em] text-stone-400">{label}</span>
     </div>
   )

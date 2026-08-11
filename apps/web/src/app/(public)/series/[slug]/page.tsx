@@ -76,14 +76,14 @@ export default async function SeriesPage({ params }: Props) {
       {/* Header */}
       <div className="mb-8">
         <p className="text-xs text-stone-500 uppercase tracking-widest mb-1">Series</p>
-        <h1 className="text-3xl font-serif font-bold text-amber-400">{series.name}</h1>
+        <h1 className="text-3xl font-serif font-bold text-brand-400">{series.name}</h1>
         {seriesAuthors.length > 0 && (
           <p className="text-stone-400 text-sm mt-1">
             by{' '}
             {seriesAuthors.map((a, i) => (
               <span key={a.id}>
                 {i > 0 && ', '}
-                <Link href={`/authors/${a.slug}`} className="hover:text-amber-400 transition-colors">
+                <Link href={`/authors/${a.slug}`} className="hover:text-brand-400 transition-colors">
                   {a.name}
                 </Link>
               </span>
@@ -129,13 +129,13 @@ function SeriesBookSection({ book }: { book: RawBook }) {
     <div>
       <div className="flex items-baseline gap-3 mb-4 border-b border-stone-800 pb-3">
         {volumeLabel && (
-          <span className="text-xs font-semibold uppercase tracking-widest text-amber-600/80 shrink-0">
+          <span className="text-xs font-semibold uppercase tracking-widest text-brand-600/80 shrink-0">
             {volumeLabel}
           </span>
         )}
         <Link
           href={`/books/${book.slug}`}
-          className="text-xl font-serif font-semibold text-stone-100 hover:text-amber-400 transition-colors"
+          className="text-xl font-serif font-semibold text-stone-100 hover:text-brand-400 transition-colors"
         >
           {book.title}
         </Link>

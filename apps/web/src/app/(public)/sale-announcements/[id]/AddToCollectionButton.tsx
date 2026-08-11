@@ -76,6 +76,13 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
         editionSaleAnnouncementEditionIds[ed.editionId] = ed.id
       }
 
+      const editionPrices: Record<string, number> = {}
+      for (const ed of activeEditions) {
+        const raw = data.editionPrices[ed.editionId]
+        if (raw && parseDecimalInput(raw) > 0) editionPrices[ed.editionId] = parseDecimalInput(raw)
+      }
+      const hasCustomPrices = Object.keys(editionPrices).length > 0
+
       const result = await createPurchaseGroup({
         saleAnnouncementId,
         totalAmount: parsedPrice,
@@ -89,6 +96,7 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
         editionSaleAnnouncementEditionIds,
         isSecondHand: data.isSecondHand,
         sourcePlatform: data.isSecondHand && data.sourcePlatform ? data.sourcePlatform : undefined,
+        ...(hasCustomPrices && { priceDistribution: 'CUSTOM' as const, editionPrices }),
       })
 
       const purchaseGroupId = (result as any).group?.id ?? (result as any).id
@@ -113,9 +121,9 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
         ? "flex items-center gap-1.5 text-xs bg-stone-800/60 border border-stone-700 px-3 py-1.5 rounded-lg"
         : "inline-flex items-center gap-2 bg-stone-800/60 border border-stone-700 px-4 py-2 rounded-lg text-sm"
       }>
-        <LogIn size={compact ? 13 : 16} className="text-amber-400 shrink-0" />
+        <LogIn size={compact ? 13 : 16} className="text-brand-400 shrink-0" />
         <span className="text-stone-400">
-          <Link href="/login" className="text-amber-400 hover:text-amber-300 font-medium transition-colors">
+          <Link href="/login" className="text-brand-400 hover:text-brand-300 font-medium transition-colors">
             Sign in
           </Link>
           {' '}to add to collection
@@ -130,8 +138,8 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
         <button
           onClick={openTrigger}
           className={compact
-            ? "flex items-center gap-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:border-amber-500/60 font-medium px-3 py-1.5 rounded-lg transition-colors"
-            : "inline-flex items-center gap-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            ? "flex items-center gap-1.5 text-xs bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/30 hover:border-brand-500/60 font-medium px-3 py-1.5 rounded-lg transition-colors"
+            : "inline-flex items-center gap-2 bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 border border-brand-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           }
         >
           <BookPlus size={compact ? 13 : 16} />

@@ -82,7 +82,7 @@ export default function RegisterPage() {
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full">
       <div className="text-center mb-8">
-        <h1 className="font-serif text-3xl text-amber-400 mb-1">LuxGrimoire</h1>
+        <h1 className="font-serif text-3xl text-brand-400 mb-1">LuxGrimoire</h1>
         <p className="text-stone-400 text-sm">Create your account</p>
       </div>
 
@@ -98,7 +98,7 @@ export default function RegisterPage() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="book.witch_42"
-            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
           />
           <p className="text-xs text-stone-500 mt-1">3–30 characters · letters, numbers, <code className="text-stone-400">_</code> and <code className="text-stone-400">.</code> allowed</p>
         </div>
@@ -114,7 +114,7 @@ export default function RegisterPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
           />
         </div>
 
@@ -130,7 +130,7 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+              className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
             />
             <button
               type="button"
@@ -156,7 +156,7 @@ export default function RegisterPage() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="••••••••"
-              className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+              className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
             />
             <button
               type="button"
@@ -175,15 +175,15 @@ export default function RegisterPage() {
             type="checkbox"
             checked={termsAccepted}
             onChange={(e) => setTermsAccepted(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-600 bg-stone-800 accent-amber-400 cursor-pointer"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-600 bg-stone-800 accent-brand-400 cursor-pointer"
           />
           <span className="text-sm text-stone-400 leading-relaxed">
             I have read and agree to the{' '}
-            <Link href="/terms" target="_blank" className="text-amber-400 hover:text-amber-300 underline transition-colors">
+            <Link href="/terms" target="_blank" className="text-brand-400 hover:text-brand-300 underline transition-colors">
               Terms of Service
             </Link>{' '}
             and{' '}
-            <Link href="/privacy" target="_blank" className="text-amber-400 hover:text-amber-300 underline transition-colors">
+            <Link href="/privacy" target="_blank" className="text-brand-400 hover:text-brand-300 underline transition-colors">
               Privacy Policy
             </Link>
           </span>
@@ -198,7 +198,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={loading || !termsAccepted}
-          className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-60 disabled:cursor-not-allowed text-stone-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
+          className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-60 disabled:cursor-not-allowed text-stone-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
         >
           {loading ? 'Creating account…' : 'Create account'}
         </button>
@@ -208,7 +208,7 @@ export default function RegisterPage() {
 
       <p className="text-center text-sm text-stone-400 mt-6">
         Already have an account?{' '}
-        <Link href="/login" className="text-amber-400 hover:text-amber-300 transition-colors">
+        <Link href="/login" className="text-brand-400 hover:text-brand-300 transition-colors">
           Login
         </Link>
       </p>

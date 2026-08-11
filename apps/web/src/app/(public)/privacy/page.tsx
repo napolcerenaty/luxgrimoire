@@ -36,7 +36,7 @@ export default async function PrivacyPolicyPage() {
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16">
-      <h1 className="text-4xl font-serif font-bold text-amber-400 mb-3 tracking-wide">Privacy Policy</h1>
+      <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">Privacy Policy</h1>
       <p className="text-stone-500 text-sm mb-12">Effective date: {EFFECTIVE_DATE}</p>
 
       <div className="prose prose-invert prose-stone max-w-none space-y-10 text-stone-300 leading-relaxed">
@@ -46,14 +46,14 @@ export default async function PrivacyPolicyPage() {
           <p>
             LuxGrimoire (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) is a community-driven database and
             tracking tool for luxury special edition books and book subscription boxes, available at{' '}
-            <Link href="https://luxgrimoire.com" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+            <Link href="https://luxgrimoire.com" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
               luxgrimoire.com
             </Link>
             . We are the data controller for personal data processed through this service.
           </p>
           <p className="mt-2">
             For any privacy-related questions, please contact us at{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
               {CONTACT_EMAIL}
             </a>
             .
@@ -99,8 +99,8 @@ export default async function PrivacyPolicyPage() {
             <li>You retain all ownership rights to images you upload.</li>
           </ul>
           <p className="mt-3">
-            Uploaded images are stored on Cloudinary (see <Link href="#third-parties" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">Section 6</Link>).
-            You can request deletion of your uploaded images at any time via <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a>.
+            Uploaded images are stored on Cloudinary (see <Link href="#third-parties" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">Section 6</Link>).
+            You can request deletion of your uploaded images at any time via <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">{CONTACT_EMAIL}</a>.
           </p>
         </section>
 
@@ -124,15 +124,15 @@ export default async function PrivacyPolicyPage() {
           <div className="mt-3 space-y-3">
             <div className="border border-stone-700 rounded-lg p-4">
               <p className="font-semibold text-stone-200">Cloudinary</p>
-              <p className="text-sm text-stone-400 mt-1">Image storage and delivery (CDN). Images you upload are stored on Cloudinary servers. See their <a href="https://cloudinary.com/privacy" className="text-amber-500 hover:text-amber-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
+              <p className="text-sm text-stone-400 mt-1">Image storage and delivery (CDN). Images you upload are stored on Cloudinary servers. See their <a href="https://cloudinary.com/privacy" className="text-brand-500 hover:text-brand-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
             </div>
             <div className="border border-stone-700 rounded-lg p-4">
               <p className="font-semibold text-stone-200">Brevo (Sendinblue)</p>
-              <p className="text-sm text-stone-400 mt-1">Transactional email delivery. Your email address is passed to Brevo solely to deliver emails you request. See their <a href="https://www.brevo.com/legal/privacypolicy/" className="text-amber-500 hover:text-amber-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
+              <p className="text-sm text-stone-400 mt-1">Transactional email delivery. Your email address is passed to Brevo solely to deliver emails you request. See their <a href="https://www.brevo.com/legal/privacypolicy/" className="text-brand-500 hover:text-brand-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
             </div>
             <div className="border border-stone-700 rounded-lg p-4">
               <p className="font-semibold text-stone-200">Hetzner Online GmbH</p>
-              <p className="text-sm text-stone-400 mt-1">Our hosting provider. Servers are located in the European Union. See their <a href="https://www.hetzner.com/legal/privacy-policy" className="text-amber-500 hover:text-amber-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
+              <p className="text-sm text-stone-400 mt-1">Our hosting provider. Servers are located in the European Union. See their <a href="https://www.hetzner.com/legal/privacy-policy" className="text-brand-500 hover:text-brand-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
             </div>
           </div>
           <p className="mt-3">All processors have signed Data Processing Agreements (DPAs) in compliance with GDPR.</p>
@@ -180,7 +180,7 @@ export default async function PrivacyPolicyPage() {
           </ul>
           <p className="mt-3">
             To exercise any of these rights, contact us at{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a>.
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">{CONTACT_EMAIL}</a>.
             We will respond within 30 days. You also have the right to lodge a complaint with your local data protection authority.
           </p>
         </section>
@@ -226,7 +226,7 @@ export default async function PrivacyPolicyPage() {
           <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">13. Contact</h2>
           <p>
             For any privacy concerns or data requests, contact:{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a>
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">{CONTACT_EMAIL}</a>
           </p>
         </section>
 

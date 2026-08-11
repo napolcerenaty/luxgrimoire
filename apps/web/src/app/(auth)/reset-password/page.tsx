@@ -82,7 +82,7 @@ function ResetPasswordForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
           />
           <button
             type="button"
@@ -108,7 +108,7 @@ function ResetPasswordForm() {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder="••••••••"
-            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
           />
           <button
             type="button"
@@ -130,13 +130,13 @@ function ResetPasswordForm() {
       <button
         type="submit"
         disabled={loading || !token}
-        className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-60 disabled:cursor-not-allowed text-stone-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
+        className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-60 disabled:cursor-not-allowed text-stone-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
       >
         {loading ? 'Resetting…' : 'Reset password'}
       </button>
 
       <p className="text-center text-sm text-stone-400">
-        <Link href="/login" className="text-amber-400 hover:text-amber-300 transition-colors">
+        <Link href="/login" className="text-brand-400 hover:text-brand-300 transition-colors">
           ← Back to login
         </Link>
       </p>
@@ -148,7 +148,7 @@ export default function ResetPasswordPage() {
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full">
       <div className="text-center mb-8">
-        <h1 className="font-serif italic text-3xl text-amber-400 mb-1">LuxGrimoire</h1>
+        <h1 className="font-serif italic text-3xl text-brand-400 mb-1">LuxGrimoire</h1>
         <p className="text-stone-400 text-sm">Set a new password</p>
       </div>
       <Suspense fallback={<div className="text-stone-400 text-sm text-center">Loading…</div>}>

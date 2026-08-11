@@ -50,7 +50,7 @@ function IconPicker({ value, onChange }: { value: string; onChange: (v: string) 
             onClick={() => onChange(icon)}
             className={`flex flex-col items-center gap-1 rounded-lg p-2 text-center transition-colors ${
               value === icon
-                ? 'bg-amber-600 text-stone-950'
+                ? 'bg-brand-600 text-stone-950'
                 : 'text-stone-400 hover:bg-stone-800 hover:text-stone-200'
             }`}
           >
@@ -298,7 +298,7 @@ export default function HomepageFeaturesAdminPage() {
                   <span className="rounded-full bg-stone-800 px-2.5 py-1 text-xs text-stone-300">
                     {feature.iconName}
                   </span>
-                  <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300">
+                  <span className="rounded-full bg-brand-500/10 px-2.5 py-1 text-xs text-brand-300">
                     sort {feature.sortOrder}
                   </span>
                 </div>

@@ -67,13 +67,13 @@ function PurgeModal({
               </div>
               <div className="bg-stone-800 rounded-xl px-4 py-3 text-sm space-y-1">
                 <p className="text-stone-300">
-                  Edition images deleted: <span className="text-amber-400 font-medium">{result.deletedEditionImages}</span>
+                  Edition images deleted: <span className="text-brand-400 font-medium">{result.deletedEditionImages}</span>
                 </p>
                 <p className="text-stone-300">
-                  Subscription month images deleted: <span className="text-amber-400 font-medium">{result.deletedMonthImages}</span>
+                  Subscription month images deleted: <span className="text-brand-400 font-medium">{result.deletedMonthImages}</span>
                 </p>
                 <p className="text-stone-300">
-                  Sale announcement images deleted: <span className="text-amber-400 font-medium">{result.deletedAnnouncementImages}</span>
+                  Sale announcement images deleted: <span className="text-brand-400 font-medium">{result.deletedAnnouncementImages}</span>
                 </p>
               </div>
               {result.errors.length > 0 && (
@@ -221,7 +221,7 @@ export default function CompanyImagePurgePage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by company name…"
-          className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+          className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
         />
 
         {isLoading ? (

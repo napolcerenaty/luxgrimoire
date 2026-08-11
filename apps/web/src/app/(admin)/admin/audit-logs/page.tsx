@@ -10,22 +10,22 @@ const PAGE_SIZE = 15
 
 const ACTION_COLORS: Record<string, string> = {
   CREATE_EDITION: 'bg-emerald-900/60 text-emerald-300 border-emerald-700',
-  UPDATE_EDITION: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_EDITION: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_EDITION: 'bg-red-900/60 text-red-300 border-red-700',
   CREATE_BOOK: 'bg-emerald-900/60 text-emerald-300 border-emerald-700',
-  UPDATE_BOOK: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_BOOK: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_BOOK: 'bg-red-900/60 text-red-300 border-red-700',
   CREATE_COMPANY: 'bg-sky-900/60 text-sky-300 border-sky-700',
-  UPDATE_COMPANY: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_COMPANY: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_COMPANY: 'bg-red-900/60 text-red-300 border-red-700',
   CREATE_AUTHOR: 'bg-violet-900/60 text-violet-300 border-violet-700',
-  UPDATE_AUTHOR: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_AUTHOR: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_AUTHOR: 'bg-red-900/60 text-red-300 border-red-700',
   CREATE_ARTIST: 'bg-pink-900/60 text-pink-300 border-pink-700',
-  UPDATE_ARTIST: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_ARTIST: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_ARTIST: 'bg-red-900/60 text-red-300 border-red-700',
   CREATE_SUBSCRIPTION: 'bg-teal-900/60 text-teal-300 border-teal-700',
-  UPDATE_SUBSCRIPTION: 'bg-amber-900/60 text-amber-300 border-amber-700',
+  UPDATE_SUBSCRIPTION: 'bg-brand-900/60 text-brand-300 border-brand-700',
   DELETE_SUBSCRIPTION: 'bg-red-900/60 text-red-300 border-red-700',
 }
 
@@ -92,22 +92,22 @@ export default function AdminAuditLogsPage() {
           placeholder="Search user, action, entity…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          className="flex-1 min-w-[200px] bg-stone-900 border border-stone-800 rounded-xl px-4 py-2 text-sm text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-500 transition-colors"
+          className="flex-1 min-w-[200px] bg-stone-900 border border-stone-800 rounded-xl px-4 py-2 text-sm text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-brand-500 transition-colors"
         />
         <select value={entityType} onChange={(e) => { setEntityType(e.target.value); setPage(1) }}
-          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-amber-500">
+          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-brand-500">
           <option value="">All entities</option>
           {['edition', 'book', 'author', 'artist', 'company', 'subscription'].map(t => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
         <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1) }}
-          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-amber-500">
+          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-brand-500">
           <option value="createdAt">Sort: Time</option>
           <option value="action">Sort: Action</option>
         </select>
         <select value={order} onChange={(e) => { setOrder(e.target.value); setPage(1) }}
-          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-amber-500">
+          className="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-brand-500">
           <option value="desc">Newest first</option>
           <option value="asc">Oldest first</option>
         </select>

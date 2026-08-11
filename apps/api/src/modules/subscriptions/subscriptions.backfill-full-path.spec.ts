@@ -659,7 +659,7 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
   // ── Book price overrides ──────────────────────────────────────────────────
 
   describe('book price overrides', () => {
-    it('updates purchase group totalAmount with override price for specified book', async () => {
+    it('no override: splits the group total evenly across every book (basePrice, not totalAmount)', async () => {
       const sub = makeSub();
       jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
 
@@ -678,7 +678,44 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
         months,
         purchaseGroupIds: ['pg-1'],
       });
-      // 2 books: each needs findFirst + create + ownershipStatusHistory
+      for (let b = 0; b < 2; b++) {
+        (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+        (prisma.userBookEntry.create as jest.Mock).mockResolvedValueOnce({ id: `be-${b}` });
+        (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
+      }
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+      } as any);
+
+      // No override → group stays EQUAL, never overwritten
+      expect(prisma.userPurchaseGroup.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ priceDistribution: 'CUSTOM' }) }),
+      );
+      const createCalls = (prisma.userBookEntry.create as jest.Mock).mock.calls;
+      const byEdition = Object.fromEntries(createCalls.map((c: any) => [c[0].data.editionId, c[0].data.basePrice]));
+      expect(byEdition).toEqual({ 'ed-A': 29.99, 'ed-B': 29.99 });
+    });
+
+    it('override on one of two books: that book gets its exact price, the other gets the remainder — never overwrites the group totalAmount (regression test for the original bug)', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const months = [
+        {
+          id: 'm-1', year: 2026, month: 1, signatureType: null,
+          books: [
+            { editionId: 'ed-A', bookId: 'bk-A', signatureType: null },
+            { editionId: 'ed-B', bookId: 'bk-B', signatureType: null },
+          ],
+        },
+      ];
+
+      setupBackfill(prisma, skipMock, {
+        entry: makeEntry({ basePrice: { toString: () => '59.98' } }),
+        months,
+        purchaseGroupIds: ['pg-1'],
+      });
       for (let b = 0; b < 2; b++) {
         (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
         (prisma.userBookEntry.create as jest.Mock).mockResolvedValueOnce({ id: `be-${b}` });
@@ -688,17 +725,114 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
       await service.backfillSubscription(USER_ID, SUB_SLUG, {
         selectedMonthIds: ['m-1'],
         bookPrices: [
-          { monthId: 'm-1', editionId: 'ed-A', price: 29.99 },
+          { monthId: 'm-1', editionId: 'ed-A', price: 39.98 },
         ],
       } as any);
 
-      // Verify update was called with override price for the first book
-      expect(prisma.userPurchaseGroup.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'pg-1' },
-          data: { totalAmount: 29.99 },
-        }),
+      // The bug this regresses: userPurchaseGroup.update must never be called with totalAmount
+      // set to the per-book override price — the group total (59.98) is untouched.
+      expect(prisma.userPurchaseGroup.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ totalAmount: 39.98 }) }),
       );
+      expect(prisma.userPurchaseGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'pg-1' }, data: { priceDistribution: 'CUSTOM' } }),
+      );
+      const createCalls = (prisma.userBookEntry.create as jest.Mock).mock.calls;
+      const byEdition = Object.fromEntries(createCalls.map((c: any) => [c[0].data.editionId, c[0].data.basePrice]));
+      expect(byEdition).toEqual({ 'ed-A': 39.98, 'ed-B': 20 });
+    });
+
+    it('override on one of three books: the other two split the remainder evenly, not the whole total', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const months = [
+        {
+          id: 'm-1', year: 2026, month: 1, signatureType: null,
+          books: [
+            { editionId: 'ed-A', bookId: 'bk-A', signatureType: null },
+            { editionId: 'ed-B', bookId: 'bk-B', signatureType: null },
+            { editionId: 'ed-C', bookId: 'bk-C', signatureType: null },
+          ],
+        },
+      ];
+
+      setupBackfill(prisma, skipMock, {
+        entry: makeEntry({ basePrice: { toString: () => '50' } }),
+        months,
+        purchaseGroupIds: ['pg-1'],
+      });
+      for (let b = 0; b < 3; b++) {
+        (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+        (prisma.userBookEntry.create as jest.Mock).mockResolvedValueOnce({ id: `be-${b}` });
+        (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValueOnce({});
+      }
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+        bookPrices: [{ monthId: 'm-1', editionId: 'ed-A', price: 20 }],
+      } as any);
+
+      const createCalls = (prisma.userBookEntry.create as jest.Mock).mock.calls;
+      const byEdition = Object.fromEntries(createCalls.map((c: any) => [c[0].data.editionId, c[0].data.basePrice]));
+      // Remainder (50 - 20 = 30) split evenly across ed-B and ed-C, not (50 - 20)/3
+      expect(byEdition).toEqual({ 'ed-A': 20, 'ed-B': 15, 'ed-C': 15 });
+    });
+
+    it('overrides for every book that do not sum to the group total: rejects and creates no entries', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const months = [
+        {
+          id: 'm-1', year: 2026, month: 1, signatureType: null,
+          books: [
+            { editionId: 'ed-A', bookId: 'bk-A', signatureType: null },
+            { editionId: 'ed-B', bookId: 'bk-B', signatureType: null },
+          ],
+        },
+      ];
+
+      setupBackfill(prisma, skipMock, {
+        entry: makeEntry({ basePrice: { toString: () => '59.98' } }),
+        months,
+        purchaseGroupIds: ['pg-1'],
+      });
+
+      await expect(service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+        bookPrices: [
+          { monthId: 'm-1', editionId: 'ed-A', price: 10 },
+          { monthId: 'm-1', editionId: 'ed-B', price: 10 },
+        ],
+      } as any)).rejects.toThrow(/purchase total/);
+
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+    });
+
+    it('override for an edition not among this month\'s resolved books is ignored', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const months = [makeMonth('m-1', 2026, 1)]; // single book: ed-m-1 / bk-m-1
+
+      setupBackfill(prisma, skipMock, {
+        entry: makeEntry({ basePrice: { toString: () => '29.99' } }),
+        months,
+        purchaseGroupIds: ['pg-1'],
+      });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1'],
+        bookPrices: [
+          { monthId: 'm-1', editionId: 'ed-not-in-this-month', price: 5 },
+        ],
+      } as any);
+
+      const createCalls = (prisma.userBookEntry.create as jest.Mock).mock.calls;
+      expect(createCalls).toHaveLength(1);
+      // Irrelevant override ignored → falls back to the plain EQUAL 1-book case (full total)
+      expect(createCalls[0][0].data.basePrice).toBe(29.99);
     });
   });
 

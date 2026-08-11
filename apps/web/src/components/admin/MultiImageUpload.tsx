@@ -110,9 +110,9 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
               >
                 <div className={`w-16 h-20 rounded-lg overflow-hidden bg-stone-800 border transition-all ${
                   isOver
-                    ? 'border-amber-400 ring-2 ring-amber-400/40 scale-105'
+                    ? 'border-brand-400 ring-2 ring-brand-400/40 scale-105'
                     : isMain
-                    ? 'border-amber-500 ring-1 ring-amber-500/40'
+                    ? 'border-brand-500 ring-1 ring-brand-500/40'
                     : 'border-stone-700'
                 }`}>
                   {thumb
@@ -121,7 +121,7 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
                   }
                 </div>
                 {isMain && (
-                  <span className="absolute bottom-1 left-0 right-0 text-center text-[9px] font-semibold uppercase text-amber-400 bg-stone-950/70 px-0.5 py-px leading-tight">
+                  <span className="absolute bottom-1 left-0 right-0 text-center text-[9px] font-semibold uppercase text-brand-400 bg-stone-950/70 px-0.5 py-px leading-tight">
                     main
                   </span>
                 )}
@@ -139,7 +139,7 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
                       onChange(reordered)
                     }}
                     title="Set as main cover"
-                    className="absolute bottom-1 left-0 right-0 text-center text-[9px] text-stone-500 hover:text-amber-400 bg-stone-950/70 px-0.5 py-px leading-tight opacity-0 group-hover:opacity-100 transition-opacity">
+                    className="absolute bottom-1 left-0 right-0 text-center text-[9px] text-stone-500 hover:text-brand-400 bg-stone-950/70 px-0.5 py-px leading-tight opacity-0 group-hover:opacity-100 transition-opacity">
                     set main
                   </button>
                 )}

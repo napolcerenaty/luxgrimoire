@@ -36,14 +36,14 @@ export default function ContactPage() {
   return (
     <div className="container mx-auto max-w-lg px-4 py-16">
       <div className="flex items-center gap-3 mb-3">
-        <Mail size={22} className="text-amber-400" />
-        <h1 className="text-4xl font-serif font-bold text-amber-400 tracking-wide">Contact Us</h1>
+        <Mail size={22} className="text-brand-400" />
+        <h1 className="text-4xl font-serif font-bold text-brand-400 tracking-wide">Contact Us</h1>
       </div>
       <p className="text-stone-400 text-sm mb-10">
         Questions, feedback, partnership enquiries, or want to become a contributor?
         We'd love to hear from you.
         For copyright or data issues please use the{' '}
-        <Link href="/report" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+        <Link href="/report" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
           report page
         </Link>{' '}
         instead.
@@ -63,7 +63,7 @@ export default function ContactPage() {
                 required
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-amber-600 placeholder:text-stone-600"
+                className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-stone-600"
                 placeholder="Your name"
               />
             </div>
@@ -74,7 +74,7 @@ export default function ContactPage() {
                 required
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-amber-600 placeholder:text-stone-600"
+                className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-stone-600"
                 placeholder="you@example.com"
               />
             </div>
@@ -86,7 +86,7 @@ export default function ContactPage() {
               required
               value={form.subject}
               onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-amber-600 placeholder:text-stone-600"
+              className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-stone-600"
               placeholder="What is this about?"
             />
           </div>
@@ -98,7 +98,7 @@ export default function ContactPage() {
               rows={6}
               value={form.message}
               onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-amber-600 placeholder:text-stone-600 resize-none"
+              className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-stone-600 resize-none"
               placeholder="Your message…"
             />
           </div>
@@ -110,7 +110,7 @@ export default function ContactPage() {
           <button
             type="submit"
             disabled={status === 'sending'}
-            className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-stone-950 font-serif font-semibold rounded-full transition-colors text-sm"
+            className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-stone-950 font-serif font-semibold rounded-full transition-colors text-sm"
           >
             <Send size={14} />
             {status === 'sending' ? 'Sending…' : 'Send message'}

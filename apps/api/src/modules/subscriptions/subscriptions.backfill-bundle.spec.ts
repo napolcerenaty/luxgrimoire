@@ -232,7 +232,7 @@ describe('SubscriptionsService — backfillSubscription bundle subscriptions', (
     expect(prisma.userBookEntry.create).toHaveBeenCalledTimes(6);
   });
 
-  it('a book price override tagged to a non-primary month in the bundle still updates the group total', async () => {
+  it('a book price override tagged to a non-primary month in the bundle allocates within the single bundle total, across all three books', async () => {
     const sub = makeSub();
     jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
 
@@ -242,14 +242,22 @@ describe('SubscriptionsService — backfillSubscription bundle subscriptions', (
     await service.backfillSubscription(USER_ID, SUB_SLUG, {
       selectedMonthIds: ['m-apr', 'm-may', 'm-jun'],
       // Override targets the June book specifically, not the bundle's primary (April) month.
-      bookPrices: [{ monthId: 'm-jun', editionId: 'ed-m-jun', price: 99.5 }],
+      // Bundle total is entry.basePrice (45.00, one payment for the whole quarter) — the
+      // override must be allocated within that single total, never treated as a new total.
+      bookPrices: [{ monthId: 'm-jun', editionId: 'ed-m-jun', price: 20 }],
     } as any);
 
-    expect(prisma.userPurchaseGroup.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'pg-bundle-1' },
-        data: { totalAmount: 99.5 },
-      }),
+    // Never overwrites the bundle's single totalAmount with the per-book override.
+    expect(prisma.userPurchaseGroup.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ totalAmount: 20 }) }),
     );
+    expect(prisma.userPurchaseGroup.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'pg-bundle-1' }, data: { priceDistribution: 'CUSTOM' } }),
+    );
+    const createCalls = (prisma.userBookEntry.create as jest.Mock).mock.calls;
+    const byEdition = Object.fromEntries(createCalls.map((c: any) => [c[0].data.editionId, c[0].data.basePrice]));
+    // 45.00 total: ed-m-jun gets its exact 20, the remaining 25 splits evenly across the
+    // other two books in the same bundle purchase (April + May).
+    expect(byEdition).toEqual({ 'ed-m-apr': 12.5, 'ed-m-may': 12.5, 'ed-m-jun': 20 });
   });
 });

@@ -66,7 +66,9 @@ export class SpendingStatsComputer extends StatsComputer {
       if (entryYear === thisYear) booksThisYear++;
       if (entryYear === thisYear && entryMonth === thisMonth) booksThisMonth++;
 
-      const basePerEntry = toNum(group.totalAmount) / entryCount;
+      // Real per-book allocation when present (see UserPurchaseGroup.priceDistribution);
+      // legacy/unallocated entries fall back to an equal split of the group total.
+      const basePerEntry = entry.basePrice != null ? toNum(entry.basePrice) : toNum(group.totalAmount) / entryCount;
       const shippingPerEntry = group.shippingAmount ? toNum(group.shippingAmount) / entryCount : 0;
       const baseConverted = await convert(basePerEntry, purchaseCurrency, date);
       const shippingConverted = await convert(shippingPerEntry, purchaseCurrency, date);

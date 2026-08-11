@@ -112,7 +112,7 @@ export function BugReportButton() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-stone-800">
               <div className="flex items-center gap-2">
-                <Bug size={16} className="text-amber-500" />
+                <Bug size={16} className="text-brand-500" />
                 <h2 className="font-serif font-semibold text-stone-100 text-base">Report a Bug</h2>
               </div>
               <button onClick={handleClose} className="p-1 rounded text-stone-500 hover:text-stone-200 transition-colors">
@@ -128,7 +128,7 @@ export function BugReportButton() {
                 <p className="text-sm text-stone-400">Your report has been submitted. We'll look into it.</p>
                 <button
                   onClick={handleClose}
-                  className="mt-4 px-6 py-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+                  className="mt-4 px-6 py-2 rounded-xl bg-brand-500/10 text-brand-400 border border-brand-500/30 text-sm font-medium hover:bg-brand-500/20 transition-colors"
                 >
                   Close
                 </button>
@@ -143,7 +143,7 @@ export function BugReportButton() {
                     <select
                       value={category}
                       onChange={e => setCategory(e.target.value)}
-                      className="w-full appearance-none bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-amber-500 transition-colors pr-8"
+                      className="w-full appearance-none bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-brand-500 transition-colors pr-8"
                     >
                       {CATEGORIES.map(c => (
                         <option key={c.value} value={c.value}>{c.label}</option>
@@ -163,7 +163,7 @@ export function BugReportButton() {
                     placeholder="e.g. Collection page crashes on filter"
                     maxLength={120}
                     required
-                    className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-amber-500 transition-colors"
+                    className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-brand-500 transition-colors"
                   />
                 </div>
 
@@ -176,7 +176,7 @@ export function BugReportButton() {
                     placeholder="What happened? What did you expect? Steps to reproduce…"
                     rows={4}
                     required
-                    className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-amber-500 transition-colors resize-none"
+                    className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-brand-500 transition-colors resize-none"
                   />
                 </div>
 
@@ -198,7 +198,7 @@ export function BugReportButton() {
                   <button
                     type="submit"
                     disabled={submitting || !title.trim() || !description.trim()}
-                    className="flex-1 py-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 text-sm font-medium hover:bg-amber-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 py-2 rounded-xl bg-brand-500/10 text-brand-400 border border-brand-500/30 text-sm font-medium hover:bg-brand-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submitting ? 'Sending…' : 'Send Report'}
                   </button>

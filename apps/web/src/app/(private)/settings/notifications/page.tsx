@@ -23,7 +23,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative w-10 h-5 rounded-full transition-colors ${checked ? 'bg-amber-500' : 'bg-stone-700'}`}
+      className={`relative w-10 h-5 rounded-full transition-colors ${checked ? 'bg-brand-500' : 'bg-stone-700'}`}
     >
       <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
     </button>
@@ -75,7 +75,7 @@ export default function NotificationSettingsPage() {
       {/* Push Notifications */}
       <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <Bell size={16} className="text-amber-400" />
+          <Bell size={16} className="text-brand-400" />
           <h2 className="text-sm font-semibold uppercase tracking-wider text-stone-300">Push Notifications</h2>
         </div>
 
@@ -101,7 +101,7 @@ export default function NotificationSettingsPage() {
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isSubscribed
                   ? 'bg-stone-700 hover:bg-stone-600 text-stone-200'
-                  : 'bg-amber-500 hover:bg-amber-400 text-stone-950'
+                  : 'bg-brand-500 hover:bg-brand-400 text-stone-950'
               } disabled:opacity-50`}
             >
               {pushLoading ? (
@@ -138,7 +138,7 @@ export default function NotificationSettingsPage() {
                   onClick={() => mutation.mutate({ renewalReminderDays: d })}
                   className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                     prefs.renewalReminderDays === d
-                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                      ? 'bg-brand-500/20 border-brand-500/50 text-brand-400'
                       : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
                   }`}
                 >
@@ -172,7 +172,7 @@ export default function NotificationSettingsPage() {
                   onClick={() => mutation.mutate({ saleReminderDays: d })}
                   className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                     prefs.saleReminderDays === d
-                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                      ? 'bg-brand-500/20 border-brand-500/50 text-brand-400'
                       : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
                   }`}
                 >
@@ -187,7 +187,7 @@ export default function NotificationSettingsPage() {
       {/* App Notifications */}
       <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1">
-          <Megaphone size={16} className="text-amber-400" />
+          <Megaphone size={16} className="text-brand-400" />
           <h2 className="text-sm font-semibold uppercase tracking-wider text-stone-300">App Notifications</h2>
         </div>
         <p className="text-xs text-stone-500 -mt-2">
@@ -200,7 +200,7 @@ export default function NotificationSettingsPage() {
               <p className="text-sm text-stone-200">In-app</p>
               <p className="text-xs text-stone-500">Always shown in your notification bell</p>
             </div>
-            <div className="relative w-10 h-5 rounded-full bg-amber-500 opacity-60 cursor-not-allowed">
+            <div className="relative w-10 h-5 rounded-full bg-brand-500 opacity-60 cursor-not-allowed">
               <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-white shadow" />
             </div>
           </div>

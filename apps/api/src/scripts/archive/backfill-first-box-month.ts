@@ -21,22 +21,20 @@
  * Idempotent — only touches entries where firstBoxYear/firstBoxMonth is still null. Safe to re-run
  * (covers any entry created between runs, e.g. by data imports that bypass the join flow).
  *
- * Wired into docker-entrypoint.sh — runs automatically on every deploy, after migrations and
- * before the API starts. A failure there doesn't block startup (every call site already falls
- * back safely when firstBoxYear/firstBoxMonth is null), it just means this deploy's backfill
- * pass didn't complete and the next one will pick up whatever's left.
- *
- * Can also be run manually:
- *   node dist/scripts/backfill-first-box-month.js [--dry-run]
+ * Idempotent — safe to re-run, but the production backfill already completed successfully and
+ * has been confirmed stable, so this is archived rather than wired into docker-entrypoint.sh
+ * anymore. Kept for history and for manually backfilling any entry created outside the normal
+ * flow (e.g. a data import). Run manually with:
+ *   node dist/scripts/archive/backfill-first-box-month.js [--dry-run]
  *
  * Per-entry errors are caught individually (never crash the rest of the batch) and filed as a
  * BugReport (category 'data-migration') for manual follow-up, deduped by title so a still-broken
  * entry doesn't re-file a new report on every deploy.
  */
-import { runScript } from './run-script'
-import { PrismaService } from '../prisma/prisma.service'
-import { BugReportsService } from '../modules/bug-reports/bug-reports.service'
-import { computeFirstEligibleBoxMonth } from '../common/utils/renewal-date.util'
+import { runScript } from '../run-script'
+import { PrismaService } from '../../prisma/prisma.service'
+import { BugReportsService } from '../../modules/bug-reports/bug-reports.service'
+import { computeFirstEligibleBoxMonth } from '../../common/utils/renewal-date.util'
 
 const DRY_RUN = process.argv.includes('--dry-run')
 

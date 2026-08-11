@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 const FAQ_FALLBACK: { q: string; a: ReactNode }[] = [
   { q: 'What is LuxGrimoire?', a: 'LuxGrimoire is a community-driven database and tracking tool for luxury special edition books and book subscription boxes. You can browse editions, track what you own, follow upcoming sales, and discover new subscription boxes.' },
-  { q: 'Is LuxGrimoire free to use?', a: <>Yes — browsing, searching, and adding data is completely free. Creating an account unlocks personal features like collection tracking, spending reports, and calendars. If you&apos;d like to support the project, visit our <Link href="/support" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">Support Us</Link> page.</> },
+  { q: 'Is LuxGrimoire free to use?', a: <>Yes — browsing, searching, and adding data is completely free. Creating an account unlocks personal features like collection tracking, spending reports, and calendars. If you&apos;d like to support the project, visit our <Link href="/support" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">Support Us</Link> page.</> },
   { q: 'How do I add a missing book or edition?', a: 'Head to the Request / Add Data page. You can submit details about a missing book, edition, or subscription box and our team will review and add it.' },
   { q: 'How do I report a sale announcement?', a: "Use the \"Report a Sale\" link in the Community section of the footer, or the Sale Announcement Requests page." },
   { q: 'What are Subscription Boxes?', a: 'Subscription boxes (like Illumicrate, FairyLoot, Owlcrate, and many others) are monthly curated packages that include a special edition book along with bookish merchandise. LuxGrimoire tracks what editions each box has included over the years.' },
@@ -36,11 +36,11 @@ export default async function FaqPage() {
   if (ghostPage?.html) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-16">
-        <h1 className="text-4xl font-serif font-bold text-amber-400 mb-3 tracking-wide">
+        <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">
           {ghostPage.title}
         </h1>
         <p className="text-stone-400 mb-12 text-sm">
-          Can&apos;t find your answer? Visit our <Link href="/blog" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">Blog</Link> for guides and tips, or <Link href="/contact" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">contact us</Link> directly.
+          Can&apos;t find your answer? Visit our <Link href="/blog" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">Blog</Link> for guides and tips, or <Link href="/contact" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">contact us</Link> directly.
         </p>
         <BlogPostContent html={ghostPage.html} />
       </div>
@@ -49,17 +49,17 @@ export default async function FaqPage() {
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16">
-      <h1 className="text-4xl font-serif font-bold text-amber-400 mb-3 tracking-wide">
+      <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">
         Frequently Asked Questions
       </h1>
       <p className="text-stone-400 mb-12 text-sm">
-        Can&apos;t find your answer? Visit our <Link href="/blog" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">Blog</Link> for guides and tips, or <Link href="/contact" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">contact us</Link> directly.
+        Can&apos;t find your answer? Visit our <Link href="/blog" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">Blog</Link> for guides and tips, or <Link href="/contact" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">contact us</Link> directly.
       </p>
       <div className="divide-y divide-stone-800">
         {FAQ_FALLBACK.map(({ q, a }) => (
           <details key={q} className="group py-5">
             <summary className="flex items-center justify-between cursor-pointer list-none gap-4">
-              <span className="font-serif text-base text-stone-200 group-open:text-amber-400 transition-colors">{q}</span>
+              <span className="font-serif text-base text-stone-200 group-open:text-brand-400 transition-colors">{q}</span>
               <ChevronDown size={16} className="text-stone-500 shrink-0 transition-transform group-open:rotate-180" />
             </summary>
             <div className="mt-3 text-sm text-stone-400 leading-relaxed">{a}</div>

@@ -63,7 +63,7 @@ export function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
   const isLive = isSaleLive(a)
 
   return (
-    <div title={a.title} className="relative group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10">
+    <div title={a.title} className="relative group flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10">
       {/* Image — same 2/3 portrait ratio as EditionCard */}
       <div className="relative aspect-[2/3] bg-stone-950 overflow-hidden rounded-t-2xl">
         {imgUrl ? (
@@ -95,7 +95,7 @@ export function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
         )}
 
         {a.isBundle && (
-          <span className="absolute top-2 left-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-stone-950/80 border border-stone-600 text-amber-400">
+          <span className="absolute top-2 left-2 text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-stone-950/80 border border-stone-600 text-brand-400">
             Bundle
           </span>
         )}
@@ -113,10 +113,10 @@ export function AnnouncementCard({ a }: { a: ListSaleAnnouncement }) {
       {/* Body */}
       <div className="p-3 flex flex-col flex-1">
         <div className="flex-1 flex flex-col gap-1">
-          <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
+          <p className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-brand-400 transition-colors">
             {a.title}
           </p>
-          {saleDate && <p className="text-xs text-amber-500">🗓 {saleDate}</p>}
+          {saleDate && <p className="text-xs text-brand-500">🗓 {saleDate}</p>}
           {a.basePrice != null && a.currency && (
             <p className="text-xs text-stone-400">from {a.basePrice} {a.currency}</p>
           )}
@@ -172,11 +172,11 @@ export function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
       </div>
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate leading-tight text-sm">
+        <p className="font-medium text-stone-100 group-hover:text-brand-400 transition-colors truncate leading-tight text-sm">
           {a.title}
         </p>
         <div className="flex items-center gap-2 flex-wrap mt-0.5">
-          {a.company?.name && <span className="text-xs text-amber-600/80">{a.company.name}</span>}
+          {a.company?.name && <span className="text-xs text-brand-600/80">{a.company.name}</span>}
           {saleDate && <span className="text-xs text-stone-400">🗓 {saleDate}</span>}
           {a.basePrice != null && a.currency && (
             <span className="text-xs text-stone-500">from {a.basePrice} {a.currency}</span>
@@ -194,7 +194,7 @@ export function AnnouncementListRow({ a }: { a: ListSaleAnnouncement }) {
           <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-900/80 border border-green-700 text-green-400">Live</span>
         )}
         {a.isBundle && (
-          <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-stone-800 border border-stone-600 text-amber-400">Bundle</span>
+          <span className="text-[9px] font-serif uppercase tracking-wider px-1.5 py-0.5 rounded bg-stone-800 border border-stone-600 text-brand-400">Bundle</span>
         )}
       </div>
     </Link>

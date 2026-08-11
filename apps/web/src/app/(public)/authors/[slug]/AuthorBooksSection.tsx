@@ -35,7 +35,7 @@ function BookRow({ book }: { book: BookSnippet }) {
     <div className="py-4 border-b border-stone-800 last:border-0">
       <Link
         href={`/books/${book.slug}`}
-        className="inline-block font-serif font-semibold text-stone-100 hover:text-amber-400 transition-colors mb-3 text-base leading-snug"
+        className="inline-block font-serif font-semibold text-stone-100 hover:text-brand-400 transition-colors mb-3 text-base leading-snug"
       >
         {label}
       </Link>
@@ -123,7 +123,7 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
           <div key={key} className="mb-10">
             <h3 className="text-xs uppercase tracking-widest text-stone-500 font-medium mb-2 border-b border-stone-800 pb-2">
               {slug ? (
-                <Link href={`/series/${slug}`} className="hover:text-amber-400 transition-colors">
+                <Link href={`/series/${slug}`} className="hover:text-brand-400 transition-colors">
                   {label}
                 </Link>
               ) : label}

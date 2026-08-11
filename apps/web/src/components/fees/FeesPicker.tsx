@@ -75,9 +75,9 @@ function nextLocalId() {
 }
 
 const inputCls =
-  'bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-2 py-1 text-xs placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
+  'bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-2 py-1 text-xs placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors'
 const selectCls =
-  'bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-amber-400 transition-colors'
+  'bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-brand-400 transition-colors'
 
 export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseGroupId, onFeesChange }: FeesPickerProps) {
   const [open, setOpen] = useState(false)
@@ -302,7 +302,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
         <div className="flex items-center gap-2">
           <span className="font-serif text-sm font-semibold text-stone-200">Fees, Taxes, Discounts &amp; Refunds</span>
           {totalCount > 0 && (
-            <span className="text-xs bg-amber-500/20 text-amber-400 rounded-full px-2 py-0.5">{totalCount}</span>
+            <span className="text-xs bg-brand-500/20 text-brand-400 rounded-full px-2 py-0.5">{totalCount}</span>
           )}
         </div>
         {open ? <ChevronUp size={16} className="text-stone-400" /> : <ChevronDown size={16} className="text-stone-400" />}
@@ -332,7 +332,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
                       {templates.map((t) => (
                         <button
                           key={t.id} type="button" onClick={() => addFeeFromTemplate(t)}
-                          className="text-xs px-2.5 py-1 rounded-lg border border-stone-600 hover:border-amber-400 text-stone-300 hover:text-amber-300 transition-colors"
+                          className="text-xs px-2.5 py-1 rounded-lg border border-stone-600 hover:border-brand-400 text-stone-300 hover:text-brand-300 transition-colors"
                         >
                           + {t.name}
                           {t.defaultAmount != null && <span className="ml-1 text-stone-500">({t.defaultAmount} {t.defaultCurrency})</span>}
@@ -365,7 +365,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
 
                 {visibleFees.length === 0 && <p className="text-xs text-stone-600 italic">No fees added.</p>}
 
-                <button type="button" onClick={addBlankFee} className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition-colors">
+                <button type="button" onClick={addBlankFee} className="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 transition-colors">
                   <Plus size={12} /> Add fee / tax
                 </button>
 
@@ -474,7 +474,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-semibold px-4 py-1.5 rounded-xl text-sm transition-colors"
+                  className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold px-4 py-1.5 rounded-xl text-sm transition-colors"
                 >
                   {saving ? <><Loader2 size={13} className="animate-spin" /> Saving…</> : saveSuccess ? '✓ Saved' : <><Save size={13} /> Save</>}
                 </button>

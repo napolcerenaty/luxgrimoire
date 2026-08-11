@@ -403,7 +403,7 @@ export default function CalendarPage() {
       <div className="flex items-center justify-between gap-4">
         <button
           onClick={prevMonth}
-          className="p-2 rounded-lg text-stone-400 hover:text-amber-400 hover:bg-stone-800 transition-colors"
+          className="p-2 rounded-lg text-stone-400 hover:text-brand-400 hover:bg-stone-800 transition-colors"
           aria-label="Previous month"
         >
           <ChevronLeft size={18} />
@@ -411,7 +411,7 @@ export default function CalendarPage() {
         <h2 className="text-lg font-serif text-stone-100 capitalize">{monthLabel}</h2>
         <button
           onClick={nextMonth}
-          className="p-2 rounded-lg text-stone-400 hover:text-amber-400 hover:bg-stone-800 transition-colors"
+          className="p-2 rounded-lg text-stone-400 hover:text-brand-400 hover:bg-stone-800 transition-colors"
           aria-label="Next month"
         >
           <ChevronRight size={18} />
@@ -447,7 +447,7 @@ export default function CalendarPage() {
                   cell.current ? 'cursor-pointer sm:cursor-default' : '',
                   !cell.current ? 'bg-stone-950/40' : '',
                   cell.current && isToday(cell.day)
-                    ? 'bg-amber-900/30 ring-1 ring-inset ring-amber-600/60'
+                    ? 'bg-brand-900/30 ring-1 ring-inset ring-brand-600/60'
                     : '',
                   isSelected
                     ? 'sm:bg-transparent sm:ring-0 bg-stone-700/40 ring-1 ring-inset ring-stone-500/50'
@@ -461,7 +461,7 @@ export default function CalendarPage() {
                     !cell.current
                       ? 'text-stone-700'
                       : isToday(cell.day)
-                        ? 'bg-amber-500 text-stone-950 font-bold'
+                        ? 'bg-brand-500 text-stone-950 font-bold'
                         : 'text-stone-200',
                   ].join(' ')}
                 >
@@ -625,7 +625,7 @@ export default function CalendarPage() {
       {hasSpending && (
         <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <TrendingUp size={14} className="text-amber-400/70" />
+            <TrendingUp size={14} className="text-brand-400/70" />
             <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">
               Expected spending · {monthLabel}
             </h2>
@@ -696,7 +696,7 @@ export default function CalendarPage() {
                 )}
               </div>
               {allRatesLoaded && (
-                <p className="text-xl font-serif font-bold text-amber-400">
+                <p className="text-xl font-serif font-bold text-brand-400">
                   ~{fmt(grandTotal, preferredCurrency)}
                 </p>
               )}
@@ -708,7 +708,7 @@ export default function CalendarPage() {
       {activeEntries.length === 0 && interests.length === 0 && (
         <p className="text-center text-stone-500 py-8 text-sm">
           No active subscriptions.{' '}
-          <Link href="/subscriptions" className="text-amber-400 underline">
+          <Link href="/subscriptions" className="text-brand-400 underline">
             Browse subscriptions →
           </Link>
         </p>

@@ -34,6 +34,7 @@ import {
   SubmitMonthChoiceDto,
 } from './subscriptions.dto';
 import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/utils/slug.util';
+import { resolvePerBookPrices } from '../../common/utils/price-allocation.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
 import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, computeDateAnchoredFirstBoxMonth, computeJoinDateWindow, getPreviousBoxUnitStart, resolveFirstBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth } from '../../common/utils/renewal-date.util';
@@ -3598,6 +3599,7 @@ export class SubscriptionsService {
     signatureType: $Enums.SignatureType | null;
     changedAt: Date;
     ownershipStatus?: 'OWNED' | 'PREORDER';
+    basePrice?: number | null;
   }): Promise<void> {
     const existing = await this.prisma.userBookEntry.findFirst({
       where: { userId: opts.userId, editionId: opts.editionId, subscriptionEntryId: opts.subscriptionEntryId },
@@ -3613,6 +3615,7 @@ export class SubscriptionsService {
         where: { id: existing.id },
         data: {
           purchaseGroupId: opts.purchaseGroupId,
+          ...(opts.basePrice != null && { basePrice: opts.basePrice }),
           ...(shouldUpdateStatus && { ownershipStatus: opts.ownershipStatus }),
         },
       });
@@ -3634,6 +3637,7 @@ export class SubscriptionsService {
         subscriptionEntryId: opts.subscriptionEntryId,
         purchaseGroupId: opts.purchaseGroupId,
         signatureType: opts.signatureType,
+        ...(opts.basePrice != null && { basePrice: opts.basePrice }),
       },
     }).then(created =>
       this.prisma.ownershipStatusHistory.create({
@@ -3817,6 +3821,25 @@ export class SubscriptionsService {
           },
         });
 
+        // Same per-book override/remainder allocation as the non-combo path — combo months
+        // can carry choiceGroupId too (via their component subscriptions' months), so the
+        // multi-book equal-split gap applies here as well. dto.bookPrices.monthId matches the
+        // synthetic comboId here, mirroring how dto.selectedMonthIds is combo-aware above.
+        const comboPriceOverrides = new Map<string, number>();
+        for (const bp of dto.bookPrices ?? []) {
+          if (bp.monthId === comboId && monthBooks.some(mb => mb.editionId === bp.editionId)) {
+            comboPriceOverrides.set(bp.editionId, bp.price);
+          }
+        }
+        const comboEditionIds = monthBooks.map(mb => mb.editionId).filter(Boolean);
+        const { prices: comboPerBookPrices, distribution: comboDistribution } = resolvePerBookPrices(comboEditionIds, comboPriceOverrides, basePrice);
+        if (comboDistribution === 'CUSTOM') {
+          await this.prisma.userPurchaseGroup.update({
+            where: { id: group.id },
+            data: { priceDistribution: 'CUSTOM' },
+          });
+        }
+
         for (const mb of monthBooks) {
           try {
             await this.upsertSubscriptionBookEntry({
@@ -3828,6 +3851,7 @@ export class SubscriptionsService {
               signatureType: mb.signatureType,
               changedAt: renewalDate,
               ownershipStatus: dto.backfillOwnershipStatus ?? 'OWNED',
+              basePrice: comboPerBookPrices.get(mb.editionId),
             });
             booksAdded++;
           } catch {
@@ -4168,15 +4192,25 @@ export class SubscriptionsService {
         }
       }
 
-      for (const mb of monthBooks) {
-        const override = dto.bookPrices?.find(bp => unit.monthIds.includes(bp.monthId) && bp.editionId === mb.editionId);
-        if (override != null) {
-          await this.prisma.userPurchaseGroup.update({
-            where: { id: group.id },
-            data: { totalAmount: override.price ?? 0 },
-          });
+      // Overrides only apply to editions actually resolved into this unit (monthBooks already
+      // reflects choice-group picks) — an override for an unselected choice-group alternative
+      // is silently ignored rather than creating an orphaned allocation.
+      const priceOverridesForUnit = new Map<string, number>();
+      for (const bp of dto.bookPrices ?? []) {
+        if (unit.monthIds.includes(bp.monthId) && monthBooks.some(mb => mb.editionId === bp.editionId)) {
+          priceOverridesForUnit.set(bp.editionId, bp.price);
         }
+      }
+      const unitEditionIds = monthBooks.map(mb => mb.editionId!).filter(Boolean);
+      const { prices: perBookPrices, distribution } = resolvePerBookPrices(unitEditionIds, priceOverridesForUnit, baseAmount);
+      if (distribution === 'CUSTOM') {
+        await this.prisma.userPurchaseGroup.update({
+          where: { id: group.id },
+          data: { priceDistribution: 'CUSTOM' },
+        });
+      }
 
+      for (const mb of monthBooks) {
         try {
           await this.upsertSubscriptionBookEntry({
             userId,
@@ -4187,6 +4221,7 @@ export class SubscriptionsService {
             signatureType: mb.signatureType ?? monthRecord.signatureType ?? null,
             changedAt: renewalDate,
             ownershipStatus: dto.backfillOwnershipStatus ?? 'OWNED',
+            basePrice: perBookPrices.get(mb.editionId!),
           });
           booksAdded++;
         } catch {

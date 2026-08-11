@@ -22,9 +22,9 @@ function FeatureIcon({ name }: { name: string }) {
 
 function FeatureCard({ feature }: { feature: HomepageFeature }) {
   return (
-    <div className="w-72 flex-shrink-0 snap-start rounded-2xl border border-stone-800 bg-stone-900 p-6 transition-colors hover:border-amber-700/40 sm:w-80">
+    <div className="w-72 flex-shrink-0 snap-start rounded-2xl border border-stone-800 bg-stone-900 p-6 transition-colors hover:border-brand-700/40 sm:w-80">
       <div className="mb-3 flex items-center gap-3">
-        <div className="shrink-0 rounded-xl bg-stone-800 p-3 text-amber-400">
+        <div className="shrink-0 rounded-xl bg-stone-800 p-3 text-brand-400">
           <FeatureIcon name={feature.iconName} />
         </div>
         <h3 className="font-serif text-lg leading-snug text-stone-100">{feature.title}</h3>
@@ -33,7 +33,7 @@ function FeatureCard({ feature }: { feature: HomepageFeature }) {
         {feature.description}
       </p>
       {feature.ctaHref && (
-        <Link href={feature.ctaHref} className="text-sm font-serif text-amber-500 transition-colors hover:text-amber-400">
+        <Link href={feature.ctaHref} className="text-sm font-serif text-brand-500 transition-colors hover:text-brand-400">
           {feature.ctaLabel ?? 'Get started'} →
         </Link>
       )}
@@ -57,7 +57,7 @@ export function FeaturesCarousel({ features }: { features: HomepageFeature[] }) 
           className="absolute left-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                      bg-gradient-to-r from-[var(--bg)] to-transparent
                      opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
-                     text-stone-400 hover:text-amber-400"
+                     text-stone-400 hover:text-brand-400"
         >
           <ChevronLeft size={24} />
         </button>
@@ -77,7 +77,7 @@ export function FeaturesCarousel({ features }: { features: HomepageFeature[] }) 
           className="absolute right-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                      bg-gradient-to-l from-[var(--bg)] to-transparent
                      opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
-                     text-stone-400 hover:text-amber-400"
+                     text-stone-400 hover:text-brand-400"
         >
           <ChevronRight size={24} />
         </button>

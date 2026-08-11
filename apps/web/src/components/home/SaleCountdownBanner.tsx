@@ -70,7 +70,7 @@ export function SaleCountdownBanner({ nextSale }: { nextSale: NextSale }) {
               <span className="text-xs uppercase tracking-widest text-stone-500">Next sale</span>
               <Link
                 href={`/sale-announcements/${nextSale.announcementId}`}
-                className="ml-2 text-sm font-medium text-amber-400 transition-colors hover:text-amber-300"
+                className="ml-2 text-sm font-medium text-brand-400 transition-colors hover:text-brand-300"
               >
                 {title}
               </Link>

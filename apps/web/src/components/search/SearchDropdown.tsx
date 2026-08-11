@@ -102,13 +102,13 @@ export function SearchDropdown() {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && goSearch()}
           placeholder="Search books, editions…"
-          className="w-full bg-stone-800/80 border border-stone-700 rounded-full pl-4 pr-9 py-1.5 text-xs text-stone-200 placeholder:text-stone-500 focus:outline-none focus:border-amber-600 transition-colors"
+          className="w-full bg-stone-800/80 border border-stone-700 rounded-full pl-4 pr-9 py-1.5 text-xs text-stone-200 placeholder:text-stone-500 focus:outline-none focus:border-brand-600 transition-colors"
         />
         {query ? (
           <button
             type="button"
             onClick={() => { setQuery(''); setResults(null); inputRef.current?.focus() }}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-400 transition-colors"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-brand-400 transition-colors"
           >
             <X size={13} />
           </button>
@@ -116,7 +116,7 @@ export function SearchDropdown() {
           <button
             type="button"
             onClick={goSearch}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-400 transition-colors"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-brand-400 transition-colors"
           >
             <Search size={13} className={loading ? 'animate-pulse' : ''} />
           </button>
@@ -131,7 +131,7 @@ export function SearchDropdown() {
               <div className="flex flex-col gap-1.5">
                 <button
                   onClick={() => navigate('/data-requests')}
-                  className="text-left text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                  className="text-left text-xs text-brand-400 hover:text-brand-300 transition-colors"
                 >
                   ✦ Add it to the database →
                 </button>
@@ -243,7 +243,7 @@ export function SearchDropdown() {
               {total > 0 && (
                 <button
                   onClick={goSearch}
-                  className="w-full text-left px-4 py-2.5 text-xs text-amber-500 hover:bg-stone-800 border-t border-stone-800 transition-colors"
+                  className="w-full text-left px-4 py-2.5 text-xs text-brand-500 hover:bg-stone-800 border-t border-stone-800 transition-colors"
                 >
                   See all results for &ldquo;{query}&rdquo;
                 </button>
@@ -288,7 +288,7 @@ function ResultGroup({
     return (
       <span>
         {text.slice(0, idx)}
-        <mark className="bg-amber-500/20 text-amber-600 rounded-sm px-px">{text.slice(idx, idx + query.length)}</mark>
+        <mark className="bg-brand-500/20 text-brand-600 rounded-sm px-px">{text.slice(idx, idx + query.length)}</mark>
         {text.slice(idx + query.length)}
       </span>
     )
@@ -319,7 +319,7 @@ function ResultGroup({
             {item.sub && <p className="text-[10px] text-stone-500 truncate">{item.sub}</p>}
           </div>
           {item.badge && (
-            <span className="text-[9px] text-amber-600 border border-amber-800 rounded px-1 py-0.5 shrink-0 max-w-[70px] truncate">
+            <span className="text-[9px] text-brand-600 border border-brand-800 rounded px-1 py-0.5 shrink-0 max-w-[70px] truncate">
               {item.badge}
             </span>
           )}

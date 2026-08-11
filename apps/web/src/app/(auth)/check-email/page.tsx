@@ -10,7 +10,7 @@ function CheckEmailContent() {
 
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full text-center">
-      <h1 className="font-serif text-3xl text-amber-400 mb-6">LuxGrimoire</h1>
+      <h1 className="font-serif text-3xl text-brand-400 mb-6">LuxGrimoire</h1>
       <div className="text-5xl mb-4">✉</div>
       <h2 className="text-xl font-semibold text-stone-100 mb-3">Check your inbox</h2>
       <p className="text-stone-400 text-sm mb-2">
@@ -29,7 +29,7 @@ function CheckEmailContent() {
       <div className="space-y-3">
         <Link
           href={`/resend-verification${email ? `?email=${encodeURIComponent(email)}` : ''}`}
-          className="block text-sm text-amber-400 hover:text-amber-300 transition-colors"
+          className="block text-sm text-brand-400 hover:text-brand-300 transition-colors"
         >
           Didn&apos;t receive it? Resend email
         </Link>
@@ -49,7 +49,7 @@ export default function CheckEmailPage() {
     <Suspense
       fallback={
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full text-center">
-          <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
       }
     >

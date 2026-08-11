@@ -106,15 +106,15 @@ export default function ConsentPage() {
             type="checkbox"
             checked={accepted}
             onChange={e => setAccepted(e.target.checked)}
-            className="mt-1 accent-amber-500"
+            className="mt-1 accent-brand-500"
           />
           <span className="text-sm text-stone-300">
             I have read and agree to the{' '}
-            <Link href="/terms" target="_blank" className="text-amber-400 underline hover:text-amber-300">
+            <Link href="/terms" target="_blank" className="text-brand-400 underline hover:text-brand-300">
               Terms &amp; Conditions
             </Link>{' '}
             and{' '}
-            <Link href="/privacy" target="_blank" className="text-amber-400 underline hover:text-amber-300">
+            <Link href="/privacy" target="_blank" className="text-brand-400 underline hover:text-brand-300">
               Privacy Policy
             </Link>
           </span>
@@ -125,7 +125,7 @@ export default function ConsentPage() {
         <button
           type="submit"
           disabled={!accepted || loading}
-          className="w-full py-2 rounded bg-amber-500 text-stone-900 font-semibold hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="w-full py-2 rounded bg-brand-500 text-stone-900 font-semibold hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Saving…' : 'Continue'}
         </button>

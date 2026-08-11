@@ -19,8 +19,8 @@ export default function ErrorPage({
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4 py-16">
       <div className="max-w-md w-full text-center">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 border border-amber-500/30">
-          <AlertTriangle size={24} className="text-amber-500" />
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-brand-500/10 border border-brand-500/30">
+          <AlertTriangle size={24} className="text-brand-500" />
         </div>
         <h1 className="font-serif text-2xl font-semibold text-stone-100 mb-2">Something went wrong</h1>
         <p className="text-sm text-stone-400">
@@ -33,7 +33,7 @@ export default function ErrorPage({
         <div className="flex flex-col sm:flex-row gap-3 justify-center mt-7">
           <button
             onClick={reset}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500/10 text-brand-400 border border-brand-500/30 text-sm font-medium hover:bg-brand-500/20 transition-colors"
           >
             <RotateCw size={15} />
             Try again

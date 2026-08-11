@@ -82,7 +82,7 @@ export default function ImageUpload({
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-amber-500 hover:text-amber-400 text-sm transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-brand-500 hover:text-brand-400 text-sm transition-colors disabled:opacity-50"
             >
               {uploading ? 'Uploading…' : value ? 'Change image' : 'Upload image'}
             </button>

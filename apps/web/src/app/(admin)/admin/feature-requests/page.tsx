@@ -13,13 +13,13 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import { useAuth } from '@/components/AuthProvider'
 
 const STATUS_BADGE: Record<string, string> = {
-  pending: 'bg-amber-900/40 text-amber-400',
+  pending: 'bg-brand-900/40 text-brand-400',
   accepted: 'bg-green-900/40 text-green-400',
   rejected: 'bg-red-900/40 text-red-400',
   implemented: 'bg-purple-900/40 text-purple-400',
 }
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 
 function ReviewPanel({ req, onDone }: { req: ApiFeatureRequest; onDone: () => void }) {
   const [adminNote, setAdminNote] = useState(req.adminNote ?? '')
@@ -96,7 +96,7 @@ function RequestCard({ req, onDelete }: { req: ApiFeatureRequest; onDelete: () =
           </div>
           <p className="text-stone-400 text-sm leading-relaxed whitespace-pre-line">{req.description}</p>
           {req.adminNote && (
-            <div className="mt-2 text-xs text-amber-400/80 bg-amber-900/10 border border-amber-900/20 rounded-lg px-3 py-2">
+            <div className="mt-2 text-xs text-brand-400/80 bg-brand-900/10 border border-brand-900/20 rounded-lg px-3 py-2">
               <span className="font-semibold">Note:</span> {req.adminNote}
             </div>
           )}
@@ -171,7 +171,7 @@ export default function AdminFeatureRequestsPage() {
           {['', 'pending', 'accepted', 'implemented', 'rejected'].map(s => (
             <button key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-amber-400 text-stone-950' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-brand-400 text-stone-950' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}
             >
               {s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
@@ -186,8 +186,8 @@ export default function AdminFeatureRequestsPage() {
           {/* Pending queue */}
           {(!statusFilter || statusFilter === 'pending') && pending.length > 0 && (
             <section>
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-amber-500 mb-3 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold">{pending.length}</span>
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-brand-500 mb-3 flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-500/20 text-brand-400 text-[10px] font-bold">{pending.length}</span>
                 Pending Review
               </h2>
               <div className="space-y-2">

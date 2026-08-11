@@ -140,7 +140,7 @@ function ArtistForm({ initial, onSubmit, submitting, submitLabel }: ArtistFormPr
       <button
         type="submit"
         disabled={submitting}
-        className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
+        className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
       >
         {submitting ? 'Saving…' : submitLabel}
       </button>
@@ -209,7 +209,7 @@ export default function AdminArtistsPage() {
     {
       key: 'name', label: 'Name',
       render: (row: ApiArtist) => (
-        <a href={`/artists/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 font-medium">
+        <a href={`/artists/${row.slug}`} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 font-medium">
           {row.name}
         </a>
       ),
@@ -222,7 +222,7 @@ export default function AdminArtistsPage() {
         <h1 className="text-2xl font-bold text-stone-100">Artists</h1>
         <button
           onClick={() => createModal.open()}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
         >
           Add Artist
         </button>
@@ -234,7 +234,7 @@ export default function AdminArtistsPage() {
           placeholder="Search artists…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          className="w-full max-w-sm bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400"
+          className="w-full max-w-sm bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-400"
         />
       </div>
 

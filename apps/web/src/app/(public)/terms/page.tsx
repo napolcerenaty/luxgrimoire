@@ -36,7 +36,7 @@ export default async function TermsPage() {
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16">
-      <h1 className="text-4xl font-serif font-bold text-amber-400 mb-3 tracking-wide">Terms of Use</h1>
+      <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">Terms of Use</h1>
       <p className="text-stone-500 text-sm mb-12">Effective date: {EFFECTIVE_DATE}</p>
 
       <div className="prose prose-invert prose-stone max-w-none space-y-10 text-stone-300 leading-relaxed">
@@ -45,14 +45,14 @@ export default async function TermsPage() {
           <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">1. Acceptance of Terms</h2>
           <p>
             By accessing or using LuxGrimoire (&ldquo;the Service&rdquo;) at{' '}
-            <Link href="https://luxgrimoire.com" className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+            <Link href="https://luxgrimoire.com" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
               luxgrimoire.com
             </Link>
             , you agree to be bound by these Terms of Use. If you do not agree, do not use the Service.
           </p>
           <p className="mt-2">
             These Terms apply to all visitors, registered users, and contributors. For questions, contact us at{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
               {CONTACT_EMAIL}
             </a>
             .
@@ -89,7 +89,7 @@ export default async function TermsPage() {
             <li>You are responsible for all activity that occurs under your account.</li>
             <li>You must provide accurate, current, and complete information when creating your account.</li>
             <li>You may not share your account with others or create accounts on behalf of others without authorisation.</li>
-            <li>You must notify us immediately at <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a> of any unauthorised use of your account.</li>
+            <li>You must notify us immediately at <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">{CONTACT_EMAIL}</a> of any unauthorised use of your account.</li>
           </ul>
         </section>
 
@@ -213,7 +213,7 @@ export default async function TermsPage() {
           <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">10. DMCA / Copyright Takedown</h2>
           <p>
             If you believe that content on LuxGrimoire infringes your copyright, please send a takedown notice to{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a> including:
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">{CONTACT_EMAIL}</a> including:
           </p>
           <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
             <li>A description of the copyrighted work you believe has been infringed.</li>
@@ -259,7 +259,7 @@ export default async function TermsPage() {
           <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">14. Contact</h2>
           <p>
             Questions about these Terms:{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-amber-500 hover:text-amber-400 underline underline-offset-2">{CONTACT_EMAIL}</a>
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">{CONTACT_EMAIL}</a>
           </p>
         </section>
 

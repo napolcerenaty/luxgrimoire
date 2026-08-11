@@ -874,6 +874,10 @@ model UserBookEntry {
   orderNumber                String?
   saleAnnouncementEditionId  String?                @db.VarChar(36)
   isOriginalPrint            Boolean                @default(true)
+  /// Per-book allocation of the cost within its UserPurchaseGroup.totalAmount. Null = no
+  /// allocation recorded (legacy data or group has a single book) — readers fall back to
+  /// totalAmount / entryCount. See UserPurchaseGroup.priceDistribution.
+  basePrice                  Decimal?               @db.Decimal(10, 2)
   book                       Book                   @relation(fields: [bookId], references: [id])
   edition                    BookEdition?           @relation(fields: [editionId], references: [id])
   purchaseGroup              UserPurchaseGroup?     @relation(fields: [purchaseGroupId], references: [id])
@@ -1505,6 +1509,10 @@ model UserPurchaseGroup {
   billingPeriodId     String?
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
+  /// How UserBookEntry.basePrice is allocated across this group's books: 'EQUAL' (default,
+  /// totalAmount split evenly) or 'CUSTOM' (per-book prices entered explicitly, must sum to
+  /// totalAmount). Mirrors UserSaleGroup.priceDistribution on the sell side.
+  priceDistribution   String                 @default("EQUAL")
   bookEntries         UserBookEntry[]
   discounts           UserPurchaseDiscount[]
   fees                UserPurchaseFee[]

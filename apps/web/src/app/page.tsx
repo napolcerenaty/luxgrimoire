@@ -110,9 +110,9 @@ export default async function HomePage() {
 
       {announcements.length > 0 && (
         <div className="container mx-auto px-4 -mt-4 mb-2 text-center">
-          <p className="text-xs uppercase tracking-widest text-amber-600 font-medium">
+          <p className="text-xs uppercase tracking-widest text-brand-600 font-medium">
             Have you seen an announcement?{' '}
-            <Link href="/sale-announcement-requests" className="underline underline-offset-2 hover:text-amber-400 transition-colors">
+            <Link href="/sale-announcement-requests" className="underline underline-offset-2 hover:text-brand-400 transition-colors">
               Let us know!
             </Link>
           </p>

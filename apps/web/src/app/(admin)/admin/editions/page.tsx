@@ -275,7 +275,7 @@ export default function AdminEditionsPage() {
       render: (row: ApiBookEdition) => (
         <div>
           {row.book?.slug
-            ? <a href={`/books/${row.book.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 font-medium">{formatEditionDisplayTitle(row.book, row)}</a>
+            ? <a href={`/books/${row.book.slug}`} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 font-medium">{formatEditionDisplayTitle(row.book, row)}</a>
             : <div className="text-stone-100 font-medium">{row.book ? formatEditionDisplayTitle(row.book, row) : '—'}</div>
           }
           {row.book?.seriesName && (
@@ -300,7 +300,7 @@ export default function AdminEditionsPage() {
       label: 'Edition',
       render: (row: ApiBookEdition) => (
         <div>
-          <a href={`/editions/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 text-sm font-medium">{row.slug}</a>
+          <a href={`/editions/${row.slug}`} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 text-sm font-medium">{row.slug}</a>
         </div>
       ),
     },
@@ -308,7 +308,7 @@ export default function AdminEditionsPage() {
       key: 'company',
       label: 'Book Box',
       render: (row: ApiBookEdition) => row.bookBoxCompany?.name
-        ? <span className="text-amber-400 text-sm">{row.bookBoxCompany.name}</span>
+        ? <span className="text-brand-400 text-sm">{row.bookBoxCompany.name}</span>
         : <span className="text-stone-500">—</span>,
     },
     {
@@ -350,7 +350,7 @@ export default function AdminEditionsPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={() => createModal.open()}
-            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
           >
             Add Edition
           </button>
@@ -364,13 +364,13 @@ export default function AdminEditionsPage() {
           placeholder="Search by book, author, publisher…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 w-72"
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 w-72"
         />
         {!isManager && (
           <select
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
-            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400"
+            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400"
           >
             <option value="">All Book Boxes</option>
             {companies.map((c) => (
@@ -382,7 +382,7 @@ export default function AdminEditionsPage() {
           <select
             value={collectionFilter}
             onChange={(e) => setCollectionFilter(e.target.value)}
-            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400"
+            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400"
           >
             <option value="">All collections</option>
             <option value="none">Exclusive (no collection)</option>
@@ -395,7 +395,7 @@ export default function AdminEditionsPage() {
           <select
             value={subscriptionFilter}
             onChange={(e) => setSubscriptionFilter(e.target.value)}
-            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400"
+            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400"
           >
             <option value="">All subscriptions</option>
             <option value="none">Not a subscription</option>
@@ -422,7 +422,7 @@ export default function AdminEditionsPage() {
             Missing official photo
           </label>
           <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
-            <input type="checkbox" checked={unverifiedOnly} onChange={(e) => setUnverifiedOnly(e.target.checked)} className="accent-amber-400" />
+            <input type="checkbox" checked={unverifiedOnly} onChange={(e) => setUnverifiedOnly(e.target.checked)} className="accent-brand-400" />
             Unverified only
           </label>
         </div>

@@ -31,7 +31,7 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
           onClick={() => onPageChange(p)}
           className={`px-3 py-1.5 text-sm rounded border transition-colors ${
             p === page
-              ? 'bg-amber-700 border-amber-700 text-white'
+              ? 'bg-brand-700 border-brand-700 text-white'
               : 'border-stone-700 text-stone-300 hover:bg-stone-800'
           }`}
         >

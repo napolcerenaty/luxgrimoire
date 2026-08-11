@@ -68,7 +68,7 @@ export function CompanySaleAnnouncementsSection({ companyId, companySlug }: Prop
         <div className="rounded-2xl border border-stone-800 bg-stone-900/60 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-serif font-semibold text-stone-200">Latest Announcements</h3>
-            <Link href={seeAllHref} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
+            <Link href={seeAllHref} className="text-xs text-brand-500 hover:text-brand-400 transition-colors">
               View all →
             </Link>
           </div>
@@ -97,7 +97,7 @@ export function CompanySaleAnnouncementsSection({ companyId, companySlug }: Prop
       )}
 
       {latestItems.length === 0 && nextSale?.date && (
-        <Link href={seeAllHref} className="text-xs text-amber-500 hover:text-amber-400 transition-colors self-start">
+        <Link href={seeAllHref} className="text-xs text-brand-500 hover:text-brand-400 transition-colors self-start">
           View all sale announcements →
         </Link>
       )}

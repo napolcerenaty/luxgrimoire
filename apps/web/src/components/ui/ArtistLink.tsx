@@ -13,7 +13,7 @@ export function ArtistLink({ artist, className = '', atPrefix = true }: ArtistLi
   return (
     <Link
       href={`/artists/${artist.slug}`}
-      className={`text-amber-500 hover:text-amber-300 hover:underline font-medium transition-colors ${className}`}
+      className={`text-brand-500 hover:text-brand-300 hover:underline font-medium transition-colors ${className}`}
     >
       {atPrefix ? `@${cleanName}` : cleanName}
     </Link>
