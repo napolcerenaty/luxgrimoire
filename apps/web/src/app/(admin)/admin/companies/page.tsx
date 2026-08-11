@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Link from 'next/link'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
@@ -144,7 +145,6 @@ interface CompanyFormData {
   x: string
   bluesky: string
   iossImplemented: boolean
-  hasOfficialImagePermission: boolean
 }
 
 const EMPTY_FORM: CompanyFormData = {
@@ -152,7 +152,6 @@ const EMPTY_FORM: CompanyFormData = {
   logoUrl: null, defaultCurrency: '',
   instagram: '', threads: '', tiktok: '', facebook: '', x: '', bluesky: '',
   iossImplemented: false,
-  hasOfficialImagePermission: false,
 }
 
 function companyToForm(c: ApiBookBoxCompany): CompanyFormData {
@@ -170,7 +169,6 @@ function companyToForm(c: ApiBookBoxCompany): CompanyFormData {
     x: c.x ?? '',
     bluesky: c.bluesky ?? '',
     iossImplemented: c.iossImplemented ?? false,
-    hasOfficialImagePermission: c.hasOfficialImagePermission ?? false,
   }
 }
 
@@ -195,7 +193,6 @@ function formToPayload(form: CompanyFormData) {
     x: nullIfEmpty(form.x),
     bluesky: nullIfEmpty(form.bluesky),
     iossImplemented: form.iossImplemented,
-    hasOfficialImagePermission: form.hasOfficialImagePermission,
   }
 }
 
@@ -343,17 +340,6 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
           className="accent-brand-400 w-4 h-4"
         />
         IOSS Implemented
-      </label>
-
-      {/* Official image permission */}
-      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
-        <input
-          type="checkbox"
-          checked={form.hasOfficialImagePermission}
-          onChange={(e) => setForm((f) => ({ ...f, hasOfficialImagePermission: e.target.checked }))}
-          className="accent-brand-400 w-4 h-4"
-        />
-        Permission to use brand images
       </label>
 
       <button
@@ -506,6 +492,24 @@ export default function AdminCompaniesPage() {
               initial={editCompany.brandColors ?? []}
               onSaved={() => queryClient.invalidateQueries({ queryKey: ['admin', 'companies'] })}
             />
+          </div>
+
+          {/* Image permission status — read-only here, managed in the dedicated Image Permissions section */}
+          <div className="py-2 border-b border-stone-800 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-1">Image Permission</p>
+              <p className="text-sm text-stone-300">
+                {editCompany.hasOfficialImagePermission
+                  ? '✓ Granted — official promotional materials in use'
+                  : 'Not granted'}
+              </p>
+            </div>
+            <Link
+              href={`/admin/image-permissions?company=${editCompany.slug}`}
+              className="shrink-0 text-sm text-brand-400 hover:text-brand-300 underline underline-offset-2 transition-colors"
+            >
+              Manage →
+            </Link>
           </div>
 
           <CompanyForm
