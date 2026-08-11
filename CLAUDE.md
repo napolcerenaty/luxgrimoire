@@ -13,8 +13,8 @@
   - API: http://localhost:3001 · Web: http://localhost:3000
 
 ## Branching & deployment
-- Always work on branch `development`
-- After every commit, push immediately (`git push`)
+- Always work on branch `development`, unless a feature is deliberately being built on its own dedicated feature branch
+- **Commit and push immediately after making changes, without asking for confirmation first — on every branch, not just `development`.** The only exception is `master`. Reasoning: uncommitted work sitting in the working tree is vulnerable to being wiped by branch switches, resets, or a parallel session working in the same directory — committing promptly is the safety net.
 - **Never merge to `master` without explicit user command** — master triggers production deployment
 - Before merging to `master`, always run `git pull origin master` first to sync local master with remote, then merge development into it — avoids creating inflated merge commits from a stale local master
 
