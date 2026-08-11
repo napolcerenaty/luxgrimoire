@@ -30,7 +30,6 @@ describe('AuthService', () => {
     jwtService = mockDeep<JwtService>();
     mailService = mockDeep<MailService>();
     mailService.sendVerificationEmail.mockResolvedValue(undefined);
-    (prisma.$transaction as unknown as jest.Mock).mockImplementation((ops: unknown[]) => Promise.all(ops));
 
     // Redis cache mock backed by a local Map so rate-limit state persists within a test
     cacheStore = new Map();
@@ -49,10 +48,13 @@ describe('AuthService', () => {
       cacheManager as unknown as Cache,
     );
 
-    // Default: $transaction passes prisma itself as the tx callback arg
-    (prisma.$transaction as jest.Mock).mockImplementation(
-      async (fn: (tx: typeof prisma) => Promise<unknown>) => fn(prisma),
-    );
+    // Default: supports both callback-style ($transaction(async tx => ...)) and
+    // array-style ($transaction([p1, p2])) usages found in this service.
+    (prisma.$transaction as unknown as jest.Mock).mockImplementation((arg: unknown) => {
+      if (typeof arg === 'function') return (arg as (tx: typeof prisma) => Promise<unknown>)(prisma);
+      if (Array.isArray(arg)) return Promise.all(arg);
+      return Promise.resolve(arg);
+    });
   });
 
   // ─── register ────────────────────────────────────────────────────────────────
