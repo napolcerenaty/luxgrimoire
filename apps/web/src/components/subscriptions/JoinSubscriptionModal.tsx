@@ -1480,7 +1480,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
                 <input
                   type="text"
                   inputMode="decimal"
-                  placeholder="auto"
+                  placeholder="0.00"
                   value={bookPrices[key] ?? ''}
                   onChange={e => onPriceChange(key, e.target.value)}
                   className="w-20 bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-right focus:outline-none focus:ring-1 focus:ring-brand-600/40"
@@ -1488,6 +1488,9 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
               </label>
             )
           })}
+          <p className="text-[11px] text-stone-500">
+            Leave blank to split this box&apos;s price evenly. Price one or more books above and the rest will split what&apos;s left of the box price.
+          </p>
         </div>
       )}
     </div>

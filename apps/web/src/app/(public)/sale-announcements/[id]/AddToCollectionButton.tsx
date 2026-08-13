@@ -76,10 +76,12 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
         editionSaleAnnouncementEditionIds[ed.editionId] = ed.id
       }
 
+      // CollectionFormModal enforces all-or-nothing: either every active edition has a price
+      // (per-book mode, validated before submit) or none do (single total, split evenly below).
       const editionPrices: Record<string, number> = {}
       for (const ed of activeEditions) {
         const raw = data.editionPrices[ed.editionId]
-        if (raw && parseDecimalInput(raw) > 0) editionPrices[ed.editionId] = parseDecimalInput(raw)
+        if (raw && raw.trim() !== '') editionPrices[ed.editionId] = parseDecimalInput(raw)
       }
       const hasCustomPrices = Object.keys(editionPrices).length > 0
 

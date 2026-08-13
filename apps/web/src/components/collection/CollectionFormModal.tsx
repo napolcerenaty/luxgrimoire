@@ -6,6 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { type FeeEntry, type DiscountEntry, type FeeTemplate } from '@/hooks/useRecordSaleGroup'
 import { isValidCalendarDate } from '@/lib/dateValidation'
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { X, Plus, MoveRight } from 'lucide-react'
 
 export type { FeeEntry, DiscountEntry, FeeTemplate }
@@ -132,6 +133,21 @@ export function CollectionFormModal({
   const [shippingInvalid, setShippingInvalid] = useState(false)
   const [invalidFeeKeys, setInvalidFeeKeys] = useState<Set<number>>(new Set())
   const [invalidDiscountKeys, setInvalidDiscountKeys] = useState<Set<number>>(new Set())
+  const [invalidPriceEditionIds, setInvalidPriceEditionIds] = useState<Set<string>>(new Set())
+
+  // Two mutually exclusive ways to price a multi-book purchase: either every book gets its own
+  // price (total is derived, summed below), or none do and the total is split evenly by the
+  // backend. Filling in even one book price switches the whole form into per-book mode.
+  const perBookPriceMode = selectedEditionIds.length > 1 && selectedEditionIds.some(id => (editionPrices[id] ?? '').trim() !== '')
+  const editionPriceSum = selectedEditionIds.reduce((sum, id) => {
+    const raw = (editionPrices[id] ?? '').trim()
+    return sum + (raw === '' ? 0 : parseDecimalInput(raw))
+  }, 0)
+
+  useEffect(() => {
+    if (perBookPriceMode) setTotalAmount(editionPriceSum.toFixed(2))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perBookPriceMode, editionPriceSum])
 
   const { data: feeTemplates = [] } = useQuery<FeeTemplate[]>({
     queryKey: ['fee-templates'],
@@ -157,6 +173,7 @@ export function CollectionFormModal({
     setShippingInvalid(false)
     setInvalidFeeKeys(new Set())
     setInvalidDiscountKeys(new Set())
+    setInvalidPriceEditionIds(new Set())
     const initVariants: Record<string, string> = {}
     for (const ed of editions) {
       if (ed.variants.length >= 1) {
@@ -183,14 +200,26 @@ export function CollectionFormModal({
     const nextDateInvalid = !isValidCalendarDate(purchasedAt)
     const nextTotalInvalid = totalAmount !== '' && (isNaN(parseFloat(totalAmount)) || parseFloat(totalAmount) < 0)
     const nextShippingInvalid = shippingAmount !== '' && (isNaN(parseFloat(shippingAmount)) || parseFloat(shippingAmount) < 0)
+    // Per-book mode is all-or-nothing: once any book has a price, every selected book needs one
+    // (a partial set would leave the total ambiguous — see the "auto" placeholder confusion this replaced).
+    const nextInvalidPriceEditionIds = new Set<string>()
+    if (perBookPriceMode) {
+      for (const id of selectedEditionIds) {
+        const raw = (editionPrices[id] ?? '').trim()
+        const n = parseFloat(raw.replace(',', '.'))
+        if (raw === '' || isNaN(n) || n < 0) nextInvalidPriceEditionIds.add(id)
+      }
+    }
 
     setDateInvalid(nextDateInvalid)
     setTotalInvalid(nextTotalInvalid)
     setShippingInvalid(nextShippingInvalid)
     setInvalidFeeKeys(nextInvalidFeeKeys)
     setInvalidDiscountKeys(nextInvalidDiscountKeys)
+    setInvalidPriceEditionIds(nextInvalidPriceEditionIds)
 
     if (nextDateInvalid) { setValidationError('Enter a valid purchase date.'); return }
+    if (nextInvalidPriceEditionIds.size > 0) { setValidationError('Enter a price for every book above, or clear all of them to set one total price instead.'); return }
     if (nextTotalInvalid) { setValidationError('Price must be 0 or greater.'); return }
     if (nextShippingInvalid) { setValidationError('Shipping must be 0 or greater.'); return }
     if (nextInvalidFeeKeys.size > 0) { setValidationError('Fee amounts must be 0 or greater.'); return }
@@ -276,11 +305,17 @@ export function CollectionFormModal({
                         <input
                           type="text"
                           inputMode="decimal"
-                          placeholder="auto"
+                          placeholder="0.00"
                           value={editionPrices[ed.editionId] ?? ''}
-                          onChange={e => setEditionPrices(prev => ({ ...prev, [ed.editionId]: e.target.value }))}
+                          onChange={e => {
+                            setEditionPrices(prev => ({ ...prev, [ed.editionId]: e.target.value }))
+                            if (invalidPriceEditionIds.has(ed.editionId)) {
+                              setInvalidPriceEditionIds(prev => { const next = new Set(prev); next.delete(ed.editionId); return next })
+                              setValidationError(null)
+                            }
+                          }}
                           onClick={e => e.stopPropagation()}
-                          className="w-16 bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-xs text-right shrink-0"
+                          className={`w-16 bg-stone-800 border rounded px-1.5 py-0.5 text-stone-100 text-xs text-right shrink-0 ${invalidPriceEditionIds.has(ed.editionId) ? 'border-red-500/70' : 'border-stone-600'}`}
                         />
                       )}
                     </label>
@@ -292,7 +327,9 @@ export function CollectionFormModal({
               )}
               {selectedEditionIds.length > 1 && (
                 <p className="text-[11px] text-stone-500">
-                  Optional per-book price — leave blank to split the total evenly.
+                  {perBookPriceMode
+                    ? `Pricing books individually — fill in all ${selectedEditionIds.length}, total below is calculated automatically.`
+                    : 'Leave every book price blank and set one total below to split it evenly — or price each book individually here instead.'}
                 </p>
               )}
             </div>
@@ -335,8 +372,15 @@ export function CollectionFormModal({
           {/* Price / Shipping / Currency */}
           <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
             <div>
-              <label className={LABEL}>Price paid (optional)</label>
-              <input type="text" value={totalAmount} onChange={e => { setTotalAmount(e.target.value); if (totalInvalid) { setTotalInvalid(false); setValidationError(null) } }} placeholder="0.00" className={inpErr(INPUT, totalInvalid)} />
+              <label className={LABEL}>{perBookPriceMode ? 'Price paid (sum of books above)' : 'Price paid (optional)'}</label>
+              <input
+                type="text"
+                value={totalAmount}
+                disabled={perBookPriceMode}
+                onChange={e => { setTotalAmount(e.target.value); if (totalInvalid) { setTotalInvalid(false); setValidationError(null) } }}
+                placeholder="0.00"
+                className={`${inpErr(INPUT, totalInvalid)} ${perBookPriceMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+              />
             </div>
             <div>
               <label className={LABEL}>Shipping (optional)</label>
