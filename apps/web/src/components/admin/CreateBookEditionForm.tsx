@@ -438,24 +438,24 @@ export default function CreateBookEditionForm({
       }
     }
     return (
-      <div className="space-y-4 p-4 bg-stone-800/60 rounded-xl border border-brand-700/30">
-        <p className="text-sm text-stone-300 font-semibold">✓ New edition created!</p>
-        <p className="text-sm text-stone-400">
+      <div className="space-y-4 p-4 bg-navy-800/60 rounded-xl border border-brand-700/30">
+        <p className="text-sm text-navy-300 font-semibold">✓ New edition created!</p>
+        <p className="text-sm text-navy-400">
           {linkMode === 'variant'
             ? 'Link it as a variant of the existing edition (e.g. White/Black — released together)?'
             : 'Link it to the previous edition from the same company (reissue)?'}
         </p>
-        <div className="p-3 rounded-lg bg-stone-700/50 text-sm text-stone-200">
+        <div className="p-3 rounded-lg bg-navy-700/50 text-sm text-navy-200">
           {duplicateEdition.bookBoxCompany?.name ?? duplicateEdition.slug}
           {duplicateEdition.collection ? ` — ${duplicateEdition.collection.name}` : ''}
         </div>
         <div className="flex gap-2">
           <button type="button" disabled={linkBusy || linkDone} onClick={handleLink}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand-400 text-stone-950 hover:bg-brand-300 disabled:opacity-50 transition-colors">
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand-400 text-navy-950 hover:bg-brand-300 disabled:opacity-50 transition-colors">
             {linkDone ? '✓ Linked!' : linkBusy ? 'Linking…' : linkMode === 'variant' ? 'Link as variant' : 'Link as re-edition'}
           </button>
           <button type="button" onClick={() => onSuccess(createdEditionId ?? undefined)}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors">
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-navy-700 text-navy-300 hover:bg-navy-600 transition-colors">
             Skip
           </button>
         </div>
@@ -467,7 +467,7 @@ export default function CreateBookEditionForm({
   if (step === 1) return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-stone-500 uppercase tracking-wide font-semibold">
+        <span className="text-xs text-navy-500 uppercase tracking-wide font-semibold">
           {bookOnly ? 'Book details' : 'Step 1 / 2 — Book'}
         </span>
       </div>
@@ -501,11 +501,11 @@ export default function CreateBookEditionForm({
         {authors.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {authors.map((a, i) => (
-              <span key={i} className="flex items-center gap-1.5 bg-stone-700 text-stone-200 text-xs px-2.5 py-1 rounded-full">
+              <span key={i} className="flex items-center gap-1.5 bg-navy-700 text-navy-200 text-xs px-2.5 py-1 rounded-full">
                 {!a.id && <span className="text-brand-400 text-[9px] font-semibold uppercase">new</span>}
                 {a.name}
                 <button onClick={() => setAuthors(authors.filter((_, j) => j !== i))}
-                  className="text-stone-500 hover:text-red-400">×</button>
+                  className="text-navy-500 hover:text-red-400">×</button>
               </span>
             ))}
           </div>
@@ -552,7 +552,7 @@ export default function CreateBookEditionForm({
       {duplicateBook && (
         <div className="bg-amber-950/40 border border-amber-600/40 rounded-xl p-4 space-y-2">
           <p className="text-sm text-amber-300 font-semibold">⚠ This book may already exist</p>
-          <p className="text-sm text-stone-300">
+          <p className="text-sm text-navy-300">
             <strong>{duplicateBook.title}</strong>
             {duplicateBook.authors.length > 0 && ` by ${duplicateBook.authors.map(a => a.name).join(', ')}`}
           </p>
@@ -568,11 +568,11 @@ export default function CreateBookEditionForm({
                   setStep(2)
                 }
               }}
-              className="px-3 py-1.5 text-xs bg-brand-600 hover:bg-brand-500 text-stone-950 font-semibold rounded-lg transition-colors">
+              className="px-3 py-1.5 text-xs bg-brand-600 hover:bg-brand-500 text-navy-950 font-semibold rounded-lg transition-colors">
               Use existing book →
             </button>
             <a href={`/books/${duplicateBook.slug}`} target="_blank" rel="noopener noreferrer"
-              className="px-3 py-1.5 text-xs bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-lg transition-colors">
+              className="px-3 py-1.5 text-xs bg-navy-700 hover:bg-navy-600 text-navy-300 rounded-lg transition-colors">
               View book ↗
             </a>
           </div>
@@ -585,12 +585,12 @@ export default function CreateBookEditionForm({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-stone-500 uppercase tracking-wide font-semibold">
+        <span className="text-xs text-navy-500 uppercase tracking-wide font-semibold">
           {existingBookId ? 'Edition details' : 'Step 2 / 2 — Edition'}
         </span>
         {!existingBookId && (
           <button type="button" onClick={() => setStep(1)}
-            className="text-xs text-stone-500 hover:text-stone-300">← Edit book</button>
+            className="text-xs text-navy-500 hover:text-navy-300">← Edit book</button>
         )}
       </div>
 
@@ -639,7 +639,7 @@ export default function CreateBookEditionForm({
         )}
       </div>
 
-      <p className="text-xs text-stone-500 italic">If this is an omnibus edition, edit it after creation to set component books.</p>
+      <p className="text-xs text-navy-500 italic">If this is an omnibus edition, edit it after creation to set component books.</p>
 
       <div className="flex gap-2 pt-1">
         <button type="button" disabled={busy || saved} onClick={() => handleStep2()}
@@ -664,13 +664,13 @@ export default function CreateBookEditionForm({
       {duplicateEdition && !bypassDuplicate && (
         <div className="bg-amber-950/40 border border-amber-600/40 rounded-xl p-4 space-y-2">
           <p className="text-sm text-amber-300 font-semibold">⚠ A similar edition already exists</p>
-          <p className="text-sm text-stone-300">
+          <p className="text-sm text-navy-300">
             {duplicateEdition.bookBoxCompany?.name ?? 'Unknown company'}
             {duplicateEdition.collection && ` — ${duplicateEdition.collection.name}`}
           </p>
           <div className="flex gap-2 pt-1">
             <a href={`/editions/${duplicateEdition.slug}`} target="_blank" rel="noopener noreferrer"
-              className="px-3 py-1.5 text-xs bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-lg transition-colors">
+              className="px-3 py-1.5 text-xs bg-navy-700 hover:bg-navy-600 text-navy-300 rounded-lg transition-colors">
               View existing ↗
             </a>
             <button

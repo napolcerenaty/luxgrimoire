@@ -13,12 +13,12 @@ export default function TermsPage() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16">
       <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">Terms of Use</h1>
-      <p className="text-stone-500 text-sm mb-12">Effective date: {EFFECTIVE_DATE}</p>
+      <p className="text-navy-500 text-sm mb-12">Effective date: {EFFECTIVE_DATE}</p>
 
-      <div className="prose prose-invert prose-stone max-w-none space-y-10 text-stone-300 leading-relaxed">
+      <div className="prose prose-invert prose-stone max-w-none space-y-10 text-navy-300 leading-relaxed">
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">1. Acceptance of Terms</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">1. Acceptance of Terms</h2>
           <p>
             By accessing or using LuxGrimoire (&ldquo;the Service&rdquo;) at{' '}
             <Link href="https://luxgrimoire.com" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
@@ -36,7 +36,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">2. Description of Service</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">2. Description of Service</h2>
           <p>
             LuxGrimoire is a community-driven database and personal tracker for luxury special edition books and book
             subscription boxes. The Service allows users to browse a publicly-contributed database, manage personal
@@ -50,7 +50,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">3. Eligibility</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">3. Eligibility</h2>
           <p>
             You must be at least 13 years old to use the Service. By creating an account, you confirm that you
             meet this minimum age requirement. If you are under 18, you should review these Terms with a parent
@@ -59,8 +59,8 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">4. User Accounts</h2>
-          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">4. User Accounts</h2>
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
             <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
             <li>You are responsible for all activity that occurs under your account.</li>
             <li>You must provide accurate, current, and complete information when creating your account.</li>
@@ -70,12 +70,12 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">5. User-Generated Content</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">5. User-Generated Content</h2>
           <p>
             Users may contribute content to LuxGrimoire, including database entries, sale announcements, and images.
             By contributing content, you agree that:
           </p>
-          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
             <li>Your content is accurate to the best of your knowledge.</li>
             <li>You have the right to contribute the content and it does not violate any law or third-party rights.</li>
             <li>You grant LuxGrimoire a non-exclusive, worldwide, royalty-free licence to display, distribute, and
@@ -92,12 +92,12 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">6. Image Uploads</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">6. Image Uploads</h2>
           <p>
             You may upload images (e.g. edition cover photos) to enrich the community database. By uploading
             an image, you confirm that:
           </p>
-          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
             <li>You are the author or original photographer, or you have obtained explicit permission from the
                 rights-holder to upload the image.</li>
             <li>You are not uploading images that infringe copyright, are protected by digital rights management
@@ -113,12 +113,12 @@ export default function TermsPage() {
             for details.
           </p>
 
-          <h3 className="text-base font-semibold text-stone-200 mt-6 mb-2">6a. Community Edition Photos</h3>
+          <h3 className="text-base font-semibold text-navy-200 mt-6 mb-2">6a. Community Edition Photos</h3>
           <p>
             For editions that do not have official imagery, logged-in users may submit a community photo of their
             own physical copy. By submitting a community photo you explicitly confirm all of the following:
           </p>
-          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
             <li>The photo is your own original work and you are its author.</li>
             <li>You grant LuxGrimoire a non-exclusive, worldwide, royalty-free licence to display the photo
                 within the platform for as long as it remains published.</li>
@@ -137,9 +137,9 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">7. Prohibited Conduct</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">7. Prohibited Conduct</h2>
           <p>You agree not to:</p>
-          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
             <li>Upload, post, or submit false, misleading, or inaccurate information.</li>
             <li>Upload infringing, defamatory, obscene, or otherwise unlawful content.</li>
             <li>Attempt to access, probe, or test the security of the Service without authorisation.</li>
@@ -156,7 +156,7 @@ export default function TermsPage() {
 
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">8. Intellectual Property</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">8. Intellectual Property</h2>
           <p>
             The LuxGrimoire name, logo, design, and original code are the intellectual property of LuxGrimoire
             and its creators. You may not reproduce, distribute, or create derivative works from them without
@@ -170,12 +170,12 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">9. Disclaimers</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">9. Disclaimers</h2>
           <p>
             The Service is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo; without warranties of any kind, express or
             implied. We do not warrant that:
           </p>
-          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
             <li>Database information is complete, accurate, or up to date.</li>
             <li>The Service will be uninterrupted or error-free.</li>
             <li>Prices, availability, or sale dates of any featured edition or subscription are accurate.</li>
@@ -186,12 +186,12 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">10. DMCA / Copyright Takedown</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">10. DMCA / Copyright Takedown</h2>
           <p>
             If you believe that content on LuxGrimoire infringes your copyright, please send a takedown notice to{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">{CONTACT_EMAIL}</a> including:
           </p>
-          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
             <li>A description of the copyrighted work you believe has been infringed.</li>
             <li>The URL or location of the allegedly infringing content on our platform.</li>
             <li>Your contact information (name, email address).</li>
@@ -204,7 +204,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">11. Limitation of Liability</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">11. Limitation of Liability</h2>
           <p>
             To the maximum extent permitted by applicable law, LuxGrimoire and its contributors shall not be
             liable for any indirect, incidental, special, or consequential damages arising from use of or
@@ -213,7 +213,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">12. Governing Law</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">12. Governing Law</h2>
           <p>
             These Terms are governed by the laws of the European Union and the Republic of Poland, without regard
             to conflict of law principles. Any disputes shall be subject to the exclusive jurisdiction of the
@@ -222,7 +222,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">13. Changes to Terms</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">13. Changes to Terms</h2>
           <p>
             We may update these Terms from time to time. We will notify registered users of material changes by
             email and by posting the updated Terms with a new effective date. Your continued use of the Service
@@ -231,7 +231,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">14. Contact</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">14. Contact</h2>
           <p>
             Questions about these Terms:{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">{CONTACT_EMAIL}</a>

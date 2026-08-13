@@ -106,23 +106,23 @@ export default function AnalyticsPage() {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-stone-100 mb-1">Analytics</h1>
-        <p className="text-stone-400 text-sm">
+        <h1 className="text-2xl font-bold text-navy-100 mb-1">Analytics</h1>
+        <p className="text-navy-400 text-sm">
           Query aggregated usage data. No data is shown until you run a query.
         </p>
       </div>
 
       {/* Query Builder */}
-      <div className="rounded-xl border border-stone-800 bg-stone-900 p-5 mb-6">
-        <h2 className="text-sm font-semibold text-stone-300 uppercase tracking-wider mb-4">Query Builder</h2>
+      <div className="rounded-xl border border-navy-800 bg-navy-900 p-5 mb-6">
+        <h2 className="text-sm font-semibold text-navy-300 uppercase tracking-wider mb-4">Query Builder</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
           {/* Metric */}
           <div>
-            <label className="block text-xs text-stone-500 mb-1.5 uppercase tracking-wide">Metric</label>
+            <label className="block text-xs text-navy-500 mb-1.5 uppercase tracking-wide">Metric</label>
             <select
               value={metric}
               onChange={e => handleMetricChange(e.target.value)}
-              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
+              className="w-full rounded-lg border border-navy-700 bg-navy-800 text-navy-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
             >
               {METRICS.map(m => (
                 <option key={m.id} value={m.id}>{m.label}</option>
@@ -132,11 +132,11 @@ export default function AnalyticsPage() {
 
           {/* Group By */}
           <div>
-            <label className="block text-xs text-stone-500 mb-1.5 uppercase tracking-wide">Group by</label>
+            <label className="block text-xs text-navy-500 mb-1.5 uppercase tracking-wide">Group by</label>
             <select
               value={groupBy}
               onChange={e => { setGroupBy(e.target.value); setActiveKey(null) }}
-              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
+              className="w-full rounded-lg border border-navy-700 bg-navy-800 text-navy-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
             >
               {GROUP_BY_OPTIONS.map(g => (
                 <option key={g.id} value={g.id}>{g.label}</option>
@@ -146,11 +146,11 @@ export default function AnalyticsPage() {
 
           {/* Period */}
           <div>
-            <label className="block text-xs text-stone-500 mb-1.5 uppercase tracking-wide">Time range</label>
+            <label className="block text-xs text-navy-500 mb-1.5 uppercase tracking-wide">Time range</label>
             <select
               value={period}
               onChange={e => { setPeriod(e.target.value); setActiveKey(null) }}
-              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
+              className="w-full rounded-lg border border-navy-700 bg-navy-800 text-navy-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
             >
               {PERIODS.map(p => (
                 <option key={p.id} value={p.id}>{p.label}</option>
@@ -160,11 +160,11 @@ export default function AnalyticsPage() {
 
           {/* Limit */}
           <div>
-            <label className="block text-xs text-stone-500 mb-1.5 uppercase tracking-wide">Top N</label>
+            <label className="block text-xs text-navy-500 mb-1.5 uppercase tracking-wide">Top N</label>
             <select
               value={limit}
               onChange={e => { setLimit(Number(e.target.value)); setActiveKey(null) }}
-              className="w-full rounded-lg border border-stone-700 bg-stone-800 text-stone-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
+              className="w-full rounded-lg border border-navy-700 bg-navy-800 text-navy-100 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
             >
               {LIMITS.map(n => (
                 <option key={n} value={n}>Top {n}</option>
@@ -184,49 +184,49 @@ export default function AnalyticsPage() {
 
       {/* Results */}
       {activeKey === null && (
-        <div className="rounded-xl border border-stone-800 bg-stone-900/50 py-16 text-center text-stone-500">
+        <div className="rounded-xl border border-navy-800 bg-navy-900/50 py-16 text-center text-navy-500">
           <p className="text-3xl mb-3">📊</p>
-          <p className="font-serif text-stone-400">Configure your query above and click Run</p>
+          <p className="font-serif text-navy-400">Configure your query above and click Run</p>
         </div>
       )}
 
       {activeKey !== null && (isLoading || isFetching) && (
-        <div className="rounded-xl border border-stone-800 bg-stone-900 p-6 space-y-2">
+        <div className="rounded-xl border border-navy-800 bg-navy-900 p-6 space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-8 rounded animate-pulse bg-stone-800" />
+            <div key={i} className="h-8 rounded animate-pulse bg-navy-800" />
           ))}
         </div>
       )}
 
       {activeKey !== null && !isLoading && !isFetching && error && (
-        <div className="rounded-xl border border-red-800/50 bg-stone-900 p-6 text-center text-red-400 text-sm">
+        <div className="rounded-xl border border-red-800/50 bg-navy-900 p-6 text-center text-red-400 text-sm">
           Failed to load results. Please try again.
         </div>
       )}
 
       {activeKey !== null && !isLoading && !isFetching && !error && data && (
-        <div className="rounded-xl border border-stone-800 bg-stone-900 overflow-hidden">
+        <div className="rounded-xl border border-navy-800 bg-navy-900 overflow-hidden">
           {/* Table header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-stone-800">
-            <h3 className="text-sm font-semibold text-stone-300">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-navy-800">
+            <h3 className="text-sm font-semibold text-navy-300">
               {METRICS.find(m => m.id === metric)?.label} ·{' '}
               {GROUP_BY_OPTIONS.find(g => g.id === groupBy)?.label} ·{' '}
               {PERIODS.find(p => p.id === period)?.label}
             </h3>
-            <span className="text-xs text-stone-500">{data.length} row(s) · {total.toLocaleString()} total events</span>
+            <span className="text-xs text-navy-500">{data.length} row(s) · {total.toLocaleString()} total events</span>
           </div>
 
           {data.length === 0 ? (
-            <div className="py-12 text-center text-stone-500 text-sm">No data for this query yet.</div>
+            <div className="py-12 text-center text-navy-500 text-sm">No data for this query yet.</div>
           ) : (
-            <div className="divide-y divide-stone-800/60">
+            <div className="divide-y divide-navy-800/60">
               {data.map((row, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-3 group hover:bg-stone-800/40">
-                  <span className="text-xs text-stone-600 font-mono w-5 flex-shrink-0">{i + 1}</span>
+                <div key={i} className="flex items-center gap-4 px-5 py-3 group hover:bg-navy-800/40">
+                  <span className="text-xs text-navy-600 font-mono w-5 flex-shrink-0">{i + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-stone-200 truncate block">{row.label}</span>
+                    <span className="text-sm text-navy-200 truncate block">{row.label}</span>
                     {/* Bar */}
-                    <div className="mt-1 h-1 rounded bg-stone-700 overflow-hidden">
+                    <div className="mt-1 h-1 rounded bg-navy-700 overflow-hidden">
                       <div
                         className="h-full rounded bg-brand-600"
                         style={{ width: `${Math.round((row.count / maxCount) * 100)}%` }}
@@ -244,7 +244,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* Future integrations notice */}
-      <p className="mt-4 text-xs text-stone-600 text-center">
+      <p className="mt-4 text-xs text-navy-600 text-center">
         Events are stored locally. Future: Mixpanel / Amplitude export via event type filter.
       </p>
     </div>

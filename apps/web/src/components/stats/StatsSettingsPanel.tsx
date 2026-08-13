@@ -74,17 +74,17 @@ export default function StatsSettingsPanel({ onClose }: StatsSettingsPanelProps)
 
   const current: StatsSettings = settings ?? { spending: true, sales: true, reading: true, features: true }
 
-  if (isLoading) return <div className="p-6 text-sm text-stone-500 animate-pulse">Loading settings…</div>
+  if (isLoading) return <div className="p-6 text-sm text-navy-500 animate-pulse">Loading settings…</div>
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-stone-800">
+      <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-navy-800">
         <div>
-          <h2 className="text-base font-serif font-semibold text-stone-100">Your stats, your way</h2>
-          <p className="text-xs text-stone-500 mt-0.5">Choose what you want to see in your statistics</p>
+          <h2 className="text-base font-serif font-semibold text-navy-100">Your stats, your way</h2>
+          <p className="text-xs text-navy-500 mt-0.5">Choose what you want to see in your statistics</p>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-stone-500 hover:text-stone-300 transition-colors p-1">
+          <button onClick={onClose} className="text-navy-500 hover:text-navy-300 transition-colors p-1">
             <X size={16} />
           </button>
         )}
@@ -99,22 +99,22 @@ export default function StatsSettingsPanel({ onClose }: StatsSettingsPanelProps)
               disabled={mutation.isPending}
               className={`w-full text-left p-4 rounded-2xl border transition-all ${
                 isOn
-                  ? 'bg-stone-900 border-stone-700 hover:border-stone-600'
-                  : 'bg-stone-950 border-stone-800 hover:border-stone-700 opacity-70'
+                  ? 'bg-navy-900 border-navy-700 hover:border-navy-600'
+                  : 'bg-navy-950 border-navy-800 hover:border-navy-700 opacity-70'
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className={`mt-0.5 p-1.5 rounded-lg ${isOn ? 'bg-brand-500/10 text-brand-400' : 'bg-stone-800 text-stone-600'}`}>
+                <div className={`mt-0.5 p-1.5 rounded-lg ${isOn ? 'bg-brand-500/10 text-brand-400' : 'bg-navy-800 text-navy-600'}`}>
                   <Icon size={14} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className={`text-sm font-medium ${isOn ? 'text-stone-200' : 'text-stone-500'}`}>{title}</span>
-                    <div className={`shrink-0 w-9 h-5 rounded-full transition-colors relative ${isOn ? 'bg-brand-500' : 'bg-stone-700'}`}>
+                    <span className={`text-sm font-medium ${isOn ? 'text-navy-200' : 'text-navy-500'}`}>{title}</span>
+                    <div className={`shrink-0 w-9 h-5 rounded-full transition-colors relative ${isOn ? 'bg-brand-500' : 'bg-navy-700'}`}>
                       <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isOn ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
                     </div>
                   </div>
-                  <p className={`text-xs mt-1 italic ${isOn ? 'text-stone-400' : 'text-brand-600/70'}`}>
+                  <p className={`text-xs mt-1 italic ${isOn ? 'text-navy-400' : 'text-brand-600/70'}`}>
                     {isOn ? onMessage : offMessage}
                   </p>
                 </div>

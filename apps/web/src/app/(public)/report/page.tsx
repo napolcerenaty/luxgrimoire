@@ -61,11 +61,11 @@ export default function ReportPage() {
 
   if (done) {
     return (
-      <div className="min-h-screen bg-stone-950 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-navy-950 flex items-center justify-center px-4">
         <div className="max-w-md w-full text-center">
           <CheckCircle size={48} className="text-green-400 mx-auto mb-4" />
-          <h1 className="font-serif text-2xl text-stone-100 mb-2">Report submitted</h1>
-          <p className="text-stone-400 text-sm leading-relaxed">
+          <h1 className="font-serif text-2xl text-navy-100 mb-2">Report submitted</h1>
+          <p className="text-navy-400 text-sm leading-relaxed">
             Thank you for helping keep LuxGrimoire accurate and safe. We will review your report and take appropriate action.
           </p>
         </div>
@@ -74,13 +74,13 @@ export default function ReportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-950 px-4 py-12">
+    <div className="min-h-screen bg-navy-950 px-4 py-12">
       <div className="max-w-xl mx-auto">
         <div className="flex items-center gap-3 mb-2">
           <AlertTriangle size={22} className="text-rose-500" />
-          <h1 className="font-serif text-2xl text-stone-100">Report an Issue</h1>
+          <h1 className="font-serif text-2xl text-navy-100">Report an Issue</h1>
         </div>
-        <p className="text-stone-400 text-sm mb-8 leading-relaxed">
+        <p className="text-navy-400 text-sm mb-8 leading-relaxed">
           Use this form to report copyright violations, incorrect data, inappropriate content, or any other concern.
           For DMCA take-down requests please include the specific URL and your contact email.
         </p>
@@ -88,7 +88,7 @@ export default function ReportPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Type */}
           <div>
-            <label className="block text-sm text-stone-400 mb-2">Report type <span className="text-rose-500">*</span></label>
+            <label className="block text-sm text-navy-400 mb-2">Report type <span className="text-rose-500">*</span></label>
             <div className="space-y-2">
               {REPORT_TYPES.map((rt) => (
                 <label
@@ -96,7 +96,7 @@ export default function ReportPage() {
                   className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                     type === rt.value
                       ? 'border-brand-600 bg-brand-950/20'
-                      : 'border-stone-700 hover:border-stone-500'
+                      : 'border-navy-700 hover:border-navy-500'
                   }`}
                 >
                   <input
@@ -108,8 +108,8 @@ export default function ReportPage() {
                     className="mt-0.5 accent-brand-500"
                   />
                   <div>
-                    <p className="text-sm text-stone-200">{rt.label}</p>
-                    <p className="text-xs text-stone-500">{rt.description}</p>
+                    <p className="text-sm text-navy-200">{rt.label}</p>
+                    <p className="text-xs text-navy-500">{rt.description}</p>
                   </div>
                 </label>
               ))}
@@ -118,21 +118,21 @@ export default function ReportPage() {
 
           {/* URL */}
           <div>
-            <label className="block text-sm text-stone-400 mb-1">
-              Page or content URL <span className="text-stone-600">(optional but helpful)</span>
+            <label className="block text-sm text-navy-400 mb-1">
+              Page or content URL <span className="text-navy-600">(optional but helpful)</span>
             </label>
             <input
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://luxgrimoire.com/editions/..."
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-500 transition-colors"
+              className="w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 text-sm focus:outline-none focus:border-brand-500 transition-colors"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm text-stone-400 mb-1">
+            <label className="block text-sm text-navy-400 mb-1">
               Description <span className="text-rose-500">*</span>
             </label>
             <textarea
@@ -140,22 +140,22 @@ export default function ReportPage() {
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
               placeholder="Please describe the issue in detail…"
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-500 transition-colors resize-none"
+              className="w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 text-sm focus:outline-none focus:border-brand-500 transition-colors resize-none"
               required
             />
           </div>
 
           {/* Email */}
           <div>
-            <label className="block text-sm text-stone-400 mb-1">
-              Your email <span className="text-stone-600">(optional — needed if you want a response)</span>
+            <label className="block text-sm text-navy-400 mb-1">
+              Your email <span className="text-navy-600">(optional — needed if you want a response)</span>
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-500 transition-colors"
+              className="w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 text-sm focus:outline-none focus:border-brand-500 transition-colors"
             />
           </div>
 

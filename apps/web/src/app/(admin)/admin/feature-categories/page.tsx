@@ -116,7 +116,7 @@ function QuickAddPhrase({
     <div className="flex gap-2 items-center">
       <input
         type="text"
-        className="flex-1 bg-stone-800/60 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 placeholder-stone-600 focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400/20"
+        className="flex-1 bg-navy-800/60 border border-navy-700 rounded-lg px-3 py-1.5 text-sm text-navy-200 placeholder-navy-600 focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400/20"
         placeholder={placeholder ?? 'Type a phrase and press Enter…'}
         value={phrase}
         onChange={e => setPhrase(e.target.value)}
@@ -128,7 +128,7 @@ function QuickAddPhrase({
         type="button"
         onClick={submit}
         disabled={!phrase.trim()}
-        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-200 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-700 text-navy-200 hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
       >
         + Add
       </button>
@@ -239,7 +239,7 @@ function CategoryForm({
 
       {/* Pattern mode toggle */}
       <div className="flex items-center justify-between">
-        <span className="text-xs text-stone-500">
+        <span className="text-xs text-navy-500">
           Patterns — type a phrase and press Enter, or edit regex directly below
         </span>
         <button
@@ -298,7 +298,7 @@ function CategoryForm({
       <div className="space-y-1.5">
         <label className={LABEL_CLASS}>
           Do NOT tag if value also contains…
-          <span className="text-stone-500 font-normal ml-1 text-xs">(exclusions)</span>
+          <span className="text-navy-500 font-normal ml-1 text-xs">(exclusions)</span>
         </label>
         <QuickAddPhrase
           placeholder='e.g. "gilded edges"'
@@ -338,8 +338,8 @@ function CategoryForm({
       </div>
 
       {/* ── Test panel ───────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-3 space-y-2">
-        <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">
+      <div className="rounded-xl border border-navy-700 bg-navy-900/60 p-3 space-y-2">
+        <label className="text-xs font-semibold text-navy-400 uppercase tracking-wider">
           🧪 Test a value
         </label>
         <input
@@ -368,7 +368,7 @@ function CategoryForm({
             {/* Matched includes */}
             {testResult.matchedIncludes.length > 0 && (
               <div>
-                <p className="text-xs text-stone-500 mb-1">Matched include patterns:</p>
+                <p className="text-xs text-navy-500 mb-1">Matched include patterns:</p>
                 <div className="flex flex-wrap gap-1">
                   {testResult.matchedIncludes.map((p, i) => (
                     <code key={i} className="text-xs bg-emerald-900/30 border border-emerald-700/30 text-emerald-400 px-1.5 py-0.5 rounded font-mono">
@@ -382,7 +382,7 @@ function CategoryForm({
             {/* Matched excludes */}
             {testResult.matchedExcludes.length > 0 && (
               <div>
-                <p className="text-xs text-stone-500 mb-1">Triggered exclude patterns:</p>
+                <p className="text-xs text-navy-500 mb-1">Triggered exclude patterns:</p>
                 <div className="flex flex-wrap gap-1">
                   {testResult.matchedExcludes.map((p, i) => (
                     <code key={i} className="text-xs bg-red-900/30 border border-red-700/30 text-red-400 px-1.5 py-0.5 rounded font-mono">
@@ -395,11 +395,11 @@ function CategoryForm({
           </div>
         )}
         {!testResult && (
-          <p className="text-xs text-stone-600">Enter any feature value above to test if it matches.</p>
+          <p className="text-xs text-navy-600">Enter any feature value above to test if it matches.</p>
         )}
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+      <label className="flex items-center gap-2 text-sm text-navy-300 cursor-pointer">
         <input
           type="checkbox"
           checked={form.isActive}
@@ -474,10 +474,10 @@ function PatternPills({ patterns, variant }: { patterns: string[]; variant: 'inc
   const rest = keywords.length - 3
 
   const pillClass = variant === 'include'
-    ? 'bg-stone-800 text-stone-300 border border-stone-700/50'
+    ? 'bg-navy-800 text-navy-300 border border-navy-700/50'
     : 'bg-red-950/40 text-red-400 border border-red-800/40'
 
-  if (keywords.length === 0) return <span className="text-stone-600 text-xs">—</span>
+  if (keywords.length === 0) return <span className="text-navy-600 text-xs">—</span>
 
   return (
     <div className="flex flex-wrap gap-1 items-center">
@@ -490,7 +490,7 @@ function PatternPills({ patterns, variant }: { patterns: string[]; variant: 'inc
       {!expanded && rest > 0 && (
         <button
           onClick={() => setExpanded(true)}
-          className="text-xs text-stone-500 hover:text-stone-300 transition-colors"
+          className="text-xs text-navy-500 hover:text-navy-300 transition-colors"
         >
           +{rest} more
         </button>
@@ -498,7 +498,7 @@ function PatternPills({ patterns, variant }: { patterns: string[]; variant: 'inc
       {expanded && keywords.length > 3 && (
         <button
           onClick={() => setExpanded(false)}
-          className="text-xs text-stone-500 hover:text-stone-300 transition-colors"
+          className="text-xs text-navy-500 hover:text-navy-300 transition-colors"
         >
           less
         </button>
@@ -579,8 +579,8 @@ export default function FeatureCategoriesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-stone-100">Feature Categories</h1>
-          <p className="text-stone-400 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-navy-100">Feature Categories</h1>
+          <p className="text-navy-400 text-sm mt-1">
             Manage normalization categories for edition feature tags.
           </p>
         </div>
@@ -597,14 +597,14 @@ export default function FeatureCategoriesPage() {
         <select
           value={groupFilter}
           onChange={e => setGroupFilter(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400 text-sm"
+          className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-300 focus:outline-none focus:border-brand-400 text-sm"
         >
           <option value="">All groups</option>
           {GROUPS.map(g => (
             <option key={g} value={g}>{GROUP_LABELS[g] ?? g}</option>
           ))}
         </select>
-        <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer ml-auto">
+        <label className="flex items-center gap-2 text-sm text-navy-400 cursor-pointer ml-auto">
           <input
             type="checkbox"
             checked={showInactive}
@@ -613,49 +613,49 @@ export default function FeatureCategoriesPage() {
           />
           Show inactive
         </label>
-        <span className="text-stone-500 text-sm">{categories.length} categories</span>
+        <span className="text-navy-500 text-sm">{categories.length} categories</span>
       </div>
 
       {/* Table by group */}
       {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-navy-400 py-8 text-center">Loading…</div>
       ) : allGroups.length === 0 ? (
-        <div className="text-stone-500 py-8 text-center">
+        <div className="text-navy-500 py-8 text-center">
           No categories yet. Create one to get started.
         </div>
       ) : (
         <div className="space-y-6">
           {allGroups.map(group => (
             <section key={group}>
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2 px-1">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-navy-400 mb-2 px-1">
                 {GROUP_LABELS[group] ?? group}
               </h2>
-              <div className="rounded-2xl border border-stone-800 overflow-x-auto">
-                <table className="w-full text-sm text-stone-200">
+              <div className="rounded-2xl border border-navy-800 overflow-x-auto">
+                <table className="w-full text-sm text-navy-200">
                   <thead>
-                    <tr className="border-b border-stone-800 bg-stone-900/80">
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">#</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Label</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Matches when value contains…</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Excluded if contains…</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Status</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">Actions</th>
+                    <tr className="border-b border-navy-800 bg-navy-900/80">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-navy-400">#</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-navy-400">Label</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-navy-400">Matches when value contains…</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-navy-400">Excluded if contains…</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-navy-400">Status</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-navy-400">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(grouped[group] ?? []).map(cat => (
                       <tr
                         key={cat.id}
-                        className={`border-b border-stone-800/50 hover:bg-stone-800/40 transition-colors ${
+                        className={`border-b border-navy-800/50 hover:bg-navy-800/40 transition-colors ${
                           !cat.isActive ? 'opacity-50' : ''
                         }`}
                       >
                         <td className="px-4 py-2.5">
-                          <span className="text-xs text-stone-500 font-mono">{cat.sortOrder}</span>
+                          <span className="text-xs text-navy-500 font-mono">{cat.sortOrder}</span>
                          </td>
                         <td className="px-4 py-2.5">
-                          <div className="font-medium text-stone-200">{cat.label}</div>
-                          <div className="text-xs text-stone-500 font-mono mt-0.5">{cat.slug}</div>
+                          <div className="font-medium text-navy-200">{cat.label}</div>
+                          <div className="text-xs text-navy-500 font-mono mt-0.5">{cat.slug}</div>
                         </td>
                         <td className="px-4 py-2.5 max-w-xs">
                           <PatternPills patterns={cat.includePatterns} variant="include" />
@@ -666,7 +666,7 @@ export default function FeatureCategoriesPage() {
                         <td className="px-4 py-2.5">
                           {cat.isActive
                             ? <span className="text-xs text-emerald-400">Active</span>
-                            : <span className="text-xs text-stone-500">Inactive</span>
+                            : <span className="text-xs text-navy-500">Inactive</span>
                           }
                         </td>
                         <td className="px-4 py-2.5">

@@ -22,13 +22,13 @@ export default function ErrorPage({
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-brand-500/10 border border-brand-500/30">
           <AlertTriangle size={24} className="text-brand-500" />
         </div>
-        <h1 className="font-serif text-2xl font-semibold text-stone-100 mb-2">Something went wrong</h1>
-        <p className="text-sm text-stone-400">
+        <h1 className="font-serif text-2xl font-semibold text-navy-100 mb-2">Something went wrong</h1>
+        <p className="text-sm text-navy-400">
           An unexpected error occurred while loading this page. It&apos;s already been logged on our end —
           no need to report it unless you&apos;d like to add details.
         </p>
         {error.digest && (
-          <p className="text-xs text-stone-600 mt-2">Reference: {error.digest}</p>
+          <p className="text-xs text-navy-600 mt-2">Reference: {error.digest}</p>
         )}
         <div className="flex flex-col sm:flex-row gap-3 justify-center mt-7">
           <button
@@ -40,14 +40,14 @@ export default function ErrorPage({
           </button>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('open-bug-report', { detail: { category: 'error' } }))}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 text-sm font-medium hover:bg-stone-800 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-navy-700 text-navy-300 text-sm font-medium hover:bg-navy-800 transition-colors"
           >
             <Bug size={15} />
             Report a bug
           </button>
           <Link
             href="/"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-stone-400 text-sm font-medium hover:text-stone-200 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-navy-400 text-sm font-medium hover:text-navy-200 transition-colors"
           >
             Back to Home
           </Link>

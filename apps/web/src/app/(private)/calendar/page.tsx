@@ -239,7 +239,7 @@ export default function CalendarPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 min-w-0 overflow-x-hidden">
-      <h1 className="text-2xl font-serif text-stone-100">Calendar</h1>
+      <h1 className="text-2xl font-serif text-navy-100">Calendar</h1>
 
       <CalendarGrid
         year={year}
@@ -254,10 +254,10 @@ export default function CalendarPage() {
 
       {/* Monthly spending estimate */}
       {hasSpending && (
-        <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 space-y-3">
+        <div className="bg-navy-900 border border-navy-800 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2">
             <TrendingUp size={14} className="text-brand-400/70" />
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-navy-400">
               Expected spending · {monthLabel}
             </h2>
           </div>
@@ -265,20 +265,20 @@ export default function CalendarPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Renewals */}
             {Object.keys(monthRenewals).length > 0 && (
-              <div className="bg-stone-950/50 rounded-lg p-3 space-y-1.5">
-                <p className="text-[10px] uppercase tracking-widest text-stone-500 font-semibold">Renewals</p>
+              <div className="bg-navy-950/50 rounded-lg p-3 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-widest text-navy-500 font-semibold">Renewals</p>
                 {Object.entries(monthRenewals).map(([currency, { total, names }]) => (
                   <div key={currency} className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-stone-400 truncate flex-1" title={names.join(', ')}>
+                    <p className="text-xs text-navy-400 truncate flex-1" title={names.join(', ')}>
                       {names.length === 1 ? names[0] : `${names.length} subscriptions`}
                     </p>
-                    <p className="text-xs font-semibold text-stone-200 shrink-0">{fmt(total, currency)}</p>
+                    <p className="text-xs font-semibold text-navy-200 shrink-0">{fmt(total, currency)}</p>
                   </div>
                 ))}
                 {Object.keys(monthRenewals).length > 1 && (
-                  <div className="border-t border-stone-800 pt-1.5 flex justify-between">
-                    <p className="text-[10px] text-stone-500">subtotal</p>
-                    <p className="text-[10px] text-stone-400">
+                  <div className="border-t border-navy-800 pt-1.5 flex justify-between">
+                    <p className="text-[10px] text-navy-500">subtotal</p>
+                    <p className="text-[10px] text-navy-400">
                       {Object.entries(monthRenewals).map(([c, { total }]) => fmt(total, c)).join(' + ')}
                     </p>
                   </div>
@@ -288,20 +288,20 @@ export default function CalendarPage() {
 
             {/* Sale announcements */}
             {Object.keys(monthSales).length > 0 && (
-              <div className="bg-stone-950/50 rounded-lg p-3 space-y-1.5">
-                <p className="text-[10px] uppercase tracking-widest text-stone-500 font-semibold">Sale Announcements</p>
+              <div className="bg-navy-950/50 rounded-lg p-3 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-widest text-navy-500 font-semibold">Sale Announcements</p>
                 {Object.entries(monthSales).map(([currency, { total, names }]) => (
                   <div key={currency} className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-stone-400 truncate flex-1" title={names.join(', ')}>
+                    <p className="text-xs text-navy-400 truncate flex-1" title={names.join(', ')}>
                       {names.length === 1 ? names[0] : `${names.length} sales`}
                     </p>
-                    <p className="text-xs font-semibold text-stone-200 shrink-0">{fmt(total, currency)}</p>
+                    <p className="text-xs font-semibold text-navy-200 shrink-0">{fmt(total, currency)}</p>
                   </div>
                 ))}
                 {Object.keys(monthSales).length > 1 && (
-                  <div className="border-t border-stone-800 pt-1.5 flex justify-between">
-                    <p className="text-[10px] text-stone-500">subtotal</p>
-                    <p className="text-[10px] text-stone-400">
+                  <div className="border-t border-navy-800 pt-1.5 flex justify-between">
+                    <p className="text-[10px] text-navy-500">subtotal</p>
+                    <p className="text-[10px] text-navy-400">
                       {Object.entries(monthSales).map(([c, { total }]) => fmt(total, c)).join(' + ')}
                     </p>
                   </div>
@@ -312,16 +312,16 @@ export default function CalendarPage() {
 
           {/* Total in preferred currency */}
           {hasSpending && (
-            <div className="border-t border-stone-800 pt-3 flex items-center justify-between gap-3">
+            <div className="border-t border-navy-800 pt-3 flex items-center justify-between gap-3">
               <div className="flex-1">
-                <p className="text-[10px] uppercase tracking-widest text-stone-500">
+                <p className="text-[10px] uppercase tracking-widest text-navy-500">
                   Total in {preferredCurrency}
                   {!allRatesLoaded && foreignCurrencies.length > 0 && (
-                    <span className="ml-1 text-stone-600">(loading rates…)</span>
+                    <span className="ml-1 text-navy-600">(loading rates…)</span>
                   )}
                 </p>
                 {Object.keys(combinedByCurrency).length > 1 && (
-                  <p className="text-[10px] text-stone-600 mt-0.5">
+                  <p className="text-[10px] text-navy-600 mt-0.5">
                     {Object.entries(combinedByCurrency).map(([c, t]) => fmt(t, c)).join(' + ')}
                   </p>
                 )}
@@ -337,7 +337,7 @@ export default function CalendarPage() {
       )}
 
       {activeEntries.length === 0 && interests.length === 0 && (
-        <p className="text-center text-stone-500 py-8 text-sm">
+        <p className="text-center text-navy-500 py-8 text-sm">
           No active subscriptions.{' '}
           <Link href="/subscriptions" className="text-brand-400 underline">
             Browse subscriptions →
@@ -355,10 +355,10 @@ export default function CalendarPage() {
         const upcoming = sorted.filter(({ dateStr }) => dateStr! >= todayStr)
         return (
           <div className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">Sales you&apos;re interested in</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-navy-400">Sales you&apos;re interested in</h2>
             <div className="space-y-1">
               {upcoming.length === 0 && (
-                <p className="text-sm text-stone-500 italic">No upcoming sales tracked.</p>
+                <p className="text-sm text-navy-500 italic">No upcoming sales tracked.</p>
               )}
               {upcoming.map(({ interest: i, dateStr }) => {
                 const d = new Date(dateStr!)
@@ -399,12 +399,12 @@ export default function CalendarPage() {
         <button
           onClick={handleDownload}
           disabled={!hasEventsThisMonth}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-200 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Download size={15} />
           Download {monthLabel} events
         </button>
-        <p className="text-xs text-stone-600 text-center max-w-sm">
+        <p className="text-xs text-navy-600 text-center max-w-sm">
           Includes only what&apos;s shown above for {monthLabel} — switch months and download again to get other periods.
         </p>
       </div>

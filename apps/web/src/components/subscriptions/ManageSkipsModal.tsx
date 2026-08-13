@@ -166,14 +166,14 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+      <div className="bg-navy-900 border border-navy-700 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-700 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-navy-700 shrink-0">
           <div>
-            <p className="font-serif font-semibold text-stone-100">Manage Skips</p>
-            <p className="text-xs text-stone-400 mt-0.5">{subscriptionName}</p>
+            <p className="font-serif font-semibold text-navy-100">Manage Skips</p>
+            <p className="text-xs text-navy-400 mt-0.5">{subscriptionName}</p>
           </div>
-          <button type="button" onClick={onClose} className="text-stone-400 hover:text-stone-200 transition-colors">
+          <button type="button" onClick={onClose} className="text-navy-400 hover:text-navy-200 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -182,19 +182,19 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
           <>
             <div className="overflow-y-auto flex-1 px-5 py-4">
               {isLoading && (
-                <p className="text-stone-400 text-sm text-center py-8">Loading months…</p>
+                <p className="text-navy-400 text-sm text-center py-8">Loading months…</p>
               )}
               {error && (
                 <p className="text-red-400 text-sm text-center py-8">Failed to load months</p>
               )}
               {data && data.months.length === 0 && (
-                <p className="text-stone-400 text-sm text-center py-8">No processed months yet</p>
+                <p className="text-navy-400 text-sm text-center py-8">No processed months yet</p>
               )}
               {data && data.months.length > 0 && (
                 <div className="flex flex-col gap-2">
                   {isBundleMode ? (
                     <>
-                      <p className="text-xs text-stone-500 mb-1">
+                      <p className="text-xs text-navy-500 mb-1">
                         Click a bundle to toggle skip. <span className="text-brand-400">Highlighted</span> = skipped.
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -212,19 +212,19 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                               className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-all min-w-[120px] ${
                                 isBundleSkipped
                                   ? 'border-brand-600 bg-brand-950/50 text-brand-300'
-                                  : 'border-stone-700 bg-stone-800/60 text-stone-300 hover:border-stone-500'
+                                  : 'border-navy-700 bg-navy-800/60 text-navy-300 hover:border-navy-500'
                               }`}
                             >
                               <span className="font-semibold text-sm">{bundle.label}</span>
                               {uniqueBooks.length > 0 ? (
                                 uniqueBooks.map((b, i) => (
-                                  <span key={i} className="text-[10px] text-stone-500 mt-0.5 leading-tight line-clamp-2">
+                                  <span key={i} className="text-[10px] text-navy-500 mt-0.5 leading-tight line-clamp-2">
                                     {b.title ?? '—'}
-                                    {b.author ? <span className="text-stone-600"> · {b.author}</span> : null}
+                                    {b.author ? <span className="text-navy-600"> · {b.author}</span> : null}
                                   </span>
                                 ))
                               ) : (
-                                <span className="text-[10px] text-stone-600 mt-0.5 flex items-center gap-1">
+                                <span className="text-[10px] text-navy-600 mt-0.5 flex items-center gap-1">
                                   <BookOpen size={10} /> No book
                                 </span>
                               )}
@@ -235,7 +235,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                     </>
                   ) : (
                     <>
-                      <p className="text-xs text-stone-500 mb-1">
+                      <p className="text-xs text-navy-500 mb-1">
                         Click a month to toggle skip. <span className="text-brand-400">Highlighted</span> = skipped.
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -250,19 +250,19 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                               className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-all min-w-[90px] ${
                                 isSkipped
                                   ? 'border-brand-600 bg-brand-950/50 text-brand-300'
-                                  : 'border-stone-700 bg-stone-800/60 text-stone-300 hover:border-stone-500'
+                                  : 'border-navy-700 bg-navy-800/60 text-navy-300 hover:border-navy-500'
                               }`}
                             >
                               <span className="font-semibold text-sm">{MONTH_NAMES[m.month]} {m.year}</span>
                               {m.books.length > 0 ? (
                                 m.books.map((b, i) => (
-                                  <span key={i} className="text-[10px] text-stone-500 mt-0.5 leading-tight line-clamp-2">
+                                  <span key={i} className="text-[10px] text-navy-500 mt-0.5 leading-tight line-clamp-2">
                                     {b.title ?? '—'}
-                                    {b.author ? <span className="text-stone-600"> · {b.author}</span> : null}
+                                    {b.author ? <span className="text-navy-600"> · {b.author}</span> : null}
                                   </span>
                                 ))
                               ) : (
-                                <span className="text-[10px] text-stone-600 mt-0.5 flex items-center gap-1">
+                                <span className="text-[10px] text-navy-600 mt-0.5 flex items-center gap-1">
                                   <BookOpen size={10} /> No book
                                 </span>
                               )}
@@ -279,8 +279,8 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
               )}
             </div>
 
-            <div className="shrink-0 px-5 py-4 border-t border-stone-700 flex items-center justify-between gap-3">
-              <div className="text-xs text-stone-500">
+            <div className="shrink-0 px-5 py-4 border-t border-navy-700 flex items-center justify-between gap-3">
+              <div className="text-xs text-navy-500">
                 {hasChanges ? (
                   <span>
                     {toSkip.length > 0 && (
@@ -307,7 +307,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-3 py-1.5 rounded text-sm text-stone-400 hover:text-stone-200 transition-colors"
+                  className="px-3 py-1.5 rounded text-sm text-navy-400 hover:text-navy-200 transition-colors"
                 >
                   Cancel
                 </button>
@@ -315,7 +315,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                   type="button"
                   disabled={!hasChanges}
                   onClick={() => (hasFutureOnlyChanges ? save(false, false) : setStep('confirm-books'))}
-                  className="bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-stone-950 font-semibold px-4 py-1.5 rounded text-sm transition-colors"
+                  className="bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-navy-950 font-semibold px-4 py-1.5 rounded text-sm transition-colors"
                 >
                   Save Changes
                 </button>
@@ -326,8 +326,8 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
 
         {step === 'confirm-books' && (
           <div className="px-5 py-6 flex flex-col gap-5 overflow-y-auto">
-            <p className="text-stone-100 font-semibold text-sm">Update collection?</p>
-            <p className="text-stone-400 text-sm leading-relaxed">
+            <p className="text-navy-100 font-semibold text-sm">Update collection?</p>
+            <p className="text-navy-400 text-sm leading-relaxed">
               You made skip changes. Would you like to update your book collection accordingly?
             </p>
 
@@ -339,7 +339,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                       ? `${bundlesToUnskipPast} bundle${bundlesToUnskipPast !== 1 ? 's' : ''} unskipped`
                       : `${pastToUnskip.length} month${pastToUnskip.length !== 1 ? 's' : ''} unskipped`}
                   </p>
-                  <p className="text-stone-400 text-xs mt-0.5">What status should the added books get?</p>
+                  <p className="text-navy-400 text-xs mt-0.5">What status should the added books get?</p>
                 </div>
                 <div className="flex gap-2">
                   {OWNERSHIP_OPTIONS.map(opt => (
@@ -350,7 +350,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                       className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
                         ownershipStatus === opt.value
                           ? 'border-emerald-500 bg-emerald-950/60 text-emerald-200'
-                          : 'border-stone-700 bg-stone-800/60 text-stone-400 hover:border-stone-500'
+                          : 'border-navy-700 bg-navy-800/60 text-navy-400 hover:border-navy-500'
                       }`}
                     >
                       {opt.label}
@@ -367,12 +367,12 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                     ? `${bundlesToSkipPast} bundle${bundlesToSkipPast !== 1 ? 's' : ''} skipped`
                     : `${pastToSkip.length} month${pastToSkip.length !== 1 ? 's' : ''} skipped`}
                 </p>
-                <p className="text-stone-400 text-xs mt-0.5">Subscription-sourced books will be removed from your collection.</p>
+                <p className="text-navy-400 text-xs mt-0.5">Subscription-sourced books will be removed from your collection.</p>
               </div>
             )}
 
             {(toUnskip.length > pastToUnskip.length || toSkip.length > pastToSkip.length) && (
-              <p className="text-xs text-stone-500 italic">
+              <p className="text-xs text-navy-500 italic">
                 Changes to future (not-yet-renewed) months are recorded now but don't touch your collection —
                 they're applied automatically when each one actually renews.
               </p>
@@ -385,7 +385,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                 type="button"
                 disabled={saving}
                 onClick={() => save(false, false)}
-                className="px-3 py-2 rounded-lg border border-stone-600 text-stone-300 hover:text-stone-100 hover:border-stone-400 text-sm transition-colors disabled:opacity-40"
+                className="px-3 py-2 rounded-lg border border-navy-600 text-navy-300 hover:text-navy-100 hover:border-navy-400 text-sm transition-colors disabled:opacity-40"
               >
                 Skip changes only
               </button>
@@ -393,7 +393,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
                 type="button"
                 disabled={saving}
                 onClick={() => save(pastToUnskip.length > 0, pastToSkip.length > 0)}
-                className="bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-stone-950 font-semibold px-3 py-2 rounded-lg text-sm transition-colors"
+                className="bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-navy-950 font-semibold px-3 py-2 rounded-lg text-sm transition-colors"
               >
                 {saving ? 'Saving…' : 'Save + Update collection'}
               </button>
@@ -402,7 +402,7 @@ export function ManageSkipsModal({ subscriptionSlug, subscriptionName, onClose, 
               type="button"
               onClick={() => setStep('months')}
               disabled={saving}
-              className="text-xs text-stone-500 hover:text-stone-300 transition-colors text-center"
+              className="text-xs text-navy-500 hover:text-navy-300 transition-colors text-center"
             >
               ← Back to months
             </button>

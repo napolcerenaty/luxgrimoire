@@ -41,7 +41,7 @@ function IconPicker({ value, onChange }: { value: string; onChange: (v: string) 
   return (
     <div>
       <label className={LBL}>Icon</label>
-      <div className="grid grid-cols-5 gap-2 rounded-lg border border-stone-700 bg-stone-950 p-2">
+      <div className="grid grid-cols-5 gap-2 rounded-lg border border-navy-700 bg-navy-950 p-2">
         {ICON_OPTIONS.map((icon) => (
           <button
             key={icon}
@@ -50,8 +50,8 @@ function IconPicker({ value, onChange }: { value: string; onChange: (v: string) 
             onClick={() => onChange(icon)}
             className={`flex flex-col items-center gap-1 rounded-lg p-2 text-center transition-colors ${
               value === icon
-                ? 'bg-brand-600 text-stone-950'
-                : 'text-stone-400 hover:bg-stone-800 hover:text-stone-200'
+                ? 'bg-brand-600 text-navy-950'
+                : 'text-navy-400 hover:bg-navy-800 hover:text-navy-200'
             }`}
           >
             <LucideIcon name={icon} />
@@ -137,7 +137,7 @@ function FeatureForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className={LBL}>CTA label <span className="text-stone-500">(optional)</span></label>
+          <label className={LBL}>CTA label <span className="text-navy-500">(optional)</span></label>
           <input
             className={INP}
             placeholder="e.g. Get started free"
@@ -147,7 +147,7 @@ function FeatureForm({
         </div>
 
         <div>
-          <label className={LBL}>CTA href <span className="text-stone-500">(optional)</span></label>
+          <label className={LBL}>CTA href <span className="text-navy-500">(optional)</span></label>
           <input
             className={INP}
             placeholder="e.g. /register"
@@ -157,7 +157,7 @@ function FeatureForm({
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-stone-300">
+      <label className="flex items-center gap-2 text-sm text-navy-300">
         <input
           type="checkbox"
           checked={form.isActive}
@@ -260,8 +260,8 @@ export default function HomepageFeaturesAdminPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-stone-100">Homepage Features</h1>
-          <p className="mt-1 text-sm text-stone-400">Manage the homepage feature carousel and CTA cards.</p>
+          <h1 className="text-2xl font-bold text-navy-100">Homepage Features</h1>
+          <p className="mt-1 text-sm text-navy-400">Manage the homepage feature carousel and CTA cards.</p>
         </div>
         <button
           onClick={() => {
@@ -276,13 +276,13 @@ export default function HomepageFeaturesAdminPage() {
 
       <div className="grid gap-4">
         {isLoading && (
-          <div className="rounded-2xl border border-stone-800 bg-stone-900 p-6 text-sm text-stone-400">
+          <div className="rounded-2xl border border-navy-800 bg-navy-900 p-6 text-sm text-navy-400">
             Loading…
           </div>
         )}
 
         {!isLoading && orderedFeatures.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-stone-700 bg-stone-900/70 p-8 text-center text-sm text-stone-400">
+          <div className="rounded-2xl border border-dashed border-navy-700 bg-navy-900/70 p-8 text-center text-sm text-navy-400">
             No homepage features yet.
           </div>
         )}
@@ -290,44 +290,44 @@ export default function HomepageFeaturesAdminPage() {
         {orderedFeatures.map((feature) => (
           <div
             key={feature.id}
-            className="rounded-2xl border border-stone-800 bg-stone-900 p-5"
+            className="rounded-2xl border border-navy-800 bg-navy-900 p-5"
           >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-stone-800 px-2.5 py-1 text-xs text-stone-300">
+                  <span className="rounded-full bg-navy-800 px-2.5 py-1 text-xs text-navy-300">
                     {feature.iconName}
                   </span>
                   <span className="rounded-full bg-brand-500/10 px-2.5 py-1 text-xs text-brand-300">
                     sort {feature.sortOrder}
                   </span>
                 </div>
-                <h2 className="text-lg font-semibold text-stone-100">{feature.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-stone-400">{feature.description}</p>
-                <p className="mt-3 text-xs text-stone-500">
+                <h2 className="text-lg font-semibold text-navy-100">{feature.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-navy-400">{feature.description}</p>
+                <p className="mt-3 text-xs text-navy-500">
                   {feature.ctaHref ? `CTA: ${feature.ctaLabel ?? '—'} → ${feature.ctaHref}` : 'No CTA link'}
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center overflow-hidden rounded-lg border border-stone-700">
+                <div className="flex items-center overflow-hidden rounded-lg border border-navy-700">
                   <button
                     onClick={() => updateSortMutation.mutate({ id: feature.id, sortOrder: feature.sortOrder - 1 })}
-                    className="px-3 py-2 text-stone-300 transition-colors hover:bg-stone-800 hover:text-stone-100"
+                    className="px-3 py-2 text-navy-300 transition-colors hover:bg-navy-800 hover:text-navy-100"
                     aria-label={`Move ${feature.title} up`}
                   >
                     ▲
                   </button>
                   <button
                     onClick={() => updateSortMutation.mutate({ id: feature.id, sortOrder: feature.sortOrder + 1 })}
-                    className="border-l border-stone-700 px-3 py-2 text-stone-300 transition-colors hover:bg-stone-800 hover:text-stone-100"
+                    className="border-l border-navy-700 px-3 py-2 text-navy-300 transition-colors hover:bg-navy-800 hover:text-navy-100"
                     aria-label={`Move ${feature.title} down`}
                   >
                     ▼
                   </button>
                 </div>
 
-                <label className="flex items-center gap-2 rounded-lg border border-stone-700 px-3 py-2 text-sm text-stone-300">
+                <label className="flex items-center gap-2 rounded-lg border border-navy-700 px-3 py-2 text-sm text-navy-300">
                   <input
                     type="checkbox"
                     checked={feature.isActive}

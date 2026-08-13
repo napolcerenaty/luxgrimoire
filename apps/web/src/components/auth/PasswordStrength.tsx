@@ -22,14 +22,14 @@ export function PasswordStrength({ password }: { password: string }) {
   return (
     <div className="mt-2 space-y-1.5">
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-1.5 bg-stone-800 rounded-full overflow-hidden">
+        <div className="flex-1 h-1.5 bg-navy-800 rounded-full overflow-hidden">
           <div className={`h-full rounded-full transition-all duration-300 ${color}`} style={{ width: `${pct}%` }} />
         </div>
         <span className={`text-xs font-medium ${labelColor}`}>{labelText}</span>
       </div>
       <ul className="space-y-0.5">
         {PW_CHECKS.map(c => (
-          <li key={c.label} className={`text-xs flex items-center gap-1.5 ${c.test(password) ? 'text-emerald-400' : 'text-stone-500'}`}>
+          <li key={c.label} className={`text-xs flex items-center gap-1.5 ${c.test(password) ? 'text-emerald-400' : 'text-navy-500'}`}>
             <span>{c.test(password) ? '✓' : '○'}</span> {c.label}
           </li>
         ))}

@@ -64,7 +64,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="bg-stone-950 text-stone-200 min-h-screen font-sans antialiased [overflow-x:clip]">
+      <body className="bg-navy-950 text-navy-200 min-h-screen font-sans antialiased [overflow-x:clip]">
         <Providers>
           <DevBanner />
           <Navbar />

@@ -11,8 +11,8 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import { Pagination } from '@/components/admin/Pagination'
 
 const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400'
-const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
+  'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400'
+const LABEL_CLASS = 'block text-sm text-navy-400 mb-1'
 
 interface CollectionForm {
   companyId: string
@@ -72,7 +72,7 @@ function CollectionForm({ initial, onSubmit, submitting, submitLabel, companies,
         <label className={LABEL_CLASS}>Collection Name *</label>
         <input className={INPUT_CLASS} value={form.name} onChange={set('name')} required placeholder="e.g. Iron Editions" />
       </div>
-      <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+      <label className="flex items-center gap-2 text-sm text-navy-300 cursor-pointer">
         <input
           type="checkbox"
           checked={form.isActive}
@@ -84,7 +84,7 @@ function CollectionForm({ initial, onSubmit, submitting, submitLabel, companies,
       <button
         type="submit"
         disabled={submitting}
-        className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
+        className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
       >
         {submitting ? 'Saving…' : submitLabel}
       </button>
@@ -145,7 +145,7 @@ export default function AdminBookBoxCollectionsPage() {
       label: 'Collection',
       render: (row: ApiBookBoxCollection) => (
         <div>
-          <div className="text-stone-100 font-medium">{row.name}</div>
+          <div className="text-navy-100 font-medium">{row.name}</div>
         </div>
       ),
     },
@@ -160,7 +160,7 @@ export default function AdminBookBoxCollectionsPage() {
       key: 'editions',
       label: 'Editions',
       render: (row: ApiBookBoxCollection) => (
-        <span className="text-stone-400 text-sm">{row._count?.editions ?? 0}</span>
+        <span className="text-navy-400 text-sm">{row._count?.editions ?? 0}</span>
       ),
     },
     {
@@ -168,17 +168,17 @@ export default function AdminBookBoxCollectionsPage() {
       label: 'Status',
       render: (row: ApiBookBoxCollection) => row.isActive
         ? <span className="text-xs text-emerald-400">Active</span>
-        : <span className="text-xs text-stone-500">Inactive</span>,
+        : <span className="text-xs text-navy-500">Inactive</span>,
     },
   ]
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-stone-100">Book Box Collections</h1>
+        <h1 className="text-2xl font-bold text-navy-100">Book Box Collections</h1>
         <button
           onClick={() => createModal.open()}
-          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
+          className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
         >
           Add Collection
         </button>
@@ -188,22 +188,22 @@ export default function AdminBookBoxCollectionsPage() {
         <select
           value={companyFilter}
           onChange={(e) => setCompanyFilter(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400"
+          className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-300 focus:outline-none focus:border-brand-400"
         >
           <option value="">All Companies</option>
           {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         {companyFilter && (
-          <button onClick={() => setCompanyFilter('')} className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2">
+          <button onClick={() => setCompanyFilter('')} className="text-navy-400 hover:text-navy-200 text-sm px-3 py-2">
             Clear
           </button>
         )}
       </div>
 
       {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-navy-400 py-8 text-center">Loading…</div>
       ) : collections.length === 0 ? (
-        <div className="text-stone-500 py-8 text-center">No collections found.</div>
+        <div className="text-navy-500 py-8 text-center">No collections found.</div>
       ) : (
         <>
           <DataTable columns={columns} data={collections} onEdit={(row) => setEditItem(row)} onDelete={(row) => setDeleteItem(row)} />

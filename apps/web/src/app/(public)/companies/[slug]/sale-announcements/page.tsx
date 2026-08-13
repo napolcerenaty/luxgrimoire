@@ -33,11 +33,11 @@ export default async function CompanySaleAnnouncementsPage({ params }: Props) {
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       <Link
         href={`/companies/${slug}`}
-        className="text-xs text-stone-500 hover:text-brand-400 transition-colors mb-4 inline-block"
+        className="text-xs text-navy-500 hover:text-brand-400 transition-colors mb-4 inline-block"
       >
         ← {company.name}
       </Link>
-      <h1 className="text-3xl font-serif font-bold text-stone-100 mb-6">Sale Announcements</h1>
+      <h1 className="text-3xl font-serif font-bold text-navy-100 mb-6">Sale Announcements</h1>
       <CompanySaleAnnouncementsList companyId={company.id} />
     </div>
   )

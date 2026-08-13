@@ -42,20 +42,20 @@ export function MultiSelect({ label, options, selected, onChange, className = ''
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className={`w-full flex items-center justify-between gap-2 bg-stone-800 border text-sm rounded-lg px-3 py-1.5 focus:outline-none transition-colors ${
-          selected.length > 0 ? 'border-brand-600 text-brand-400' : 'border-stone-700 text-stone-200 hover:border-stone-500'
+        className={`w-full flex items-center justify-between gap-2 bg-navy-800 border text-sm rounded-lg px-3 py-1.5 focus:outline-none transition-colors ${
+          selected.length > 0 ? 'border-brand-600 text-brand-400' : 'border-navy-700 text-navy-200 hover:border-navy-500'
         }`}
       >
         <span className="truncate">{buttonLabel}</span>
         <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute z-20 mt-1 w-full min-w-[12rem] max-h-64 overflow-y-auto bg-stone-800 border border-stone-700 rounded-lg shadow-xl p-1.5">
+        <div className="absolute z-20 mt-1 w-full min-w-[12rem] max-h-64 overflow-y-auto bg-navy-800 border border-navy-700 rounded-lg shadow-xl p-1.5">
           {options.length === 0 ? (
-            <p className="text-xs text-stone-500 px-2 py-1.5">No options</p>
+            <p className="text-xs text-navy-500 px-2 py-1.5">No options</p>
           ) : (
             options.map((opt) => (
-              <label key={opt} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-stone-700/60 cursor-pointer text-sm text-stone-200">
+              <label key={opt} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-navy-700/60 cursor-pointer text-sm text-navy-200">
                 <input
                   type="checkbox"
                   checked={selected.includes(opt)}

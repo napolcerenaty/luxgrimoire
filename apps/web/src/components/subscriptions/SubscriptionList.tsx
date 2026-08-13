@@ -53,7 +53,7 @@ function SkipPolicyBadges({ policies }: { policies: { type: string; billingType?
   if (!policies || policies.length === 0) return null
   const isMulti = policies.length > 1
   return (
-    <div className="flex items-center gap-1 flex-wrap pt-1.5 mt-1 border-t border-stone-700/60">
+    <div className="flex items-center gap-1 flex-wrap pt-1.5 mt-1 border-t border-navy-700/60">
       {policies.map((p) => {
         const label = isMulti && p.billingType && p.billingType !== 'ALL'
           ? `${BILLING_SHORT[p.billingType] ?? p.billingType}: ${SKIP_TYPE_SHORT[p.type] ?? p.type}`
@@ -195,17 +195,17 @@ export default function SubscriptionList() {
     setSkipPolicyFilter('')
   }
 
-  const SELECT_CLASS = 'flex-1 min-w-0 sm:flex-none sm:w-auto bg-stone-800 border border-stone-700 text-stone-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-600'
+  const SELECT_CLASS = 'flex-1 min-w-0 sm:flex-none sm:w-auto bg-navy-800 border border-navy-700 text-navy-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-600'
 
   return (
     <>
-      <div className="flex gap-1 mb-6 border-b border-stone-800">
+      <div className="flex gap-1 mb-6 border-b border-navy-800">
         {(Object.keys(TAB_LABELS) as Tab[]).map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => handleTabChange(tabKey)}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              tab === tabKey ? 'border-brand-500 text-brand-400' : 'border-transparent text-stone-400 hover:text-stone-200'
+              tab === tabKey ? 'border-brand-500 text-brand-400' : 'border-transparent text-navy-400 hover:text-navy-200'
             }`}
           >
             {TAB_LABELS[tabKey]}
@@ -225,19 +225,19 @@ export default function SubscriptionList() {
               placeholder="Search by name or company…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-200 text-sm rounded-lg px-3 py-2 placeholder:text-stone-500 focus:outline-none focus:border-brand-600"
+              className="flex-1 min-w-0 bg-navy-800 border border-navy-700 text-navy-200 text-sm rounded-lg px-3 py-2 placeholder:text-navy-500 focus:outline-none focus:border-brand-600"
             />
             <button
               onClick={() => setFiltersOpen((v) => !v)}
               className={`sm:hidden relative flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
-                filtersOpen ? 'bg-stone-700 border-brand-600 text-brand-400' : 'bg-stone-800 border-stone-700 text-stone-300'
+                filtersOpen ? 'bg-navy-700 border-brand-600 text-brand-400' : 'bg-navy-800 border-navy-700 text-navy-300'
               }`}
               aria-expanded={filtersOpen}
             >
               <SlidersHorizontal className="w-4 h-4" />
               Filters
               {activeFilterChips.length > 0 && (
-                <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-brand-600 text-[10px] font-semibold text-stone-950">
+                <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-brand-600 text-[10px] font-semibold text-navy-950">
                   {activeFilterChips.length}
                 </span>
               )}
@@ -278,11 +278,11 @@ export default function SubscriptionList() {
             </select>
             <MultiSelect label="genres" options={genres} selected={genreFilters} onChange={setGenreFilters} className="sm:w-64" />
           </div>
-          <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-lg p-1 shrink-0 self-start sm:self-auto">
-            <button onClick={() => setView('grid')} className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="Grid view">
+          <div className="flex items-center gap-1 bg-navy-800 border border-navy-700 rounded-lg p-1 shrink-0 self-start sm:self-auto">
+            <button onClick={() => setView('grid')} className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-navy-700 text-brand-400' : 'text-navy-500 hover:text-navy-300'}`} aria-label="Grid view">
               <LayoutGrid className="w-4 h-4" />
             </button>
-            <button onClick={() => setView('list')} className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`} aria-label="List view">
+            <button onClick={() => setView('list')} className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-navy-700 text-brand-400' : 'text-navy-500 hover:text-navy-300'}`} aria-label="List view">
               <List className="w-4 h-4" />
             </button>
           </div>
@@ -301,7 +301,7 @@ export default function SubscriptionList() {
                 <X className="w-3 h-3" />
               </button>
             ))}
-            <button onClick={clearAllFilters} className="text-xs text-stone-500 hover:text-stone-300 underline underline-offset-2 ml-1">
+            <button onClick={clearAllFilters} className="text-xs text-navy-500 hover:text-navy-300 underline underline-offset-2 ml-1">
               Clear all
             </button>
           </div>
@@ -309,9 +309,9 @@ export default function SubscriptionList() {
       </div>
 
       {isLoading ? (
-        <div className="py-16 text-center text-stone-500">Loading…</div>
+        <div className="py-16 text-center text-navy-500">Loading…</div>
       ) : filtered.length === 0 ? (
-        <p className="text-stone-500">No subscriptions match your filters.</p>
+        <p className="text-navy-500">No subscriptions match your filters.</p>
       ) : view === 'grid' ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((sub: ApiSubscription) => {
@@ -322,7 +322,7 @@ export default function SubscriptionList() {
               <Link
                 key={sub.id}
                 href={`/subscriptions/${sub.slug}?from=subscriptions`}
-                className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/50 transition-colors"
+                className="group rounded-xl overflow-hidden bg-navy-900 border border-navy-800 hover:border-brand-700/50 transition-colors"
               >
                 <SubCoverImage
                   coverUrl={cover}
@@ -342,7 +342,7 @@ export default function SubscriptionList() {
                   }
                 />
                 <div className="p-3">
-                  <h2 className="font-serif font-bold text-sm text-stone-100 group-hover:text-brand-400 transition-colors mb-1 line-clamp-2 leading-snug">{sub.name}</h2>
+                  <h2 className="font-serif font-bold text-sm text-navy-100 group-hover:text-brand-400 transition-colors mb-1 line-clamp-2 leading-snug">{sub.name}</h2>
                   {sub.isUpcoming && sub.upcomingNote && <p className="text-xs text-brand-400/80 mb-1 line-clamp-1">{sub.upcomingNote}</p>}
                   <div className="flex items-center gap-1 flex-wrap">
                     {sub.intervalMonths !== 1 && <Badge variant="brand">{formatInterval(sub.intervalMonths)}</Badge>}
@@ -359,7 +359,7 @@ export default function SubscriptionList() {
           })}
         </div>
       ) : (
-        <div className="flex flex-col divide-y divide-stone-800">
+        <div className="flex flex-col divide-y divide-navy-800">
           {filtered.map((sub: ApiSubscription) => {
             const thumb = cloudinaryUrl(sub.coverImage, 'w_80,h_80,c_fill,q_auto,f_auto')
             const brandColors = getBrandColors(sub.company?.slug) ?? sub.company?.brandColors
@@ -369,9 +369,9 @@ export default function SubscriptionList() {
               <Link
                 key={sub.id}
                 href={`/subscriptions/${sub.slug}?from=subscriptions`}
-                className="group flex items-center gap-4 py-3 hover:bg-stone-900/50 px-2 -mx-2 rounded-lg transition-colors"
+                className="group flex items-center gap-4 py-3 hover:bg-navy-900/50 px-2 -mx-2 rounded-lg transition-colors"
               >
-                <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-stone-800 flex items-center justify-center">
+                <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-navy-800 flex items-center justify-center">
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={thumb} alt={sub.name} className="w-full h-full object-cover" />
@@ -382,7 +382,7 @@ export default function SubscriptionList() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-stone-100 group-hover:text-brand-400 transition-colors truncate leading-tight">{sub.name}</p>
+                  <p className="font-medium text-navy-100 group-hover:text-brand-400 transition-colors truncate leading-tight">{sub.name}</p>
                   {sub.company && <p className="text-xs text-brand-600/80 truncate">{sub.company.name}</p>}
                   {sub.isUpcoming && sub.upcomingNote && <p className="text-xs text-brand-400/80 truncate">{sub.upcomingNote}</p>}
                   <div className="flex items-center gap-1 flex-wrap mt-0.5">

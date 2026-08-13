@@ -51,7 +51,7 @@ export default async function SaleAnnouncementPage({ params }: Props) {
               style={brandGradientStyle(sale.company?.brandColors)}
             >
               <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(sale.company?.brandColors)} />
-              <p className="relative z-10 font-serif font-semibold text-center px-4 text-stone-200 leading-snug line-clamp-5">
+              <p className="relative z-10 font-serif font-semibold text-center px-4 text-navy-200 leading-snug line-clamp-5">
                 {sale.title}
               </p>
             </div>
@@ -66,14 +66,14 @@ export default async function SaleAnnouncementPage({ params }: Props) {
             if (credits.length === 0) return null
             const website = sale.company?.website
             return (
-              <div className="text-xs text-stone-500 mt-2 text-center leading-5">
+              <div className="text-xs text-navy-500 mt-2 text-center leading-5">
                 <span>📷 photo by</span>
                 {credits.map(({ handle, role }) => (
                   <div key={handle}>
                     <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
                       @{handle}<ExternalLink size={10} className="shrink-0" />
                     </a>
-                    {role && <span className="text-stone-600"> ({role})</span>}
+                    {role && <span className="text-navy-600"> ({role})</span>}
                   </div>
                 ))}
                 {website && (

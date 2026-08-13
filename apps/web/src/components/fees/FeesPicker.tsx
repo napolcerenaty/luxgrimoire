@@ -75,9 +75,9 @@ function nextLocalId() {
 }
 
 const inputCls =
-  'bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-2 py-1 text-xs placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors'
+  'bg-navy-800 border border-navy-700 text-navy-100 rounded-lg px-2 py-1 text-xs placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors'
 const selectCls =
-  'bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-brand-400 transition-colors'
+  'bg-navy-800 border border-navy-700 text-navy-100 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-brand-400 transition-colors'
 
 export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseGroupId, onFeesChange }: FeesPickerProps) {
   const [open, setOpen] = useState(false)
@@ -293,25 +293,25 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
   }
 
   return (
-    <div className="border border-stone-700 rounded-xl overflow-hidden">
+    <div className="border border-navy-700 rounded-xl overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-stone-800/50 hover:bg-stone-800 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 bg-navy-800/50 hover:bg-navy-800 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="font-serif text-sm font-semibold text-stone-200">Fees, Taxes, Discounts &amp; Refunds</span>
+          <span className="font-serif text-sm font-semibold text-navy-200">Fees, Taxes, Discounts &amp; Refunds</span>
           {totalCount > 0 && (
             <span className="text-xs bg-brand-500/20 text-brand-400 rounded-full px-2 py-0.5">{totalCount}</span>
           )}
         </div>
-        {open ? <ChevronUp size={16} className="text-stone-400" /> : <ChevronDown size={16} className="text-stone-400" />}
+        {open ? <ChevronUp size={16} className="text-navy-400" /> : <ChevronDown size={16} className="text-navy-400" />}
       </button>
 
       {open && (
-        <div className="p-4 space-y-5 bg-stone-900/40">
+        <div className="p-4 space-y-5 bg-navy-900/40">
           {loading && (
-            <div className="flex items-center gap-2 text-stone-400 text-sm">
+            <div className="flex items-center gap-2 text-navy-400 text-sm">
               <Loader2 size={15} className="animate-spin" /> Loading…
             </div>
           )}
@@ -321,21 +321,21 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
               {/* ── FEES ── */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-stone-300 uppercase tracking-wider">Fees &amp; Taxes</span>
-                  <span className="flex-1 border-t border-stone-700" />
+                  <span className="text-xs font-semibold text-navy-300 uppercase tracking-wider">Fees &amp; Taxes</span>
+                  <span className="flex-1 border-t border-navy-700" />
                 </div>
 
                 {templates.length > 0 && (
                   <div>
-                    <p className="text-xs text-stone-500 mb-1.5">Add from template:</p>
+                    <p className="text-xs text-navy-500 mb-1.5">Add from template:</p>
                     <div className="flex flex-wrap gap-1.5">
                       {templates.map((t) => (
                         <button
                           key={t.id} type="button" onClick={() => addFeeFromTemplate(t)}
-                          className="text-xs px-2.5 py-1 rounded-lg border border-stone-600 hover:border-brand-400 text-stone-300 hover:text-brand-300 transition-colors"
+                          className="text-xs px-2.5 py-1 rounded-lg border border-navy-600 hover:border-brand-400 text-navy-300 hover:text-brand-300 transition-colors"
                         >
                           + {t.name}
-                          {t.defaultAmount != null && <span className="ml-1 text-stone-500">({t.defaultAmount} {t.defaultCurrency})</span>}
+                          {t.defaultAmount != null && <span className="ml-1 text-navy-500">({t.defaultAmount} {t.defaultCurrency})</span>}
                         </button>
                       ))}
                     </div>
@@ -344,7 +344,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
 
                 {visibleFees.length > 0 && (
                   <div className="space-y-2">
-                    <div className="grid grid-cols-[1fr_80px_55px_105px_95px_1fr_28px] gap-1 text-xs text-stone-500 font-medium px-0.5">
+                    <div className="grid grid-cols-[1fr_80px_55px_105px_95px_1fr_28px] gap-1 text-xs text-navy-500 font-medium px-0.5">
                       <span>Name</span><span>Amount</span><span>Curr.</span><span>Date</span><span>Category</span><span>Notes</span><span />
                     </div>
                     {visibleFees.map((row) => (
@@ -357,13 +357,13 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
                           {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                         </select>
                         <input type="text" value={row.notes} onChange={(e) => updateFeeRow(row.localId, { notes: e.target.value })} placeholder="Notes…" className={inputCls} />
-                        <button type="button" onClick={() => removeFeeRow(row.localId)} className="p-1 text-stone-500 hover:text-red-400 transition-colors rounded"><Trash2 size={12} /></button>
+                        <button type="button" onClick={() => removeFeeRow(row.localId)} className="p-1 text-navy-500 hover:text-red-400 transition-colors rounded"><Trash2 size={12} /></button>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {visibleFees.length === 0 && <p className="text-xs text-stone-600 italic">No fees added.</p>}
+                {visibleFees.length === 0 && <p className="text-xs text-navy-600 italic">No fees added.</p>}
 
                 <button type="button" onClick={addBlankFee} className="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 transition-colors">
                   <Plus size={12} /> Add fee / tax
@@ -371,9 +371,9 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
 
                 {Object.keys(feeTotals).length > 0 && (
                   <div className="flex flex-wrap gap-3 text-xs">
-                    <span className="text-stone-500">Fees total:</span>
+                    <span className="text-navy-500">Fees total:</span>
                     {Object.entries(feeTotals).map(([cur, amt]) => (
-                      <span key={cur} className="font-semibold text-stone-300">+{amt.toFixed(2)} {cur}</span>
+                      <span key={cur} className="font-semibold text-navy-300">+{amt.toFixed(2)} {cur}</span>
                     ))}
                   </div>
                 )}
@@ -383,15 +383,15 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Tag size={12} className="text-emerald-400" />
-                  <span className="text-xs font-semibold text-stone-300 uppercase tracking-wider">Discounts</span>
-                  <span className="flex-1 border-t border-stone-700" />
+                  <span className="text-xs font-semibold text-navy-300 uppercase tracking-wider">Discounts</span>
+                  <span className="flex-1 border-t border-navy-700" />
                 </div>
 
-                <p className="text-xs text-stone-500">One-off discounts applied at purchase (new subscriber offer, loyalty coupon, referral code). Amount in payment currency.</p>
+                <p className="text-xs text-navy-500">One-off discounts applied at purchase (new subscriber offer, loyalty coupon, referral code). Amount in payment currency.</p>
 
                 {visibleDiscounts.length > 0 && (
                   <div className="space-y-2">
-                    <div className="grid grid-cols-[1fr_80px_55px_105px_1fr_28px] gap-1 text-xs text-stone-500 font-medium px-0.5">
+                    <div className="grid grid-cols-[1fr_80px_55px_105px_1fr_28px] gap-1 text-xs text-navy-500 font-medium px-0.5">
                       <span>Description</span><span>Amount</span><span>Curr.</span><span>Date</span><span>Notes</span><span />
                     </div>
                     {visibleDiscounts.map((row) => (
@@ -401,13 +401,13 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
                         <input type="text" value={row.currency} onChange={(e) => updateDiscountRow(row.localId, { currency: e.target.value.toUpperCase() })} maxLength={5} className={inputCls} />
                         <input type="date" value={row.date} onChange={(e) => updateDiscountRow(row.localId, { date: e.target.value })} className={inputCls} />
                         <input type="text" value={row.notes} onChange={(e) => updateDiscountRow(row.localId, { notes: e.target.value })} placeholder="Notes…" className={inputCls} />
-                        <button type="button" onClick={() => removeDiscountRow(row.localId)} className="p-1 text-stone-500 hover:text-red-400 transition-colors rounded"><Trash2 size={12} /></button>
+                        <button type="button" onClick={() => removeDiscountRow(row.localId)} className="p-1 text-navy-500 hover:text-red-400 transition-colors rounded"><Trash2 size={12} /></button>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {visibleDiscounts.length === 0 && <p className="text-xs text-stone-600 italic">No discounts added.</p>}
+                {visibleDiscounts.length === 0 && <p className="text-xs text-navy-600 italic">No discounts added.</p>}
 
                 <button type="button" onClick={addBlankDiscount} className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
                   <Plus size={12} /> Add discount
@@ -415,7 +415,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
 
                 {Object.keys(discountTotals).length > 0 && (
                   <div className="flex flex-wrap gap-3 text-xs">
-                    <span className="text-stone-500">Discounts total:</span>
+                    <span className="text-navy-500">Discounts total:</span>
                     {Object.entries(discountTotals).map(([cur, amt]) => (
                       <span key={cur} className="font-semibold text-emerald-400">-{amt.toFixed(2)} {cur}</span>
                     ))}
@@ -427,15 +427,15 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <RotateCcw size={12} className="text-sky-400" />
-                  <span className="text-xs font-semibold text-stone-300 uppercase tracking-wider">Refunds</span>
-                  <span className="flex-1 border-t border-stone-700" />
+                  <span className="text-xs font-semibold text-navy-300 uppercase tracking-wider">Refunds</span>
+                  <span className="flex-1 border-t border-navy-700" />
                 </div>
 
-                <p className="text-xs text-stone-500">Partial or full refunds received (e.g. damaged collector edition). Reduces the net cost of this purchase.</p>
+                <p className="text-xs text-navy-500">Partial or full refunds received (e.g. damaged collector edition). Reduces the net cost of this purchase.</p>
 
                 {visibleRefunds.length > 0 && (
                   <div className="space-y-2">
-                    <div className="grid grid-cols-[80px_55px_105px_1fr_1fr_28px] gap-1 text-xs text-stone-500 font-medium px-0.5">
+                    <div className="grid grid-cols-[80px_55px_105px_1fr_1fr_28px] gap-1 text-xs text-navy-500 font-medium px-0.5">
                       <span>Amount</span><span>Curr.</span><span>Date</span><span>Reason</span><span>Notes</span><span />
                     </div>
                     {visibleRefunds.map((row) => (
@@ -445,13 +445,13 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
                         <input type="date" value={row.date} onChange={(e) => updateRefundRow(row.localId, { date: e.target.value })} className={inputCls} />
                         <input type="text" value={row.reason} onChange={(e) => updateRefundRow(row.localId, { reason: e.target.value })} placeholder="e.g. Damaged cover" className={inputCls} />
                         <input type="text" value={row.notes} onChange={(e) => updateRefundRow(row.localId, { notes: e.target.value })} placeholder="Notes…" className={inputCls} />
-                        <button type="button" onClick={() => removeRefundRow(row.localId)} className="p-1 text-stone-500 hover:text-red-400 transition-colors rounded"><Trash2 size={12} /></button>
+                        <button type="button" onClick={() => removeRefundRow(row.localId)} className="p-1 text-navy-500 hover:text-red-400 transition-colors rounded"><Trash2 size={12} /></button>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {visibleRefunds.length === 0 && <p className="text-xs text-stone-600 italic">No refunds recorded.</p>}
+                {visibleRefunds.length === 0 && <p className="text-xs text-navy-600 italic">No refunds recorded.</p>}
 
                 <button type="button" onClick={addBlankRefund} className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors">
                   <Plus size={12} /> Add refund
@@ -459,7 +459,7 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
 
                 {Object.keys(refundTotals).length > 0 && (
                   <div className="flex flex-wrap gap-3 text-xs">
-                    <span className="text-stone-500">Refunds total:</span>
+                    <span className="text-navy-500">Refunds total:</span>
                     {Object.entries(refundTotals).map(([cur, amt]) => (
                       <span key={cur} className="font-semibold text-sky-400">-{amt.toFixed(2)} {cur}</span>
                     ))}
@@ -469,12 +469,12 @@ export default function FeesPicker({ billingPeriodId, userBookEntryId, purchaseG
 
               {error && <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded px-2 py-1">{error}</p>}
 
-              <div className="flex justify-end border-t border-stone-700 pt-3">
+              <div className="flex justify-end border-t border-navy-700 pt-3">
                 <button
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold px-4 py-1.5 rounded-xl text-sm transition-colors"
+                  className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-navy-950 font-semibold px-4 py-1.5 rounded-xl text-sm transition-colors"
                 >
                   {saving ? <><Loader2 size={13} className="animate-spin" /> Saving…</> : saveSuccess ? '✓ Saved' : <><Save size={13} /> Save</>}
                 </button>

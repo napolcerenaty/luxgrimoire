@@ -18,7 +18,7 @@ export async function SubscriptionSeriesSection({ subscriptionSlug }: Props) {
 
   return (
     <section className="mt-12">
-      <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
+      <h2 className="text-2xl font-serif font-semibold text-navy-100 mb-6">
         Series ({seriesList.length})
       </h2>
       <div className="flex flex-col gap-4">

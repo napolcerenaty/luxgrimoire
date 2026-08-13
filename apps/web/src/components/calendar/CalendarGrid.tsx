@@ -129,15 +129,15 @@ export default function CalendarGrid({
       <div className="flex items-center justify-between gap-4">
         <button
           onClick={onPrevMonth}
-          className="p-2 rounded-lg text-stone-400 hover:text-brand-400 hover:bg-stone-800 transition-colors"
+          className="p-2 rounded-lg text-navy-400 hover:text-brand-400 hover:bg-navy-800 transition-colors"
           aria-label="Previous month"
         >
           <ChevronLeft size={18} />
         </button>
-        <h2 className="text-lg font-serif text-stone-100 capitalize">{monthLabel}</h2>
+        <h2 className="text-lg font-serif text-navy-100 capitalize">{monthLabel}</h2>
         <button
           onClick={onNextMonth}
-          className="p-2 rounded-lg text-stone-400 hover:text-brand-400 hover:bg-stone-800 transition-colors"
+          className="p-2 rounded-lg text-navy-400 hover:text-brand-400 hover:bg-navy-800 transition-colors"
           aria-label="Next month"
         >
           <ChevronRight size={18} />
@@ -145,13 +145,13 @@ export default function CalendarGrid({
       </div>
 
       {/* Calendar grid */}
-      <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden">
+      <div className="bg-navy-900 border border-navy-800 rounded-xl overflow-hidden">
         {/* Day name headers */}
-        <div className="grid grid-cols-7 border-b border-stone-800">
+        <div className="grid grid-cols-7 border-b border-navy-800">
           {dayNames.map(dn => (
             <div
               key={dn}
-              className="py-2 text-center text-[10px] font-semibold uppercase tracking-widest text-stone-500"
+              className="py-2 text-center text-[10px] font-semibold uppercase tracking-widest text-navy-500"
             >
               {dn}
             </div>
@@ -159,7 +159,7 @@ export default function CalendarGrid({
         </div>
 
         {/* Cells */}
-        <div className="grid grid-cols-7 divide-x divide-y divide-stone-800/60">
+        <div className="grid grid-cols-7 divide-x divide-y divide-navy-800/60">
           {cells.map((cell, idx) => {
             const renewals = cell.current ? renewalsForDay(cell.day) : []
             const sales = cell.current ? salesForDay(cell.day) : []
@@ -171,12 +171,12 @@ export default function CalendarGrid({
                 className={[
                   'min-h-[48px] sm:min-h-[80px] p-0.5 sm:p-1.5 flex flex-col gap-0.5',
                   cell.current ? 'cursor-pointer sm:cursor-default' : '',
-                  !cell.current ? 'bg-stone-950/40' : '',
+                  !cell.current ? 'bg-navy-950/40' : '',
                   cell.current && isToday(cell.day)
                     ? 'bg-brand-900/30 ring-1 ring-inset ring-brand-600/60'
                     : '',
                   isSelected
-                    ? 'sm:bg-transparent sm:ring-0 bg-stone-700/40 ring-1 ring-inset ring-stone-500/50'
+                    ? 'sm:bg-transparent sm:ring-0 bg-navy-700/40 ring-1 ring-inset ring-navy-500/50'
                     : '',
                 ].filter(Boolean).join(' ')}
                 onClick={() => cell.current && setSelectedDay(prev => prev === cell.day ? null : cell.day)}
@@ -185,10 +185,10 @@ export default function CalendarGrid({
                   className={[
                     'text-[9px] sm:text-xs leading-none mb-0.5 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full shrink-0',
                     !cell.current
-                      ? 'text-stone-700'
+                      ? 'text-navy-700'
                       : isToday(cell.day)
-                        ? 'bg-brand-500 text-stone-950 font-bold'
-                        : 'text-stone-200',
+                        ? 'bg-brand-500 text-navy-950 font-bold'
+                        : 'text-navy-200',
                   ].join(' ')}
                 >
                   {cell.day}
@@ -276,7 +276,7 @@ export default function CalendarGrid({
                       />
                     ))}
                     {totalEvents > 3 && (
-                      <span className="text-[7px] text-stone-500 leading-none self-center">+{totalEvents - 3}</span>
+                      <span className="text-[7px] text-navy-500 leading-none self-center">+{totalEvents - 3}</span>
                     )}
                   </div>
                 )}
@@ -289,22 +289,22 @@ export default function CalendarGrid({
       {/* Mobile agenda — shown below calendar grid on small screens */}
       <div className="sm:hidden overflow-hidden min-w-0">
         {selectedDay ? (
-          <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 overflow-hidden">
+          <div className="bg-navy-900 border border-navy-800 rounded-xl p-4 overflow-hidden">
             <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
-              <h3 className="text-sm font-semibold text-stone-300 truncate min-w-0">
+              <h3 className="text-sm font-semibold text-navy-300 truncate min-w-0">
                 {new Date(year, month0, selectedDay).toLocaleDateString('en-GB', {
                   weekday: 'long', day: 'numeric', month: 'long',
                 })}
               </h3>
               <button
                 onClick={() => setSelectedDay(null)}
-                className="p-1 text-stone-500 hover:text-stone-300 transition-colors shrink-0"
+                className="p-1 text-navy-500 hover:text-navy-300 transition-colors shrink-0"
               >
                 <X size={14} />
               </button>
             </div>
             {renewalsForDay(selectedDay).length === 0 && salesForDay(selectedDay).length === 0 ? (
-              <p className="text-sm text-stone-500 italic text-center py-4">No events this day</p>
+              <p className="text-sm text-navy-500 italic text-center py-4">No events this day</p>
             ) : (
               <div className="space-y-2">
                 {renewalsForDay(selectedDay).map(r => {
@@ -354,14 +354,14 @@ export default function CalendarGrid({
             )}
           </div>
         ) : (
-          <p className="text-xs text-stone-500 text-center py-2">Tap a date to see events</p>
+          <p className="text-xs text-navy-500 text-center py-2">Tap a date to see events</p>
         )}
       </div>
 
       {/* Floating tooltip — desktop only */}
       {tooltip && (
         <div
-          className="fixed z-50 pointer-events-none px-3 py-2 rounded-lg border border-stone-700 bg-stone-900 shadow-xl text-sm"
+          className="fixed z-50 pointer-events-none px-3 py-2 rounded-lg border border-navy-700 bg-navy-900 shadow-xl text-sm"
           style={{ top: tooltip.y, left: Math.max(8, tooltip.x) }}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
@@ -370,7 +370,7 @@ export default function CalendarGrid({
             {tooltip.type === 'sale' ? <Bell size={12} className="inline mr-1" /> : '🔄 '}
             {tooltip.label}
           </span>
-          <p className="text-[10px] text-stone-400 mt-0.5">
+          <p className="text-[10px] text-navy-400 mt-0.5">
             {tooltip.subtitle ?? (tooltip.type === 'sale' ? 'Sale' : 'Renewal')}
           </p>
         </div>
