@@ -1,6 +1,8 @@
 // Shared styling helpers for calendar pills/dots — used by both the private (per-user) and
 // global (public) calendar grids so their visual language stays identical.
 
+import type { CSSProperties } from 'react'
+
 /** Deterministic hue from a string (fallback when no brand color is available). */
 export function strHue(str?: string | null) {
   let h = 0
@@ -78,4 +80,27 @@ export function pillStyle(
   return isFilled
     ? { background: `hsla(${hue},55%,50%,0.80)`, color: `hsl(${hue},80%,95%)`, border: `1px solid hsla(${hue},55%,65%,0.90)` }
     : { background: 'transparent', color: `hsl(${hue},80%,75%)`, border: `1px solid hsla(${hue},55%,65%,0.55)` }
+}
+
+// Same color language as the site-wide edition-glow-gold/red classes (globals.css) — 'mine'
+// (subscribed / tracked interest) and 'skipped' (subscribed but not renewing/attending this
+// occurrence), adapted to a thin ring since calendar pills are far smaller than a card.
+const GLOW_GOLD = 'rgba(212,175,55,0.9)'
+const GLOW_RED = 'rgba(220,38,38,0.9)'
+
+export function withHighlightGlow(
+  style: CSSProperties,
+  highlight: 'mine' | 'skipped' | null | undefined,
+): CSSProperties {
+  if (!highlight) return style
+  const color = highlight === 'mine' ? GLOW_GOLD : GLOW_RED
+  const ring = `0 0 0 1.5px ${color}`
+  return { ...style, boxShadow: style.boxShadow ? `${style.boxShadow}, ${ring}` : ring }
+}
+
+/** Same glow, expressed as an extra outline layer for the mobile dot markers. */
+export function highlightDotShadow(highlight: 'mine' | 'skipped' | null | undefined): string {
+  if (!highlight) return ''
+  const color = highlight === 'mine' ? GLOW_GOLD : GLOW_RED
+  return `, 0 0 0 2px ${color}`
 }

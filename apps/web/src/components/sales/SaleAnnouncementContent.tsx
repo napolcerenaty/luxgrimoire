@@ -11,6 +11,24 @@ import { useTheme } from '@/components/ThemeProvider'
 import { strHue } from '@/lib/calendarPills'
 import CalendarGrid, { type CalendarSaleItem } from '@/components/calendar/CalendarGrid'
 
+/** This sale's tiers, grouped by region, numbered by their `order` — "2 of 3" stage badges so
+ *  multiple tiers spread across different calendar days still read as one sale. */
+function computeStageInfo(tiers: ApiSaleTier[]): Map<string, { index: number; total: number }> {
+  const groups = new Map<string, ApiSaleTier[]>()
+  for (const t of tiers) {
+    const key = t.regionId ?? ''
+    const arr = groups.get(key)
+    if (arr) arr.push(t)
+    else groups.set(key, [t])
+  }
+  const result = new Map<string, { index: number; total: number }>()
+  for (const group of groups.values()) {
+    const sorted = [...group].sort((a, b) => a.order - b.order)
+    sorted.forEach((t, i) => result.set(t.id, { index: i + 1, total: sorted.length }))
+  }
+  return result
+}
+
 /** First month worth showing: the soonest upcoming tier's month, or the most recent past
  *  tier's month if every tier has already passed. */
 function getNearestTierMonth(tiers: ApiSaleTier[]): Date {
@@ -59,6 +77,7 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
   const [showCalendar, setShowCalendar] = useState(false)
   const [calendarViewDate, setCalendarViewDate] = useState(() => getNearestTierMonth(tiers))
   const regionNameById = new Map((sale.regions ?? []).map(r => [r.id, r.name]))
+  const stageInfo = computeStageInfo(tiers)
 
   const calendarSalesForDay = (day: number): CalendarSaleItem[] => {
     const year = calendarViewDate.getFullYear()
@@ -72,6 +91,7 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
         const d = new Date(t.date)
         const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
         const regionName = t.regionId ? regionNameById.get(t.regionId) ?? null : null
+        const info = stageInfo.get(t.id)
         return {
           id: t.id,
           label: t.name,
@@ -81,6 +101,7 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
           tierName: regionName ?? 'All regions',
           time,
           href: `/sale-announcements/${sale.id}`,
+          stageBadge: info && info.total > 1 ? `${info.index}/${info.total}` : null,
         }
       })
   }

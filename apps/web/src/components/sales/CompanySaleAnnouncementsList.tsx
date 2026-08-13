@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { authFetch } from '@/lib/authFetch'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
 import { LayoutGrid, List, Search, Megaphone, CalendarDays, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useTheme } from '@/components/ThemeProvider'
+import { useAuth } from '@/components/AuthProvider'
 import { strHue } from '@/lib/calendarPills'
 import { downloadIcsCalendar, type CalendarExportEvent } from '@/lib/ics'
 import CalendarGrid, { type CalendarSaleItem } from '@/components/calendar/CalendarGrid'
@@ -26,6 +28,13 @@ interface CalendarTier {
     saleType: string
     company: { id: string; name: string; slug: string; brandColors: string[] | null } | null
   }
+  stageIndex: number
+  stageTotal: number
+}
+
+interface SaleInterest {
+  announcementId: string
+  saleTier: { id: string } | null
 }
 
 interface Props {
@@ -34,6 +43,7 @@ interface Props {
 
 export function CompanySaleAnnouncementsList({ companyId }: Props) {
   const { theme } = useTheme()
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'live' | 'past'>('live')
   const [view, setView] = useState<'grid' | 'list' | 'calendar'>('grid')
@@ -51,6 +61,16 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
     queryFn: () => apiFetch(`/announcements/calendar?year=${year}&month=${month}&companyId=${companyId}`),
     enabled: view === 'calendar',
   })
+
+  const { data: myInterests = [] } = useQuery<SaleInterest[]>({
+    queryKey: ['sale-interests'],
+    queryFn: () => authFetch('/sale-interests'),
+    enabled: view === 'calendar' && !!user,
+  })
+  const myInterestedTierIds = useMemo(
+    () => new Set(myInterests.map(i => i.saleTier?.id).filter((id): id is string => !!id)),
+    [myInterests],
+  )
 
   const salesForDay = (day: number): CalendarSaleItem[] =>
     tiers
@@ -70,6 +90,10 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
           tierName: t.region ? `${t.name} · ${t.region.name}` : t.name,
           time,
           href: `/sale-announcements/${t.announcement.id}`,
+          highlight: myInterestedTierIds.has(t.tierId) ? 'mine' : null,
+          stageBadge: t.stageTotal > 1 ? `${t.stageIndex}/${t.stageTotal}` : null,
+          announcementId: t.announcement.id,
+          regionId: t.region?.id ?? null,
         }
       })
 
@@ -181,6 +205,7 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
             onNextMonth={() => setViewDate(new Date(year, month0 + 1, 1))}
             renewalsForDay={() => []}
             salesForDay={salesForDay}
+            interestEnabled
           />
           {tiers.length === 0 && (
             <p className="text-center text-stone-500 py-8 text-sm">No sales for {monthLabel}.</p>

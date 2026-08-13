@@ -306,6 +306,7 @@ export class AnnouncementsService {
         id: true,
         name: true,
         date: true,
+        regionId: true,
         region: { select: { id: true, name: true } },
         announcement: {
           select: {
@@ -319,13 +320,39 @@ export class AnnouncementsService {
       },
     });
 
-    return tiers.map((t) => ({
-      tierId: t.id,
-      name: t.name,
-      date: t.date,
-      region: t.region,
-      announcement: t.announcement,
-    }));
+    if (tiers.length === 0) return [];
+
+    // Stage numbering ("2 of 3") must reflect the WHOLE sale's tier sequence for that region, not
+    // just whichever of its tiers happen to fall in the queried month — a sale's First Access could
+    // be in June and General Sale in July. One extra query, scoped to only the sales present this
+    // month, fetches every sibling tier (any month) to compute each tier's position via its `order`.
+    const saleIds = Array.from(new Set(tiers.map((t) => t.announcement.id)));
+    const siblingTiers = await this.prisma.saleTier.findMany({
+      where: { saleId: { in: saleIds } },
+      orderBy: { order: 'asc' },
+      select: { id: true, saleId: true, regionId: true },
+    });
+    const stageGroups = new Map<string, string[]>();
+    for (const t of siblingTiers) {
+      const key = `${t.saleId}::${t.regionId ?? ''}`;
+      const group = stageGroups.get(key);
+      if (group) group.push(t.id);
+      else stageGroups.set(key, [t.id]);
+    }
+
+    return tiers.map((t) => {
+      const key = `${t.announcement.id}::${t.regionId ?? ''}`;
+      const group = stageGroups.get(key) ?? [t.id];
+      return {
+        tierId: t.id,
+        name: t.name,
+        date: t.date,
+        region: t.region,
+        announcement: t.announcement,
+        stageIndex: group.indexOf(t.id) + 1,
+        stageTotal: group.length,
+      };
+    });
   }
 
   /** Countdown target for a company's page: the soonest upcoming tier across every live/

@@ -3,7 +3,8 @@
 import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Bell, RefreshCw, X } from 'lucide-react'
-import { hexLuminance, pillStyle } from '@/lib/calendarPills'
+import { hexLuminance, pillStyle, withHighlightGlow, highlightDotShadow } from '@/lib/calendarPills'
+import { SalePillBell } from '@/components/calendar/SalePillBell'
 
 export interface CalendarRenewalItem {
   id: string
@@ -12,6 +13,9 @@ export interface CalendarRenewalItem {
   brandColors: string[] | null
   hue: number
   href: string
+  /** 'mine' = user actively subscribed; 'skipped' = subscribed, but this particular occurrence
+   *  won't happen for them (personal skip, or a differing personal renewal day). */
+  highlight?: 'mine' | 'skipped' | null
 }
 
 export interface CalendarSaleItem {
@@ -23,6 +27,15 @@ export interface CalendarSaleItem {
   tierName: string
   time: string | null
   href: string
+  /** 'mine' = user has tracked interest in this exact tier. */
+  highlight?: 'mine' | null
+  /** e.g. "2/3" — this tier's position among its sale's same-region tiers. Omit when the sale
+   *  only has one tier (no point badging a solo tier). */
+  stageBadge?: string | null
+  /** Both required to enable the inline interest bell (via the grid's `interestEnabled` prop) —
+   *  omit on producers that don't support it (falls back to a static decorative bell icon). */
+  announcementId?: string
+  regionId?: string | null
 }
 
 interface CalendarGridProps {
@@ -35,6 +48,11 @@ interface CalendarGridProps {
   onNextMonth: () => void
   renewalsForDay: (day: number) => CalendarRenewalItem[]
   salesForDay: (day: number) => CalendarSaleItem[]
+  /** Opt-in: renders an interactive "mark interested" bell on sale pills instead of the static
+   *  decorative one. Only meaningful when producers also set announcementId/regionId on their
+   *  CalendarSaleItems. Off by default so existing embeds (private calendar, single-sale mini
+   *  calendar) are unaffected. */
+  interestEnabled?: boolean
 }
 
 /** Shared month-nav + 7x6 day grid + mobile tap-agenda, reused by the private per-user
@@ -50,6 +68,7 @@ export default function CalendarGrid({
   onNextMonth,
   renewalsForDay,
   salesForDay,
+  interestEnabled = false,
 }: CalendarGridProps) {
   const today = new Date()
 
@@ -177,7 +196,7 @@ export default function CalendarGrid({
 
                 {/* Desktop pills */}
                 {renewals.map(r => {
-                  const ps = pillStyle(r.brandColors, r.hue, 'renewal', lightMode)
+                  const ps = withHighlightGlow(pillStyle(r.brandColors, r.hue, 'renewal', lightMode), r.highlight)
                   return (
                     <span key={r.id} className="hidden sm:block">
                       <Link
@@ -201,7 +220,7 @@ export default function CalendarGrid({
                 })}
 
                 {sales.map(s => {
-                  const ps = pillStyle(s.brandColors, s.hue, 'sale', lightMode)
+                  const ps = withHighlightGlow(pillStyle(s.brandColors, s.hue, 'sale', lightMode), s.highlight)
                   return (
                     <span key={s.id} className="hidden sm:block">
                       <Link
@@ -213,14 +232,19 @@ export default function CalendarGrid({
                           s.label,
                           s.hue,
                           'sale',
-                          `${s.tierName}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`,
+                          `${s.tierName}${s.stageBadge ? ` (${s.stageBadge})` : ''}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`,
                         )}
                         onMouseLeave={scheduleClose}
                         onClick={e => e.stopPropagation()}
                       >
                         <span className="flex items-center gap-1 truncate">
-                          <Bell size={9} className="shrink-0" />
+                          {interestEnabled && s.announcementId ? (
+                            <SalePillBell announcementId={s.announcementId} tierId={s.id} tierName={s.tierName} tierRegionId={s.regionId ?? null} size={9} />
+                          ) : (
+                            <Bell size={9} className="shrink-0" />
+                          )}
                           <span className="truncate">{s.label}</span>
+                          {s.stageBadge && <span className="opacity-50 text-[8px] shrink-0">{s.stageBadge}</span>}
                         </span>
                         {s.companyName && totalEvents <= 3 && (
                           <span className="truncate opacity-60 pl-3">{s.companyName}</span>
@@ -239,16 +263,16 @@ export default function CalendarGrid({
                         const dotColor = bc && hexLuminance(bc) < 0.1
                           ? `color-mix(in srgb, ${bc} 35%, #7ab0cc)`
                           : (bc ?? `hsl(${r.hue},60%,55%)`)
-                        return { color: dotColor, outline: true }
+                        return { color: dotColor, outline: true, highlight: r.highlight }
                       }),
-                      ...sales.map(s => ({ color: s.brandColors?.[0] ?? `hsl(${s.hue},60%,55%)`, outline: false })),
+                      ...sales.map(s => ({ color: s.brandColors?.[0] ?? `hsl(${s.hue},60%,55%)`, outline: false, highlight: s.highlight })),
                     ].slice(0, 3).map((dot, i) => (
                       <span
                         key={i}
                         className="w-2 h-2 rounded-full shrink-0"
                         style={dot.outline
-                          ? { backgroundColor: 'transparent', outline: `1.5px solid ${dot.color}`, boxShadow: `0 0 0 1px rgba(255,255,255,0.2), 0 0 5px ${dot.color}88` }
-                          : { backgroundColor: dot.color, boxShadow: `0 0 0 1.5px rgba(255,255,255,0.2), 0 0 5px ${dot.color}` }}
+                          ? { backgroundColor: 'transparent', outline: `1.5px solid ${dot.color}`, boxShadow: `0 0 0 1px rgba(255,255,255,0.2), 0 0 5px ${dot.color}88${highlightDotShadow(dot.highlight)}` }
+                          : { backgroundColor: dot.color, boxShadow: `0 0 0 1.5px rgba(255,255,255,0.2), 0 0 5px ${dot.color}${highlightDotShadow(dot.highlight)}` }}
                       />
                     ))}
                     {totalEvents > 3 && (
@@ -284,7 +308,7 @@ export default function CalendarGrid({
             ) : (
               <div className="space-y-2">
                 {renewalsForDay(selectedDay).map(r => {
-                  const ps = pillStyle(r.brandColors, r.hue, 'renewal', lightMode)
+                  const ps = withHighlightGlow(pillStyle(r.brandColors, r.hue, 'renewal', lightMode), r.highlight)
                   return (
                     <Link
                       key={r.id}
@@ -302,7 +326,7 @@ export default function CalendarGrid({
                   )
                 })}
                 {salesForDay(selectedDay).map(s => {
-                  const ps = pillStyle(s.brandColors, s.hue, 'sale', lightMode)
+                  const ps = withHighlightGlow(pillStyle(s.brandColors, s.hue, 'sale', lightMode), s.highlight)
                   return (
                     <Link
                       key={s.id}
@@ -310,9 +334,15 @@ export default function CalendarGrid({
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-opacity hover:opacity-80 overflow-hidden min-w-0 w-full"
                       style={ps}
                     >
-                      <Bell size={15} className="shrink-0" />
+                      {interestEnabled && s.announcementId ? (
+                        <SalePillBell announcementId={s.announcementId} tierId={s.id} tierName={s.tierName} tierRegionId={s.regionId ?? null} size={15} />
+                      ) : (
+                        <Bell size={15} className="shrink-0" />
+                      )}
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium leading-snug">{s.label}</p>
+                        <p className="text-sm font-medium leading-snug">
+                          {s.label}{s.stageBadge && <span className="opacity-50 text-xs ml-1">{s.stageBadge}</span>}
+                        </p>
                         <p className="text-xs opacity-70">
                           {s.tierName}{s.time ? ` · ${s.time}` : ''}{s.companyName ? ` · ${s.companyName}` : ''}
                         </p>

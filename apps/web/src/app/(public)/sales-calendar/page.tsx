@@ -3,11 +3,14 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { authFetch } from '@/lib/authFetch'
 import { CalendarDays, Download } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
+import { useAuth } from '@/components/AuthProvider'
 import { useBrandColors } from '@/lib/useBrandColors'
 import { strHue } from '@/lib/calendarPills'
 import { downloadIcsCalendar, type CalendarExportEvent } from '@/lib/ics'
+import { renewalDayInMonth, type CalEntry } from '@/lib/renewalDayInMonth'
 import CalendarGrid, { CalendarRenewalItem, CalendarSaleItem } from '@/components/calendar/CalendarGrid'
 
 interface CalendarTier {
@@ -22,6 +25,8 @@ interface CalendarTier {
     saleType: string
     company: { id: string; name: string; slug: string; brandColors: string[] | null } | null
   }
+  stageIndex: number
+  stageTotal: number
 }
 
 interface CalendarRenewal {
@@ -34,10 +39,16 @@ interface CalendarRenewal {
   company: { id: string; name: string; slug: string; brandColors: string[] | null }
 }
 
+interface SaleInterest {
+  announcementId: string
+  saleTier: { id: string } | null
+}
+
 type TypeFilter = 'all' | 'renewals' | 'sales'
 
 export default function SalesCalendarPage() {
   const { theme } = useTheme()
+  const { user } = useAuth()
   const getBrandColors = useBrandColors()
   const lightMode = theme === 'light'
 
@@ -70,6 +81,29 @@ export default function SalesCalendarPage() {
     queryFn: () => apiFetch(`/subscriptions/calendar?year=${year}&month=${month}`),
   })
 
+  // Personal overlay — only fetched when logged in (never triggers authFetch's 401-redirect for
+  // guests browsing this public page, since these queries stay disabled without a user).
+  const { data: myEntries = [] } = useQuery<CalEntry[]>({
+    queryKey: ['my-calendar-subscriptions'],
+    queryFn: () => authFetch('/subscriptions/my/calendar'),
+    enabled: !!user,
+  })
+  const { data: myInterests = [] } = useQuery<SaleInterest[]>({
+    queryKey: ['sale-interests'],
+    queryFn: () => authFetch('/sale-interests'),
+    enabled: !!user,
+  })
+
+  const myActiveEntryBySubId = useMemo(() => {
+    const map = new Map<string, CalEntry>()
+    for (const e of myEntries) if (e.active) map.set(e.subscription.id, e)
+    return map
+  }, [myEntries])
+  const myInterestedTierIds = useMemo(
+    () => new Set(myInterests.map(i => i.saleTier?.id).filter((id): id is string => !!id)),
+    [myInterests],
+  )
+
   const filteredTiers = useMemo(
     () => tiers.filter(t => !companyId || t.announcement.company?.id === companyId),
     [tiers, companyId],
@@ -83,14 +117,21 @@ export default function SalesCalendarPage() {
     if (typeFilter === 'sales') return []
     return filteredRenewals
       .filter(r => r.day === day)
-      .map(r => ({
-        id: r.subscriptionId,
-        label: r.name,
-        companyName: r.company.name,
-        brandColors: getBrandColors(r.company.slug) ?? r.company.brandColors ?? null,
-        hue: strHue(r.company.slug ?? r.slug),
-        href: `/subscriptions/${r.slug}`,
-      }))
+      .map(r => {
+        const myEntry = myActiveEntryBySubId.get(r.subscriptionId)
+        const highlight: CalendarRenewalItem['highlight'] = !myEntry
+          ? null
+          : renewalDayInMonth(myEntry, year, month0) === day ? 'mine' : 'skipped'
+        return {
+          id: r.subscriptionId,
+          label: r.name,
+          companyName: r.company.name,
+          brandColors: getBrandColors(r.company.slug) ?? r.company.brandColors ?? null,
+          hue: strHue(r.company.slug ?? r.slug),
+          href: `/subscriptions/${r.slug}`,
+          highlight,
+        }
+      })
   }
 
   const salesForDay = (day: number): CalendarSaleItem[] => {
@@ -112,6 +153,10 @@ export default function SalesCalendarPage() {
           tierName: t.region ? `${t.name} · ${t.region.name}` : t.name,
           time,
           href: `/sale-announcements/${t.announcement.id}`,
+          highlight: myInterestedTierIds.has(t.tierId) ? 'mine' : null,
+          stageBadge: t.stageTotal > 1 ? `${t.stageIndex}/${t.stageTotal}` : null,
+          announcementId: t.announcement.id,
+          regionId: t.region?.id ?? null,
         }
       })
   }
@@ -200,6 +245,7 @@ export default function SalesCalendarPage() {
         onNextMonth={nextMonth}
         renewalsForDay={renewalsForDay}
         salesForDay={salesForDay}
+        interestEnabled
       />
 
       {!isLoading && !hasAnyEvents && (
