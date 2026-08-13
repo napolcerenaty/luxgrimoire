@@ -12,6 +12,7 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import { Pagination } from '@/components/admin/Pagination'
 
 import ImageUpload from '@/components/admin/ImageUpload'
+import { PersonPicker } from '@/components/admin/pickers/PersonPicker'
 
 
 interface ArtistFormData {
@@ -24,6 +25,9 @@ interface ArtistFormData {
   facebook: string
   tiktok: string
   photoUrl: string
+  isCollective: boolean
+  studioId: string | null
+  studioName: string | null
 }
 
 const EMPTY_FORM: ArtistFormData = {
@@ -36,6 +40,9 @@ const EMPTY_FORM: ArtistFormData = {
   facebook: '',
   tiktok: '',
   photoUrl: '',
+  isCollective: false,
+  studioId: null,
+  studioName: null,
 }
 
 function artistToForm(artist: ApiArtist): ArtistFormData {
@@ -49,6 +56,9 @@ function artistToForm(artist: ApiArtist): ArtistFormData {
     facebook: artist.facebook ?? '',
     tiktok: artist.tiktok ?? '',
     photoUrl: artist.photoUrl ?? '',
+    isCollective: artist.isCollective ?? false,
+    studioId: artist.studioId ?? null,
+    studioName: artist.studio?.name ?? null,
   }
 }
 
@@ -63,6 +73,8 @@ function formToPayload(form: ArtistFormData) {
     facebook: form.facebook || undefined,
     tiktok: form.tiktok || undefined,
     photoUrl: form.photoUrl || undefined,
+    isCollective: form.isCollective,
+    studioId: form.studioId ?? '',
   }
 }
 
@@ -91,6 +103,42 @@ function ArtistForm({ initial, onSubmit, submitting, submitLabel }: ArtistFormPr
       <div>
         <label className={LABEL_CLASS}>Name *</label>
         <input required className={INPUT_CLASS} value={form.name} onChange={set('name')} />
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          id="artist-is-collective"
+          type="checkbox"
+          checked={form.isCollective}
+          onChange={(e) => setForm((f) => ({ ...f, isCollective: e.target.checked }))}
+          className="accent-brand-400"
+        />
+        <label htmlFor="artist-is-collective" className="text-sm text-stone-300">
+          This is a studio/collective, not an individual person
+        </label>
+      </div>
+      <div>
+        <label className={LABEL_CLASS}>Studio / collective (optional)</label>
+        {form.studioId && form.studioName ? (
+          <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2">
+            <span className="text-sm text-stone-200 flex-1">{form.studioName}</span>
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, studioId: null, studioName: null }))}
+              className="text-stone-500 hover:text-stone-300 text-sm"
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <PersonPicker
+            endpoint="artists"
+            placeholder="Search or create the studio this artist publishes under…"
+            onAdd={(entry) => setForm((f) => ({ ...f, studioId: entry.id ?? null, studioName: entry.name }))}
+          />
+        )}
+        <p className="text-xs text-stone-500 mt-1">
+          If this artist publishes under a shared studio/brand handle, link it here — the person&apos;s own name is kept as the primary credit.
+        </p>
       </div>
       <div>
         <label className={LABEL_CLASS}>Biography</label>
@@ -209,9 +257,19 @@ export default function AdminArtistsPage() {
     {
       key: 'name', label: 'Name',
       render: (row: ApiArtist) => (
-        <a href={`/artists/${row.slug}`} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 font-medium">
-          {row.name}
-        </a>
+        <div className="flex items-center gap-2">
+          <a href={`/artists/${row.slug}`} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 font-medium">
+            {row.name}
+          </a>
+          {row.isCollective && (
+            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-stone-800/90 text-stone-300 border border-stone-600">
+              studio
+            </span>
+          )}
+          {row.studio?.name && (
+            <span className="text-xs text-stone-500">for {row.studio.name}</span>
+          )}
+        </div>
       ),
     },
   ]

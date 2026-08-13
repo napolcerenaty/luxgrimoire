@@ -758,7 +758,7 @@ export class EditionsService {
         artists: {
           select: {
             id: true, role: true,
-            artist: { select: { id: true, name: true } },
+            artist: { select: { id: true, name: true, isCollective: true, studio: { select: { id: true, name: true, slug: true } } } },
           },
         },
         featureTags: {
@@ -856,7 +856,13 @@ export class EditionsService {
         artists: {
           select: {
             role: true,
-            artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
+            artist: {
+              select: {
+                id: true, name: true, slug: true, photoUrl: true,
+                isCollective: true,
+                studio: { select: { id: true, name: true, slug: true } },
+              },
+            },
           },
         },
         bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true, website: true } },

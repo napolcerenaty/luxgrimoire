@@ -131,6 +131,10 @@ export interface ApiArtist {
   twitter: string | null;
   facebook: string | null;
   tiktok: string | null;
+  isCollective?: boolean;
+  studioId?: string | null;
+  studio?: { id: string; name: string; slug: string; instagram?: string | null; photoUrl?: string | null } | null;
+  studioMembers?: Array<{ id: string; name: string; slug: string; photoUrl: string | null }>;
 }
 
 export interface ApiBookEdition {

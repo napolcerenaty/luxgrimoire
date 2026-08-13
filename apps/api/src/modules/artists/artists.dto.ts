@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateArtistDto {
@@ -36,6 +36,14 @@ export class CreateArtistDto {
   @IsOptional()
   @IsString()
   tiktok?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isCollective?: boolean;
+
+  @IsOptional()
+  @IsString()
+  studioId?: string;
 }
 
 export class UpdateArtistDto {
@@ -74,6 +82,14 @@ export class UpdateArtistDto {
   @IsOptional()
   @IsString()
   tiktok?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isCollective?: boolean;
+
+  @IsOptional()
+  @IsString()
+  studioId?: string;
 }
 
 export class ArtistQueryDto {

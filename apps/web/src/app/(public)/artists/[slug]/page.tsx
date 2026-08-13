@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
@@ -130,9 +131,19 @@ export default async function ArtistPage({ params }: Props) {
                 {artist.name}
               </h1>
 
-              {artist.specialty && (
-                <Badge variant="outline" className="mb-4">{artist.specialty}</Badge>
-              )}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {artist.specialty && (
+                  <Badge variant="outline">{artist.specialty}</Badge>
+                )}
+                {artist.studio && (
+                  <Link
+                    href={`/artists/${artist.studio.slug}`}
+                    className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full leading-tight bg-stone-800/90 text-stone-300 border border-stone-600 hover:border-brand-500/50 hover:text-brand-400 transition-colors"
+                  >
+                    Part of {artist.studio.name}
+                  </Link>
+                )}
+              </div>
 
               {artist.bio && (
                 <p className="text-stone-300 leading-relaxed max-w-2xl mb-5">{artist.bio}</p>
@@ -144,6 +155,35 @@ export default async function ArtistPage({ params }: Props) {
                   {socials.map((s) => (
                     <SocialLink key={s.href} href={s.href} label={s.label} icon={s.icon} />
                   ))}
+                </div>
+              )}
+
+              {/* Members, if this artist is a studio/collective */}
+              {artist.isCollective && artist.studioMembers && artist.studioMembers.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-xs text-stone-500 uppercase tracking-widest mb-2">Members</p>
+                  <div className="flex flex-wrap gap-3">
+                    {artist.studioMembers.map((member) => {
+                      const memberPhoto = cloudinaryUrl(member.photoUrl, 'w_64,h_64,c_fill,q_auto,f_auto')
+                      return (
+                        <Link
+                          key={member.id}
+                          href={`/artists/${member.slug}`}
+                          className="flex items-center gap-2 group border border-stone-700 hover:border-brand-700/60 rounded-full pl-1 pr-3 py-1 transition-colors"
+                        >
+                          {memberPhoto ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={memberPhoto} alt={member.name} className="w-6 h-6 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-stone-800 flex items-center justify-center text-[10px] text-stone-500">
+                              {member.name[0]?.toUpperCase()}
+                            </div>
+                          )}
+                          <span className="text-sm text-stone-300 group-hover:text-brand-400 transition-colors">{member.name}</span>
+                        </Link>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
