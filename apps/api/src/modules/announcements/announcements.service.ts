@@ -289,6 +289,83 @@ export class AnnouncementsService {
     return this.mapAnnouncementAssets(announcement);
   }
 
+  /** Every SaleTier (any region) falling within (year, month) — global, not tied to any user.
+   *  Powers the public /sales-calendar page. `companyId` narrows to one company's tiers, for
+   *  the per-company calendar embed on the company sale-announcements list. */
+  async getCalendarTiers(year: number, month: number, companyId?: string) {
+    const monthStart = new Date(Date.UTC(year, month - 1, 1));
+    const monthEnd = new Date(Date.UTC(year, month, 1));
+
+    const tiers = await this.prisma.saleTier.findMany({
+      where: {
+        date: { gte: monthStart, lt: monthEnd },
+        ...(companyId ? { announcement: { companyId } } : {}),
+      },
+      orderBy: { date: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        date: true,
+        regionId: true,
+        region: { select: { id: true, name: true } },
+        announcement: {
+          select: {
+            id: true,
+            title: true,
+            imageUrl: true,
+            saleType: true,
+            company: { select: { id: true, name: true, slug: true, brandColors: true } },
+          },
+        },
+      },
+    });
+
+    if (tiers.length === 0) return [];
+
+    // Stage numbering ("2 of 3") must reflect the WHOLE sale's tier sequence for that region, not
+    // just whichever of its tiers happen to fall in the queried month — a sale's First Access could
+    // be in June and General Sale in July. One extra query, scoped to only the sales present this
+    // month, fetches every sibling tier (any month) to compute each tier's position via its `order`.
+    const saleIds = Array.from(new Set(tiers.map((t) => t.announcement.id)));
+    const siblingTiers = await this.prisma.saleTier.findMany({
+      where: { saleId: { in: saleIds } },
+      orderBy: { order: 'asc' },
+      select: { id: true, saleId: true, regionId: true },
+    });
+    const stageGroups = new Map<string, string[]>();
+    for (const t of siblingTiers) {
+      const key = `${t.saleId}::${t.regionId ?? ''}`;
+      const group = stageGroups.get(key);
+      if (group) group.push(t.id);
+      else stageGroups.set(key, [t.id]);
+    }
+
+    // Whether a sale has more than one distinct region-group (default set counts as one group
+    // too) — used by the frontend to decide whether a stage badge needs the region name to stay
+    // meaningful ("US 2/3") or can stay bare ("2/3") because there's nothing else to confuse it
+    // with. Derived from the same stageGroups keys, no extra query.
+    const saleRegionCount = new Map<string, number>();
+    for (const key of stageGroups.keys()) {
+      const saleId = key.slice(0, key.indexOf('::'));
+      saleRegionCount.set(saleId, (saleRegionCount.get(saleId) ?? 0) + 1);
+    }
+
+    return tiers.map((t) => {
+      const key = `${t.announcement.id}::${t.regionId ?? ''}`;
+      const group = stageGroups.get(key) ?? [t.id];
+      return {
+        tierId: t.id,
+        name: t.name,
+        date: t.date,
+        region: t.region,
+        announcement: t.announcement,
+        stageIndex: group.indexOf(t.id) + 1,
+        stageTotal: group.length,
+        multiRegion: (saleRegionCount.get(t.announcement.id) ?? 1) > 1,
+      };
+    });
+  }
+
   /** Countdown target for a company's page: the soonest upcoming tier across every live/
    *  upcoming sale (all tiers combined) — unless the given user has an interest in one of this
    *  company's live/upcoming sales and picked a specific tier, in which case that tier's own

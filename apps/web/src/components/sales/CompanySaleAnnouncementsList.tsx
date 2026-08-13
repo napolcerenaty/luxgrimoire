@@ -1,24 +1,120 @@
 'use client'
 
-import { useState } from 'react'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useMemo, useState } from 'react'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { authFetch } from '@/lib/authFetch'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
-import { LayoutGrid, List, Search, Megaphone } from 'lucide-react'
+import { LayoutGrid, List, Search, Megaphone, CalendarDays, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useTheme } from '@/components/ThemeProvider'
+import { useAuth } from '@/components/AuthProvider'
+import { strHue } from '@/lib/calendarPills'
+import { downloadIcsCalendar, type CalendarExportEvent } from '@/lib/ics'
+import CalendarGrid, { type CalendarSaleItem } from '@/components/calendar/CalendarGrid'
 import { AnnouncementCard, AnnouncementListRow, type ListSaleAnnouncement } from '@/components/sales/AnnouncementCard'
 
 const PAGE_SIZE = 20
+
+interface CalendarTier {
+  tierId: string
+  name: string
+  date: string
+  region: { id: string; name: string } | null
+  announcement: {
+    id: string
+    title: string
+    imageUrl: string | null
+    saleType: string
+    company: { id: string; name: string; slug: string; brandColors: string[] | null } | null
+  }
+  stageIndex: number
+  stageTotal: number
+  multiRegion: boolean
+}
+
+interface SaleInterest {
+  announcementId: string
+  saleTier: { id: string } | null
+}
 
 interface Props {
   companyId: string
 }
 
 export function CompanySaleAnnouncementsList({ companyId }: Props) {
+  const { theme } = useTheme()
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'live' | 'past'>('live')
-  const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [view, setView] = useState<'grid' | 'list' | 'calendar'>('grid')
   const debouncedSearch = useDebounce(search, 300)
+
+  const today = new Date()
+  const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+  const year = viewDate.getFullYear()
+  const month0 = viewDate.getMonth()
+  const month = month0 + 1
+  const monthLabel = viewDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+
+  const { data: tiers = [] } = useQuery<CalendarTier[]>({
+    queryKey: ['company-sales-calendar', companyId, year, month],
+    queryFn: () => apiFetch(`/announcements/calendar?year=${year}&month=${month}&companyId=${companyId}`),
+    enabled: view === 'calendar',
+  })
+
+  const { data: myInterests = [] } = useQuery<SaleInterest[]>({
+    queryKey: ['sale-interests'],
+    queryFn: () => authFetch('/sale-interests'),
+    enabled: view === 'calendar' && !!user,
+  })
+  const myInterestedTierIds = useMemo(
+    () => new Set(myInterests.map(i => i.saleTier?.id).filter((id): id is string => !!id)),
+    [myInterests],
+  )
+
+  const salesForDay = (day: number): CalendarSaleItem[] =>
+    tiers
+      .filter(t => {
+        const d = new Date(t.date)
+        return d.getFullYear() === year && d.getMonth() === month0 && d.getDate() === day
+      })
+      .map(t => {
+        const d = new Date(t.date)
+        const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+        return {
+          id: t.tierId,
+          label: t.announcement.title,
+          companyName: t.announcement.company?.name ?? null,
+          brandColors: t.announcement.company?.brandColors ?? null,
+          hue: strHue(t.announcement.company?.name ?? t.tierId),
+          tierName: t.region ? `${t.name} · ${t.region.name}` : t.name,
+          time,
+          href: `/sale-announcements/${t.announcement.id}`,
+          highlight: myInterestedTierIds.has(t.tierId) ? 'mine' : null,
+          stageBadge: t.stageTotal > 1
+            ? (t.multiRegion && t.region ? `${t.region.name} ${t.stageIndex}/${t.stageTotal}` : `${t.stageIndex}/${t.stageTotal}`)
+            : null,
+          announcementId: t.announcement.id,
+          regionId: t.region?.id ?? null,
+        }
+      })
+
+  function handleDownload() {
+    const origin = window.location.origin
+    const events: CalendarExportEvent[] = tiers.map(t => ({
+      id: `sale-${t.tierId}`,
+      title: t.announcement.title,
+      description: [t.name, t.region?.name].filter(Boolean).join(' · '),
+      url: `${origin}/sale-announcements/${t.announcement.id}`,
+      date: t.date,
+    }))
+    downloadIcsCalendar(
+      events,
+      `${tiers[0]?.announcement.company?.name ?? 'Company'} — ${monthLabel}`,
+      `sales-calendar-${year}-${String(month).padStart(2, '0')}.ics`,
+    )
+  }
 
   const { data, isLoading, isFetchingNextPage, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey: ['company-sale-announcements', companyId, tab, debouncedSearch],
@@ -37,6 +133,7 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined),
     staleTime: 30_000,
+    enabled: view !== 'calendar',
   })
 
   const announcements = data?.pages.flatMap((p) => p.data) ?? []
@@ -46,30 +143,34 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
     <div>
       {/* Filters row — same shape as the site-wide /sale-announcements toolbar */}
       <div className="flex flex-wrap gap-3 mb-6">
-        <div className="relative flex-1 min-w-[180px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search announcements…"
-            className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-500 text-sm"
-          />
-        </div>
+        {view !== 'calendar' && (
+          <>
+            <div className="relative flex-1 min-w-[180px]">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search announcements…"
+                className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-500 text-sm"
+              />
+            </div>
 
-        <div className="inline-flex items-center gap-1 rounded-xl border border-stone-700 bg-stone-800 p-1 shrink-0">
-          <button
-            onClick={() => setTab('live')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'live' ? 'bg-stone-700 text-brand-400' : 'text-stone-400 hover:text-stone-200'}`}
-          >
-            Live &amp; Upcoming
-          </button>
-          <button
-            onClick={() => setTab('past')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'past' ? 'bg-stone-700 text-brand-400' : 'text-stone-400 hover:text-stone-200'}`}
-          >
-            Past
-          </button>
-        </div>
+            <div className="inline-flex items-center gap-1 rounded-xl border border-stone-700 bg-stone-800 p-1 shrink-0">
+              <button
+                onClick={() => setTab('live')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'live' ? 'bg-stone-700 text-brand-400' : 'text-stone-400 hover:text-stone-200'}`}
+              >
+                Live &amp; Upcoming
+              </button>
+              <button
+                onClick={() => setTab('past')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'past' ? 'bg-stone-700 text-brand-400' : 'text-stone-400 hover:text-stone-200'}`}
+              >
+                Past
+              </button>
+            </div>
+          </>
+        )}
 
         <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-xl px-1 shrink-0">
           <button
@@ -86,10 +187,47 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
           >
             <List className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => setView('calendar')}
+            className={`p-1.5 rounded transition-colors ${view === 'calendar' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
+            aria-label="Calendar view"
+          >
+            <CalendarDays className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {isLoading ? (
+      {view === 'calendar' ? (
+        <div>
+          <CalendarGrid
+            year={year}
+            month0={month0}
+            monthLabel={monthLabel}
+            lightMode={theme === 'light'}
+            onPrevMonth={() => setViewDate(new Date(year, month0 - 1, 1))}
+            onNextMonth={() => setViewDate(new Date(year, month0 + 1, 1))}
+            renewalsForDay={() => []}
+            salesForDay={salesForDay}
+            interestEnabled
+          />
+          {tiers.length === 0 && (
+            <p className="text-center text-stone-500 py-8 text-sm">No sales for {monthLabel}.</p>
+          )}
+          <div className="mt-6 flex flex-col items-center gap-1.5">
+            <button
+              onClick={handleDownload}
+              disabled={tiers.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download size={15} />
+              Download {monthLabel} events
+            </button>
+            <p className="text-xs text-stone-600 text-center max-w-sm">
+              Includes only what&apos;s shown above for {monthLabel} — switch months and download again to get other periods.
+            </p>
+          </div>
+        </div>
+      ) : isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {Array.from({ length: PAGE_SIZE }).map((_, i) => (
             <div key={i} className="rounded-2xl border border-stone-800 bg-stone-900 animate-pulse aspect-[2/3]" />
