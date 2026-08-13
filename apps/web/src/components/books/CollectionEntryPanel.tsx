@@ -12,6 +12,7 @@ import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { isValidCalendarDate } from '@/lib/dateValidation'
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { TagEditor } from '@/components/collection/TagEditor'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -50,6 +51,13 @@ interface FeeTemplate {
   isActive: boolean
 }
 
+interface PurchaseGroupBookEntry {
+  id: string
+  editionId: string | null
+  basePrice: string | null
+  edition: { book: { title: string } | null } | null
+}
+
 interface PurchaseGroup {
   id: string
   title: string | null
@@ -62,9 +70,11 @@ interface PurchaseGroup {
   fromSubscription: boolean
   isSecondHand: boolean
   sourcePlatform: string | null
+  priceDistribution?: string
   fees: PurchaseFee[]
   discounts: PurchaseDiscount[]
   refunds: PurchaseRefund[]
+  bookEntries?: PurchaseGroupBookEntry[]
   _count?: { bookEntries: number }
 }
 
@@ -359,6 +369,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [editDiscounts, setEditDiscounts] = useState<{ id?: string; name: string; amount: string }[]>([])
   const [editPurchasedAt, setEditPurchasedAt] = useState('')
   const [editPurchaseNotes, setEditPurchaseNotes] = useState('')
+  const [editEntryPrices, setEditEntryPrices] = useState<Record<string, string>>({})
+  const [invalidPriceEntryIds, setInvalidPriceEntryIds] = useState<Set<string>>(new Set())
   const [savingPurchase, setSavingPurchase] = useState(false)
 
   // Error state
@@ -566,6 +578,21 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     return () => window.removeEventListener('collection:updated', handler)
   }, [editionId])
 
+  // While editing purchase costs for a multi-book group, once any book has a price the total
+  // becomes a calculated, read-only sum — same all-or-nothing rule as Add to Collection.
+  useEffect(() => {
+    const bookEntries = entry?.purchaseGroup?.bookEntries ?? []
+    if (bookEntries.length <= 1) return
+    const anyFilled = bookEntries.some(be => (editEntryPrices[be.id] ?? '').trim() !== '')
+    if (!anyFilled) return
+    const sum = bookEntries.reduce((s, be) => {
+      const raw = (editEntryPrices[be.id] ?? '').trim()
+      return s + (raw === '' ? 0 : parseDecimalInput(raw))
+    }, 0)
+    setEditTotalAmount(sum.toFixed(2))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.purchaseGroup?.bookEntries, editEntryPrices])
+
   if (loading || !entry) return null
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -628,6 +655,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       setEditDiscounts((pg.discounts ?? []).map(d => ({ id: d.id, name: d.name, amount: String(d.amount) })))
       setEditPurchasedAt(pg.purchasedAt ? pg.purchasedAt.slice(0, 10) : '')
       setEditPurchaseNotes(pg.notes ?? '')
+      // Pre-fill from the real per-book allocation when this group already has one — otherwise
+      // leave blank (equal split so far), same "all filled or none" rule as Add to Collection.
+      const prices: Record<string, string> = {}
+      for (const be of pg.bookEntries ?? []) {
+        if (be.basePrice != null) prices[be.id] = String(be.basePrice)
+      }
+      setEditEntryPrices(prices)
+      setInvalidPriceEntryIds(new Set())
     } else {
       setEditTotalAmount('')
       setEditCurrency('EUR')
@@ -635,6 +670,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       setEditDiscounts([])
       setEditPurchasedAt('')
       setEditPurchaseNotes('')
+      setEditEntryPrices({})
+      setInvalidPriceEntryIds(new Set())
     }
     setSaveError(null)
     setPurchaseErrorField(null)
@@ -655,6 +692,22 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
         setSaveError('Shipping must be 0 or greater.'); setPurchaseErrorField('shipping'); return
       }
     }
+    // Per-book pricing is all-or-nothing: once any book has a price, every book in the group needs one.
+    const pgBookEntriesForSave = entry!.purchaseGroup?.bookEntries ?? []
+    const perBookModeForSave = pgBookEntriesForSave.length > 1 && pgBookEntriesForSave.some(be => (editEntryPrices[be.id] ?? '').trim() !== '')
+    const nextInvalidPriceEntryIds = new Set<string>()
+    if (perBookModeForSave) {
+      for (const be of pgBookEntriesForSave) {
+        const raw = (editEntryPrices[be.id] ?? '').trim()
+        const n = parseFloat(raw.replace(',', '.'))
+        if (raw === '' || isNaN(n) || n < 0) nextInvalidPriceEntryIds.add(be.id)
+      }
+    }
+    setInvalidPriceEntryIds(nextInvalidPriceEntryIds)
+    if (nextInvalidPriceEntryIds.size > 0) {
+      setSaveError('Enter a price for every book below, or clear all of them to set one total price instead.')
+      return
+    }
     setPurchaseErrorField(null)
     setSavingPurchase(true)
     setSaveError(null)
@@ -667,6 +720,16 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       }
       if (editShippingAmount) payload.shippingAmount = parseFloat(editShippingAmount)
       if (editPurchaseNotes) payload.notes = editPurchaseNotes
+      if (pgBookEntriesForSave.length > 1) {
+        if (perBookModeForSave) {
+          payload.priceDistribution = 'CUSTOM'
+          payload.entryPrices = Object.fromEntries(
+            pgBookEntriesForSave.map(be => [be.id, parseDecimalInput(editEntryPrices[be.id])]),
+          )
+        } else {
+          payload.priceDistribution = 'EQUAL'
+        }
+      }
       let groupId: string
       if (pg) {
         await authFetch(`/collection/bundles/${pg.id}`, {
@@ -1093,6 +1156,16 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const pg = entry.purchaseGroup
   const isFromSubscription = !!entry.subscriptionEntryId
 
+  // Per-book price editing (only meaningful for a multi-book purchase group) — same
+  // all-or-nothing rule as Add to Collection: fill in any book price and every book needs one,
+  // with the total below calculated automatically from them.
+  const pgBookEntries = pg?.bookEntries ?? []
+  const perBookPriceMode = pgBookEntries.length > 1 && pgBookEntries.some(be => (editEntryPrices[be.id] ?? '').trim() !== '')
+  const editEntryPriceSum = pgBookEntries.reduce((sum, be) => {
+    const raw = (editEntryPrices[be.id] ?? '').trim()
+    return sum + (raw === '' ? 0 : parseDecimalInput(raw))
+  }, 0)
+
   // Cost calculations from purchase group
   const pgTotal = pg ? parseFloat(String(pg.totalAmount)) : null
   const pgShipping = pg?.shippingAmount ? parseFloat(String(pg.shippingAmount)) : null
@@ -1224,7 +1297,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Price</label>
-                  <input type="number" step="0.01" min="0" value={editTotalAmount} onChange={e => { setEditTotalAmount(e.target.value); if (purchaseErrorField === 'amount') { setSaveError(null); setPurchaseErrorField(null) } }} placeholder="0.00" className={inpErr(INP_FLEX, purchaseErrorField === 'amount') + ' w-20'} />
+                  <input
+                    type="number" step="0.01" min="0"
+                    value={editTotalAmount}
+                    disabled={perBookPriceMode}
+                    onChange={e => { setEditTotalAmount(e.target.value); if (purchaseErrorField === 'amount') { setSaveError(null); setPurchaseErrorField(null) } }}
+                    placeholder="0.00"
+                    className={inpErr(INP_FLEX, purchaseErrorField === 'amount') + ' w-20' + (perBookPriceMode ? ' opacity-60 cursor-not-allowed' : '')}
+                  />
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
@@ -1237,6 +1317,42 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                   </select>
                 </div>
               </div>
+
+              {/* Per-book price — only for a multi-book purchase group. Same all-or-nothing
+                  rule as Add to Collection: fill in any book and every book needs a price. */}
+              {pgBookEntries.length > 1 && (
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Per-book price</label>
+                  <div className="flex flex-col gap-1.5">
+                    {pgBookEntries.map(be => (
+                      <div key={be.id} className="flex items-center gap-2">
+                        <span className="flex-1 min-w-0 truncate text-xs" style={{ color: 'var(--text-dim)' }}>
+                          {be.edition?.book?.title ?? 'Book'}
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          value={editEntryPrices[be.id] ?? ''}
+                          onChange={e => {
+                            setEditEntryPrices(prev => ({ ...prev, [be.id]: e.target.value }))
+                            if (invalidPriceEntryIds.has(be.id)) {
+                              setInvalidPriceEntryIds(prev => { const next = new Set(prev); next.delete(be.id); return next })
+                              setSaveError(null)
+                            }
+                          }}
+                          className={inpErr(INP_BASE, invalidPriceEntryIds.has(be.id)) + ' w-20 text-right shrink-0'}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                    {perBookPriceMode
+                      ? `Pricing books individually — fill in all ${pgBookEntries.length}, price above is calculated automatically.`
+                      : 'Leave every book price blank to split the total price evenly — or price each book individually here instead.'}
+                  </p>
+                </div>
+              )}
 
               {/* Discounts list */}
               <div>
