@@ -30,6 +30,14 @@ export class AnalyticsController {
     return { ok: true };
   }
 
+  @Public()
+  @Get('public/blog-post-view-count')
+  async blogPostViewCount(@Query('slug') slug: string) {
+    if (!slug) return { count: 0 };
+    const count = await this.analyticsService.getBlogPostViewCount(slug);
+    return { count };
+  }
+
   @Roles('ADMIN', 'MODERATOR')
   @Get('admin/event-types')
   getEventTypes() {
