@@ -372,7 +372,7 @@ export function CollectionFormModal({
           {/* Price / Shipping / Currency */}
           <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
             <div>
-              <label className={LABEL}>{perBookPriceMode ? 'Price paid (sum of books above)' : 'Price paid (optional)'}</label>
+              <label className={LABEL}>{perBookPriceMode ? 'Price paid' : 'Price paid (optional)'}</label>
               <input
                 type="text"
                 value={totalAmount}
@@ -393,6 +393,9 @@ export function CollectionFormModal({
               </select>
             </div>
           </div>
+          {perBookPriceMode && (
+            <p className="text-[11px] text-stone-500 -mt-2">Price paid is calculated automatically from the book prices above.</p>
+          )}
 
           {/* Additional fees */}
           <div>
