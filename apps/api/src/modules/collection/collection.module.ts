@@ -4,9 +4,10 @@ import { CollectionService } from './collection.service';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { CrowdStatsModule } from '../crowd-stats/crowd-stats.module';
 import { StatsModule } from '../stats/stats.module';
+import { UserCostSnapshotsModule } from '../user-cost-snapshots/user-cost-snapshots.module';
 
 @Module({
-  imports: [AnalyticsModule, CrowdStatsModule, StatsModule],
+  imports: [AnalyticsModule, CrowdStatsModule, StatsModule, UserCostSnapshotsModule],
   controllers: [CollectionController],
   providers: [CollectionService],
 })

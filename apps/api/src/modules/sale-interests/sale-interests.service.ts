@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
+import { UserCostSnapshotCronService } from '../user-cost-snapshots/user-cost-snapshot.cron';
 
 @Injectable()
 export class SaleInterestsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly userCostSnapshotService: UserCostSnapshotCronService,
     @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
   ) {}
 
@@ -79,13 +81,28 @@ export class SaleInterestsService {
               },
             },
             regions: { select: this.regionSelect },
+            _count: { select: { editions: true } },
           },
         },
         saleTier: { select: { id: true, name: true, date: true, regionId: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
-    return rows;
+
+    // Batched — one snapshot query for every distinct company across all interests, not one
+    // per row, so this endpoint stays O(1) queries regardless of list size (see
+    // UserCostSnapshotCronService.predictBatch).
+    const requests = rows
+      .filter((r) => r.announcement?.company?.id && r.announcement._count.editions > 0)
+      .map((r) => ({ companyId: r.announcement!.company!.id, bookCount: r.announcement!._count.editions }));
+    const predictions = await this.userCostSnapshotService.predictBatch(userId, requests);
+
+    return rows.map((r) => {
+      const companyId = r.announcement?.company?.id;
+      const bookCount = r.announcement?._count.editions ?? 0;
+      const expectedCosts = companyId && bookCount > 0 ? predictions.get(`${companyId}:${bookCount}`) ?? null : null;
+      return { ...r, expectedCosts };
+    });
   }
 
   async findOne(userId: string, announcementId: string) {

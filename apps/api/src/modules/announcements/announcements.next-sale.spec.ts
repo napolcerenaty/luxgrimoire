@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
+import { UserCostSnapshotCronService } from '../user-cost-snapshots/user-cost-snapshot.cron';
 import { AnnouncementsService } from './announcements.service';
 
 function daysFromNow(days: number): Date {
@@ -20,7 +21,8 @@ describe('AnnouncementsService.getNextSale', () => {
     const typesense = mockDeep<TypesenseService>();
     const uploadService = mockDeep<UploadService>();
     const mediaAssetsService = mockDeep<MediaAssetsService>();
-    service = new AnnouncementsService(prisma, typesense, uploadService, mediaAssetsService, undefined);
+    const userCostSnapshotService = mockDeep<UserCostSnapshotCronService>();
+    service = new AnnouncementsService(prisma, typesense, uploadService, mediaAssetsService, userCostSnapshotService, undefined);
   });
 
   it('returns an empty result when the company has no live/upcoming sales', async () => {

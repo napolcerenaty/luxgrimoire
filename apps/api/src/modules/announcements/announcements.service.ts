@@ -8,6 +8,7 @@ import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
+import { UserCostSnapshotCronService, CostPrediction } from '../user-cost-snapshots/user-cost-snapshot.cron';
 
 // Full include — used for public endpoints where book authors/artists are displayed
 const editionsInclude = {
@@ -58,6 +59,7 @@ export class AnnouncementsService {
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
     private readonly mediaAssetsService: MediaAssetsService,
+    private readonly userCostSnapshotService: UserCostSnapshotCronService,
     @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
   ) {}
 
@@ -287,6 +289,24 @@ export class AnnouncementsService {
     });
     if (!announcement) throw new NotFoundException('Sale announcement not found');
     return this.mapAnnouncementAssets(announcement);
+  }
+
+  /**
+   * "Expected shipping/fees, based on your past purchases" hint for a single sale announcement.
+   * Personalized only — unauthenticated or no-history users get `available: false`, no query run.
+   */
+  async getExpectedCosts(saleId: string, userId?: string | null): Promise<{ available: boolean } | ({ available: true } & CostPrediction)> {
+    if (!userId) return { available: false };
+
+    const sale = await this.prisma.saleAnnouncement.findUnique({
+      where: { id: saleId },
+      select: { companyId: true, _count: { select: { editions: true } } },
+    });
+    if (!sale?.companyId || sale._count.editions === 0) return { available: false };
+
+    const prediction = await this.userCostSnapshotService.predict(userId, sale.companyId, sale._count.editions);
+    if (!prediction) return { available: false };
+    return { available: true, ...prediction };
   }
 
   /** Countdown target for a company's page: the soonest upcoming tier across every live/

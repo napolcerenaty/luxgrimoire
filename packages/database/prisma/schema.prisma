@@ -52,6 +52,7 @@ model User {
   purchaseFees             UserPurchaseFee[]
   purchaseGroups           UserPurchaseGroup[]
   purchaseRefunds          UserPurchaseRefund[]
+  companyCostSnapshots     UserCompanyCostSnapshot[]
   saleInterests            UserSaleInterest[]
   saleGroups               UserSaleGroup[]
   skipRecords              UserSkipRecord[]
@@ -363,6 +364,7 @@ model BookBoxCompany {
   editions          BookEdition[]
   saleAnnouncements SaleAnnouncement[]
   subscriptions     Subscription[]
+  costSnapshots     UserCompanyCostSnapshot[]
   managers          User[]                @relation("CompanyManagers")
   logoAsset         MediaAsset?           @relation("CompanyLogo", fields: [logoAssetId], references: [id], onDelete: SetNull)
   @@index([country])
@@ -1719,6 +1721,28 @@ model SubscriptionCountryFeeSnapshot {
   @@unique([subscriptionId, country])
   @@index([subscriptionId])
   @@map("subscription_country_fee_snapshots")
+}
+
+/// Per-user, per-company snapshot of expected extra costs (shipping + fees) on sale
+/// announcement purchases, derived from that same user's own purchase history. Powers the
+/// "expected shipping/fees based on your past purchases" hint — deliberately per-user (not a
+/// cross-user aggregate like SubscriptionCountryFeeSnapshot) so it can be read directly by the
+/// future budget feature. See UserCostSnapshotCronService for how `purchases` is computed
+/// (tiered time window, book-count matching happens at read time against this raw list).
+model UserCompanyCostSnapshot {
+  id           String         @id @default(uuid())
+  userId       String
+  companyId    String
+  currency     String?        // null when the included purchases mix currencies — suppresses display
+  purchases    Json           // Array<{ bookCount, shippingAmount, fees: {category, amount}[], currency, purchasedAt }>
+  sampleWindow Int            // months tier actually used (6 / 12 / 24) when this was computed
+  calculatedAt DateTime       @default(now())
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company      BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@map("user_company_cost_snapshots")
 }
 
 model UserStatsSnapshot {

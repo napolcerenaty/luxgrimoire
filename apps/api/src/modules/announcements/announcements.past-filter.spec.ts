@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
+import { UserCostSnapshotCronService } from '../user-cost-snapshots/user-cost-snapshot.cron';
 import { AnnouncementsService } from './announcements.service';
 
 // Regression guard: `NOT: buildActiveSaleCondition(...)` — wrapping the whole nested
@@ -28,7 +29,8 @@ describe('AnnouncementsService.findAll — pastOnly filter', () => {
     const typesense = mockDeep<TypesenseService>();
     const uploadService = mockDeep<UploadService>();
     const mediaAssetsService = mockDeep<MediaAssetsService>();
-    service = new AnnouncementsService(prisma, typesense, uploadService, mediaAssetsService, undefined);
+    const userCostSnapshotService = mockDeep<UserCostSnapshotCronService>();
+    service = new AnnouncementsService(prisma, typesense, uploadService, mediaAssetsService, userCostSnapshotService, undefined);
 
     (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.saleAnnouncement.count as jest.Mock).mockResolvedValue(0);

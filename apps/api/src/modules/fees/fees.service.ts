@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { assertOwnership } from '../../common/utils/assert-ownership.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatsService } from '../stats/stats.service';
+import { UserCostSnapshotCronService } from '../user-cost-snapshots/user-cost-snapshot.cron';
 import {
   CreateFeeTemplateDto,
   UpdateFeeTemplateDto,
@@ -17,6 +18,7 @@ export class FeesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly statsService: StatsService,
+    private readonly userCostSnapshotService: UserCostSnapshotCronService,
   ) {}
 
   // ── Fee Templates ────────────────────────────────────────────────────────
@@ -98,6 +100,7 @@ export class FeesService {
       include: { feeTemplate: { select: { id: true, name: true } } },
     });
     this.statsService.markStatsStale(userId, [new Date(dto.date).getFullYear()]);
+    this.userCostSnapshotService.refreshSnapshotForPurchaseGroup(userId, dto.purchaseGroupId ?? null).catch(() => {});
     return result;
   }
 
@@ -122,6 +125,7 @@ export class FeesService {
     const years = new Set([new Date(existing.date).getFullYear()]);
     if (dto.date) years.add(new Date(dto.date).getFullYear());
     this.statsService.markStatsStale(userId, [...years]);
+    this.userCostSnapshotService.refreshSnapshotForPurchaseGroup(userId, existing.purchaseGroupId).catch(() => {});
     return result;
   }
 
@@ -131,6 +135,7 @@ export class FeesService {
     assertOwnership(existing.userId, userId);
     await this.prisma.userPurchaseFee.delete({ where: { id: feeId } });
     this.statsService.markStatsStale(userId, [new Date(existing.date).getFullYear()]);
+    this.userCostSnapshotService.refreshSnapshotForPurchaseGroup(userId, existing.purchaseGroupId).catch(() => {});
   }
 
   // ── Stats helper (used by spending module) ───────────────────────────────

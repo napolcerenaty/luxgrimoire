@@ -53,6 +53,18 @@ interface SaleInterest {
     currency: string | null
     company: { id: string; name: string; slug: string; logoUrl: string | null; brandColors?: string[] | null } | null
   }
+  /** Personalized — based on the user's own past purchase history with this company. Absent
+   *  (or `available: false`) when unauthenticated, no history, or currency mismatch. */
+  expectedCosts?: {
+    available: boolean
+    shipping?: { amount: number; currency: string } | null
+    fees?: Array<{ category: string; amount: number; currency: string }>
+  } | null
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' }
+function formatMoney(amount: number, currency: string): string {
+  return `${CURRENCY_SYMBOLS[currency] ?? currency + ' '}${amount.toFixed(2)}`
 }
 
 // Deterministic hue from a string (same as old-approach)
@@ -749,6 +761,14 @@ export default function CalendarPage() {
                       <p className="text-sm font-medium leading-snug" style={{ color: 'currentColor' }}>{i.announcement.title}</p>
                       {i.announcement.company && (
                         <p className="text-xs opacity-70">{i.announcement.company.name}</p>
+                      )}
+                      {i.expectedCosts?.available && (i.expectedCosts.shipping || (i.expectedCosts.fees && i.expectedCosts.fees.length > 0)) && (
+                        <p className="text-[11px] opacity-60 truncate">
+                          Based on your past purchases: {[
+                            i.expectedCosts.shipping ? `~${formatMoney(i.expectedCosts.shipping.amount, i.expectedCosts.shipping.currency)} shipping` : null,
+                            ...(i.expectedCosts.fees ?? []).map(f => `~${formatMoney(f.amount, f.currency)} ${f.category.toLowerCase()}`),
+                          ].filter(Boolean).join(', ')}
+                        </p>
                       )}
                     </div>
                     <div className="text-right shrink-0 self-start">

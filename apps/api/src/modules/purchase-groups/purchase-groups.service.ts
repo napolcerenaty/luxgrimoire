@@ -4,6 +4,7 @@ import { recordOwnershipHistory } from '../../common/utils/ownership-history.uti
 import { resolvePerBookPrices } from '../../common/utils/price-allocation.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatsService } from '../stats/stats.service';
+import { UserCostSnapshotCronService } from '../user-cost-snapshots/user-cost-snapshot.cron';
 import { CreatePurchaseGroupDto, UpdatePurchaseGroupDto } from './purchase-groups.dto';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class PurchaseGroupsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly statsService: StatsService,
+    private readonly userCostSnapshotService: UserCostSnapshotCronService,
   ) {}
 
   async getGroups(userId: string) {
@@ -134,6 +136,7 @@ export class PurchaseGroupsService {
     });
 
     this.statsService.markStatsStale(userId, [new Date(dto.purchasedAt).getFullYear()]);
+    this.userCostSnapshotService.refreshSnapshotForSale(userId, dto.saleAnnouncementId ?? null).catch(() => {});
     return result;
   }
 
@@ -210,6 +213,7 @@ export class PurchaseGroupsService {
     });
 
     this.statsService.markStatsStale(userId);
+    this.userCostSnapshotService.refreshSnapshotForSale(userId, existing.saleAnnouncementId).catch(() => {});
     return updated;
   }
 
@@ -260,6 +264,7 @@ export class PurchaseGroupsService {
 
     await this.prisma.userPurchaseGroup.delete({ where: { id: groupId } });
     this.statsService.markStatsStale(userId);
+    this.userCostSnapshotService.refreshSnapshotForSale(userId, existing.saleAnnouncementId).catch(() => {});
   }
 
   // ── Stats helper ─────────────────────────────────────────────────────────────

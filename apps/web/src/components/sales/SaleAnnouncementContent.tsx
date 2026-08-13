@@ -1,12 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
 import type { ApiSaleAnnouncement, ApiSaleTier } from '@luxgrimoire/shared-types'
 import SaleDateSelector from '@/app/(public)/sale-announcements/[id]/SaleDateSelector'
 import { SaleInterestSection } from '@/app/(public)/sale-announcements/[id]/SaleInterestSection'
 import { SaleEditionsGrid } from '@/components/sales/SaleEditionsGrid'
+import { useAuth } from '@/components/AuthProvider'
+import { getExpectedCosts, type ExpectedCosts } from '@/lib/api'
+
+const CURRENCY_SYMBOLS: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' }
+function formatMoney(amount: number, currency: string): string {
+  return `${CURRENCY_SYMBOLS[currency] ?? currency + ' '}${amount.toFixed(2)}`
+}
 
 const TYPE_LABELS: Record<string, string> = {
   LIMITED_PREORDER: '⏳ Limited Preorder',
@@ -38,6 +45,13 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
   // (that picker only makes sense when there's no on-page selector already, e.g. the bell icon
   // on a card in a list).
   const [selectedTier, setSelectedTier] = useState<ApiSaleTier | null>(null)
+
+  const { user } = useAuth()
+  const [expectedCosts, setExpectedCosts] = useState<ExpectedCosts | null>(null)
+  useEffect(() => {
+    if (!user) return
+    getExpectedCosts(sale.id).then(setExpectedCosts).catch(() => {})
+  }, [user, sale.id])
 
   const heading = compact
     ? <h2 className="text-lg sm:text-xl font-serif font-bold text-stone-100 leading-tight mb-2 pr-6">{sale.title}</h2>
@@ -96,11 +110,24 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
         </div>
       )}
 
-      {/* Expected shipping */}
+      {/* Expected shipping (admin-entered shipping-time estimate) */}
       {sale.expectedShipping && (
         <p className={`text-stone-400 ${compact ? 'text-xs mb-2' : 'text-sm mb-4'}`}>
           <span className="text-stone-500">Expected shipping: </span>
           <span className="text-stone-300 font-medium">{sale.expectedShipping}</span>
+        </p>
+      )}
+
+      {/* Expected extra costs — personalized, based on the viewer's own purchase history */}
+      {expectedCosts?.available && (expectedCosts.shipping || (expectedCosts.fees && expectedCosts.fees.length > 0)) && (
+        <p className={`text-stone-400 ${compact ? 'text-xs mb-2' : 'text-sm mb-4'}`}>
+          <span className="text-stone-500">Based on your past purchases: </span>
+          <span className="text-stone-300 font-medium">
+            {[
+              expectedCosts.shipping ? `~${formatMoney(expectedCosts.shipping.amount, expectedCosts.shipping.currency)} shipping` : null,
+              ...(expectedCosts.fees ?? []).map(f => `~${formatMoney(f.amount, f.currency)} ${f.category.toLowerCase()}`),
+            ].filter(Boolean).join(', ')}
+          </span>
         </p>
       )}
 

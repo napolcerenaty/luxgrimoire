@@ -6,6 +6,7 @@ import { SignatureType } from '@prisma/client';
 import { AddToCollectionDto, UpdateCollectionEntryDto } from './collection.dto';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
 import { StatsService } from '../stats/stats.service';
+import { UserCostSnapshotCronService } from '../user-cost-snapshots/user-cost-snapshot.cron';
 import { parsePagination } from '../../common/pagination';
 
 type ReadingHistoryDelegate = {
@@ -22,6 +23,7 @@ export class CollectionService {
     private readonly prisma: PrismaService,
     private readonly crowdStatsService: CrowdStatsService,
     private readonly statsService: StatsService,
+    private readonly userCostSnapshotService: UserCostSnapshotCronService,
   ) {}
 
   private get readingHistory() {
@@ -729,7 +731,12 @@ export class CollectionService {
         where: { purchaseGroupId: existing.purchaseGroupId },
       });
       if (remaining === 0) {
+        const group = await this.prisma.userPurchaseGroup.findUnique({
+          where: { id: existing.purchaseGroupId },
+          select: { saleAnnouncementId: true },
+        });
         await this.prisma.userPurchaseGroup.delete({ where: { id: existing.purchaseGroupId } }).catch(() => {});
+        this.userCostSnapshotService.refreshSnapshotForSale(userId, group?.saleAnnouncementId).catch(() => {});
       }
     }
     this.statsService.markStatsStale(userId);

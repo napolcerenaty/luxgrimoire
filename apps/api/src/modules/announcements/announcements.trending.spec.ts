@@ -26,6 +26,7 @@ function makeService(prisma: DeepMockProxy<PrismaService>) {
     {} as any, // TypesenseService
     {} as any, // UploadService
     {} as any, // MediaAssetsService
+    {} as any, // UserCostSnapshotCronService
   );
 }
 

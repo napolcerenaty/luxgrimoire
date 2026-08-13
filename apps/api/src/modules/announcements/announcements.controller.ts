@@ -277,6 +277,12 @@ export class AnnouncementsController {
     return result;
   }
 
+  @OptionalAuth()
+  @Get(':id/expected-costs')
+  getExpectedCosts(@Param('id') id: string, @Request() req: any) {
+    return this.announcementsService.getExpectedCosts(id, req.user?.id ?? null);
+  }
+
   @Public()
   @Get(':id')
   findById(@Param('id') id: string) {

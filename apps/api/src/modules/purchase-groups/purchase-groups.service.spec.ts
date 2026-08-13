@@ -2,6 +2,7 @@ import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatsService } from '../stats/stats.service';
+import { UserCostSnapshotCronService } from '../user-cost-snapshots/user-cost-snapshot.cron';
 import { PurchaseGroupsService } from './purchase-groups.service';
 import { CreatePurchaseGroupDto, UpdatePurchaseGroupDto } from './purchase-groups.dto';
 
@@ -27,11 +28,14 @@ describe('PurchaseGroupsService', () => {
   let service: PurchaseGroupsService;
   let prisma: DeepMockProxy<PrismaService>;
   let statsService: DeepMockProxy<StatsService>;
+  let userCostSnapshotService: DeepMockProxy<UserCostSnapshotCronService>;
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     statsService = mockDeep<StatsService>();
-    service = new PurchaseGroupsService(prisma, statsService);
+    userCostSnapshotService = mockDeep<UserCostSnapshotCronService>();
+    userCostSnapshotService.refreshSnapshotForSale.mockResolvedValue(undefined);
+    service = new PurchaseGroupsService(prisma, statsService, userCostSnapshotService);
 
     (prisma.$transaction as jest.Mock).mockImplementation(
       async (fn: (tx: typeof prisma) => Promise<unknown>) => fn(prisma),

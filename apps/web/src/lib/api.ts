@@ -479,6 +479,26 @@ export async function getCountryFeeHints(slug: string, country: string): Promise
   return res.json()
 }
 
+// ─────────────────────────────────────────────
+// Expected Purchase Costs (per-user, based on their own history)
+// ─────────────────────────────────────────────
+
+export interface ExpectedCosts {
+  available: boolean
+  shipping?: { amount: number; currency: string } | null
+  fees?: Array<{ category: string; amount: number; currency: string }>
+  currency?: string
+  sampleSize?: number
+}
+
+export async function getExpectedCosts(saleAnnouncementId: string): Promise<ExpectedCosts> {
+  const res = await fetch(`${API_URL}/announcements/${saleAnnouncementId}/expected-costs`, {
+    credentials: 'include',
+  })
+  if (!res.ok) return { available: false }
+  return res.json()
+}
+
 export async function createPurchaseGroup(data: CreatePurchaseGroupData): Promise<import('@luxgrimoire/shared-types').ApiPurchaseGroup> {
   const res = await fetch(`${API_URL}/collection/bundles`, {
     credentials: 'include',
