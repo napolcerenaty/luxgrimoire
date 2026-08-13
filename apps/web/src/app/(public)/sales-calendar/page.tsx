@@ -27,6 +27,7 @@ interface CalendarTier {
   }
   stageIndex: number
   stageTotal: number
+  multiRegion: boolean
 }
 
 interface CalendarRenewal {
@@ -154,7 +155,9 @@ export default function SalesCalendarPage() {
           time,
           href: `/sale-announcements/${t.announcement.id}`,
           highlight: myInterestedTierIds.has(t.tierId) ? 'mine' : null,
-          stageBadge: t.stageTotal > 1 ? `${t.stageIndex}/${t.stageTotal}` : null,
+          stageBadge: t.stageTotal > 1
+            ? (t.multiRegion && t.region ? `${t.region.name} ${t.stageIndex}/${t.stageTotal}` : `${t.stageIndex}/${t.stageTotal}`)
+            : null,
           announcementId: t.announcement.id,
           regionId: t.region?.id ?? null,
         }

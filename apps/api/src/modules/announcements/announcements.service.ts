@@ -340,6 +340,16 @@ export class AnnouncementsService {
       else stageGroups.set(key, [t.id]);
     }
 
+    // Whether a sale has more than one distinct region-group (default set counts as one group
+    // too) — used by the frontend to decide whether a stage badge needs the region name to stay
+    // meaningful ("US 2/3") or can stay bare ("2/3") because there's nothing else to confuse it
+    // with. Derived from the same stageGroups keys, no extra query.
+    const saleRegionCount = new Map<string, number>();
+    for (const key of stageGroups.keys()) {
+      const saleId = key.slice(0, key.indexOf('::'));
+      saleRegionCount.set(saleId, (saleRegionCount.get(saleId) ?? 0) + 1);
+    }
+
     return tiers.map((t) => {
       const key = `${t.announcement.id}::${t.regionId ?? ''}`;
       const group = stageGroups.get(key) ?? [t.id];
@@ -351,6 +361,7 @@ export class AnnouncementsService {
         announcement: t.announcement,
         stageIndex: group.indexOf(t.id) + 1,
         stageTotal: group.length,
+        multiRegion: (saleRegionCount.get(t.announcement.id) ?? 1) > 1,
       };
     });
   }

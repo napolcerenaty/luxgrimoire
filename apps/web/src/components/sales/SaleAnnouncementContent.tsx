@@ -12,8 +12,10 @@ import { strHue } from '@/lib/calendarPills'
 import CalendarGrid, { type CalendarSaleItem } from '@/components/calendar/CalendarGrid'
 
 /** This sale's tiers, grouped by region, numbered by their `order` — "2 of 3" stage badges so
- *  multiple tiers spread across different calendar days still read as one sale. */
-function computeStageInfo(tiers: ApiSaleTier[]): Map<string, { index: number; total: number }> {
+ *  multiple tiers spread across different calendar days still read as one sale. `multiRegion`
+ *  flags whether this sale has more than one distinct region-group at all — a solo region's
+ *  badge stays bare ("2/3") since there's nothing else to confuse it with. */
+function computeStageInfo(tiers: ApiSaleTier[]): Map<string, { index: number; total: number; multiRegion: boolean }> {
   const groups = new Map<string, ApiSaleTier[]>()
   for (const t of tiers) {
     const key = t.regionId ?? ''
@@ -21,10 +23,11 @@ function computeStageInfo(tiers: ApiSaleTier[]): Map<string, { index: number; to
     if (arr) arr.push(t)
     else groups.set(key, [t])
   }
-  const result = new Map<string, { index: number; total: number }>()
+  const multiRegion = groups.size > 1
+  const result = new Map<string, { index: number; total: number; multiRegion: boolean }>()
   for (const group of groups.values()) {
     const sorted = [...group].sort((a, b) => a.order - b.order)
-    sorted.forEach((t, i) => result.set(t.id, { index: i + 1, total: sorted.length }))
+    sorted.forEach((t, i) => result.set(t.id, { index: i + 1, total: sorted.length, multiRegion }))
   }
   return result
 }
@@ -101,7 +104,9 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
           tierName: regionName ?? 'All regions',
           time,
           href: `/sale-announcements/${sale.id}`,
-          stageBadge: info && info.total > 1 ? `${info.index}/${info.total}` : null,
+          stageBadge: info && info.total > 1
+            ? (info.multiRegion && regionName ? `${regionName} ${info.index}/${info.total}` : `${info.index}/${info.total}`)
+            : null,
         }
       })
   }
