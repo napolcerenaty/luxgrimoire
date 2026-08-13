@@ -1467,8 +1467,10 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
       {/* Per-book price: only shown once the set of books that will actually be created is
           known — i.e. always-included extras, plus whichever choice-group option(s) the user
           picked above (unpicked alternatives never become entries, so pricing them is moot).
-          Optional: leave blank to split the box price evenly; price one or more books and the
-          rest split whatever's left (see UserPurchaseGroup.priceDistribution). */}
+          Optional: priced books get their exact price ON TOP of the box price (a paid extra
+          choice), and every book left blank splits the FULL box price evenly among themselves —
+          it is not reduced by whatever the priced books cost (see resolvePerBookPrices's
+          allowGrowth mode in price-allocation.util.ts). */}
       {checked && priceableBooks.length > 1 && !hasUnresolvedChoiceGroups && (
         <div className="px-3 pb-3 space-y-1.5" onClick={e => e.stopPropagation()}>
           <p className="text-[10px] uppercase tracking-wider text-stone-500">Per-book price (optional)</p>
@@ -1489,7 +1491,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
             )
           })}
           <p className="text-[11px] text-stone-500">
-            Leave blank to split this box&apos;s price evenly. Price one or more books above and the rest will split what&apos;s left of the box price.
+            Enter a price for any book that cost extra — the rest will get the box&apos;s price, split evenly if there&apos;s more than one.
           </p>
         </div>
       )}
