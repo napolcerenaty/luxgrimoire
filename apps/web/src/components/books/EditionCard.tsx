@@ -61,8 +61,8 @@ export function EditionCard({
   return (
     <Link
       href={href}
-      className={`group flex flex-col h-full rounded-2xl bg-stone-900 border hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10 ${highlightClass} ${
-        unverified ? 'border-amber-800/50' : 'border-stone-800'
+      className={`group flex flex-col h-full rounded-2xl bg-stone-900 border hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10 ${highlightClass} ${
+        unverified ? 'border-brand-800/50' : 'border-stone-800'
       }`}
     >
       <div className="relative aspect-[2/3] bg-stone-950 overflow-hidden rounded-t-2xl">
@@ -107,10 +107,10 @@ export function EditionCard({
           {title ? (
             <>
               {/* Always reserve series line height so title aligns across cards */}
-              <p className="text-[11px] text-amber-600 font-medium tracking-wide truncate min-h-[1em]">
+              <p className="text-[11px] text-brand-600 font-medium tracking-wide truncate min-h-[1em]">
                 {seriesName ? `${seriesName}${volumeNumbers?.length ? ` #${formatVolumeNumbers(volumeNumbers)}` : ''}` : '\u00A0'}
               </p>
-              <p title={fullTitle} className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
+              <p title={fullTitle} className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-brand-400 transition-colors">
                 {title}
               </p>
               {authors && authors.length > 0 && (
@@ -119,14 +119,14 @@ export function EditionCard({
                 </p>
               )}
               {companyName && (
-                <p className="text-[10px] text-amber-700 font-medium leading-tight line-clamp-2 mt-0.5">
+                <p className="text-[10px] text-brand-700 font-medium leading-tight line-clamp-2 mt-0.5">
                   {companySlug ? (
                     <span
                       role="link"
                       tabIndex={0}
                       onClick={e => { e.preventDefault(); e.stopPropagation(); window.location.href = `/companies/${companySlug}` }}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); window.location.href = `/companies/${companySlug}` } }}
-                      className="hover:text-amber-500 transition-colors cursor-pointer"
+                      className="hover:text-brand-500 transition-colors cursor-pointer"
                     >{companyName}</span>
                   ) : companyName}
                 </p>
@@ -134,14 +134,14 @@ export function EditionCard({
             </>
           ) : (
             /* No title mode: only show company/edition name prominently */
-            <p className="font-serif font-semibold text-stone-100 text-sm leading-snug group-hover:text-amber-400 transition-colors line-clamp-2">
+            <p className="font-serif font-semibold text-stone-100 text-sm leading-snug group-hover:text-brand-400 transition-colors line-clamp-2">
               {companySlug ? (
                 <span
                   role="link"
                   tabIndex={0}
                   onClick={e => { e.preventDefault(); e.stopPropagation(); window.location.href = `/companies/${companySlug}` }}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); window.location.href = `/companies/${companySlug}` } }}
-                  className="hover:text-amber-500 transition-colors cursor-pointer"
+                  className="hover:text-brand-500 transition-colors cursor-pointer"
                 >{companyName}</span>
               ) : (companyName ?? 'Edition')}
             </p>

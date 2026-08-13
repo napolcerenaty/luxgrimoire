@@ -39,7 +39,7 @@ function CountCard({
   accent: 'amber' | 'red' | 'blue' | 'purple' | 'green'
 }) {
   const accentClasses = {
-    amber: { border: 'border-amber-700/50 hover:border-amber-600', badge: 'bg-amber-600 text-amber-100', ring: 'bg-amber-500/10' },
+    amber: { border: 'border-brand-700/50 hover:border-brand-600', badge: 'bg-brand-600 text-brand-100', ring: 'bg-brand-500/10' },
     red: { border: 'border-red-700/50 hover:border-red-600', badge: 'bg-red-700 text-red-100', ring: 'bg-red-500/10' },
     blue: { border: 'border-blue-700/50 hover:border-blue-600', badge: 'bg-blue-700 text-blue-100', ring: 'bg-blue-500/10' },
     purple: { border: 'border-purple-700/50 hover:border-purple-600', badge: 'bg-purple-700 text-purple-100', ring: 'bg-purple-500/10' },

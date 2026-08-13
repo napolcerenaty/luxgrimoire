@@ -82,7 +82,7 @@ function Countdown({ ms }: { ms: number | null }) {
     <div className="flex items-center gap-3 text-center mt-3">
       {([['d', days], ['h', hours], ['m', mins], ['s', secs]] as [string, number][]).map(([label, val]) => (
         <div key={label} className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 min-w-[52px]">
-          <div className="text-xl font-bold text-amber-400 tabular-nums">{String(val).padStart(2, '0')}</div>
+          <div className="text-xl font-bold text-brand-400 tabular-nums">{String(val).padStart(2, '0')}</div>
           <div className="text-xs text-stone-500">{label}</div>
         </div>
       ))}
@@ -152,7 +152,7 @@ export default function SaleDateSelector({ saleId, regions, tiers, fallback, use
               setSelectedRegionId(e.target.value)
               localStorage.setItem(`sale-region-${saleId}`, e.target.value)
             }}
-            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm"
+            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm"
           >
             {regions.map(r => (
               <option key={r.id} value={r.id}>
@@ -169,7 +169,7 @@ export default function SaleDateSelector({ saleId, regions, tiers, fallback, use
           <select
             value={effectiveTierId ?? ''}
             onChange={e => setSelectedTierId(e.target.value)}
-            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm"
+            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm"
           >
             {availableTiers.map(t => (
               <option key={t.id} value={t.id}>{t.name}</option>
@@ -190,7 +190,7 @@ export default function SaleDateSelector({ saleId, regions, tiers, fallback, use
 
       {price != null && (
         <div className="pt-1 border-t border-stone-800">
-          <span className="text-xl font-bold text-amber-400">{price} {currency ?? ''}</span>
+          <span className="text-xl font-bold text-brand-400">{price} {currency ?? ''}</span>
           {region && <span className="text-xs text-stone-500 ml-2">(regional price)</span>}
         </div>
       )}

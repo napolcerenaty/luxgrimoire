@@ -102,7 +102,7 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Bell size={22} className="text-amber-400" />
+          <Bell size={22} className="text-brand-400" />
           <h1 className="text-2xl font-bold text-stone-100">Notifications</h1>
           {total > 0 && (
             <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full">
@@ -115,7 +115,7 @@ export default function NotificationsPage() {
           <button
             onClick={() => markAllReadMutation.mutate()}
             disabled={markAllReadMutation.isPending || unreadCount === 0}
-            className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-amber-400 disabled:opacity-40 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-brand-400 disabled:opacity-40 transition-colors"
           >
             <CheckCheck size={14} />
             Mark all read
@@ -140,7 +140,7 @@ export default function NotificationsPage() {
             onClick={() => handleTabChange(t)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
               tab === t
-                ? 'bg-amber-400 text-stone-950'
+                ? 'bg-brand-400 text-stone-950'
                 : 'text-stone-400 hover:text-stone-200'
             }`}
           >
@@ -153,7 +153,7 @@ export default function NotificationsPage() {
       <div className="rounded-xl border border-stone-800 overflow-hidden">
         {isLoading ? (
           <div className="py-16 flex justify-center">
-            <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : notifications.length === 0 ? (
           <div className="py-16 text-center text-stone-500">
@@ -165,12 +165,12 @@ export default function NotificationsPage() {
             <div
               key={n.id}
               className={`flex items-start gap-4 px-5 py-4 border-b border-stone-800 last:border-0 transition-colors ${
-                !n.readAt ? 'bg-amber-500/5' : 'bg-stone-900/50'
+                !n.readAt ? 'bg-brand-500/5' : 'bg-stone-900/50'
               }`}
             >
               {/* Unread dot */}
               <div className="mt-2 shrink-0">
-                <div className={`w-2 h-2 rounded-full ${!n.readAt ? 'bg-amber-400' : 'bg-stone-700'}`} />
+                <div className={`w-2 h-2 rounded-full ${!n.readAt ? 'bg-brand-400' : 'bg-stone-700'}`} />
               </div>
 
               {/* Content */}
@@ -182,7 +182,7 @@ export default function NotificationsPage() {
                 {n.link && n.link.startsWith('/') && (
                   <a
                     href={n.link}
-                    className="text-xs text-amber-400 hover:underline mt-1 inline-block"
+                    className="text-xs text-brand-400 hover:underline mt-1 inline-block"
                   >
                     View →
                   </a>
@@ -201,7 +201,7 @@ export default function NotificationsPage() {
                   <button
                     onClick={() => markReadMutation.mutate(n.id)}
                     disabled={markReadMutation.isPending}
-                    className="p-1.5 rounded-lg text-stone-500 hover:text-amber-400 hover:bg-stone-800 transition-colors"
+                    className="p-1.5 rounded-lg text-stone-500 hover:text-brand-400 hover:bg-stone-800 transition-colors"
                     title="Mark as read"
                   >
                     <Check size={14} />
@@ -227,7 +227,7 @@ export default function NotificationsPage() {
           <button
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
-            className="px-3 py-1.5 rounded-lg border border-stone-700 hover:border-amber-600 disabled:opacity-40 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-stone-700 hover:border-brand-600 disabled:opacity-40 transition-colors"
           >
             ← Previous
           </button>
@@ -237,7 +237,7 @@ export default function NotificationsPage() {
           <button
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1.5 rounded-lg border border-stone-700 hover:border-amber-600 disabled:opacity-40 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-stone-700 hover:border-brand-600 disabled:opacity-40 transition-colors"
           >
             Next →
           </button>

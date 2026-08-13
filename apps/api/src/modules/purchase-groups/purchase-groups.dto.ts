@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsArray, IsBoolean, IsDateString, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray, IsBoolean, IsDateString, IsIn, Min } from 'class-validator';
 
 export class CreatePurchaseGroupDto {
   @IsString()
@@ -56,6 +56,15 @@ export class CreatePurchaseGroupDto {
   /** Optional map of editionId → saleAnnouncementEditionId for print tracking */
   @IsOptional()
   editionSaleAnnouncementEditionIds?: Record<string, string>;
+
+  /** How UserBookEntry.basePrice is allocated across editionIds. Mirrors UserSaleGroup.priceDistribution. */
+  @IsOptional()
+  @IsIn(['EQUAL', 'CUSTOM'])
+  priceDistribution?: 'EQUAL' | 'CUSTOM' = 'EQUAL';
+
+  /** Required (per editionId) when priceDistribution === 'CUSTOM'. Map of editionId → basePrice */
+  @IsOptional()
+  editionPrices?: Record<string, number>;
 }
 
 export class CreateGroupForEntryDto {
@@ -129,4 +138,13 @@ export class UpdatePurchaseGroupDto {
   @IsString()
   @IsOptional()
   sourcePlatform?: string;
+
+  /** How UserBookEntry.basePrice is allocated across this group's books. Mirrors UserSaleGroup.priceDistribution. */
+  @IsOptional()
+  @IsIn(['EQUAL', 'CUSTOM'])
+  priceDistribution?: 'EQUAL' | 'CUSTOM';
+
+  /** Map of userBookEntry id → basePrice. Required (per entry) when priceDistribution === 'CUSTOM'. */
+  @IsOptional()
+  entryPrices?: Record<string, number>;
 }

@@ -27,13 +27,13 @@ export function DevBanner() {
       style={{ background: 'var(--grad-header, #1c1917)', borderBottom: '1px solid rgba(245,158,11,0.2)', color: '#d6c89a' }}
     >
       <div className="flex items-center gap-2 flex-1 justify-center">
-        <Construction size={13} className="shrink-0 text-amber-400/70" />
+        <Construction size={13} className="shrink-0 text-brand-400/70" />
         <span style={{ color: '#b0956a' }}>
           LuxGrimoire is under active development — you may encounter bugs or incomplete features.
           Found something?{' '}
           <button
             onClick={() => window.dispatchEvent(new Event('open-bug-report'))}
-            className="underline underline-offset-2 font-semibold transition-colors hover:text-amber-300"
+            className="underline underline-offset-2 font-semibold transition-colors hover:text-brand-300"
             style={{ color: '#d4a843' }}
           >
             Report a Bug

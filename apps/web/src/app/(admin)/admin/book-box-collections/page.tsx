@@ -11,7 +11,7 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import { Pagination } from '@/components/admin/Pagination'
 
 const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400'
+  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400'
 const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
 
 interface CollectionForm {
@@ -77,14 +77,14 @@ function CollectionForm({ initial, onSubmit, submitting, submitLabel, companies,
           type="checkbox"
           checked={form.isActive}
           onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-          className="accent-amber-400"
+          className="accent-brand-400"
         />
         Active (visible on public pages)
       </label>
       <button
         type="submit"
         disabled={submitting}
-        className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors"
+        className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
       >
         {submitting ? 'Saving…' : submitLabel}
       </button>
@@ -153,7 +153,7 @@ export default function AdminBookBoxCollectionsPage() {
       key: 'company',
       label: 'Company',
       render: (row: ApiBookBoxCollection) => (
-        <span className="text-amber-400 text-sm">{row.company?.name ?? '—'}</span>
+        <span className="text-brand-400 text-sm">{row.company?.name ?? '—'}</span>
       ),
     },
     {
@@ -178,7 +178,7 @@ export default function AdminBookBoxCollectionsPage() {
         <h1 className="text-2xl font-bold text-stone-100">Book Box Collections</h1>
         <button
           onClick={() => createModal.open()}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
         >
           Add Collection
         </button>
@@ -188,7 +188,7 @@ export default function AdminBookBoxCollectionsPage() {
         <select
           value={companyFilter}
           onChange={(e) => setCompanyFilter(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400"
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400"
         >
           <option value="">All Companies</option>
           {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

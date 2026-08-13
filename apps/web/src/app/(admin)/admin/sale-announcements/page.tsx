@@ -42,7 +42,7 @@ import { isValidCalendarDateTime } from '@/lib/dateValidation'
 import { Sparkles, Trash2 } from 'lucide-react'
 import { CURRENCIES } from '@/lib/currencies'
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 /** Swaps the border color of an INP-based class string to flag an invalid field. */
 const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
 const LBL = 'block text-sm text-stone-400 mb-1'
@@ -257,7 +257,7 @@ function ComboBox({
               key={opt.value}
               type="button"
               onMouseDown={() => handleSelect(opt)}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-stone-700 transition-colors ${opt.value === value ? 'text-amber-400 bg-stone-700/50' : 'text-stone-200'}`}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-stone-700 transition-colors ${opt.value === value ? 'text-brand-400 bg-stone-700/50' : 'text-stone-200'}`}
             >
               {opt.label}
             </button>
@@ -420,7 +420,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
     setSelectedBook(null)
   }
 
-  const inputCls = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+  const inputCls = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 
   if (mode === 'createBook') {
     return (
@@ -476,8 +476,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
     <div className="space-y-2">
       {/* Bundle Defaults panel */}
       {isBundle && (
-        <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg p-3 mb-3 space-y-3">
-          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Bundle Defaults</div>
+        <div className="bg-brand-500/5 border border-brand-500/30 rounded-lg p-3 mb-3 space-y-3">
+          <div className="text-xs font-semibold text-brand-400 uppercase tracking-wider">Bundle Defaults</div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -552,7 +552,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
               type="button"
               onClick={parseBdArtists}
               disabled={bdParsing || !bdArtistsText.trim()}
-              className="mt-1 flex items-center gap-1.5 text-xs bg-amber-500/20 text-stone-100 border border-amber-500/30 px-2.5 py-1 rounded-lg hover:bg-amber-500/30 disabled:opacity-50 transition-colors"
+              className="mt-1 flex items-center gap-1.5 text-xs bg-brand-500/20 text-stone-100 border border-brand-500/30 px-2.5 py-1 rounded-lg hover:bg-brand-500/30 disabled:opacity-50 transition-colors"
             >
               <Sparkles size={12} />
               {bdParsing ? 'Parsing…' : 'Parse with AI'}
@@ -567,7 +567,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
                     </div>
                     <div className="space-y-1">
                       {bdArtists.map((a, i) => (
-                        <div key={i} className="flex gap-1 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-1">
+                        <div key={i} className="flex gap-1 bg-brand-500/10 border border-brand-500/20 rounded px-1.5 py-1">
                           <div className="flex flex-col shrink-0 justify-center mr-0.5">
                             <button type="button" disabled={i === 0}
                               onClick={() => setBdArtists(prev => { const arr = [...prev]; [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; return arr })}
@@ -579,13 +579,13 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
                           <span className="text-stone-400 text-[10px] w-4 shrink-0 text-right pt-1">{i + 1}.</span>
                           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                             <input
-                              className="w-full bg-transparent border-b border-amber-500/30 focus:border-amber-500 outline-none text-xs text-stone-100 px-1 py-0.5 placeholder:text-stone-500"
+                              className="w-full bg-transparent border-b border-brand-500/30 focus:border-brand-500 outline-none text-xs text-stone-100 px-1 py-0.5 placeholder:text-stone-500"
                               value={a.name}
                               onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                               placeholder="Name"
                             />
                             <input
-                              className="w-full bg-transparent border-b border-amber-500/20 focus:border-amber-500 outline-none text-xs text-stone-300 px-1 py-0.5 placeholder:text-stone-500"
+                              className="w-full bg-transparent border-b border-brand-500/20 focus:border-brand-500 outline-none text-xs text-stone-300 px-1 py-0.5 placeholder:text-stone-500"
                               value={a.role}
                               onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
                               placeholder="Role"
@@ -654,7 +654,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
                 <div className="flex-1 min-w-0">
                   <div className="text-stone-100 text-xs font-medium truncate">
                     {e.bookTitle}
-                    {e.variantLabel && <span className="text-amber-400"> ({e.variantLabel})</span>}
+                    {e.variantLabel && <span className="text-brand-400"> ({e.variantLabel})</span>}
                   </div>
                   <div className="text-stone-500 text-xs truncate">{e.companyName || e.publisher || '—'}</div>
                 </div>
@@ -689,7 +689,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
                 <div>
                   <div className="text-stone-100 text-xs">
                     {ed.bookBoxCompany?.name || '—'}
-                    {ed.variantLabel && <span className="text-amber-400"> ({ed.variantLabel})</span>}
+                    {ed.variantLabel && <span className="text-brand-400"> ({ed.variantLabel})</span>}
                   </div>
                   <div className="text-stone-500 text-xs">{ed.publisher ?? ''}</div>
                 </div>
@@ -697,9 +697,9 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
             ))}
           </div>
           <button type="button" onClick={() => setMode('createEdition')}
-            className="text-amber-400 hover:text-amber-300 text-xs">+ Create new edition for this book</button>
+            className="text-brand-400 hover:text-brand-300 text-xs">+ Create new edition for this book</button>
           <button type="button" onClick={() => setMode('createBook')}
-            className="text-amber-400 hover:text-amber-300 text-xs mt-1 block">+ Create new book</button>
+            className="text-brand-400 hover:text-brand-300 text-xs mt-1 block">+ Create new book</button>
         </div>
       ) : (
         <div className="space-y-1 border border-stone-700 rounded-lg p-3">
@@ -730,7 +730,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
             </div>
           )}
           <button type="button" onClick={() => setMode('createBook')}
-            className="text-amber-400 hover:text-amber-300 text-xs mt-1 block">+ Create new book</button>
+            className="text-brand-400 hover:text-brand-300 text-xs mt-1 block">+ Create new book</button>
         </div>
       )}
     </div>
@@ -934,7 +934,7 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone, 
             </button>
           </div>
           <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
-            <input type="checkbox" checked={r.isDefault} className="accent-amber-400"
+            <input type="checkbox" checked={r.isDefault} className="accent-brand-400"
               onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, isDefault: e.target.checked } : row))} />
             Default region (catch-all for unmatched countries)
           </label>
@@ -1206,7 +1206,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
       {/* Flags */}
       <div className="flex flex-wrap gap-4">
         <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
-          <input type="checkbox" checked={form.isBundle} onChange={setCheck('isBundle')} className="accent-amber-400" />
+          <input type="checkbox" checked={form.isBundle} onChange={setCheck('isBundle')} className="accent-brand-400" />
           <span>Is Bundle <span className="text-stone-500">— multiple editions as a set</span></span>
         </label>
         <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
@@ -1229,7 +1229,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
 
       {formError && <p className="text-xs text-red-400">{formError}</p>}
       <button type="submit" disabled={submitting}
-        className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors">
+        className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors">
         {submitting ? 'Saving…' : submitLabel}
       </button>
     </form>
@@ -1374,7 +1374,7 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
               <button type="button"
                 onClick={() => submitEditTier(t)}
                 disabled={upsertMutation.isPending}
-                className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
+                className="bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs">
                 {upsertMutation.isPending ? 'Saving…' : 'Save'}
               </button>
               <button type="button" onClick={() => { setEditingTierId(null); setEditTierError(null); setEditTierErrorField(null) }} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
@@ -1413,7 +1413,7 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
             <button type="button"
               onClick={submitNewTier}
               disabled={upsertMutation.isPending}
-              className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
+              className="bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs">
               {upsertMutation.isPending ? 'Saving…' : 'Add Tier'}
             </button>
             <button type="button" onClick={() => { setAddingTier(false); setNewTierError(null); setNewTierErrorField(null) }} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
@@ -1513,7 +1513,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
           </div>
         </div>
         <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
-          <input type="checkbox" checked={f.isDefault} onChange={e => setF(p => ({ ...p, isDefault: e.target.checked }))} className="accent-amber-400" />
+          <input type="checkbox" checked={f.isDefault} onChange={e => setF(p => ({ ...p, isDefault: e.target.checked }))} className="accent-brand-400" />
           Default region (catch-all for unmatched countries)
         </label>
         <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
@@ -1554,7 +1554,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         {regionError && <p className="text-xs text-red-400">{regionError}</p>}
         <div className="flex gap-2">
           <button type="button" onClick={submit} disabled={!f.name || upsertMutation.isPending}
-            className="bg-amber-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-xs">
+            className="bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs">
             {upsertMutation.isPending ? 'Saving…' : 'Save'}
           </button>
           <button type="button" onClick={onCancel} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
@@ -1611,7 +1611,7 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
                       </div>
                     )}
                     <div className="text-xs text-stone-500 mt-1 space-y-0.5">
-                      {r.basePrice != null && <div className="text-amber-500/70">{r.basePrice} {r.currency}</div>}
+                      {r.basePrice != null && <div className="text-brand-500/70">{r.basePrice} {r.currency}</div>}
                     </div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
@@ -1763,7 +1763,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
         <span className="flex items-center gap-2 text-sm text-stone-400">
           Linked Books and Signature Types
           {editions.length > 0 && (
-            <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">{editions.length}</span>
+            <span className="text-xs bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-full">{editions.length}</span>
           )}
         </span>
         <span className="text-stone-500 text-xs">{open ? '▲' : '▼'}</span>
@@ -1779,7 +1779,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 type="button"
                 onClick={() => setAllReprintMutation.mutate(true)}
                 disabled={setAllReprintMutation.isPending}
-                className="text-xs px-2 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                className="text-xs px-2 py-1 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20 hover:bg-brand-500/20 transition-colors disabled:opacity-50"
               >
                 🔁 Mark all as reprint
               </button>
@@ -1809,7 +1809,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                       <input
                         type="checkbox"
                         checked={!!(e as any).isReprint}
-                        className="accent-amber-400"
+                        className="accent-brand-400"
                         onChange={ev => setReprintMutation.mutate({ editionId: e.editionId, isReprint: ev.target.checked })}
                       />
                       <span className="text-xs text-stone-400">🔁 Reprint</span>
@@ -1846,7 +1846,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                           <input
                             type="checkbox"
                             checked={checked}
-                            className="accent-amber-400"
+                            className="accent-brand-400"
                             onChange={ev => {
                               if (ev.target.checked) {
                                 setVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value })
@@ -1865,7 +1865,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                               min="0"
                               placeholder="Price"
                               defaultValue={variant?.price ?? ''}
-                              className="w-20 bg-stone-700 border border-stone-600 rounded px-2 py-0.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+                              className="w-20 bg-stone-700 border border-stone-600 rounded px-2 py-0.5 text-xs text-stone-100 focus:outline-none focus:border-brand-400"
                               onBlur={ev => {
                                 const price = ev.target.value ? Number(ev.target.value) : null
                                 setVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value, price })
@@ -1873,7 +1873,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                             />
                             <select
                               defaultValue={variant?.currency ?? ''}
-                              className="w-20 bg-stone-700 border border-stone-600 rounded px-1 py-0.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+                              className="w-20 bg-stone-700 border border-stone-600 rounded px-1 py-0.5 text-xs text-stone-100 focus:outline-none focus:border-brand-400"
                               onChange={ev => {
                                 setVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value, currency: ev.target.value || null })
                               }}
@@ -1920,7 +1920,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
             <button
               type="button"
               onClick={() => setAddMode(true)}
-              className="text-xs text-amber-400 hover:text-amber-300 transition-colors pt-1"
+              className="text-xs text-brand-400 hover:text-brand-300 transition-colors pt-1"
             >
               + Add Book
             </button>
@@ -1995,13 +1995,13 @@ function AnnouncementItemsPanel({ announcement }: { announcement: ApiSaleAnnounc
                   {editingItemId === item.id ? (
                     <>
                       <input
-                        className="flex-1 bg-stone-700 border border-stone-600 rounded px-2 py-1 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+                        className="flex-1 bg-stone-700 border border-stone-600 rounded px-2 py-1 text-xs text-stone-100 focus:outline-none focus:border-brand-400"
                         value={editingName}
                         onChange={e => setEditingName(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && updateMutation.mutate({ itemId: item.id, name: editingName })}
                       />
                       <button type="button" onClick={() => updateMutation.mutate({ itemId: item.id, name: editingName })}
-                        className="text-xs text-amber-400 hover:text-amber-300 px-2">Save</button>
+                        className="text-xs text-brand-400 hover:text-brand-300 px-2">Save</button>
                       <button type="button" onClick={() => setEditingItemId(null)}
                         className="text-xs text-stone-500 hover:text-stone-300 px-1">Cancel</button>
                     </>
@@ -2052,7 +2052,7 @@ function AnnouncementItemsPanel({ announcement }: { announcement: ApiSaleAnnounc
           {/* Add new group */}
           <div className="flex gap-2 items-center">
             <input
-              className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+              className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-xs text-stone-100 focus:outline-none focus:border-brand-400"
               placeholder="New group name (optional)…"
               value={newItemName}
               onChange={e => setNewItemName(e.target.value)}
@@ -2060,7 +2060,7 @@ function AnnouncementItemsPanel({ announcement }: { announcement: ApiSaleAnnounc
             />
             <button type="button" onClick={() => createMutation.mutate(newItemName)}
               disabled={createMutation.isPending}
-              className="text-xs text-amber-400 hover:text-amber-300 border border-amber-500/30 px-2 py-1.5 rounded-lg hover:bg-amber-500/10 transition-colors disabled:opacity-50">
+              className="text-xs text-brand-400 hover:text-brand-300 border border-brand-500/30 px-2 py-1.5 rounded-lg hover:bg-brand-500/10 transition-colors disabled:opacity-50">
               + Add Group
             </button>
           </div>
@@ -2122,13 +2122,13 @@ function AnnouncementCard({
                 const entries = Object.entries(counts)
                 const totalVariants = entries.reduce((s, [, c]) => s + c, 0)
                 const badges = entries.map(([type, count]) => (
-                  <span key={type} className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400">
+                  <span key={type} className="text-xs font-medium px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-400">
                     {sigLabels[type] ?? type}{totalVariants > 1 ? ` ×${count}` : ''}
                   </span>
                 ))
                 return (announcement.isBundle || badges.length > 0) ? (
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                    {announcement.isBundle && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400">Bundle</span>}
+                    {announcement.isBundle && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-brand-900/40 text-brand-400">Bundle</span>}
                     {badges}
                   </div>
                 ) : null
@@ -2145,7 +2145,7 @@ function AnnouncementCard({
                   LIMITED_PREORDER: 'bg-violet-500/15 text-violet-300',
                   OPEN_PREORDER: 'bg-sky-500/15 text-sky-300',
                   OVERSTOCK: 'bg-emerald-500/15 text-emerald-300',
-                  SALE: 'bg-amber-500/15 text-amber-300',
+                  SALE: 'bg-brand-500/15 text-brand-300',
                 }
                 const type = (announcement as any).saleType
                 return (
@@ -2165,7 +2165,7 @@ function AnnouncementCard({
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button onClick={onEdit}
-                className={`text-xs px-3 py-1 rounded border transition-colors ${isEditing ? 'bg-amber-400/20 text-amber-300 border-amber-400/50' : 'text-amber-400 hover:text-amber-300 border-stone-600 hover:border-amber-400/50'}`}>
+                className={`text-xs px-3 py-1 rounded border transition-colors ${isEditing ? 'bg-brand-400/20 text-brand-300 border-brand-400/50' : 'text-brand-400 hover:text-brand-300 border-stone-600 hover:border-brand-400/50'}`}>
                 {isEditing ? 'Cancel' : 'Edit'}
               </button>
               <button onClick={onCopy}
@@ -2278,15 +2278,15 @@ function AiSaleParseModal({ onApply, onClose }: {
             {/* Mode toggle */}
             <div className="flex rounded-lg overflow-hidden border border-stone-700 self-start">
               <button type="button" onClick={() => setInputMode('text')}
-                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'text' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'text' ? 'bg-brand-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
                 Paste text
               </button>
               <button type="button" onClick={() => setInputMode('url')}
-                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'url' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'url' ? 'bg-brand-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
                 Enter URL
               </button>
               <button type="button" onClick={() => setInputMode('screenshot')}
-                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-brand-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
                 Screenshot
               </button>
             </div>
@@ -2297,7 +2297,7 @@ function AiSaleParseModal({ onApply, onClose }: {
                 onChange={e => setText(e.target.value)}
                 placeholder="Paste the full announcement text here…"
                 rows={10}
-                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400 resize-y"
+                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-400 resize-y"
               />
             ) : inputMode === 'url' ? (
               <div className="space-y-1">
@@ -2307,7 +2307,7 @@ function AiSaleParseModal({ onApply, onClose }: {
                   onChange={e => setUrl(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleParse()}
                   placeholder="https://www.fairyloot.com/blogs/…"
-                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-400"
                 />
                 <p className="text-xs text-stone-500">The page will be fetched server-side and its text sent to AI. Works with FairyLoot, OwlCrate, Illumicrate, etc.</p>
               </div>
@@ -2325,7 +2325,7 @@ function AiSaleParseModal({ onApply, onClose }: {
             <div className="flex justify-end gap-3">
               <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
               <button type="button" onClick={handleParse} disabled={loading || !canParse}
-                className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-500 disabled:opacity-50 transition-colors">
+                className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-500 disabled:opacity-50 transition-colors">
                 {loading ? 'Parsing…' : 'Parse with AI'}
               </button>
             </div>
@@ -2367,7 +2367,7 @@ function AiSaleParseModal({ onApply, onClose }: {
                           <span className="text-stone-100 font-medium">{r.name}</span>
                           {r.isDefault && <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-1.5 py-0.5">default</span>}
                           {r.currency && r.price != null && (
-                            <span className="text-amber-400 text-xs ml-auto">{r.currency} {r.price}</span>
+                            <span className="text-brand-400 text-xs ml-auto">{r.currency} {r.price}</span>
                           )}
                         </div>
                         <div className="text-xs text-stone-500 space-y-0.5">
@@ -2391,7 +2391,7 @@ function AiSaleParseModal({ onApply, onClose }: {
               <div className="flex gap-3">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
                 <button type="button" onClick={() => onApply(result, parsedUrl)}
-                  className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-500 transition-colors">
+                  className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-500 transition-colors">
                   Apply to form
                 </button>
               </div>
@@ -2588,7 +2588,7 @@ export default function AdminSaleAnnouncementsPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={() => setShowAiModal(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-stone-800 text-stone-300 hover:bg-stone-700 border border-stone-700 hover:border-stone-600 transition-colors">
-            <Sparkles size={14} className="text-amber-400" />
+            <Sparkles size={14} className="text-brand-400" />
             Parse with AI
           </button>
           <button
@@ -2600,7 +2600,7 @@ export default function AdminSaleAnnouncementsPage() {
               createModal.toggle()
               setEditItem(null)
             }}
-            className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors"
+            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
           >
             {createModal.isOpen ? '✕ Cancel' : '+ Add Sale'}
           </button>
@@ -2609,8 +2609,8 @@ export default function AdminSaleAnnouncementsPage() {
 
       {/* Inline create form */}
       {createModal.isOpen && (
-        <div className="bg-stone-900 border border-amber-500/40 rounded-xl p-5 mb-5">
-          <h2 className="text-amber-400 font-semibold text-sm mb-4">New Sale Announcement</h2>
+        <div className="bg-stone-900 border border-brand-500/40 rounded-xl p-5 mb-5">
+          <h2 className="text-brand-400 font-semibold text-sm mb-4">New Sale Announcement</h2>
           <SaleAnnouncementForm
             key={createFormKey}
             initial={createInitial}
@@ -2629,12 +2629,12 @@ export default function AdminSaleAnnouncementsPage() {
           placeholder="Search announcements…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 w-64 text-sm"
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 w-64 text-sm"
         />
         <select
           value={companyFilter}
           onChange={e => { setCompanyFilter(e.target.value); setPage(1) }}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400 text-sm"
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400 text-sm"
         >
           <option value="">All companies</option>
           {allCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -2642,7 +2642,7 @@ export default function AdminSaleAnnouncementsPage() {
         <select
           value={saleTypeFilter}
           onChange={e => { setSaleTypeFilter(e.target.value as SaleType | ''); setPage(1) }}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400 text-sm"
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400 text-sm"
         >
           <option value="">All types</option>
           <option value="LIMITED_PREORDER">Limited Preorder</option>
@@ -2673,8 +2673,8 @@ export default function AdminSaleAnnouncementsPage() {
                 isEditing={editItem?.id === a.id}
               />
               {editItem?.id === a.id && (
-                <div className="bg-stone-900 border border-amber-500/40 border-t-0 rounded-b-xl p-5 -mt-1">
-                  <h2 className="text-amber-400 font-semibold text-sm mb-4">Edit Sale Announcement</h2>
+                <div className="bg-stone-900 border border-brand-500/40 border-t-0 rounded-b-xl p-5 -mt-1">
+                  <h2 className="text-brand-400 font-semibold text-sm mb-4">Edit Sale Announcement</h2>
                   <SaleAnnouncementForm
                     key={editItem.id}
                     initial={announcementToForm(editItem)}

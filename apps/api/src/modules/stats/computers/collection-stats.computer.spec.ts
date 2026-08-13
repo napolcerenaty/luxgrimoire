@@ -29,6 +29,10 @@ function makeEntry(opts: {
   company?: { id: string; name: string; slug: string; brandColors: string[] } | null;
   subscriptionSlug?: string | null;
   isSecondHand?: boolean;
+  /** Real per-book allocation for this entry. Omitted/undefined = legacy data, falls back to an equal split. */
+  basePrice?: number;
+  /** Sibling book entries in the same group, for equal-split fallback testing (defaults to just this entry). */
+  entryCount?: number;
 }): StatsEntryData {
   const {
     ownershipStatus = 'OWNED',
@@ -41,6 +45,8 @@ function makeEntry(opts: {
     company = null,
     subscriptionSlug = null,
     isSecondHand = false,
+    basePrice,
+    entryCount = 1,
   } = opts;
 
   return {
@@ -50,6 +56,7 @@ function makeEntry(opts: {
     readingStatus,
     isWishlist,
     signatureType,
+    basePrice: basePrice != null ? basePrice : null,
     salePrice: null,
     saleCurrency: null,
     saleDate: null,
@@ -61,7 +68,7 @@ function makeEntry(opts: {
           shippingAmount: null,
           purchasedAt: new Date(purchasedAt),
           isSecondHand,
-          bookEntries: [{ id: 'entry-id' }],
+          bookEntries: Array.from({ length: entryCount }, (_, i) => ({ id: `entry-${i}` })),
           fees: [],
           discounts: [],
           refunds: [],
@@ -316,6 +323,26 @@ describe('CollectionStatsComputer', () => {
       });
       const result = await computer.compute(ctx);
       expect(result.unreadShelfValue).toBe(80);
+    });
+
+    it('uses the real per-book basePrice for unreadShelfValue instead of an equal split when set', async () => {
+      const ctx = makeCtx({
+        entries: [
+          makeEntry({ ownershipStatus: 'OWNED', readingStatus: 'UNREAD', amount: 200, entryCount: 2, basePrice: 150 }),
+        ],
+      });
+      const result = await computer.compute(ctx);
+      expect(result.unreadShelfValue).toBe(150); // real allocation, not 200/2 = 100
+    });
+
+    it('falls back to an equal split for unreadShelfValue when basePrice is not set (legacy data)', async () => {
+      const ctx = makeCtx({
+        entries: [
+          makeEntry({ ownershipStatus: 'OWNED', readingStatus: 'UNREAD', amount: 200, entryCount: 2 }),
+        ],
+      });
+      const result = await computer.compute(ctx);
+      expect(result.unreadShelfValue).toBe(100); // 200 / 2
     });
 
     it('accumulates preorderValue for PREORDER books', async () => {

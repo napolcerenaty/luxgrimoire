@@ -24,12 +24,12 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-label="Cookie information"
-      className="fixed bottom-0 left-0 right-0 z-[70] border-t border-amber-800/20 bg-stone-900/95 backdrop-blur-md"
+      className="fixed bottom-0 left-0 right-0 z-[70] border-t border-brand-800/20 bg-stone-900/95 backdrop-blur-md"
     >
       <div className="mx-auto max-w-5xl flex items-start sm:items-center gap-4 px-4 py-4 sm:flex-row flex-col">
         <Cookie
           size={18}
-          className="shrink-0 text-amber-400/60 mt-0.5 sm:mt-0"
+          className="shrink-0 text-brand-400/60 mt-0.5 sm:mt-0"
           aria-hidden
         />
 
@@ -49,13 +49,13 @@ export function CookieBanner() {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={accept}
-            className="rounded px-4 py-1.5 text-xs font-medium transition-all bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+            className="rounded px-4 py-1.5 text-xs font-medium transition-all bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
           >
             Got it
           </button>
           <button
             onClick={accept}
-            className="p-1 rounded transition-opacity opacity-50 hover:opacity-100 text-stone-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+            className="p-1 rounded transition-opacity opacity-50 hover:opacity-100 text-stone-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
             aria-label="Dismiss"
           >
             <X size={14} />

@@ -263,7 +263,7 @@ function InlineCostsEditor({
     }
   }
 
-  const inputCls = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-2.5 py-1.5 text-stone-100 text-sm focus:outline-none focus:border-amber-400 transition-colors'
+  const inputCls = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-2.5 py-1.5 text-stone-100 text-sm focus:outline-none focus:border-brand-400 transition-colors'
 
   return (
     <div className="rounded-xl border border-stone-700/60 bg-stone-900/80 p-3 space-y-3">
@@ -279,7 +279,7 @@ function InlineCostsEditor({
         </div>
         <div className="shrink-0">
           <label className="block text-[10px] text-stone-500 mb-1 uppercase tracking-wider">CCY</label>
-          <input type="text" value={costCurrency} onChange={e => setCostCurrency(e.target.value.toUpperCase())} maxLength={3} className="w-14 bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-100 text-sm uppercase text-center focus:outline-none focus:border-amber-400 transition-colors" />
+          <input type="text" value={costCurrency} onChange={e => setCostCurrency(e.target.value.toUpperCase())} maxLength={3} className="w-14 bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-100 text-sm uppercase text-center focus:outline-none focus:border-brand-400 transition-colors" />
         </div>
       </div>
 
@@ -290,7 +290,7 @@ function InlineCostsEditor({
             type="checkbox"
             checked={isForwarding}
             onChange={e => setIsForwarding(e.target.checked)}
-            className="rounded border-stone-600 bg-stone-800 text-amber-500"
+            className="rounded border-stone-600 bg-stone-800 text-brand-500"
           />
           <span className="text-sm text-stone-300">📦 Forwarding</span>
         </label>
@@ -300,7 +300,7 @@ function InlineCostsEditor({
             <select
               value={scheduledPrepayOptionId ?? ''}
               onChange={e => setScheduledPrepayOptionId(e.target.value || null)}
-              className="bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400 transition-colors"
+              className="bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-xs text-stone-100 focus:outline-none focus:border-brand-400 transition-colors"
             >
               <option value="">Monthly</option>
               {prepayOptions.filter(o => {
@@ -344,7 +344,7 @@ function InlineCostsEditor({
                         value={link.customAmount}
                         onChange={e => setFeeLinks(prev => prev.map(f => f.templateId === link.templateId ? { ...f, customAmount: e.target.value } : f))}
                         placeholder={defaultAmt || 'amount'}
-                        className="w-28 bg-stone-900 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+                        className="w-28 bg-stone-900 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100 focus:outline-none focus:border-brand-400"
                       />
                       <input
                         type="text"
@@ -352,7 +352,7 @@ function InlineCostsEditor({
                         onChange={e => setFeeLinks(prev => prev.map(f => f.templateId === link.templateId ? { ...f, customCurrency: e.target.value.toUpperCase() } : f))}
                         placeholder={defaultCur}
                         maxLength={3}
-                        className="w-14 bg-stone-900 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100 uppercase focus:outline-none focus:border-amber-400"
+                        className="w-14 bg-stone-900 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100 uppercase focus:outline-none focus:border-brand-400"
                       />
                     </div>
                   </div>
@@ -374,7 +374,7 @@ function InlineCostsEditor({
                     key={t.id}
                     type="button"
                     onClick={() => toggleTemplate(t)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-full border border-stone-700 text-stone-400 text-xs hover:border-amber-600 hover:text-amber-400 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-full border border-stone-700 text-stone-400 text-xs hover:border-brand-600 hover:text-brand-400 transition-colors"
                   >
                     <span>+</span>
                     <span>{t.name}</span>
@@ -408,7 +408,7 @@ function InlineCostsEditor({
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/30 disabled:opacity-50"
+          className="rounded-lg bg-brand-500/20 px-3 py-1.5 text-xs font-semibold text-brand-300 transition-colors hover:bg-brand-500/30 disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save costs'}
         </button>
@@ -461,15 +461,15 @@ function BookChoiceSection({ subscriptionSlug, year, month }: { subscriptionSlug
       ) : (
         <div className="space-y-2">
           {pending.map(g => (
-            <div key={g.id} className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 space-y-2">
+            <div key={g.id} className="rounded-xl border border-brand-500/40 bg-brand-500/10 px-3 py-2.5 space-y-2">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="text-xs text-amber-200">
+                <div className="text-xs text-brand-200">
                   <span className="font-medium">{g.label || 'Choose your book'}</span>
                   {' — '}pick {g.allowMultiple ? 'one or both' : 'one'} before the deadline, or both will be added automatically.
                 </div>
                 <button
                   onClick={() => { setOpen(open === g.id ? null : g.id); setPicked([]) }}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-amber-400 text-stone-950 font-semibold hover:bg-amber-300 transition-colors shrink-0"
+                  className="text-xs px-3 py-1.5 rounded-lg bg-brand-400 text-stone-950 font-semibold hover:bg-brand-300 transition-colors shrink-0"
                 >
                   {open === g.id ? 'Close' : 'Choose'}
                 </button>
@@ -478,7 +478,7 @@ function BookChoiceSection({ subscriptionSlug, year, month }: { subscriptionSlug
                 <div className="space-y-2 pt-1">
                   <div className="flex flex-wrap gap-2">
                     {g.options.map(o => (
-                      <label key={o.id} className="flex items-center gap-1.5 text-xs text-amber-100 bg-stone-900/40 rounded-lg px-2 py-1 cursor-pointer">
+                      <label key={o.id} className="flex items-center gap-1.5 text-xs text-brand-100 bg-stone-900/40 rounded-lg px-2 py-1 cursor-pointer">
                         <input
                           type={g.allowMultiple ? 'checkbox' : 'radio'}
                           name={`choice-${g.id}`}
@@ -498,7 +498,7 @@ function BookChoiceSection({ subscriptionSlug, year, month }: { subscriptionSlug
                   <button
                     onClick={() => submitMutation.mutate({ choiceGroupId: g.id, monthBookIds: picked })}
                     disabled={submitMutation.isPending || picked.length === 0}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-amber-400 text-stone-950 font-semibold hover:bg-amber-300 disabled:opacity-40 transition-colors"
+                    className="text-xs px-3 py-1.5 rounded-lg bg-brand-400 text-stone-950 font-semibold hover:bg-brand-300 disabled:opacity-40 transition-colors"
                   >
                     Confirm choice
                   </button>
@@ -612,7 +612,7 @@ function SubscriptionOverviewPanel({
               {total && (
                 <div className="flex items-center justify-between gap-2 border-t border-stone-700/60 pt-2">
                   <span className="font-medium text-stone-300">Tracked total</span>
-                  <span className="font-semibold text-amber-300">{formatMoney(total.amount, total.currency)}</span>
+                  <span className="font-semibold text-brand-300">{formatMoney(total.amount, total.currency)}</span>
                 </div>
               )}
             </div>
@@ -746,7 +746,7 @@ export default function MySubscriptionsPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-serif text-stone-100">My Subscriptions</h1>
-          <Link href="/books-by-month" className="text-xs text-stone-500 hover:text-amber-400 transition-colors">
+          <Link href="/books-by-month" className="text-xs text-stone-500 hover:text-brand-400 transition-colors">
             See all books this month →
           </Link>
         </div>
@@ -754,7 +754,7 @@ export default function MySubscriptionsPage() {
           <button
             type="button"
             onClick={() => setView('list')}
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-900 text-stone-500 hover:text-stone-300'}`}
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-brand-500/20 text-brand-400' : 'bg-stone-900 text-stone-500 hover:text-stone-300'}`}
             aria-label="List view"
           >
             <List size={15} />
@@ -762,7 +762,7 @@ export default function MySubscriptionsPage() {
           <button
             type="button"
             onClick={() => setView('grid')}
-            className={`border-l border-stone-700 px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-900 text-stone-500 hover:text-stone-300'}`}
+            className={`border-l border-stone-700 px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : 'bg-stone-900 text-stone-500 hover:text-stone-300'}`}
             aria-label="Grid view"
           >
             <LayoutGrid size={15} />
@@ -777,7 +777,7 @@ export default function MySubscriptionsPage() {
           value={searchTerm}
           onChange={event => setSearchTerm(event.target.value)}
           placeholder="Search subscriptions…"
-          className="flex-1 rounded-lg border border-stone-700 bg-stone-900 px-3 py-1.5 text-sm text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors"
+          className="flex-1 rounded-lg border border-stone-700 bg-stone-900 px-3 py-1.5 text-sm text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
         />
         {tab === 'active' && (
           <button
@@ -800,13 +800,13 @@ export default function MySubscriptionsPage() {
           onClick={() => setTab('active')}
           className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
             tab === 'active'
-              ? 'border-amber-400 text-amber-400'
+              ? 'border-brand-400 text-brand-400'
               : 'border-transparent text-stone-500 hover:text-stone-300'
           }`}
         >
           Active
           {activeEntries.length > 0 && (
-            <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${tab === 'active' ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-500'}`}>
+            <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${tab === 'active' ? 'bg-brand-500/20 text-brand-400' : 'bg-stone-800 text-stone-500'}`}>
               {activeEntries.length}
             </span>
           )}
@@ -839,7 +839,7 @@ export default function MySubscriptionsPage() {
             ) : (
               <>
                 <p className="mb-3">You haven't joined any subscriptions yet.</p>
-                <Link href="/subscriptions" className="text-sm text-amber-400 underline">
+                <Link href="/subscriptions" className="text-sm text-brand-400 underline">
                   Browse subscriptions →
                 </Link>
               </>
@@ -936,11 +936,11 @@ function CancelledSubscriptionGroup({
           <SubListThumbnail imageSource={sub.logoUrl ?? sub.coverImage} brandColors={brandColors} name={sub.name} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs text-stone-500">{sub.company.name}</p>
-            <p className="truncate font-semibold text-stone-200 transition-colors group-hover:text-amber-400">{sub.name}</p>
+            <p className="truncate font-semibold text-stone-200 transition-colors group-hover:text-brand-400">{sub.name}</p>
           </div>
         </Link>
         {sub.isDiscontinued && (
-          <span className="shrink-0 rounded border border-amber-700/40 px-1.5 py-0.5 text-xs text-amber-600">Discontinued</span>
+          <span className="shrink-0 rounded border border-brand-700/40 px-1.5 py-0.5 text-xs text-brand-600">Discontinued</span>
         )}
         <span className="shrink-0 rounded-full bg-stone-800 px-2 py-0.5 text-xs text-stone-500">
           {sortedEntries.length} period{sortedEntries.length !== 1 ? 's' : ''}
@@ -1124,7 +1124,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
                   </span>
                 )}
                 {sub.isDiscontinued && (
-                  <span className="rounded border border-amber-700/40 px-1.5 py-0.5 text-xs text-amber-600">Discontinued</span>
+                  <span className="rounded border border-brand-700/40 px-1.5 py-0.5 text-xs text-brand-600">Discontinued</span>
                 )}
               </div>
             </div>
@@ -1133,7 +1133,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
                 <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
                 <p className="text-sm font-medium text-stone-200">
                   {renewalLabel}
-                  {renewalAmount && <span className="ml-2 text-amber-400">{renewalAmount}</span>}
+                  {renewalAmount && <span className="ml-2 text-brand-400">{renewalAmount}</span>}
                 </p>
               </div>
             )}
@@ -1147,7 +1147,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
                 type="button"
                 title="Cancel subscription"
                 onClick={() => setShowCancelConfirm(true)}
-                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-amber-400"
+                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-brand-400"
               >
                 <Ban size={15} />
               </button>
@@ -1224,7 +1224,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
                 type="button"
                 title="Cancel subscription"
                 onClick={() => setShowCancelConfirm(true)}
-                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-amber-400"
+                className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-brand-400"
               >
                 <Ban size={14} />
               </button>
@@ -1299,7 +1299,7 @@ function EntryRemoveDialog({
               type="checkbox"
               checked={removeBooks}
               onChange={e => setRemoveBooks(e.target.checked)}
-              className="rounded border-stone-600 bg-stone-800 text-amber-500"
+              className="rounded border-stone-600 bg-stone-800 text-brand-500"
             />
             Also remove books from my collection
           </label>
@@ -1309,7 +1309,7 @@ function EntryRemoveDialog({
                 type="checkbox"
                 checked={removeSoldBooks}
                 onChange={e => setRemoveSoldBooks(e.target.checked)}
-                className="rounded border-stone-600 bg-stone-800 text-amber-500"
+                className="rounded border-stone-600 bg-stone-800 text-brand-500"
               />
               Delete sold books and sale records
             </label>
@@ -1319,7 +1319,7 @@ function EntryRemoveDialog({
               type="checkbox"
               checked={removeSpending}
               onChange={e => setRemoveSpending(e.target.checked)}
-              className="rounded border-stone-600 bg-stone-800 text-amber-500"
+              className="rounded border-stone-600 bg-stone-800 text-brand-500"
             />
             Also remove spending records
           </label>
@@ -1411,7 +1411,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                   </span>
                 )}
                 {sub.isDiscontinued && (
-                  <span className="rounded border border-amber-700/40 px-1.5 py-0.5 text-xs text-amber-600">
+                  <span className="rounded border border-brand-700/40 px-1.5 py-0.5 text-xs text-brand-600">
                     Discontinued
                   </span>
                 )}
@@ -1424,7 +1424,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                   <p className="text-[10px] uppercase tracking-wider text-stone-500">Next renewal</p>
                   <p className="text-sm font-medium text-stone-200">
                     {renewalLabel}
-                    {renewalAmount && <span className="ml-2 text-amber-400">{renewalAmount}</span>}
+                    {renewalAmount && <span className="ml-2 text-brand-400">{renewalAmount}</span>}
                   </p>
                 </div>
               )}
@@ -1452,7 +1452,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                   type="button"
                   title="Cancel subscription"
                   onClick={() => setShowCancelConfirm(true)}
-                  className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-amber-400"
+                  className="rounded p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-brand-400"
                 >
                   <Ban size={15} />
                 </button>

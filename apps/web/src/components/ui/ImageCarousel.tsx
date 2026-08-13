@@ -54,14 +54,14 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); prev() }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-stone-950/70 text-stone-300 hover:bg-stone-950 hover:text-amber-400 transition-all"
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-stone-950/70 text-stone-300 hover:bg-stone-950 hover:text-brand-400 transition-all"
                 aria-label="Previous"
               >
                 <ChevronLeft size={18} />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); next() }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-stone-950/70 text-stone-300 hover:bg-stone-950 hover:text-amber-400 transition-all"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-stone-950/70 text-stone-300 hover:bg-stone-950 hover:text-brand-400 transition-all"
                 aria-label="Next"
               >
                 <ChevronRight size={18} />
@@ -86,7 +86,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
                 onClick={() => setCurrent(i)}
                 className={`w-14 h-20 rounded-lg object-cover shrink-0 cursor-pointer transition-all ${
                   i === current
-                    ? 'ring-2 ring-amber-500 opacity-100'
+                    ? 'ring-2 ring-brand-500 opacity-100'
                     : 'ring-1 ring-stone-700 opacity-50 hover:opacity-80'
                 }`}
               />
@@ -133,14 +133,14 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
             {total > 1 && (
               <>
                 <button
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-950/70 text-stone-300 hover:text-amber-400 hover:bg-stone-950 transition-all"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-950/70 text-stone-300 hover:text-brand-400 hover:bg-stone-950 transition-all"
                   onClick={(e) => { e.stopPropagation(); prev() }}
                   aria-label="Previous"
                 >
                   <ChevronLeft size={24} />
                 </button>
                 <button
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-950/70 text-stone-300 hover:text-amber-400 hover:bg-stone-950 transition-all"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-950/70 text-stone-300 hover:text-brand-400 hover:bg-stone-950 transition-all"
                   onClick={(e) => { e.stopPropagation(); next() }}
                   aria-label="Next"
                 >

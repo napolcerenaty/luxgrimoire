@@ -95,6 +95,15 @@ export class SaleInterestsService {
     });
   }
 
+  /** Batched version of findOne — one query for a whole card grid instead of N. */
+  async findBatch(userId: string, announcementIds: string[]) {
+    if (announcementIds.length === 0) return [];
+    return this.prisma.userSaleInterest.findMany({
+      where: { userId, announcementId: { in: announcementIds } },
+      include: { saleTier: { select: { id: true, name: true, date: true, regionId: true } } },
+    });
+  }
+
   private readonly regionSelect = {
     id: true,
     isDefault: true,

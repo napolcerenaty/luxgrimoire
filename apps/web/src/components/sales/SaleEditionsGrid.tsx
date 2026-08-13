@@ -43,7 +43,7 @@ function EditionCard({
       key={`${editionId}-${ed.itemId ?? 'standalone'}`}
       href={href}
       onClick={onLinkClick}
-      className="group rounded-lg overflow-hidden border border-stone-700 hover:border-amber-500/40 transition-colors bg-stone-900"
+      className="group rounded-lg overflow-hidden border border-stone-700 hover:border-brand-500/40 transition-colors bg-stone-900"
     >
       {imgSrc ? (
         <div className="relative w-full" style={{ aspectRatio: '2/3' }}>

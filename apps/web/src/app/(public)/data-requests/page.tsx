@@ -14,7 +14,7 @@ const DATA_TYPES = [
 ]
 
 const STATUS_STYLES: Record<string, string> = {
-  pending: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+  pending: 'text-brand-400 bg-brand-500/10 border-brand-500/30',
   in_progress: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
   added: 'text-green-400 bg-green-500/10 border-green-500/30',
   declined: 'text-stone-500 bg-stone-700/30 border-stone-600/30',
@@ -23,7 +23,7 @@ const STATUS_ICON: Record<string, React.ElementType> = {
   pending: Clock, in_progress: RefreshCw, added: CheckCircle, declined: XCircle,
 }
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 const LBL = 'block text-sm text-stone-400 mb-1'
 
 interface MyRequest {
@@ -69,7 +69,7 @@ export default function DataRequestsPage() {
     <div className="max-w-2xl mx-auto px-4 py-10 space-y-8">
       <div>
         <h1 className="text-3xl font-serif font-bold text-stone-100 flex items-center gap-3">
-          <Database size={28} className="text-amber-400" /> Add Missing Data
+          <Database size={28} className="text-brand-400" /> Add Missing Data
         </h1>
         <p className="text-stone-400 text-sm mt-2">
           Can't find a book edition, subscription box, or series? Send us a request and we'll add it.
@@ -128,7 +128,7 @@ export default function DataRequestsPage() {
                 </div>
                 {submit.isError && <p className="text-red-400 text-sm">{(submit.error as Error).message}</p>}
                 <button type="submit" disabled={submit.isPending}
-                  className="w-full bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50">
+                  className="w-full bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50">
                   {submit.isPending ? 'Submitting…' : 'Submit Request'}
                 </button>
               </form>

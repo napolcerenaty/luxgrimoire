@@ -59,7 +59,7 @@ const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'import', label: 'Import', icon: Upload },
 ]
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
+const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1.5'
 
 const COUNTRIES: [string, string][] = [
@@ -256,7 +256,7 @@ export default function ProfilePage() {
               onClick={() => { setActiveTab(id); setMobileShowContent(true) }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
                 activeTab === id
-                  ? 'bg-amber-500/10 text-amber-400'
+                  ? 'bg-brand-500/10 text-brand-400'
                   : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
               }`}
             >
@@ -288,14 +288,14 @@ export default function ProfilePage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={avatarPreview} alt={user.username} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xl font-serif font-bold text-amber-400">
+                    <div className="w-full h-full flex items-center justify-center text-xl font-serif font-bold text-brand-400">
                       {initials}
                     </div>
                   )}
                 </div>
                 {uploadMutation.isPending && (
                   <div className="absolute inset-0 bg-stone-950/70 rounded-full flex items-center justify-center">
-                    <Loader2 size={20} className="text-amber-400 animate-spin" />
+                    <Loader2 size={20} className="text-brand-400 animate-spin" />
                   </div>
                 )}
               </div>
@@ -303,7 +303,7 @@ export default function ProfilePage() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadMutation.isPending}
-                  className="flex items-center gap-2 border border-stone-600 hover:border-amber-400 text-stone-300 hover:text-amber-400 px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 border border-stone-600 hover:border-brand-400 text-stone-300 hover:text-brand-400 px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50"
                 >
                   <Camera size={14} />
                   {uploadMutation.isPending ? 'Uploading...' : 'Change Avatar'}
@@ -334,7 +334,7 @@ export default function ProfilePage() {
             {profileError && (
               <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{profileError}</p>
             )}
-            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
               {updateProfileMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : profileSuccess ? <><Check size={14} /> Saved!</> : 'Save Changes'}
             </button>
           </form>
@@ -369,7 +369,7 @@ export default function ProfilePage() {
             {usernameError && (
               <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{usernameError}</p>
             )}
-            <button type="submit" disabled={updateUsernameMutation.isPending || newUsername === user.username} className="flex items-center gap-2 border border-amber-500/50 hover:border-amber-400 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+            <button type="submit" disabled={updateUsernameMutation.isPending || newUsername === user.username} className="flex items-center gap-2 border border-brand-500/50 hover:border-brand-400 text-brand-400 hover:bg-brand-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
               {updateUsernameMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Updating...</> : usernameSuccess ? <><Check size={14} /> Updated!</> : 'Update Username'}
             </button>
           </form>
@@ -377,7 +377,7 @@ export default function ProfilePage() {
           {/* Restart Tutorial */}
           <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3">
             <div className="flex items-center gap-2">
-              <PlayCircle size={16} className="text-amber-400 shrink-0" />
+              <PlayCircle size={16} className="text-brand-400 shrink-0" />
               <h2 className="font-serif font-semibold text-stone-100">Tutorial</h2>
             </div>
             <p className="text-sm text-stone-400">
@@ -386,7 +386,7 @@ export default function ProfilePage() {
             <button
               onClick={() => restartTutorialMutation.mutate()}
               disabled={restartTutorialMutation.isPending}
-              className="flex items-center gap-2 border border-amber-500/50 hover:border-amber-400 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
+              className="flex items-center gap-2 border border-brand-500/50 hover:border-brand-400 text-brand-400 hover:bg-brand-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
             >
               {restartTutorialMutation.isPending
                 ? <><Loader2 size={14} className="animate-spin" /> Restarting…</>
@@ -479,11 +479,11 @@ export default function ProfilePage() {
                 {([['24h', '24-hour (e.g. 14:30)'], ['12h', '12-hour (e.g. 2:30 PM)']] as [string, string][]).map(([val, desc]) => (
                   <label key={val} className={`flex-1 flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
                     timeFormat === val
-                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
+                      ? 'border-brand-500/50 bg-brand-500/10 text-brand-400'
                       : 'border-stone-700 bg-stone-800/50 text-stone-400 hover:border-stone-600'
                   }`}>
                     <input type="radio" name="timeFormat" value={val} checked={timeFormat === val}
-                      onChange={() => setTimeFormat(val)} className="accent-amber-400" />
+                      onChange={() => setTimeFormat(val)} className="accent-brand-400" />
                     <div>
                       <div className="text-sm font-medium">{val.toUpperCase()}</div>
                       <div className="text-xs text-stone-500">{desc}</div>
@@ -495,7 +495,7 @@ export default function ProfilePage() {
             {prefsError && (
               <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{prefsError}</p>
             )}
-            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
               {updateProfileMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : prefsSuccess ? <><Check size={14} /> Saved!</> : 'Save Preferences'}
             </button>
           </form>
@@ -623,21 +623,21 @@ function MyCommunityPhotos() {
                 key={photo.id}
                 onClick={() => toggle(photo.id)}
                 className={`relative cursor-pointer rounded-lg overflow-hidden aspect-[2/3] ring-2 transition-all ${
-                  isSelected ? 'ring-amber-500 ring-offset-2 ring-offset-stone-900' : 'ring-transparent hover:ring-stone-600'
+                  isSelected ? 'ring-brand-500 ring-offset-2 ring-offset-stone-900' : 'ring-transparent hover:ring-stone-600'
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={thumb ?? photo.url} alt={editionLabel} className="w-full h-full object-cover" />
                 {/* Status badge */}
                 {photo.status === 'PENDING' && (
-                  <span className="absolute top-1 left-1 px-1 py-0.5 rounded-full text-[7px] font-semibold bg-amber-500/80 text-stone-950">
+                  <span className="absolute top-1 left-1 px-1 py-0.5 rounded-full text-[7px] font-semibold bg-brand-500/80 text-stone-950">
                     Pending
                   </span>
                 )}
                 {/* Selection overlay */}
                 {isSelected && (
-                  <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
-                    <div className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-brand-500/20 flex items-center justify-center">
+                    <div className="w-4 h-4 rounded-full bg-brand-500 flex items-center justify-center">
                       <Check size={10} className="text-stone-950" />
                     </div>
                   </div>
@@ -647,7 +647,7 @@ function MyCommunityPhotos() {
                   <a
                     href={`/editions/${photo.edition.slug}`}
                     onClick={e => e.stopPropagation()}
-                    className="text-[8px] text-stone-200 hover:text-amber-400 transition-colors line-clamp-1 leading-tight"
+                    className="text-[8px] text-stone-200 hover:text-brand-400 transition-colors line-clamp-1 leading-tight"
                   >
                     {editionLabel}
                   </a>
@@ -683,7 +683,7 @@ interface ImportResult {
 }
 
 const STATUS_LABEL: Record<string, string> = { READ: 'Read', READING: 'Currently reading', DNF: 'Did not finish' }
-const STATUS_COLOR: Record<string, string> = { READ: 'text-emerald-400', READING: 'text-amber-400', DNF: 'text-red-400' }
+const STATUS_COLOR: Record<string, string> = { READ: 'text-emerald-400', READING: 'text-brand-400', DNF: 'text-red-400' }
 
 function ReadingHistoryImport() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -749,7 +749,7 @@ function ReadingHistoryImport() {
       {/* Info banner */}
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <BookMarked size={16} className="text-amber-400 shrink-0" />
+          <BookMarked size={16} className="text-brand-400 shrink-0" />
           <h2 className="font-serif font-semibold text-stone-100">Reading History Import</h2>
         </div>
         <p className="text-sm text-stone-400">
@@ -774,7 +774,7 @@ function ReadingHistoryImport() {
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
             onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed border-stone-700 hover:border-amber-500/50 rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-colors"
+            className="border-2 border-dashed border-stone-700 hover:border-brand-500/50 rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-colors"
           >
             <Upload size={28} className="text-stone-500" />
             {fileName ? (
@@ -851,7 +851,7 @@ function ReadingHistoryImport() {
                           <span className="text-[10px] text-sky-400/80">{b.readPeriods.length}× read</span>
                         )}
                         {b.entryIds.length > 1 && (
-                          <span className="text-[10px] text-amber-500/80">{b.entryIds.length} editions</span>
+                          <span className="text-[10px] text-brand-500/80">{b.entryIds.length} editions</span>
                         )}
                       </div>
                     </div>
@@ -884,7 +884,7 @@ function ReadingHistoryImport() {
                   type="checkbox"
                   checked={confirmed}
                   onChange={(e) => setConfirmed(e.target.checked)}
-                  className="accent-amber-400 mt-0.5"
+                  className="accent-brand-400 mt-0.5"
                 />
                 <span className="text-sm text-stone-400">
                   I understand that this will update reading status and add reading history entries for{' '}
@@ -895,7 +895,7 @@ function ReadingHistoryImport() {
               <button
                 onClick={() => { if (csvContent) executeMutation.mutate(csvContent) }}
                 disabled={!confirmed || executeMutation.isPending}
-                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
+                className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
               >
                 {executeMutation.isPending
                   ? <><Loader2 size={14} className="animate-spin" /> Importing…</>
@@ -918,7 +918,7 @@ function ReadingHistoryImport() {
             {result.imported === 1 ? 'entry' : 'entries'} created.
             {result.skipped > 0 && ` ${result.skipped} skipped due to errors.`}
           </p>
-          <button onClick={reset} className="text-sm text-amber-400 hover:text-amber-300 transition-colors">
+          <button onClick={reset} className="text-sm text-brand-400 hover:text-brand-300 transition-colors">
             Import another file
           </button>
         </div>
@@ -964,7 +964,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${checked ? 'bg-amber-500' : 'bg-stone-700'}`}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${checked ? 'bg-brand-500' : 'bg-stone-700'}`}
     >
       <span
         className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
@@ -1114,7 +1114,7 @@ function NotificationsTab() {
                 <select
                   value={s.renewalDaysBefore}
                   onChange={(e) => update({ renewalDaysBefore: Number(e.target.value) })}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
                 >
                   {[0, 1, 2, 3, 4, 5, 6, 7].map((d) => (
                     <option key={d} value={d}>{d === 0 ? 'On the day of renewal' : `${d} day${d > 1 ? 's' : ''} before`}</option>
@@ -1123,7 +1123,7 @@ function NotificationsTab() {
                 <select
                   value={s.renewalHour ?? ''}
                   onChange={(e) => update({ renewalHour: e.target.value === '' ? null : Number(e.target.value) })}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
                 >
                   <option value="">at 18:00 (default)</option>
                   {HOURS.map((h) => (
@@ -1176,7 +1176,7 @@ function NotificationsTab() {
               <select
                 value={s.saleMinutesBefore ?? 180}
                 onChange={(e) => update({ saleMinutesBefore: Number(e.target.value) })}
-                className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
               >
                 <option value={0}>At sale time</option>
                 <option value={15}>15 min before</option>
@@ -1230,7 +1230,7 @@ function NotificationsTab() {
               <select
                 value={s.bookChoiceDaysBefore}
                 onChange={(e) => update({ bookChoiceDaysBefore: Number(e.target.value) })}
-                className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+                className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
               >
                 {[0, 1, 2, 3, 5, 7, 10, 14].map((d) => (
                   <option key={d} value={d}>{d === 0 ? 'On the deadline day' : `${d} day${d > 1 ? 's' : ''} before deadline`}</option>

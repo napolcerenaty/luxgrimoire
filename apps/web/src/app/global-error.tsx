@@ -21,8 +21,8 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(217,119,6,0.1)',
-              border: '1px solid rgba(217,119,6,0.3)',
+              background: 'rgba(42,158,196,0.1)',
+              border: '1px solid rgba(42,158,196,0.3)',
               fontSize: '1.5rem',
             }}
           >
@@ -41,9 +41,9 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
               marginTop: '1.75rem',
               padding: '0.625rem 1.5rem',
               borderRadius: '0.75rem',
-              background: 'rgba(217,119,6,0.1)',
-              color: '#d97706',
-              border: '1px solid rgba(217,119,6,0.3)',
+              background: 'rgba(42,158,196,0.1)',
+              color: '#2a9ec4',
+              border: '1px solid rgba(42,158,196,0.3)',
               fontSize: '0.875rem',
               fontWeight: 500,
               fontFamily: 'inherit',

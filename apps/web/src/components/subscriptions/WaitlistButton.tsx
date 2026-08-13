@@ -128,7 +128,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
                   type="date"
                   value={dateInput}
                   onChange={e => handleDateInputChange(e.target.value)}
-                  className={`bg-stone-700 border rounded px-2 py-0.5 text-stone-100 focus:outline-none focus:border-amber-400 text-xs w-full ${dateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
+                  className={`bg-stone-700 border rounded px-2 py-0.5 text-stone-100 focus:outline-none focus:border-brand-400 text-xs w-full ${dateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
                 />
                 <button onClick={handleSaveDate} disabled={busy || !dateInput}
                   className="text-green-400 hover:text-green-300 disabled:opacity-40 shrink-0">
@@ -175,7 +175,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
               type="date"
               value={dateInput}
               onChange={e => handleDateInputChange(e.target.value)}
-              className={`flex-1 min-w-0 bg-stone-700 border rounded px-2 py-1 text-stone-100 focus:outline-none focus:border-amber-400 text-xs ${dateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
+              className={`flex-1 min-w-0 bg-stone-700 border rounded px-2 py-1 text-stone-100 focus:outline-none focus:border-brand-400 text-xs ${dateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
             />
             <button onClick={() => handleJoin(dateInput || undefined)} disabled={busy}
               className="text-xs px-3 py-1 rounded-lg bg-stone-700 text-stone-200 hover:bg-stone-600 transition-colors disabled:opacity-50 shrink-0">

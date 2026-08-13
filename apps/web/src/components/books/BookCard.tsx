@@ -37,7 +37,7 @@ export function BookCard({ book }: BookCardProps) {
       </div>
       <div>
         {(book.seriesName || book.volumeNumbers?.length) && (
-          <p className="text-xs text-amber-600 mb-0.5 truncate">
+          <p className="text-xs text-brand-600 mb-0.5 truncate">
             {book.seriesName}
             {book.volumeNumbers?.length ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
           </p>

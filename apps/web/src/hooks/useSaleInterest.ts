@@ -50,6 +50,32 @@ function subscribe(id: string, fn: Listener) {
   return () => { listeners.get(id)?.delete(fn) }
 }
 
+// ─── Batched fetch ────────────────────────────────────────────────────────────
+// Card grids (e.g. homepage carousel) mount many instances of this hook in the same
+// tick, each wanting one announcement's interest. Instead of firing a GET per id,
+// collect every id requested within the current tick and fetch them in one request.
+
+const pendingBatchIds = new Set<string>()
+let batchTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleBatchFetch(id: string) {
+  pendingBatchIds.add(id)
+  if (batchTimer) return
+  batchTimer = setTimeout(() => {
+    const ids = [...pendingBatchIds]
+    pendingBatchIds.clear()
+    batchTimer = null
+    authFetch<Exclude<SaleInterestRecord, null>[]>(`/sale-interests/batch?ids=${ids.join(',')}`)
+      .then(records => {
+        const byId = new Map(records.map(r => [r.announcementId, r]))
+        for (const fetchedId of ids) broadcast(fetchedId, fromRecord(byId.get(fetchedId) ?? null))
+      })
+      .catch(() => {
+        for (const fetchedId of ids) broadcast(fetchedId, EMPTY_STATE)
+      })
+  }, 0)
+}
+
 function fromRecord(data: SaleInterestRecord): CachedState {
   if (!data?.announcementId) return EMPTY_STATE
   return {
@@ -82,12 +108,11 @@ export function useSaleInterest(announcementId: string | null) {
     // Subscribe to broadcasts from other instances
     const unsub = subscribe(announcementId, s => setState({ ...s, loading: false }))
 
-    // Fetch from server only if no cache yet
+    // Fetch from server only if no cache yet — batched with any other ids requested
+    // in the same tick instead of firing individually.
     if (!cached) {
       setState(s => ({ ...s, loading: true }))
-      authFetch<SaleInterestRecord>(`/sale-interests/${announcementId}`)
-        .then(data => broadcast(announcementId, fromRecord(data)))
-        .catch(() => broadcast(announcementId, EMPTY_STATE))
+      scheduleBatchFetch(announcementId)
     }
 
     return unsub

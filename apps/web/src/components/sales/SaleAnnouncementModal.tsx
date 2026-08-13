@@ -92,11 +92,11 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   {totalImages > 1 && (
                     <>
                       <button onClick={(e) => { e.stopPropagation(); prevImg() }} aria-label="Previous image"
-                        className="absolute left-0.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-stone-950/70 text-stone-300 hover:text-amber-400 transition-colors">
+                        className="absolute left-0.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-stone-950/70 text-stone-300 hover:text-brand-400 transition-colors">
                         <ChevronLeft size={14} />
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); nextImg() }} aria-label="Next image"
-                        className="absolute right-0.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-stone-950/70 text-stone-300 hover:text-amber-400 transition-colors">
+                        className="absolute right-0.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-stone-950/70 text-stone-300 hover:text-brand-400 transition-colors">
                         <ChevronRight size={14} />
                       </button>
                       <div className="absolute bottom-1 right-1 px-1 py-px rounded-full bg-stone-950/70 text-stone-400 text-[9px] leading-tight">
@@ -119,7 +119,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                       <span>📷 photo by</span>
                       {credits.map(({ handle, role }) => (
                         <div key={handle}>
-                          <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-amber-600 hover:text-amber-400 transition-colors">
+                          <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
                             @{handle}<ExternalLink size={9} className="shrink-0" />
                           </a>
                           {role && <span> ({role})</span>}
@@ -128,7 +128,7 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                       {website && (
                         <div>
                           courtesy of{' '}
-                          <a href={website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-amber-600 hover:text-amber-400 transition-colors">
+                          <a href={website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
                             {sale.company!.name}<ExternalLink size={9} className="shrink-0" />
                           </a>
                         </div>

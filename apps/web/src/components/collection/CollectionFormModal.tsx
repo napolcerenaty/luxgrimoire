@@ -6,11 +6,12 @@ import { authFetch } from '@/lib/authFetch'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { type FeeEntry, type DiscountEntry, type FeeTemplate } from '@/hooks/useRecordSaleGroup'
 import { isValidCalendarDate } from '@/lib/dateValidation'
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { X, Plus, MoveRight } from 'lucide-react'
 
 export type { FeeEntry, DiscountEntry, FeeTemplate }
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors'
+const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors'
 const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
 /** Swaps the border color of an input class string to flag an invalid field. */
 const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
@@ -58,6 +59,8 @@ export interface CollectionFormData {
   feeTemplates: FeeTemplate[]
   selectedVariants: Record<string, string>
   selectedEditionIds: string[]
+  /** Optional per-edition base price override, keyed by editionId. Blank = split evenly. */
+  editionPrices: Record<string, string>
 }
 
 export interface SaleEditionForModal {
@@ -117,6 +120,7 @@ export function CollectionFormModal({
   const [discountEntries, setDiscountEntries] = useState<DiscountEntry[]>([])
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
   const [selectedEditionIds, setSelectedEditionIds] = useState<string[]>([])
+  const [editionPrices, setEditionPrices] = useState<Record<string, string>>({})
   const feeKeyRef = useRef(0)
   const discountKeyRef = useRef(0)
 
@@ -129,6 +133,21 @@ export function CollectionFormModal({
   const [shippingInvalid, setShippingInvalid] = useState(false)
   const [invalidFeeKeys, setInvalidFeeKeys] = useState<Set<number>>(new Set())
   const [invalidDiscountKeys, setInvalidDiscountKeys] = useState<Set<number>>(new Set())
+  const [invalidPriceEditionIds, setInvalidPriceEditionIds] = useState<Set<string>>(new Set())
+
+  // Two mutually exclusive ways to price a multi-book purchase: either every book gets its own
+  // price (total is derived, summed below), or none do and the total is split evenly by the
+  // backend. Filling in even one book price switches the whole form into per-book mode.
+  const perBookPriceMode = selectedEditionIds.length > 1 && selectedEditionIds.some(id => (editionPrices[id] ?? '').trim() !== '')
+  const editionPriceSum = selectedEditionIds.reduce((sum, id) => {
+    const raw = (editionPrices[id] ?? '').trim()
+    return sum + (raw === '' ? 0 : parseDecimalInput(raw))
+  }, 0)
+
+  useEffect(() => {
+    if (perBookPriceMode) setTotalAmount(editionPriceSum.toFixed(2))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perBookPriceMode, editionPriceSum])
 
   const { data: feeTemplates = [] } = useQuery<FeeTemplate[]>({
     queryKey: ['fee-templates'],
@@ -154,6 +173,7 @@ export function CollectionFormModal({
     setShippingInvalid(false)
     setInvalidFeeKeys(new Set())
     setInvalidDiscountKeys(new Set())
+    setInvalidPriceEditionIds(new Set())
     const initVariants: Record<string, string> = {}
     for (const ed of editions) {
       if (ed.variants.length >= 1) {
@@ -162,6 +182,7 @@ export function CollectionFormModal({
     }
     setSelectedVariants(initVariants)
     setSelectedEditionIds(editions.map(e => e.editionId))
+    setEditionPrices({})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -179,14 +200,26 @@ export function CollectionFormModal({
     const nextDateInvalid = !isValidCalendarDate(purchasedAt)
     const nextTotalInvalid = totalAmount !== '' && (isNaN(parseFloat(totalAmount)) || parseFloat(totalAmount) < 0)
     const nextShippingInvalid = shippingAmount !== '' && (isNaN(parseFloat(shippingAmount)) || parseFloat(shippingAmount) < 0)
+    // Per-book mode is all-or-nothing: once any book has a price, every selected book needs one
+    // (a partial set would leave the total ambiguous — see the "auto" placeholder confusion this replaced).
+    const nextInvalidPriceEditionIds = new Set<string>()
+    if (perBookPriceMode) {
+      for (const id of selectedEditionIds) {
+        const raw = (editionPrices[id] ?? '').trim()
+        const n = parseFloat(raw.replace(',', '.'))
+        if (raw === '' || isNaN(n) || n < 0) nextInvalidPriceEditionIds.add(id)
+      }
+    }
 
     setDateInvalid(nextDateInvalid)
     setTotalInvalid(nextTotalInvalid)
     setShippingInvalid(nextShippingInvalid)
     setInvalidFeeKeys(nextInvalidFeeKeys)
     setInvalidDiscountKeys(nextInvalidDiscountKeys)
+    setInvalidPriceEditionIds(nextInvalidPriceEditionIds)
 
     if (nextDateInvalid) { setValidationError('Enter a valid purchase date.'); return }
+    if (nextInvalidPriceEditionIds.size > 0) { setValidationError('Enter a price for every book above, or clear all of them to set one total price instead.'); return }
     if (nextTotalInvalid) { setValidationError('Price must be 0 or greater.'); return }
     if (nextShippingInvalid) { setValidationError('Shipping must be 0 or greater.'); return }
     if (nextInvalidFeeKeys.size > 0) { setValidationError('Fee amounts must be 0 or greater.'); return }
@@ -205,6 +238,7 @@ export function CollectionFormModal({
       feeEntries,
       discountEntries,
       feeTemplates,
+      editionPrices,
       selectedVariants,
       selectedEditionIds,
     })
@@ -262,17 +296,41 @@ export function CollectionFormModal({
                         onChange={() => setSelectedEditionIds(prev =>
                           checked ? prev.filter(id => id !== ed.editionId) : [...prev, ed.editionId]
                         )}
-                        className="w-4 h-4 accent-amber-500 shrink-0"
+                        className="w-4 h-4 accent-brand-500 shrink-0"
                       />
-                      <span className="text-sm text-stone-300 leading-tight">
+                      <span className="text-sm text-stone-300 leading-tight flex-1">
                         {ed.edition?.book?.title ?? 'Edition'}
                       </span>
+                      {checked && selectedEditionIds.length > 1 && (
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          value={editionPrices[ed.editionId] ?? ''}
+                          onChange={e => {
+                            setEditionPrices(prev => ({ ...prev, [ed.editionId]: e.target.value }))
+                            if (invalidPriceEditionIds.has(ed.editionId)) {
+                              setInvalidPriceEditionIds(prev => { const next = new Set(prev); next.delete(ed.editionId); return next })
+                              setValidationError(null)
+                            }
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          className={`w-16 bg-stone-800 border rounded px-1.5 py-0.5 text-stone-100 text-xs text-right shrink-0 ${invalidPriceEditionIds.has(ed.editionId) ? 'border-red-500/70' : 'border-stone-600'}`}
+                        />
+                      )}
                     </label>
                   )
                 })}
               </div>
               {selectedEditionIds.length === 0 && (
                 <p className="text-xs text-red-400">Select at least one edition</p>
+              )}
+              {selectedEditionIds.length > 1 && (
+                <p className="text-[11px] text-stone-500">
+                  {perBookPriceMode
+                    ? `Pricing books individually — fill in all ${selectedEditionIds.length}, total below is calculated automatically.`
+                    : 'Leave every book price blank and set one total below to split it evenly — or price each book individually here instead.'}
+                </p>
               )}
             </div>
           )}
@@ -295,7 +353,7 @@ export function CollectionFormModal({
                           value={v.signatureType}
                           checked={selectedVariants[ed.editionId] === v.signatureType}
                           onChange={() => setSelectedVariants(prev => ({ ...prev, [ed.editionId]: v.signatureType }))}
-                          className="accent-amber-500"
+                          className="accent-brand-500"
                         />
                         <span className="text-sm text-stone-300">
                           {SIGNATURE_LABELS[v.signatureType] ?? v.signatureType}
@@ -314,8 +372,15 @@ export function CollectionFormModal({
           {/* Price / Shipping / Currency */}
           <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
             <div>
-              <label className={LABEL}>Price paid (optional)</label>
-              <input type="text" value={totalAmount} onChange={e => { setTotalAmount(e.target.value); if (totalInvalid) { setTotalInvalid(false); setValidationError(null) } }} placeholder="0.00" className={inpErr(INPUT, totalInvalid)} />
+              <label className={LABEL}>{perBookPriceMode ? 'Price paid' : 'Price paid (optional)'}</label>
+              <input
+                type="text"
+                value={totalAmount}
+                disabled={perBookPriceMode}
+                onChange={e => { setTotalAmount(e.target.value); if (totalInvalid) { setTotalInvalid(false); setValidationError(null) } }}
+                placeholder="0.00"
+                className={`${inpErr(INPUT, totalInvalid)} ${perBookPriceMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+              />
             </div>
             <div>
               <label className={LABEL}>Shipping (optional)</label>
@@ -328,6 +393,9 @@ export function CollectionFormModal({
               </select>
             </div>
           </div>
+          {perBookPriceMode && (
+            <p className="text-[11px] text-stone-500 -mt-2">Price paid is calculated automatically from the book prices above.</p>
+          )}
 
           {/* Additional fees */}
           <div>
@@ -335,7 +403,7 @@ export function CollectionFormModal({
               <span className="text-xs font-medium text-stone-400">Additional fees (optional)</span>
               <button type="button"
                 onClick={() => { feeKeyRef.current++; setFeeEntries(prev => [...prev, { key: feeKeyRef.current, templateId: '', amount: '', currency, name: '', category: 'OTHER' }]) }}
-                className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors">
+                className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 transition-colors">
                 <Plus size={12} /> Add fee
               </button>
             </div>
@@ -354,7 +422,7 @@ export function CollectionFormModal({
                             currency: t.defaultCurrency ?? f.currency,
                             category: t.category ?? f.category,
                           } : f))}
-                          className={`px-2 py-0.5 rounded text-xs border transition-colors ${fee.templateId === t.id ? 'border-amber-500/60 text-amber-400' : 'border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400'}`}
+                          className={`px-2 py-0.5 rounded text-xs border transition-colors ${fee.templateId === t.id ? 'border-brand-500/60 text-brand-400' : 'border-stone-600 text-stone-400 hover:border-brand-500/40 hover:text-brand-400'}`}
                         >
                           {t.name}
                         </button>
@@ -376,10 +444,10 @@ export function CollectionFormModal({
                         <input type="text" value={fee.name}
                           onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, name: e.target.value } : f))}
                           placeholder="Fee name"
-                          className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs placeholder:text-stone-500 focus:outline-none focus:border-amber-400 transition-colors" />
+                          className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors" />
                         <select value={fee.category}
                           onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, category: e.target.value } : f))}
-                          className="w-32 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors">
+                          className="w-32 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors">
                           {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                         </select>
                       </>
@@ -396,10 +464,10 @@ export function CollectionFormModal({
                         if (invalidFeeKeys.has(fee.key)) { setInvalidFeeKeys(prev => { const next = new Set(prev); next.delete(fee.key); return next }); setValidationError(null) }
                       }}
                       placeholder="0.00"
-                      className={inpErr('w-24 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors', invalidFeeKeys.has(fee.key))} />
+                      className={inpErr('w-24 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors', invalidFeeKeys.has(fee.key))} />
                     <select value={fee.currency}
                       onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, currency: e.target.value } : f))}
-                      className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-amber-400 transition-colors">
+                      className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors">
                       {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
@@ -480,7 +548,7 @@ export function CollectionFormModal({
               Cancel
             </button>
             <button type="submit" disabled={submitting || (editions.length > 1 && selectedEditionIds.length === 0)}
-              className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
+              className="flex-1 flex items-center justify-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
               <MoveRight size={14} />
               {submitting ? 'Saving…' : submitLabel}
             </button>

@@ -51,9 +51,25 @@ export class CurrencyService {
     }
 
     // 2. Fetch from Frankfurter API
-    const rate = await this.fetchAndCache(from, to, targetDate);
-    this.setCache(cacheKey, rate, dateStr);
-    return rate;
+    try {
+      const rate = await this.fetchAndCache(from, to, targetDate);
+      this.setCache(cacheKey, rate, dateStr);
+      return rate;
+    } catch (err) {
+      // 3. Frankfurter unreachable — fall back to the last known rate on file,
+      // however old, rather than a hard failure. Not written to ExchangeRateHistory
+      // (that stays reserved for real fetched rates) and cached only briefly so the
+      // next request retries the real fetch instead of getting stuck on stale data.
+      if (cached) {
+        const rate = Number(cached.rate);
+        this.logger.warn(
+          `Falling back to stale rate for ${from}→${to} (from ${cached.date.toISOString().slice(0, 10)}) after fetch failure for ${dateStr}`,
+        );
+        this.setFallbackCache(cacheKey, rate);
+        return rate;
+      }
+      throw err;
+    }
   }
 
   /**
@@ -223,6 +239,11 @@ export class CurrencyService {
     // Today's rate expires in 1 hour (may update); past rates expire in 24 hours
     const ttl = dateStr === today ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
     this.rateCache.set(key, { rate, expiresAt: Date.now() + ttl });
+  }
+
+  /** Short-lived cache entry for a stale fallback rate — retries the real fetch again in 3 minutes. */
+  private setFallbackCache(key: string, rate: number): void {
+    this.rateCache.set(key, { rate, expiresAt: Date.now() + 3 * 60 * 1000 });
   }
 
   private async fetchAndCache(from: string, to: string, date: Date): Promise<number> {

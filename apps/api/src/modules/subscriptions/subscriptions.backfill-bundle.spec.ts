@@ -232,7 +232,7 @@ describe('SubscriptionsService — backfillSubscription bundle subscriptions', (
     expect(prisma.userBookEntry.create).toHaveBeenCalledTimes(6);
   });
 
-  it('a book price override tagged to a non-primary month in the bundle still updates the group total', async () => {
+  it('a book price override tagged to a non-primary month in the bundle is a paid extra on top of the bundle total, across all three books', async () => {
     const sub = makeSub();
     jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
 
@@ -242,14 +242,20 @@ describe('SubscriptionsService — backfillSubscription bundle subscriptions', (
     await service.backfillSubscription(USER_ID, SUB_SLUG, {
       selectedMonthIds: ['m-apr', 'm-may', 'm-jun'],
       // Override targets the June book specifically, not the bundle's primary (April) month.
-      bookPrices: [{ monthId: 'm-jun', editionId: 'ed-m-jun', price: 99.5 }],
+      // Bundle total is entry.basePrice (45.00, one payment for the whole quarter) — the
+      // override is a paid extra on top, so the resolved total grows beyond 45.00.
+      bookPrices: [{ monthId: 'm-jun', editionId: 'ed-m-jun', price: 20 }],
     } as any);
 
-    expect(prisma.userPurchaseGroup.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'pg-bundle-1' },
-        data: { totalAmount: 99.5 },
-      }),
+    // Resolved and folded into create() up front — never a separate update() that could
+    // silently overwrite the bundle's totalAmount with just the override price.
+    expect(prisma.userPurchaseGroup.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ totalAmount: 65, priceDistribution: 'CUSTOM' }) }), // 20 + 22.5 + 22.5
     );
+    const createCalls = (prisma.userBookEntry.create as jest.Mock).mock.calls;
+    const byEdition = Object.fromEntries(createCalls.map((c: any) => [c[0].data.editionId, c[0].data.basePrice]));
+    // ed-m-jun: its exact extra price. April + May each keep the FULL bundle share (45/2 =
+    // 22.5), not a shrunken (45-20)/2 = 12.5 — an extra adds on top, it doesn't carve in.
+    expect(byEdition).toEqual({ 'ed-m-apr': 22.5, 'ed-m-may': 22.5, 'ed-m-jun': 20 });
   });
 });

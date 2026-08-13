@@ -66,7 +66,7 @@ export function WishlistButton({ editionId }: WishlistButtonProps) {
   if (status === 'collection') {
     return (
       <span className="inline-flex items-center gap-1.5 text-sm text-stone-400">
-        <BookmarkCheck size={15} className="text-amber-400" />
+        <BookmarkCheck size={15} className="text-brand-400" />
         In your collection
       </span>
     )
@@ -78,7 +78,7 @@ export function WishlistButton({ editionId }: WishlistButtonProps) {
         onClick={handleRemove}
         disabled={isPending}
         title="Remove from wishlist"
-        className="inline-flex items-center gap-2 text-amber-400 hover:text-amber-300 disabled:opacity-50 text-sm transition-colors"
+        className="inline-flex items-center gap-2 text-brand-400 hover:text-brand-300 disabled:opacity-50 text-sm transition-colors"
       >
         <BookmarkCheck size={16} />
         On Wishlist

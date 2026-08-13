@@ -49,9 +49,9 @@ export default async function BlogAboutPage() {
         </h1>
 
         {/* Excerpt */}
-        {(page.custom_excerpt ?? page.excerpt) && (
+        {page.custom_excerpt && (
           <p className="text-lg leading-relaxed mb-8 font-medium" style={{ color: 'var(--text-dim)' }}>
-            {page.custom_excerpt ?? page.excerpt}
+            {page.custom_excerpt}
           </p>
         )}
 

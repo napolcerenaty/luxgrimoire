@@ -352,7 +352,7 @@ export default function WishlistPage() {
                         e.preventDefault(); e.stopPropagation()
                         setMoveEntry(entry)
                       }}
-                      className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-stone-950 font-semibold px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
+                      className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
                     >
                       <MoveRight size={12} />
                       Move to Collection
@@ -399,7 +399,7 @@ export default function WishlistPage() {
                       key={val}
                       onClick={() => setTimeFilter(val)}
                       className={`px-3 py-2 capitalize transition-colors border-r border-stone-700 last:border-0 ${
-                        timeFilter === val ? 'bg-amber-500/20 text-amber-400' : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+                        timeFilter === val ? 'bg-brand-500/20 text-brand-400' : 'bg-stone-800 text-stone-400 hover:text-stone-200'
                       }`}
                     >
                       {val === 'upcoming' ? 'Upcoming' : val === 'past' ? 'Past' : 'All'}
@@ -412,13 +412,13 @@ export default function WishlistPage() {
                   onClick={() => setShowSaleFilters(p => !p)}
                   aria-expanded={showSaleFilters}
                   className={`relative flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
-                    showSaleFilters ? 'bg-stone-700 border-amber-600 text-amber-400' : 'bg-stone-800 border-stone-700 text-stone-300'
+                    showSaleFilters ? 'bg-stone-700 border-brand-600 text-brand-400' : 'bg-stone-800 border-stone-700 text-stone-300'
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
                   Filters
                   {activeFilterChips.length > 0 && (
-                    <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-amber-600 text-[10px] font-semibold text-stone-950">
+                    <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-brand-600 text-[10px] font-semibold text-stone-950">
                       {activeFilterChips.length}
                     </span>
                   )}
@@ -435,7 +435,7 @@ export default function WishlistPage() {
                     <select
                       value={companyFilter}
                       onChange={(e) => setCompanyFilter(e.target.value)}
-                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-amber-600 sm:w-44"
+                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-brand-600 sm:w-44"
                     >
                       <option value="">All companies</option>
                       {filterCompanies.map((c) => (
@@ -447,7 +447,7 @@ export default function WishlistPage() {
                     <select
                       value={saleTypeFilter}
                       onChange={(e) => setSaleTypeFilter(e.target.value)}
-                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-amber-600 sm:w-40"
+                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-brand-600 sm:w-40"
                     >
                       <option value="">All types</option>
                       <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
@@ -456,7 +456,7 @@ export default function WishlistPage() {
                     </select>
 
                     {/* Date from */}
-                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-amber-600 sm:w-auto">
+                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-brand-600 sm:w-auto">
                       <span className="shrink-0 text-stone-500">From</span>
                       <input
                         type="date"
@@ -467,7 +467,7 @@ export default function WishlistPage() {
                     </label>
 
                     {/* Date to */}
-                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-amber-600 sm:w-auto">
+                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-brand-600 sm:w-auto">
                       <span className="shrink-0 text-stone-500">To</span>
                       <input
                         type="date"
@@ -488,7 +488,7 @@ export default function WishlistPage() {
                     <button
                       key={chip.key}
                       onClick={chip.onRemove}
-                      className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-amber-950/40 border border-amber-800/50 text-amber-300 text-xs hover:bg-amber-950/70 transition-colors capitalize"
+                      className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-brand-950/40 border border-brand-800/50 text-brand-300 text-xs hover:bg-brand-950/70 transition-colors capitalize"
                     >
                       {chip.label}
                       <X className="w-3 h-3" />
@@ -523,7 +523,7 @@ export default function WishlistPage() {
                   const tl = interest.saleTier?.name ?? 'General Sale'
 
                   return (
-                    <div key={sa.id} className="relative flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-amber-700/60 transition-all hover:shadow-xl hover:shadow-amber-900/10 group">
+                    <div key={sa.id} className="relative flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10 group">
                       {/* Image — same 2/3 portrait ratio as AnnouncementCard/EditionCard */}
                       <div className="relative aspect-[2/3] bg-stone-950 overflow-hidden rounded-t-2xl">
                         {coverSrc ? (
@@ -555,7 +555,7 @@ export default function WishlistPage() {
                         )}
                       </div>
                       <div className="p-3 space-y-2">
-                        <p className="text-stone-100 text-sm font-medium leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors">{sa.title}</p>
+                        <p className="text-stone-100 text-sm font-medium leading-tight line-clamp-2 group-hover:text-brand-400 transition-colors">{sa.title}</p>
                         {dateLabel && (
                           <p className="text-xs text-stone-500 flex items-center gap-1">
                             <Tag size={10} />
@@ -583,7 +583,7 @@ export default function WishlistPage() {
                             <button
                               onClick={() => openAddModal(sa.id)}
                               disabled={addModalLoading === sa.id}
-                              className="flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg transition-colors bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 disabled:opacity-50 w-full"
+                              className="flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg transition-colors bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 border border-brand-700 disabled:opacity-50 w-full"
                             >
                               <ShoppingCart size={13} />
                               {addModalLoading === sa.id ? '…' : 'Add'}

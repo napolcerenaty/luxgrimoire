@@ -284,7 +284,7 @@ export default function SubscriptionInfoPanel({
             <button
               type="button"
               onClick={() => openEditCosts()}
-              className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
+              className="text-xs text-brand-500 hover:text-brand-400 transition-colors"
             >
               ✏️ Edit costs
             </button>
@@ -425,7 +425,7 @@ export default function SubscriptionInfoPanel({
           {futurePriceChanges
             .filter(pc => preferredCurrencyPrice ? pc.currency === userCurrency : true)
             .map(pc => (
-              <p key={`${pc.effectiveYear}-${pc.effectiveMonth}-${pc.currency}`} className="text-xs text-amber-500/80 mt-1">
+              <p key={`${pc.effectiveYear}-${pc.effectiveMonth}-${pc.currency}`} className="text-xs text-brand-500/80 mt-1">
                 From {MONTHS_SHORT[pc.effectiveMonth - 1]} {pc.effectiveYear}: {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}/mo
                 {!preferredCurrencyPrice && convertedRate && userCurrency && pc.currency === currency && (
                   <> ≈ {(parseFloat(pc.newBasePrice) * convertedRate).toFixed(2)} {userCurrency}/mo</>
@@ -441,7 +441,7 @@ export default function SubscriptionInfoPanel({
           </p>
           <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
           {futurePriceChanges.map(pc => (
-            <p key={`${pc.effectiveYear}-${pc.effectiveMonth}`} className="text-xs text-amber-500/80 mt-1">
+            <p key={`${pc.effectiveYear}-${pc.effectiveMonth}`} className="text-xs text-brand-500/80 mt-1">
               From {MONTHS_SHORT[pc.effectiveMonth - 1]} {pc.effectiveYear}: {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}/mo
             </p>
           ))}
@@ -520,7 +520,7 @@ export default function SubscriptionInfoPanel({
                 <span className="text-[10px] text-purple-600/80 ml-0.5">series skip</span>
               )}
               {!s.canCancelDuring && (
-                <span className="text-[10px] text-amber-600/70 ml-0.5">no cancel</span>
+                <span className="text-[10px] text-brand-600/70 ml-0.5">no cancel</span>
               )}
             </div>
           ))}
@@ -551,7 +551,7 @@ export default function SubscriptionInfoPanel({
             <button
               type="button"
               onClick={() => openJoinModal()}
-              className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+              className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
             >
               + Add to my subscriptions
             </button>
@@ -769,7 +769,7 @@ function EditEntryCostsModal({
               type="checkbox"
               checked={isForwarding}
               onChange={e => setIsForwarding(e.target.checked)}
-              className="rounded border-stone-600 bg-stone-800 text-amber-500"
+              className="rounded border-stone-600 bg-stone-800 text-brand-500"
             />
             <span className="text-sm text-stone-300">📦 Forwarding packages</span>
           </label>
@@ -834,7 +834,7 @@ function EditEntryCostsModal({
                         key={t.id}
                         type="button"
                         onClick={() => toggleTemplate(t)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-full border border-stone-700 text-stone-400 text-xs hover:border-amber-600 hover:text-amber-400 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 rounded-full border border-stone-700 text-stone-400 text-xs hover:border-brand-600 hover:text-brand-400 transition-colors"
                       >
                         <span>+</span>
                         <span>{t.name}</span>
@@ -893,7 +893,7 @@ function EditEntryCostsModal({
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+            className="flex-1 py-2 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save changes'}
           </button>
@@ -987,7 +987,7 @@ function SkipPoliciesInfoPanel({ policies }: { policies: ApiSubscriptionSkipPoli
         <div className="flex flex-col gap-4">
           {policies.map(policy => (
             <div key={policy.billingType} className="flex flex-col gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500/80">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-brand-500/80">
                 {billingTypeLabel(policy.billingType ?? 'ALL')}
               </p>
               <SkipPolicyInfoPanel policy={policy} />

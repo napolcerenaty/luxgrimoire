@@ -438,7 +438,7 @@ export default function CreateBookEditionForm({
       }
     }
     return (
-      <div className="space-y-4 p-4 bg-stone-800/60 rounded-xl border border-amber-700/30">
+      <div className="space-y-4 p-4 bg-stone-800/60 rounded-xl border border-brand-700/30">
         <p className="text-sm text-stone-300 font-semibold">✓ New edition created!</p>
         <p className="text-sm text-stone-400">
           {linkMode === 'variant'
@@ -451,7 +451,7 @@ export default function CreateBookEditionForm({
         </div>
         <div className="flex gap-2">
           <button type="button" disabled={linkBusy || linkDone} onClick={handleLink}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-50 transition-colors">
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand-400 text-stone-950 hover:bg-brand-300 disabled:opacity-50 transition-colors">
             {linkDone ? '✓ Linked!' : linkBusy ? 'Linking…' : linkMode === 'variant' ? 'Link as variant' : 'Link as re-edition'}
           </button>
           <button type="button" onClick={() => onSuccess(createdEditionId ?? undefined)}
@@ -502,7 +502,7 @@ export default function CreateBookEditionForm({
           <div className="flex flex-wrap gap-1.5 mt-2">
             {authors.map((a, i) => (
               <span key={i} className="flex items-center gap-1.5 bg-stone-700 text-stone-200 text-xs px-2.5 py-1 rounded-full">
-                {!a.id && <span className="text-amber-400 text-[9px] font-semibold uppercase">new</span>}
+                {!a.id && <span className="text-brand-400 text-[9px] font-semibold uppercase">new</span>}
                 {a.name}
                 <button onClick={() => setAuthors(authors.filter((_, j) => j !== i))}
                   className="text-stone-500 hover:text-red-400">×</button>
@@ -523,7 +523,7 @@ export default function CreateBookEditionForm({
               type="checkbox"
               checked={isOmnibus}
               onChange={e => setIsOmnibus(e.target.checked)}
-              className="w-4 h-4 accent-amber-400"
+              className="w-4 h-4 accent-brand-400"
             />
             <span className={LBL}>Is omnibus (contains multiple volumes/titles)</span>
           </label>
@@ -568,7 +568,7 @@ export default function CreateBookEditionForm({
                   setStep(2)
                 }
               }}
-              className="px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold rounded-lg transition-colors">
+              className="px-3 py-1.5 text-xs bg-brand-600 hover:bg-brand-500 text-stone-950 font-semibold rounded-lg transition-colors">
               Use existing book →
             </button>
             <a href={`/books/${duplicateBook.slug}`} target="_blank" rel="noopener noreferrer"
@@ -635,7 +635,7 @@ export default function CreateBookEditionForm({
           className={INP}
         />
         {sourceEditionId && (
-          <p className="text-xs text-amber-500/80 mt-1">This will be linked as a variant of the edition you duplicated from.</p>
+          <p className="text-xs text-brand-500/80 mt-1">This will be linked as a variant of the edition you duplicated from.</p>
         )}
       </div>
 
@@ -676,7 +676,7 @@ export default function CreateBookEditionForm({
             <button
               type="button"
               onClick={() => { setLinkMode('history'); setBypassDuplicate(true); handleStep2(true) }}
-              className="px-3 py-1.5 text-xs bg-amber-700 hover:bg-amber-600 text-amber-100 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs bg-brand-700 hover:bg-brand-600 text-brand-100 rounded-lg transition-colors"
             >
               Create anyway (re-edition)
             </button>

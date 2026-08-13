@@ -48,7 +48,7 @@ export default async function CollectionPage({ params }: Props) {
         {collection.company && (
           <Link
             href={`/companies/${collection.company.slug}`}
-            className="inline-flex items-center gap-2 text-xs text-amber-500 hover:text-amber-400 uppercase tracking-widest font-medium transition-colors mb-4"
+            className="inline-flex items-center gap-2 text-xs text-brand-500 hover:text-brand-400 uppercase tracking-widest font-medium transition-colors mb-4"
           >
             {collection.company.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -92,7 +92,7 @@ export default async function CollectionPage({ params }: Props) {
               <Link
                 key={edition.id}
                 href={href}
-                className="group flex flex-col rounded-lg overflow-hidden border border-stone-700 hover:border-amber-600/60 transition-all"
+                className="group flex flex-col rounded-lg overflow-hidden border border-stone-700 hover:border-brand-600/60 transition-all"
                 style={{ background: 'var(--bg-raised)' }}
               >
                 {/* Cover */}
@@ -115,12 +115,12 @@ export default async function CollectionPage({ params }: Props) {
                 {/* Info */}
                 <div className="px-2.5 pt-2 pb-2">
                   <div className="h-[2.25rem] overflow-hidden mb-1">
-                    <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+                    <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
                       {displayTitle || 'Unknown'}
                     </p>
                   </div>
                   {customName && (
-                    <p className="text-[10px] text-amber-500/70 font-medium line-clamp-1 leading-tight mb-0.5">{customName}</p>
+                    <p className="text-[10px] text-brand-500/70 font-medium line-clamp-1 leading-tight mb-0.5">{customName}</p>
                   )}
                   <p className="text-[10px] text-stone-500 line-clamp-1 font-sans leading-tight">
                     {book?.seriesName

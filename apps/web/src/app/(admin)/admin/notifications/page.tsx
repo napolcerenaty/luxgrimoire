@@ -8,7 +8,7 @@ import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 
 const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 const LABEL_CLASS = 'block text-xs text-stone-400 mb-1 font-medium uppercase tracking-wide'
 
 type TargetType = 'all' | 'role' | 'users'
@@ -120,7 +120,7 @@ export default function AdminNotificationsPage() {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
-        <Bell size={22} className="text-amber-400" />
+        <Bell size={22} className="text-brand-400" />
         <h1 className="text-2xl font-bold text-stone-100">Notifications</h1>
       </div>
 
@@ -128,7 +128,7 @@ export default function AdminNotificationsPage() {
         {/* ─── Send Notification ─────────────────────────────────────────────── */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-5">
-            <Send size={16} className="text-amber-400" />
+            <Send size={16} className="text-brand-400" />
             <h2 className="text-base font-semibold text-stone-100">Send Notification</h2>
           </div>
 
@@ -143,7 +143,7 @@ export default function AdminNotificationsPage() {
                     onClick={() => { setTargetType(t); setSelectedUsers([]) }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
                       targetType === t
-                        ? 'bg-amber-400 text-stone-950'
+                        ? 'bg-brand-400 text-stone-950'
                         : 'bg-stone-800 text-stone-400 hover:text-stone-200'
                     }`}
                   >
@@ -286,7 +286,7 @@ export default function AdminNotificationsPage() {
               <button
                 onClick={() => sendMutation.mutate()}
                 disabled={!title.trim() || sendMutation.isPending || (targetType === 'users' && selectedUsers.length === 0)}
-                className="flex items-center gap-2 bg-amber-400 text-stone-950 font-semibold px-5 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 transition-colors text-sm"
+                className="flex items-center gap-2 bg-brand-400 text-stone-950 font-semibold px-5 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors text-sm"
               >
                 <Send size={14} />
                 {sendMutation.isPending ? 'Sending…' : 'Send'}
@@ -303,7 +303,7 @@ export default function AdminNotificationsPage() {
         {/* ─── Settings ─────────────────────────────────────────────────────── */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-5">
-            <Settings size={16} className="text-amber-400" />
+            <Settings size={16} className="text-brand-400" />
             <h2 className="text-base font-semibold text-stone-100">Settings</h2>
           </div>
 
@@ -339,7 +339,7 @@ export default function AdminNotificationsPage() {
         {/* ─── Cleanup ──────────────────────────────────────────────────────── */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Trash2 size={16} className="text-amber-400" />
+            <Trash2 size={16} className="text-brand-400" />
             <h2 className="text-base font-semibold text-stone-100">Maintenance</h2>
           </div>
           <p className="text-stone-500 text-sm mb-4">

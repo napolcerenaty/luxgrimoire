@@ -422,6 +422,10 @@ export interface CreatePurchaseGroupData {
   editionIds: string[];
   editionSignatureTypes?: Record<string, string>;
   editionSaleAnnouncementEditionIds?: Record<string, string>;
+  /** How basePrice is allocated across editionIds. Defaults to EQUAL (split evenly) when omitted. */
+  priceDistribution?: 'EQUAL' | 'CUSTOM';
+  /** Map of editionId → basePrice. Required (per editionId) when priceDistribution is 'CUSTOM'. */
+  editionPrices?: Record<string, number>;
 }
 
 export interface UpdatePurchaseGroupData {
@@ -431,6 +435,9 @@ export interface UpdatePurchaseGroupData {
   shippingAmount?: number;
   purchasedAt?: string;
   notes?: string;
+  priceDistribution?: 'EQUAL' | 'CUSTOM';
+  /** Map of userBookEntry id → basePrice. Required (per entry) when priceDistribution is 'CUSTOM'. */
+  entryPrices?: Record<string, number>;
 }
 
 export async function getPurchaseGroups(): Promise<import('@luxgrimoire/shared-types').ApiPurchaseGroup[]> {
