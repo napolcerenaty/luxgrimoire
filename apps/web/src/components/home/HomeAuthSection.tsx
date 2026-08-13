@@ -89,7 +89,7 @@ function HeroShell({
 
         {hasSales ? (
           <div className="mx-auto mb-7 max-w-lg">
-            <p className="mb-3 text-xs uppercase tracking-widest text-stone-500">
+            <p className="mb-3 text-xs uppercase tracking-widest text-navy-500">
               Your upcoming sales
             </p>
             <div className="flex flex-col gap-1.5">
@@ -97,13 +97,13 @@ function HeroShell({
                 <Link
                   key={s.announcementId}
                   href={`/sale-announcements/${s.announcement.id}`}
-                  className="flex flex-col items-center gap-1.5 rounded-lg border border-stone-700/60 bg-stone-900/60 px-3 py-3 text-center transition-colors hover:border-stone-600 hover:bg-stone-800/60"
+                  className="flex flex-col items-center gap-1.5 rounded-lg border border-navy-700/60 bg-navy-900/60 px-3 py-3 text-center transition-colors hover:border-navy-600 hover:bg-navy-800/60"
                 >
                   <div>
                     {s.announcement.company && (
-                      <p className="text-[11px] text-stone-400">{s.announcement.company.name}</p>
+                      <p className="text-[11px] text-navy-400">{s.announcement.company.name}</p>
                     )}
-                    <span className="block text-sm font-medium leading-snug text-stone-100">{s.announcement.title}</span>
+                    <span className="block text-sm font-medium leading-snug text-navy-100">{s.announcement.title}</span>
                   </div>
                   {s.saleTier?.date && (
                     <SaleRowCountdown dateStr={s.saleTier.date} className="" />
@@ -113,13 +113,13 @@ function HeroShell({
             </div>
             <Link
               href="/wishlist?tab=sales"
-              className="mt-2 inline-block text-[11px] text-stone-500 transition-colors hover:text-stone-300"
+              className="mt-2 inline-block text-[11px] text-navy-500 transition-colors hover:text-navy-300"
             >
               View all followed sales →
             </Link>
           </div>
         ) : (
-          <p className="mx-auto mb-7 max-w-xl text-sm leading-relaxed text-stone-400">
+          <p className="mx-auto mb-7 max-w-xl text-sm leading-relaxed text-navy-400">
             Track special editions, manage your collection, follow subscription boxes,
             and keep up with your book spending — all in one place.
           </p>
@@ -129,13 +129,13 @@ function HeroShell({
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/companies"
-              className="rounded-full bg-brand-600 px-6 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-brand-500"
+              className="rounded-full bg-brand-600 px-6 py-3 font-serif text-sm font-semibold text-navy-950 transition-colors hover:bg-brand-500"
             >
               Browse Book Boxes
             </Link>
             <Link
               href="/subscriptions"
-              className="rounded-full border border-stone-600 px-6 py-3 font-serif text-sm text-stone-300 transition-colors hover:border-stone-400 hover:text-stone-100"
+              className="rounded-full border border-navy-600 px-6 py-3 font-serif text-sm text-navy-300 transition-colors hover:border-navy-400 hover:text-navy-100"
             >
               Browse Subscriptions
             </Link>
@@ -169,7 +169,7 @@ export function HomeGuestFeatures() {
   return (
     <section className="py-12">
       <div className="container mx-auto max-w-5xl px-4">
-        <h2 className="mb-8 text-center font-serif text-2xl text-stone-100">
+        <h2 className="mb-8 text-center font-serif text-2xl text-navy-100">
           Everything you need to manage your collection
         </h2>
       </div>
@@ -177,7 +177,7 @@ export function HomeGuestFeatures() {
       <div className="mt-6 flex justify-center">
         <Link
           href="/register"
-          className="rounded-full bg-brand-600 px-8 py-3 font-serif text-sm font-semibold text-stone-950 transition-colors hover:bg-brand-500"
+          className="rounded-full bg-brand-600 px-8 py-3 font-serif text-sm font-semibold text-navy-950 transition-colors hover:bg-brand-500"
         >
           Get started free →
         </Link>

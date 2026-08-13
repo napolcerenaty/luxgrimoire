@@ -102,13 +102,13 @@ export function SearchDropdown() {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && goSearch()}
           placeholder="Search books, editions…"
-          className="w-full bg-stone-800/80 border border-stone-700 rounded-full pl-4 pr-9 py-1.5 text-xs text-stone-200 placeholder:text-stone-500 focus:outline-none focus:border-brand-600 transition-colors"
+          className="w-full bg-navy-800/80 border border-navy-700 rounded-full pl-4 pr-9 py-1.5 text-xs text-navy-200 placeholder:text-navy-500 focus:outline-none focus:border-brand-600 transition-colors"
         />
         {query ? (
           <button
             type="button"
             onClick={() => { setQuery(''); setResults(null); inputRef.current?.focus() }}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-brand-400 transition-colors"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-navy-400 hover:text-brand-400 transition-colors"
           >
             <X size={13} />
           </button>
@@ -116,7 +116,7 @@ export function SearchDropdown() {
           <button
             type="button"
             onClick={goSearch}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-brand-400 transition-colors"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-navy-400 hover:text-brand-400 transition-colors"
           >
             <Search size={13} className={loading ? 'animate-pulse' : ''} />
           </button>
@@ -124,10 +124,10 @@ export function SearchDropdown() {
       </div>
 
       {open && (
-        <div className="absolute top-full mt-2 left-0 w-80 max-h-[70vh] overflow-y-auto rounded-xl border border-stone-700 bg-stone-900 shadow-2xl z-[200]">
+        <div className="absolute top-full mt-2 left-0 w-80 max-h-[70vh] overflow-y-auto rounded-xl border border-navy-700 bg-navy-900 shadow-2xl z-[200]">
           {results !== null && total === 0 ? (
             <div className="px-4 py-4 space-y-2">
-              <p className="text-xs text-stone-400">Didn&apos;t find what you&apos;re looking for?</p>
+              <p className="text-xs text-navy-400">Didn&apos;t find what you&apos;re looking for?</p>
               <div className="flex flex-col gap-1.5">
                 <button
                   onClick={() => navigate('/data-requests')}
@@ -137,7 +137,7 @@ export function SearchDropdown() {
                 </button>
                 <button
                   onClick={() => navigate('/sale-announcement-requests')}
-                  className="text-left text-xs text-stone-500 hover:text-stone-400 transition-colors"
+                  className="text-left text-xs text-navy-500 hover:text-navy-400 transition-colors"
                 >
                   📢 Report a sale announcement →
                 </button>
@@ -243,7 +243,7 @@ export function SearchDropdown() {
               {total > 0 && (
                 <button
                   onClick={goSearch}
-                  className="w-full text-left px-4 py-2.5 text-xs text-brand-500 hover:bg-stone-800 border-t border-stone-800 transition-colors"
+                  className="w-full text-left px-4 py-2.5 text-xs text-brand-500 hover:bg-navy-800 border-t border-navy-800 transition-colors"
                 >
                   See all results for &ldquo;{query}&rdquo;
                 </button>
@@ -296,27 +296,27 @@ function ResultGroup({
 
   return (
     <div>
-      <div className="flex items-center gap-1.5 px-4 pt-2.5 pb-1 text-[10px] uppercase tracking-widest text-stone-500 font-semibold">
+      <div className="flex items-center gap-1.5 px-4 pt-2.5 pb-1 text-[10px] uppercase tracking-widest text-navy-500 font-semibold">
         {icon} {title}
       </div>
       {items.map((item) => (
         <button
           key={item.key}
           onClick={() => onNavigate(item.href)}
-          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-stone-800 transition-colors text-left"
+          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-navy-800 transition-colors text-left"
         >
           {(item.image || !item.noPlaceholder) && (
-            <div className="w-8 h-8 rounded-md bg-stone-800 shrink-0 overflow-hidden flex items-center justify-center">
+            <div className="w-8 h-8 rounded-md bg-navy-800 shrink-0 overflow-hidden flex items-center justify-center">
               {item.image ? (
                 <Image src={item.image} alt={item.label} width={32} height={32} className="w-full h-full object-cover" unoptimized />
               ) : (
-                <span className="text-stone-700"><BookOpen size={12} /></span>
+                <span className="text-navy-700"><BookOpen size={12} /></span>
               )}
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-stone-200 truncate">{highlight(item.label)}</p>
-            {item.sub && <p className="text-[10px] text-stone-500 truncate">{item.sub}</p>}
+            <p className="text-xs text-navy-200 truncate">{highlight(item.label)}</p>
+            {item.sub && <p className="text-[10px] text-navy-500 truncate">{item.sub}</p>}
           </div>
           {item.badge && (
             <span className="text-[9px] text-brand-600 border border-brand-800 rounded px-1 py-0.5 shrink-0 max-w-[70px] truncate">

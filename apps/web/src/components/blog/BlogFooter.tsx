@@ -25,7 +25,7 @@ export default function BlogFooter() {
             <Link href="/contact" className="transition-colors hover:text-[var(--accent-bright)]">Contact</Link>
             <Link
               href="/"
-              className="ml-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold font-serif transition-colors hover:bg-brand-700 hover:text-stone-950"
+              className="ml-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold font-serif transition-colors hover:bg-brand-700 hover:text-navy-950"
               style={{ borderColor: 'var(--accent-border)', color: 'var(--accent-bright)' }}
             >
               Open App →

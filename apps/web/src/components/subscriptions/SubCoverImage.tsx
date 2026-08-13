@@ -13,7 +13,7 @@ interface Props {
 export function SubCoverImage({ coverUrl, name, brandColors, aspectClass = 'aspect-square', hoverScale = true, imageActions }: Props) {
   const tc = brandTextClasses(brandColors)
   return (
-    <div className={`${aspectClass} relative overflow-hidden bg-stone-950 flex items-center justify-center`}>
+    <div className={`${aspectClass} relative overflow-hidden bg-navy-950 flex items-center justify-center`}>
       {coverUrl ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}

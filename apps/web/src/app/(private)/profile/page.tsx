@@ -59,8 +59,8 @@ const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'import', label: 'Import', icon: Upload },
 ]
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors'
-const LABEL = 'block text-xs font-medium text-stone-400 mb-1.5'
+const INPUT = 'w-full bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors'
+const LABEL = 'block text-xs font-medium text-navy-400 mb-1.5'
 
 const COUNTRIES: [string, string][] = [
   ['AL', 'Albania'], ['AD', 'Andorra'], ['AT', 'Austria'], ['BY', 'Belarus'],
@@ -244,12 +244,12 @@ export default function ProfilePage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-3xl font-serif font-bold text-stone-100">Settings</h1>
+        <h1 className="text-3xl font-serif font-bold text-navy-100">Settings</h1>
       </div>
 
       <div className="flex gap-6 items-start">
         {/* Sidebar nav */}
-        <nav className={`w-52 shrink-0 bg-stone-900 border border-stone-800 rounded-2xl p-2 ${mobileShowContent ? 'hidden md:block' : 'block w-full md:w-52'}`}>
+        <nav className={`w-52 shrink-0 bg-navy-900 border border-navy-800 rounded-2xl p-2 ${mobileShowContent ? 'hidden md:block' : 'block w-full md:w-52'}`}>
           {TAB_CONFIG.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -257,7 +257,7 @@ export default function ProfilePage() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
                 activeTab === id
                   ? 'bg-brand-500/10 text-brand-400'
-                  : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
+                  : 'text-navy-400 hover:text-navy-200 hover:bg-navy-800'
               }`}
             >
               <Icon size={15} className="shrink-0" />
@@ -271,7 +271,7 @@ export default function ProfilePage() {
           {/* Back button — mobile only */}
           <button
             onClick={() => setMobileShowContent(false)}
-            className="md:hidden flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-200 mb-4 transition-colors"
+            className="md:hidden flex items-center gap-1.5 text-sm text-navy-400 hover:text-navy-200 mb-4 transition-colors"
           >
             ← Settings
           </button>
@@ -279,11 +279,11 @@ export default function ProfilePage() {
       {/* Profile tab */}
       {activeTab === 'profile' && (
         <div className="space-y-6">
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
-            <h2 className="font-serif font-semibold text-stone-100 mb-4">Avatar</h2>
+          <div className="bg-navy-900 border border-navy-800 rounded-2xl p-6">
+            <h2 className="font-serif font-semibold text-navy-100 mb-4">Avatar</h2>
             <div className="flex items-center gap-6">
               <div className="relative">
-                <div className="w-20 h-20 rounded-full overflow-hidden bg-stone-800 border-2 border-stone-700">
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-navy-800 border-2 border-navy-700">
                   {avatarPreview ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={avatarPreview} alt={user.username} className="w-full h-full object-cover" />
@@ -294,7 +294,7 @@ export default function ProfilePage() {
                   )}
                 </div>
                 {uploadMutation.isPending && (
-                  <div className="absolute inset-0 bg-stone-950/70 rounded-full flex items-center justify-center">
+                  <div className="absolute inset-0 bg-navy-950/70 rounded-full flex items-center justify-center">
                     <Loader2 size={20} className="text-brand-400 animate-spin" />
                   </div>
                 )}
@@ -303,13 +303,13 @@ export default function ProfilePage() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadMutation.isPending}
-                  className="flex items-center gap-2 border border-stone-600 hover:border-brand-400 text-stone-300 hover:text-brand-400 px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 border border-navy-600 hover:border-brand-400 text-navy-300 hover:text-brand-400 px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50"
                 >
                   <Camera size={14} />
                   {uploadMutation.isPending ? 'Uploading...' : 'Change Avatar'}
                 </button>
                 {uploadError && <p className="text-xs text-red-400 mt-1">{uploadError}</p>}
-                <p className="text-xs text-stone-500 mt-1">JPG, PNG or WEBP, max 5MB</p>
+                <p className="text-xs text-navy-500 mt-1">JPG, PNG or WEBP, max 5MB</p>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
             </div>
@@ -320,9 +320,9 @@ export default function ProfilePage() {
               e.preventDefault()
               updateProfileMutation.mutate({ displayName, bio: bio || undefined })
             }}
-            className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4"
+            className="bg-navy-900 border border-navy-800 rounded-2xl p-6 space-y-4"
           >
-            <h2 className="font-serif font-semibold text-stone-100">Public Info</h2>
+            <h2 className="font-serif font-semibold text-navy-100">Public Info</h2>
             <div>
               <label className={LABEL}>Display Name</label>
               <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your display name" className={INPUT} />
@@ -334,7 +334,7 @@ export default function ProfilePage() {
             {profileError && (
               <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{profileError}</p>
             )}
-            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-navy-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
               {updateProfileMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : profileSuccess ? <><Check size={14} /> Saved!</> : 'Save Changes'}
             </button>
           </form>
@@ -344,10 +344,10 @@ export default function ProfilePage() {
       {/* Account tab */}
       {activeTab === 'account' && (
         <div className="space-y-6">
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
-            <h2 className="font-serif font-semibold text-stone-100 mb-4">Email</h2>
-            <p className="text-xs text-stone-500 mb-3">Your email address cannot be changed here.</p>
-            <input type="email" disabled value={user.email} className="w-full bg-stone-800 border border-stone-700 text-stone-500 rounded-xl px-4 py-2.5 text-sm cursor-not-allowed" />
+          <div className="bg-navy-900 border border-navy-800 rounded-2xl p-6">
+            <h2 className="font-serif font-semibold text-navy-100 mb-4">Email</h2>
+            <p className="text-xs text-navy-500 mb-3">Your email address cannot be changed here.</p>
+            <input type="email" disabled value={user.email} className="w-full bg-navy-800 border border-navy-700 text-navy-500 rounded-xl px-4 py-2.5 text-sm cursor-not-allowed" />
           </div>
 
           <form
@@ -356,11 +356,11 @@ export default function ProfilePage() {
               if (!newUsername.trim()) return
               updateUsernameMutation.mutate({ username: newUsername.trim() })
             }}
-            className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4"
+            className="bg-navy-900 border border-navy-800 rounded-2xl p-6 space-y-4"
           >
             <div>
-              <h2 className="font-serif font-semibold text-stone-100">Change Username</h2>
-              <p className="text-xs text-stone-400 mt-1">Changing your username may break existing links to your profile.</p>
+              <h2 className="font-serif font-semibold text-navy-100">Change Username</h2>
+              <p className="text-xs text-navy-400 mt-1">Changing your username may break existing links to your profile.</p>
             </div>
             <div>
               <label className={LABEL}>Username</label>
@@ -375,12 +375,12 @@ export default function ProfilePage() {
           </form>
 
           {/* Restart Tutorial */}
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-3">
+          <div className="bg-navy-900 border border-navy-800 rounded-2xl p-6 space-y-3">
             <div className="flex items-center gap-2">
               <PlayCircle size={16} className="text-brand-400 shrink-0" />
-              <h2 className="font-serif font-semibold text-stone-100">Tutorial</h2>
+              <h2 className="font-serif font-semibold text-navy-100">Tutorial</h2>
             </div>
-            <p className="text-sm text-stone-400">
+            <p className="text-sm text-navy-400">
               Want to see the getting started wizard again? Restart it any time.
             </p>
             <button
@@ -395,14 +395,14 @@ export default function ProfilePage() {
           </div>
 
           {/* Delete Account */}
-          <div className="bg-stone-900 border border-red-900/40 rounded-2xl p-6 space-y-4">
+          <div className="bg-navy-900 border border-red-900/40 rounded-2xl p-6 space-y-4">
             <div className="flex items-center gap-2">
               <AlertTriangle size={16} className="text-red-400 shrink-0" />
               <h2 className="font-serif font-semibold text-red-400">Delete Account</h2>
             </div>
-            <p className="text-sm text-stone-400">
+            <p className="text-sm text-navy-400">
               This will permanently delete your account and all associated data — collection, wishlist, subscriptions, spending history, and more.{' '}
-              <strong className="text-stone-200">This action cannot be undone.</strong>
+              <strong className="text-navy-200">This action cannot be undone.</strong>
             </p>
             <div>
               <label className={LABEL}>
@@ -413,7 +413,7 @@ export default function ProfilePage() {
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
                 placeholder={DELETE_PHRASE}
-                className="w-full bg-stone-800 border border-red-900/50 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-600 focus:outline-none focus:border-red-500 transition-colors"
+                className="w-full bg-navy-800 border border-red-900/50 text-navy-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-navy-600 focus:outline-none focus:border-red-500 transition-colors"
               />
             </div>
             {deleteAccountMutation.isError && (
@@ -442,9 +442,9 @@ export default function ProfilePage() {
               e.preventDefault()
               updateProfileMutation.mutate({ preferredCurrency, timezone, timeFormat, shippingCountry: shippingCountry.toUpperCase() || undefined })
             }}
-            className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-5"
+            className="bg-navy-900 border border-navy-800 rounded-2xl p-6 space-y-5"
           >
-            <h2 className="font-serif font-semibold text-stone-100">Preferences</h2>
+            <h2 className="font-serif font-semibold text-navy-100">Preferences</h2>
             <div>
               <label className={LABEL}>Preferred Currency</label>
               <select value={preferredCurrency} onChange={(e) => setPreferredCurrency(e.target.value)} className={INPUT}>
@@ -452,7 +452,7 @@ export default function ProfilePage() {
                   <option key={code} value={code}>{label}</option>
                 ))}
               </select>
-              <p className="text-xs text-stone-500 mt-1">Used for spending statistics and cost summaries</p>
+              <p className="text-xs text-navy-500 mt-1">Used for spending statistics and cost summaries</p>
             </div>
             <div>
               <label className={LABEL}>Default Shipping Country</label>
@@ -462,7 +462,7 @@ export default function ProfilePage() {
                   <option key={code} value={code}>{name}</option>
                 ))}
               </select>
-              <p className="text-xs text-stone-500 mt-1">Used as default when adding subscription shipping costs</p>
+              <p className="text-xs text-navy-500 mt-1">Used as default when adding subscription shipping costs</p>
             </div>
             <div>
               <label className={LABEL}>Timezone</label>
@@ -471,7 +471,7 @@ export default function ProfilePage() {
                   <option key={tz} value={tz}>{label}</option>
                 ))}
               </select>
-              <p className="text-xs text-stone-500 mt-1">Used for skip deadlines and renewal date display</p>
+              <p className="text-xs text-navy-500 mt-1">Used for skip deadlines and renewal date display</p>
             </div>
             <div>
               <label className={LABEL}>Time Format</label>
@@ -480,13 +480,13 @@ export default function ProfilePage() {
                   <label key={val} className={`flex-1 flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
                     timeFormat === val
                       ? 'border-brand-500/50 bg-brand-500/10 text-brand-400'
-                      : 'border-stone-700 bg-stone-800/50 text-stone-400 hover:border-stone-600'
+                      : 'border-navy-700 bg-navy-800/50 text-navy-400 hover:border-navy-600'
                   }`}>
                     <input type="radio" name="timeFormat" value={val} checked={timeFormat === val}
                       onChange={() => setTimeFormat(val)} className="accent-brand-400" />
                     <div>
                       <div className="text-sm font-medium">{val.toUpperCase()}</div>
-                      <div className="text-xs text-stone-500">{desc}</div>
+                      <div className="text-xs text-navy-500">{desc}</div>
                     </div>
                   </label>
                 ))}
@@ -495,12 +495,12 @@ export default function ProfilePage() {
             {prefsError && (
               <p className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{prefsError}</p>
             )}
-            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+            <button type="submit" disabled={updateProfileMutation.isPending} className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-navy-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
               {updateProfileMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : prefsSuccess ? <><Check size={14} /> Saved!</> : 'Save Preferences'}
             </button>
           </form>
 
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+          <div className="bg-navy-900 border border-navy-800 rounded-2xl overflow-hidden">
             <StatsSettingsPanel />
           </div>
         </div>
@@ -575,26 +575,26 @@ function MyCommunityPhotos() {
   if (loading) return (
     <div className="grid grid-cols-6 gap-2">
       {[...Array(12)].map((_, i) => (
-        <div key={i} className="aspect-[2/3] rounded-lg bg-stone-800 animate-pulse" />
+        <div key={i} className="aspect-[2/3] rounded-lg bg-navy-800 animate-pulse" />
       ))}
     </div>
   )
 
   if (photos.length === 0) return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 text-center text-stone-500">
+    <div className="bg-navy-900 border border-navy-800 rounded-2xl p-8 text-center text-navy-500">
       <p className="text-sm">You haven&apos;t submitted any community photos yet.</p>
     </div>
   )
 
   return (
     <div className="space-y-4">
-      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
+      <div className="bg-navy-900 border border-navy-800 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-serif font-semibold text-stone-100">My Community Photos</h2>
+          <h2 className="font-serif font-semibold text-navy-100">My Community Photos</h2>
           <div className="flex items-center gap-3">
             <button
               onClick={toggleAll}
-              className="text-xs text-stone-400 hover:text-stone-200 transition-colors"
+              className="text-xs text-navy-400 hover:text-navy-200 transition-colors"
             >
               {selected.size === photos.length ? 'Deselect all' : 'Select all'}
             </button>
@@ -623,14 +623,14 @@ function MyCommunityPhotos() {
                 key={photo.id}
                 onClick={() => toggle(photo.id)}
                 className={`relative cursor-pointer rounded-lg overflow-hidden aspect-[2/3] ring-2 transition-all ${
-                  isSelected ? 'ring-brand-500 ring-offset-2 ring-offset-stone-900' : 'ring-transparent hover:ring-stone-600'
+                  isSelected ? 'ring-brand-500 ring-offset-2 ring-offset-navy-900' : 'ring-transparent hover:ring-navy-600'
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={thumb ?? photo.url} alt={editionLabel} className="w-full h-full object-cover" />
                 {/* Status badge */}
                 {photo.status === 'PENDING' && (
-                  <span className="absolute top-1 left-1 px-1 py-0.5 rounded-full text-[7px] font-semibold bg-brand-500/80 text-stone-950">
+                  <span className="absolute top-1 left-1 px-1 py-0.5 rounded-full text-[7px] font-semibold bg-brand-500/80 text-navy-950">
                     Pending
                   </span>
                 )}
@@ -638,16 +638,16 @@ function MyCommunityPhotos() {
                 {isSelected && (
                   <div className="absolute inset-0 bg-brand-500/20 flex items-center justify-center">
                     <div className="w-4 h-4 rounded-full bg-brand-500 flex items-center justify-center">
-                      <Check size={10} className="text-stone-950" />
+                      <Check size={10} className="text-navy-950" />
                     </div>
                   </div>
                 )}
                 {/* Edition label */}
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-stone-950/90 to-transparent px-1 py-1">
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-navy-950/90 to-transparent px-1 py-1">
                   <a
                     href={`/editions/${photo.edition.slug}`}
                     onClick={e => e.stopPropagation()}
-                    className="text-[8px] text-stone-200 hover:text-brand-400 transition-colors line-clamp-1 leading-tight"
+                    className="text-[8px] text-navy-200 hover:text-brand-400 transition-colors line-clamp-1 leading-tight"
                   >
                     {editionLabel}
                   </a>
@@ -747,14 +747,14 @@ function ReadingHistoryImport() {
   return (
     <div className="space-y-5">
       {/* Info banner */}
-      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-3">
+      <div className="bg-navy-900 border border-navy-800 rounded-2xl p-5 space-y-3">
         <div className="flex items-center gap-2">
           <BookMarked size={16} className="text-brand-400 shrink-0" />
-          <h2 className="font-serif font-semibold text-stone-100">Reading History Import</h2>
+          <h2 className="font-serif font-semibold text-navy-100">Reading History Import</h2>
         </div>
-        <p className="text-sm text-stone-400">
-          Import your reading history from <strong className="text-stone-200">Goodreads</strong> or{' '}
-          <strong className="text-stone-200">StoryGraph</strong>. The format is detected automatically.
+        <p className="text-sm text-navy-400">
+          Import your reading history from <strong className="text-navy-200">Goodreads</strong> or{' '}
+          <strong className="text-navy-200">StoryGraph</strong>. The format is detected automatically.
           StoryGraph exports also include reading start dates, while Goodreads provides only finish dates.
         </p>
         <div className="bg-amber-950/60 border border-amber-700 rounded-xl p-4 space-y-1.5 text-sm text-amber-400">
@@ -769,23 +769,23 @@ function ReadingHistoryImport() {
 
       {/* Upload area */}
       {!result && (
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+        <div className="bg-navy-900 border border-navy-800 rounded-2xl p-5">
           <div
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
             onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed border-stone-700 hover:border-brand-500/50 rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-colors"
+            className="border-2 border-dashed border-navy-700 hover:border-brand-500/50 rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-colors"
           >
-            <Upload size={28} className="text-stone-500" />
+            <Upload size={28} className="text-navy-500" />
             {fileName ? (
               <div className="text-center">
-                <p className="text-sm font-medium text-stone-200">{fileName}</p>
-                <p className="text-xs text-stone-500 mt-0.5">Click to replace</p>
+                <p className="text-sm font-medium text-navy-200">{fileName}</p>
+                <p className="text-xs text-navy-500 mt-0.5">Click to replace</p>
               </div>
             ) : (
               <div className="text-center">
-                <p className="text-sm text-stone-400">Drop your CSV here or click to browse</p>
-                <p className="text-xs text-stone-600 mt-0.5">Goodreads or StoryGraph export (.csv)</p>
+                <p className="text-sm text-navy-400">Drop your CSV here or click to browse</p>
+                <p className="text-xs text-navy-600 mt-0.5">Goodreads or StoryGraph export (.csv)</p>
               </div>
             )}
           </div>
@@ -799,7 +799,7 @@ function ReadingHistoryImport() {
 
       {/* Preview loading */}
       {previewMutation.isPending && (
-        <div className="flex items-center gap-2 text-sm text-stone-400 px-1">
+        <div className="flex items-center gap-2 text-sm text-navy-400 px-1">
           <Loader2 size={14} className="animate-spin" />
           Analysing file…
         </div>
@@ -808,40 +808,40 @@ function ReadingHistoryImport() {
       {/* Preview results */}
       {preview && !result && (
         <div className="space-y-4">
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4">
+          <div className="bg-navy-900 border border-navy-800 rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-serif font-semibold text-stone-100">
+              <h3 className="font-serif font-semibold text-navy-100">
                 Preview — {preview.format === 'storygraph' ? 'StoryGraph' : 'Goodreads'} export
               </h3>
-              <button onClick={reset} className="text-xs text-stone-500 hover:text-stone-300 transition-colors">
+              <button onClick={reset} className="text-xs text-navy-500 hover:text-navy-300 transition-colors">
                 Upload different file
               </button>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-stone-800/60 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-stone-100">{preview.total}</p>
-                <p className="text-xs text-stone-500 mt-0.5">Books to process</p>
+              <div className="bg-navy-800/60 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-navy-100">{preview.total}</p>
+                <p className="text-xs text-navy-500 mt-0.5">Books to process</p>
               </div>
               <div className="bg-emerald-950/40 border border-emerald-800/30 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-emerald-400">{preview.matched.length}</p>
-                <p className="text-xs text-stone-500 mt-0.5">Matched in collection</p>
+                <p className="text-xs text-navy-500 mt-0.5">Matched in collection</p>
               </div>
-              <div className="bg-stone-800/60 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-stone-400">{preview.unmatched.length}</p>
-                <p className="text-xs text-stone-500 mt-0.5">Not in collection</p>
+              <div className="bg-navy-800/60 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-navy-400">{preview.unmatched.length}</p>
+                <p className="text-xs text-navy-500 mt-0.5">Not in collection</p>
               </div>
             </div>
 
             {preview.matched.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-stone-400 mb-2">Books that will be updated</p>
+                <p className="text-xs font-medium text-navy-400 mb-2">Books that will be updated</p>
                 <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
                   {preview.matched.map((b, i) => (
-                    <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-stone-800/50 text-sm">
+                    <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-navy-800/50 text-sm">
                       <div className="min-w-0">
-                        <p className="text-stone-200 truncate">{b.title}</p>
-                        <p className="text-xs text-stone-500 truncate">{b.authors.join(', ')}</p>
+                        <p className="text-navy-200 truncate">{b.title}</p>
+                        <p className="text-xs text-navy-500 truncate">{b.authors.join(', ')}</p>
                       </div>
                       <div className="flex flex-col items-end gap-0.5 shrink-0 ml-3">
                         <span className={`text-xs font-medium ${STATUS_COLOR[b.readingStatus] ?? ''}`}>
@@ -862,14 +862,14 @@ function ReadingHistoryImport() {
 
             {preview.unmatched.length > 0 && (
               <details className="group">
-                <summary className="text-xs text-stone-500 cursor-pointer hover:text-stone-300 transition-colors">
+                <summary className="text-xs text-navy-500 cursor-pointer hover:text-navy-300 transition-colors">
                   {preview.unmatched.length} book{preview.unmatched.length > 1 ? 's' : ''} not found in your collection (click to expand)
                 </summary>
                 <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
                   {preview.unmatched.map((b, i) => (
-                    <div key={i} className="px-3 py-1.5 rounded-lg bg-stone-800/30 text-sm">
-                      <p className="text-stone-400 truncate">{b.title}</p>
-                      <p className="text-xs text-stone-600 truncate">{b.authors.join(', ')}</p>
+                    <div key={i} className="px-3 py-1.5 rounded-lg bg-navy-800/30 text-sm">
+                      <p className="text-navy-400 truncate">{b.title}</p>
+                      <p className="text-xs text-navy-600 truncate">{b.authors.join(', ')}</p>
                     </div>
                   ))}
                 </div>
@@ -878,7 +878,7 @@ function ReadingHistoryImport() {
           </div>
 
           {preview.matched.length > 0 && (
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-3">
+            <div className="bg-navy-900 border border-navy-800 rounded-2xl p-5 space-y-3">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -886,16 +886,16 @@ function ReadingHistoryImport() {
                   onChange={(e) => setConfirmed(e.target.checked)}
                   className="accent-brand-400 mt-0.5"
                 />
-                <span className="text-sm text-stone-400">
+                <span className="text-sm text-navy-400">
                   I understand that this will update reading status and add reading history entries for{' '}
-                  <strong className="text-stone-200">{preview.matched.length} book{preview.matched.length > 1 ? 's' : ''}</strong>.
+                  <strong className="text-navy-200">{preview.matched.length} book{preview.matched.length > 1 ? 's' : ''}</strong>.
                   I have not imported this file before and will not import it again.
                 </span>
               </label>
               <button
                 onClick={() => { if (csvContent) executeMutation.mutate(csvContent) }}
                 disabled={!confirmed || executeMutation.isPending}
-                className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
+                className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed text-navy-950 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
               >
                 {executeMutation.isPending
                   ? <><Loader2 size={14} className="animate-spin" /> Importing…</>
@@ -913,8 +913,8 @@ function ReadingHistoryImport() {
             <Check size={18} className="text-emerald-400" />
             <h3 className="font-serif font-semibold text-emerald-300">Import complete</h3>
           </div>
-          <p className="text-sm text-stone-400">
-            <strong className="text-stone-200">{result.imported}</strong> reading history{' '}
+          <p className="text-sm text-navy-400">
+            <strong className="text-navy-200">{result.imported}</strong> reading history{' '}
             {result.imported === 1 ? 'entry' : 'entries'} created.
             {result.skipped > 0 && ` ${result.skipped} skipped due to errors.`}
           </p>
@@ -951,10 +951,10 @@ interface PushNotifPreferences {
   pushEnabled: boolean
 }
 
-const SECTION = 'bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4'
+const SECTION = 'bg-navy-900 border border-navy-800 rounded-2xl p-5 space-y-4'
 const TOGGLE_ROW = 'flex items-center justify-between'
-const TOGGLE_LABEL = 'text-sm text-stone-200'
-const TOGGLE_SUBLABEL = 'text-xs text-stone-500 mt-0.5'
+const TOGGLE_LABEL = 'text-sm text-navy-200'
+const TOGGLE_SUBLABEL = 'text-xs text-navy-500 mt-0.5'
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
@@ -964,7 +964,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${checked ? 'bg-brand-500' : 'bg-stone-700'}`}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${checked ? 'bg-brand-500' : 'bg-navy-700'}`}
     >
       <span
         className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
@@ -1005,8 +1005,8 @@ function NotificationsTab() {
   if (settingsLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-32 bg-stone-800 rounded-2xl animate-pulse" />
-        <div className="h-32 bg-stone-800 rounded-2xl animate-pulse" />
+        <div className="h-32 bg-navy-800 rounded-2xl animate-pulse" />
+        <div className="h-32 bg-navy-800 rounded-2xl animate-pulse" />
       </div>
     )
   }
@@ -1025,7 +1025,7 @@ function NotificationsTab() {
       {/* Push Notifications */}
       {isSupported && (
         <section className={SECTION}>
-          <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Push Notifications</h3>
+          <h3 className="text-sm font-semibold text-navy-300 uppercase tracking-wide">Push Notifications</h3>
           {permission === 'denied' ? (
             <p className="text-sm text-amber-400">Push notifications are blocked in your browser. Enable them in browser settings to use this feature.</p>
           ) : (
@@ -1057,7 +1057,7 @@ function NotificationsTab() {
       <section className={SECTION}>
         <div className={TOGGLE_ROW}>
           <div>
-            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">App Notifications</h3>
+            <h3 className="text-sm font-semibold text-navy-300 uppercase tracking-wide">App Notifications</h3>
             <p className={TOGGLE_SUBLABEL}>Updates, bug fixes and announcements from the LuxGrimoire team</p>
           </div>
         </div>
@@ -1085,14 +1085,14 @@ function NotificationsTab() {
       <section className={SECTION}>
         <div className={TOGGLE_ROW}>
           <div>
-            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Renewal Reminders</h3>
+            <h3 className="text-sm font-semibold text-navy-300 uppercase tracking-wide">Renewal Reminders</h3>
             <p className={TOGGLE_SUBLABEL}>Get reminded before your subscriptions renew</p>
           </div>
           <Toggle checked={s.renewalEnabled} onChange={(v) => update({ renewalEnabled: v })} />
         </div>
 
         {s.renewalEnabled && (
-          <div className="space-y-4 pt-2 border-t border-stone-800">
+          <div className="space-y-4 pt-2 border-t border-navy-800">
             {/* Delivery channels */}
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -1109,12 +1109,12 @@ function NotificationsTab() {
 
             {/* Timing */}
             <div>
-              <p className="text-xs text-stone-400 mb-2">When to remind</p>
+              <p className="text-xs text-navy-400 mb-2">When to remind</p>
               <div className="flex flex-wrap gap-2">
                 <select
                   value={s.renewalDaysBefore}
                   onChange={(e) => update({ renewalDaysBefore: Number(e.target.value) })}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
+                  className="bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
                 >
                   {[0, 1, 2, 3, 4, 5, 6, 7].map((d) => (
                     <option key={d} value={d}>{d === 0 ? 'On the day of renewal' : `${d} day${d > 1 ? 's' : ''} before`}</option>
@@ -1123,7 +1123,7 @@ function NotificationsTab() {
                 <select
                   value={s.renewalHour ?? ''}
                   onChange={(e) => update({ renewalHour: e.target.value === '' ? null : Number(e.target.value) })}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
+                  className="bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
                 >
                   <option value="">at 18:00 (default)</option>
                   {HOURS.map((h) => (
@@ -1148,14 +1148,14 @@ function NotificationsTab() {
       <section className={SECTION}>
         <div className={TOGGLE_ROW}>
           <div>
-            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Sale Reminders</h3>
+            <h3 className="text-sm font-semibold text-navy-300 uppercase tracking-wide">Sale Reminders</h3>
             <p className={TOGGLE_SUBLABEL}>Get reminded about sales you're interested in</p>
           </div>
           <Toggle checked={s.saleEnabled} onChange={(v) => update({ saleEnabled: v })} />
         </div>
 
         {s.saleEnabled && (
-          <div className="space-y-4 pt-2 border-t border-stone-800">
+          <div className="space-y-4 pt-2 border-t border-navy-800">
             {/* Delivery channels */}
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -1172,11 +1172,11 @@ function NotificationsTab() {
 
             {/* Timing */}
             <div>
-              <p className="text-xs text-stone-400 mb-2">When to remind</p>
+              <p className="text-xs text-navy-400 mb-2">When to remind</p>
               <select
                 value={s.saleMinutesBefore ?? 180}
                 onChange={(e) => update({ saleMinutesBefore: Number(e.target.value) })}
-                className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
+                className="bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
               >
                 <option value={0}>At sale time</option>
                 <option value={15}>15 min before</option>
@@ -1202,14 +1202,14 @@ function NotificationsTab() {
       <section className={SECTION}>
         <div className={TOGGLE_ROW}>
           <div>
-            <h3 className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Book Choice Reminders</h3>
+            <h3 className="text-sm font-semibold text-navy-300 uppercase tracking-wide">Book Choice Reminders</h3>
             <p className={TOGGLE_SUBLABEL}>Get reminded when a subscription month lets you pick between book options. If you miss the deadline, both books are added and you can remove the one you don't want yourself.</p>
           </div>
           <Toggle checked={s.bookChoiceEnabled} onChange={(v) => update({ bookChoiceEnabled: v })} />
         </div>
 
         {s.bookChoiceEnabled && (
-          <div className="space-y-4 pt-2 border-t border-stone-800">
+          <div className="space-y-4 pt-2 border-t border-navy-800">
             {/* Delivery channels */}
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -1226,11 +1226,11 @@ function NotificationsTab() {
 
             {/* Timing */}
             <div>
-              <p className="text-xs text-stone-400 mb-2">When to remind</p>
+              <p className="text-xs text-navy-400 mb-2">When to remind</p>
               <select
                 value={s.bookChoiceDaysBefore}
                 onChange={(e) => update({ bookChoiceDaysBefore: Number(e.target.value) })}
-                className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
+                className="bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
               >
                 {[0, 1, 2, 3, 5, 7, 10, 14].map((d) => (
                   <option key={d} value={d}>{d === 0 ? 'On the deadline day' : `${d} day${d > 1 ? 's' : ''} before deadline`}</option>

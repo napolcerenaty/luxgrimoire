@@ -79,12 +79,12 @@ export function SeriesEntriesEditor({ entries, onChange }: {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <label className={LBL}>Series <span className="text-stone-600 font-normal normal-case tracking-normal">(the one marked Primary shows on cards)</span></label>
-        <button type="button" onClick={addEntry} className={`${BTN_SM} bg-stone-700 text-stone-400 hover:bg-stone-600`}>+ Add series</button>
+        <label className={LBL}>Series <span className="text-navy-600 font-normal normal-case tracking-normal">(the one marked Primary shows on cards)</span></label>
+        <button type="button" onClick={addEntry} className={`${BTN_SM} bg-navy-700 text-navy-400 hover:bg-navy-600`}>+ Add series</button>
       </div>
-      {entries.length === 0 && <p className="text-xs text-stone-600 italic">Not part of any series.</p>}
+      {entries.length === 0 && <p className="text-xs text-navy-600 italic">Not part of any series.</p>}
       {entries.length > 0 && (
-        <p className="text-xs text-stone-600 mb-2">
+        <p className="text-xs text-navy-600 mb-2">
           Vol #: comma-separated (<code>0.5, 2</code>) or a range for an omnibus (<code>1-3</code> → 1, 2, 3).
         </p>
       )}
@@ -101,7 +101,7 @@ export function SeriesEntriesEditor({ entries, onChange }: {
               title="Comma-separated volume numbers, e.g. &quot;0.5, 2&quot;. For an omnibus spanning consecutive volumes, use a range like &quot;1-3&quot; — it expands to 1, 2, 3."
               className={`${INP} sm:w-40`}
             />
-            <label className="flex items-center gap-1.5 text-xs text-stone-400 whitespace-nowrap shrink-0">
+            <label className="flex items-center gap-1.5 text-xs text-navy-400 whitespace-nowrap shrink-0">
               <input
                 type="radio"
                 name={radioGroupName}
@@ -111,7 +111,7 @@ export function SeriesEntriesEditor({ entries, onChange }: {
               />
               Primary
             </label>
-            <button type="button" onClick={() => removeEntry(i)} className="text-stone-500 hover:text-red-400 text-sm shrink-0">✕</button>
+            <button type="button" onClick={() => removeEntry(i)} className="text-navy-500 hover:text-red-400 text-sm shrink-0">✕</button>
           </div>
         ))}
       </div>
@@ -177,22 +177,22 @@ export function GoodreadsParser({ onResult }: { onResult: (data: AiBookResult) =
   if (!open) {
     return (
       <button type="button" onClick={() => setOpen(true)}
-        className="w-full flex items-center justify-center gap-2 border border-dashed border-stone-600 rounded-lg px-3 py-2 text-sm text-stone-400 hover:border-brand-500 hover:text-brand-400 transition-colors">
+        className="w-full flex items-center justify-center gap-2 border border-dashed border-navy-600 rounded-lg px-3 py-2 text-sm text-navy-400 hover:border-brand-500 hover:text-brand-400 transition-colors">
         🤖 Parse from Goodreads
       </button>
     )
   }
 
   return (
-    <div className="border border-stone-700 rounded-xl p-3 flex flex-col gap-2 bg-stone-900/50">
+    <div className="border border-navy-700 rounded-xl p-3 flex flex-col gap-2 bg-navy-900/50">
       {/* Mode toggle */}
-      <div className="flex rounded-lg overflow-hidden border border-stone-700 self-start">
+      <div className="flex rounded-lg overflow-hidden border border-navy-700 self-start">
         <button type="button" onClick={() => setInputMode('text')}
-          className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'text' ? 'bg-brand-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+          className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'text' ? 'bg-brand-600 text-white' : 'bg-navy-800 text-navy-400 hover:text-navy-200'}`}>
           Paste text
         </button>
         <button type="button" onClick={() => setInputMode('screenshot')}
-          className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-brand-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+          className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-brand-600 text-white' : 'bg-navy-800 text-navy-400 hover:text-navy-200'}`}>
           Screenshot
         </button>
       </div>
@@ -209,22 +209,22 @@ export function GoodreadsParser({ onResult }: { onResult: (data: AiBookResult) =
       ) : (
         <div className="space-y-2">
           <input type="file" accept="image/*" onChange={handleFileChange}
-            className="block w-full text-sm text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-stone-700 file:text-stone-200 hover:file:bg-stone-600 cursor-pointer" />
+            className="block w-full text-sm text-navy-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-navy-700 file:text-navy-200 hover:file:bg-navy-600 cursor-pointer" />
           {imagePreview && (
-            <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg border border-stone-700 object-contain" />
+            <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg border border-navy-700 object-contain" />
           )}
-          <p className="text-xs text-stone-500">Image is processed in-memory and never saved to storage.</p>
+          <p className="text-xs text-navy-500">Image is processed in-memory and never saved to storage.</p>
         </div>
       )}
 
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex gap-2">
         <button type="button" onClick={handleParse} disabled={loading || !canParse}
-          className="flex-1 bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-brand-300 disabled:opacity-50 transition-colors">
+          className="flex-1 bg-brand-400 text-navy-950 font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-brand-300 disabled:opacity-50 transition-colors">
           {loading ? 'Parsing…' : 'Fill form'}
         </button>
         <button type="button" onClick={() => { setOpen(false); setText(''); setImageBase64(null); setImagePreview(null); setError(null) }}
-          className="px-3 py-1.5 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600 text-sm transition-colors">
+          className="px-3 py-1.5 rounded-lg bg-navy-700 text-navy-300 hover:bg-navy-600 text-sm transition-colors">
           Cancel
         </button>
       </div>
@@ -280,7 +280,7 @@ function ComponentPickerForm({ onAdd, disabled }: {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-stone-500">Add component (must be an existing cataloged book)</p>
+      <p className="text-xs text-navy-500">Add component (must be an existing cataloged book)</p>
       {!selectedBook ? (
         <div className="relative">
           <input
@@ -290,17 +290,17 @@ function ComponentPickerForm({ onAdd, disabled }: {
             className={INP}
           />
           {bookSearch.length >= 2 && bookResults.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-stone-800 border border-stone-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+            <div className="absolute z-10 w-full mt-1 bg-navy-800 border border-navy-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
               {bookResults.map(b => (
                 <button
                   key={b.id}
                   type="button"
                   onClick={() => { setSelectedBook({ id: b.id, title: b.title }); setBookSearch('') }}
-                  className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm text-navy-200 hover:bg-navy-700 transition-colors"
                 >
                   {b.title}
                   {b.seriesName && (
-                    <span className="text-stone-400 ml-1">({b.seriesName})</span>
+                    <span className="text-navy-400 ml-1">({b.seriesName})</span>
                   )}
                 </button>
               ))}
@@ -308,9 +308,9 @@ function ComponentPickerForm({ onAdd, disabled }: {
           )}
         </div>
       ) : (
-        <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
+        <div className="flex items-center gap-2 bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-sm text-navy-200">
           <span className="flex-1">{selectedBook.title}</span>
-          <button type="button" onClick={() => setSelectedBook(null)} className="text-stone-500 hover:text-red-400">×</button>
+          <button type="button" onClick={() => setSelectedBook(null)} className="text-navy-500 hover:text-red-400">×</button>
         </div>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -342,7 +342,7 @@ function ComponentPickerForm({ onAdd, disabled }: {
         type="button"
         onClick={handleAdd}
         disabled={disabled}
-        className="w-full bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors text-sm"
+        className="w-full bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors text-sm"
       >
         + Add component
       </button>
@@ -371,17 +371,17 @@ function BookComponentsPanel({ bookSlug }: { bookSlug: string }) {
   })
 
   return (
-    <div className="border border-stone-700 rounded-xl p-4 space-y-4 bg-stone-900/50">
-      <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Omnibus components</p>
-      <p className="text-xs text-stone-500">Shared across every edition of this book (hardcover, paperback, ebook…).</p>
+    <div className="border border-navy-700 rounded-xl p-4 space-y-4 bg-navy-900/50">
+      <p className="text-xs font-semibold uppercase tracking-widest text-navy-400">Omnibus components</p>
+      <p className="text-xs text-navy-500">Shared across every edition of this book (hardcover, paperback, ebook…).</p>
       {isLoading ? (
-        <p className="text-stone-500 text-xs">Loading…</p>
+        <p className="text-navy-500 text-xs">Loading…</p>
       ) : components.length === 0 ? (
-        <p className="text-stone-500 text-xs">Not an omnibus — no components yet.</p>
+        <p className="text-navy-500 text-xs">Not an omnibus — no components yet.</p>
       ) : (
         <div className="space-y-1.5">
           {components.map(c => (
-            <div key={c.id} className="flex items-center gap-2 text-sm text-stone-300">
+            <div key={c.id} className="flex items-center gap-2 text-sm text-navy-300">
               {c.volumeNumber != null && (
                 <span className="text-xs text-brand-600/80 font-semibold w-14 shrink-0">Vol. {c.volumeNumber}</span>
               )}
@@ -397,7 +397,7 @@ function BookComponentsPanel({ bookSlug }: { bookSlug: string }) {
           ))}
         </div>
       )}
-      <div className="border-t border-stone-700 pt-3">
+      <div className="border-t border-navy-700 pt-3">
         <ComponentPickerForm
           disabled={addMutation.isPending}
           onAdd={(book, volumeNumber, order) => addMutation.mutate({
@@ -428,15 +428,15 @@ export function StagedComponentsEditor({ components, onChange }: {
   onChange: (components: StagedComponent[]) => void
 }) {
   return (
-    <div className="border border-stone-700 rounded-xl p-4 space-y-4 bg-stone-900/50">
-      <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Omnibus components</p>
-      <p className="text-xs text-stone-500">Added automatically right after the book is created.</p>
+    <div className="border border-navy-700 rounded-xl p-4 space-y-4 bg-navy-900/50">
+      <p className="text-xs font-semibold uppercase tracking-widest text-navy-400">Omnibus components</p>
+      <p className="text-xs text-navy-500">Added automatically right after the book is created.</p>
       {components.length === 0 ? (
-        <p className="text-stone-500 text-xs">No components staged yet.</p>
+        <p className="text-navy-500 text-xs">No components staged yet.</p>
       ) : (
         <div className="space-y-1.5">
           {components.map((c, i) => (
-            <div key={c.bookId} className="flex items-center gap-2 text-sm text-stone-300">
+            <div key={c.bookId} className="flex items-center gap-2 text-sm text-navy-300">
               {c.volumeNumber && (
                 <span className="text-xs text-brand-600/80 font-semibold w-14 shrink-0">Vol. {c.volumeNumber}</span>
               )}
@@ -452,7 +452,7 @@ export function StagedComponentsEditor({ components, onChange }: {
           ))}
         </div>
       )}
-      <div className="border-t border-stone-700 pt-3">
+      <div className="border-t border-navy-700 pt-3">
         <ComponentPickerForm
           onAdd={(book, volumeNumber, order) => {
             if (components.some(c => c.bookId === book.id)) return
@@ -511,11 +511,11 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel,
         {form.authors.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {form.authors.map((a, i) => (
-              <span key={i} className="flex items-center gap-1.5 bg-stone-700 text-stone-200 text-xs px-2.5 py-1 rounded-full">
+              <span key={i} className="flex items-center gap-1.5 bg-navy-700 text-navy-200 text-xs px-2.5 py-1 rounded-full">
                 {!a.id && <span className="text-brand-400 text-[9px] font-semibold uppercase">new</span>}
                 {a.name}
                 <button type="button" onClick={() => setForm(f => ({ ...f, authors: f.authors.filter((_, j) => j !== i) }))}
-                  className="text-stone-500 hover:text-red-400">×</button>
+                  className="text-navy-500 hover:text-red-400">×</button>
               </span>
             ))}
           </div>
@@ -534,12 +534,12 @@ export function BookForm({ initial, onSubmit, submitting, submitLabel, onCancel,
 
       <div className={onCancel ? 'flex gap-2 pt-1' : ''}>
         <button type="submit" disabled={submitting}
-          className={`${onCancel ? 'flex-1' : 'w-full'} bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors`}>
+          className={`${onCancel ? 'flex-1' : 'w-full'} bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors`}>
           {submitting ? 'Saving…' : submitLabel}
         </button>
         {onCancel && (
           <button type="button" onClick={onCancel}
-            className="px-4 py-2 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600 text-sm transition-colors">
+            className="px-4 py-2 rounded-lg bg-navy-700 text-navy-300 hover:bg-navy-600 text-sm transition-colors">
             Cancel
           </button>
         )}

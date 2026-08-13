@@ -19,7 +19,7 @@ const STATUS_BADGE: Record<string, string> = {
   implemented: 'bg-purple-900/40 text-purple-400',
 }
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
+const INP = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
 
 function ReviewPanel({ req, onDone }: { req: ApiFeatureRequest; onDone: () => void }) {
   const [adminNote, setAdminNote] = useState(req.adminNote ?? '')
@@ -33,9 +33,9 @@ function ReviewPanel({ req, onDone }: { req: ApiFeatureRequest; onDone: () => vo
   })
 
   return (
-    <div className="mt-3 border-t border-stone-700 pt-3 space-y-3">
+    <div className="mt-3 border-t border-navy-700 pt-3 space-y-3">
       <div>
-        <label className="block text-xs text-stone-400 mb-1">Admin note (optional)</label>
+        <label className="block text-xs text-navy-400 mb-1">Admin note (optional)</label>
         <textarea rows={2} className={INP} value={adminNote}
           onChange={e => setAdminNote(e.target.value)}
           placeholder="Add context, link to roadmap, explain rejection…" />
@@ -63,7 +63,7 @@ function ReviewPanel({ req, onDone }: { req: ApiFeatureRequest; onDone: () => vo
           ✗ Reject
         </button>
         <button onClick={onDone}
-          className="px-3 py-1.5 rounded-lg text-xs text-stone-400 hover:text-stone-200 border border-stone-700 transition-colors">
+          className="px-3 py-1.5 rounded-lg text-xs text-navy-400 hover:text-navy-200 border border-navy-700 transition-colors">
           Cancel
         </button>
       </div>
@@ -75,15 +75,15 @@ function RequestCard({ req, onDelete }: { req: ApiFeatureRequest; onDelete: () =
   const [reviewing, setReviewing] = useState(false)
 
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 space-y-2">
+    <div className="bg-navy-900 border border-navy-800 rounded-2xl p-4 space-y-2">
       <div className="flex items-start gap-3">
         {/* Vote count */}
         <div className="flex flex-col items-center min-w-[44px] pt-0.5">
-          <svg className="w-3.5 h-3.5 text-stone-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 text-navy-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
           </svg>
-          <span className="text-lg font-bold text-stone-300 leading-tight">{req.voteCount}</span>
-          <span className="text-[10px] text-stone-600">votes</span>
+          <span className="text-lg font-bold text-navy-300 leading-tight">{req.voteCount}</span>
+          <span className="text-[10px] text-navy-600">votes</span>
         </div>
 
         {/* Content */}
@@ -92,15 +92,15 @@ function RequestCard({ req, onDelete }: { req: ApiFeatureRequest; onDelete: () =
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[req.status] ?? STATUS_BADGE.pending}`}>
               {req.status}
             </span>
-            <span className="text-stone-100 font-medium">{req.title}</span>
+            <span className="text-navy-100 font-medium">{req.title}</span>
           </div>
-          <p className="text-stone-400 text-sm leading-relaxed whitespace-pre-line">{req.description}</p>
+          <p className="text-navy-400 text-sm leading-relaxed whitespace-pre-line">{req.description}</p>
           {req.adminNote && (
             <div className="mt-2 text-xs text-brand-400/80 bg-brand-900/10 border border-brand-900/20 rounded-lg px-3 py-2">
               <span className="font-semibold">Note:</span> {req.adminNote}
             </div>
           )}
-          <div className="mt-1.5 text-xs text-stone-600">
+          <div className="mt-1.5 text-xs text-navy-600">
             by {req.user?.username ?? req.user?.email ?? 'anonymous'} · {new Date(req.createdAt).toLocaleString()}
           </div>
         </div>
@@ -109,13 +109,13 @@ function RequestCard({ req, onDelete }: { req: ApiFeatureRequest; onDelete: () =
         <div className="flex gap-1.5 shrink-0">
           {(req.status === 'pending' || req.status === 'accepted') && !reviewing && (
             <button onClick={() => setReviewing(true)}
-              className="px-2.5 py-1 rounded-lg text-xs bg-stone-700 text-stone-200 hover:bg-stone-600 transition-colors">
+              className="px-2.5 py-1 rounded-lg text-xs bg-navy-700 text-navy-200 hover:bg-navy-600 transition-colors">
               {req.status === 'pending' ? 'Review' : 'Edit'}
             </button>
           )}
           {(req.status === 'rejected' || req.status === 'implemented') && (
             <button onClick={() => setReviewing(true)}
-              className="px-2.5 py-1 rounded-lg text-xs bg-stone-700 text-stone-400 hover:bg-stone-600 transition-colors">
+              className="px-2.5 py-1 rounded-lg text-xs bg-navy-700 text-navy-400 hover:bg-navy-600 transition-colors">
               Edit
             </button>
           )}
@@ -164,14 +164,14 @@ export default function AdminFeatureRequestsPage() {
     <div>
       <div className="flex flex-wrap items-start gap-3 mb-6">
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-stone-100">Feature Requests</h1>
-          <p className="text-stone-500 text-sm mt-0.5">Review community suggestions and manage the public voting list</p>
+          <h1 className="text-2xl font-bold text-navy-100">Feature Requests</h1>
+          <p className="text-navy-500 text-sm mt-0.5">Review community suggestions and manage the public voting list</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           {['', 'pending', 'accepted', 'implemented', 'rejected'].map(s => (
             <button key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-brand-400 text-stone-950' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-brand-400 text-navy-950' : 'bg-navy-800 text-navy-400 hover:bg-navy-700'}`}
             >
               {s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
@@ -180,7 +180,7 @@ export default function AdminFeatureRequestsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-stone-400 py-16 text-center">Loading…</div>
+        <div className="text-navy-400 py-16 text-center">Loading…</div>
       ) : (
         <div className="space-y-6">
           {/* Pending queue */}
@@ -202,7 +202,7 @@ export default function AdminFeatureRequestsPage() {
           {(!statusFilter || statusFilter !== 'pending') && rest.length > 0 && (
             <section>
               {!statusFilter && (
-                <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-3">Reviewed</h2>
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-navy-500 mb-3">Reviewed</h2>
               )}
               <div className="space-y-2">
                 {rest.map(req => (
@@ -213,7 +213,7 @@ export default function AdminFeatureRequestsPage() {
           )}
 
           {items.length === 0 && (
-            <div className="text-center py-16 text-stone-500">No feature requests yet</div>
+            <div className="text-center py-16 text-navy-500">No feature requests yet</div>
           )}
         </div>
       )}

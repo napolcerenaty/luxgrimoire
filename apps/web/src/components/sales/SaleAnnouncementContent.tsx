@@ -112,8 +112,8 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
   }
 
   const heading = compact
-    ? <h2 className="text-lg sm:text-xl font-serif font-bold text-stone-100 leading-tight mb-2 pr-6">{sale.title}</h2>
-    : <h1 className="text-4xl font-serif font-bold text-stone-100 mb-4 leading-tight">{sale.title}</h1>
+    ? <h2 className="text-lg sm:text-xl font-serif font-bold text-navy-100 leading-tight mb-2 pr-6">{sale.title}</h2>
+    : <h1 className="text-4xl font-serif font-bold text-navy-100 mb-4 leading-tight">{sale.title}</h1>
 
   return (
     <div>
@@ -125,7 +125,7 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
           </span>
         )}
         {sale.saleType && (
-          <span className={`font-semibold px-2 py-0.5 rounded-full border ${TYPE_COLORS[sale.saleType] ?? 'bg-stone-700 border-stone-600 text-stone-300'} ${compact ? 'text-[10px]' : 'text-xs'}`}>
+          <span className={`font-semibold px-2 py-0.5 rounded-full border ${TYPE_COLORS[sale.saleType] ?? 'bg-navy-700 border-navy-600 text-navy-300'} ${compact ? 'text-[10px]' : 'text-xs'}`}>
             {TYPE_LABELS[sale.saleType] ?? sale.saleType}
           </span>
         )}
@@ -160,7 +160,7 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
               href={sale.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-200 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-navy-400 hover:text-navy-200 transition-colors"
             >
               Original announcement <ExternalLink size={11} />
             </a>
@@ -170,17 +170,17 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
 
       {/* Expected shipping */}
       {sale.expectedShipping && (
-        <p className={`text-stone-400 ${compact ? 'text-xs mb-2' : 'text-sm mb-4'}`}>
-          <span className="text-stone-500">Expected shipping: </span>
-          <span className="text-stone-300 font-medium">{sale.expectedShipping}</span>
+        <p className={`text-navy-400 ${compact ? 'text-xs mb-2' : 'text-sm mb-4'}`}>
+          <span className="text-navy-500">Expected shipping: </span>
+          <span className="text-navy-300 font-medium">{sale.expectedShipping}</span>
         </p>
       )}
 
       {/* Ends at */}
       {sale.endsAt && (
-        <p className={`text-stone-400 ${compact ? 'text-xs mb-2' : 'text-sm mb-4'}`}>
-          <span className="text-stone-500">Sale ends: </span>
-          <span className="text-stone-300 font-medium">
+        <p className={`text-navy-400 ${compact ? 'text-xs mb-2' : 'text-sm mb-4'}`}>
+          <span className="text-navy-500">Sale ends: </span>
+          <span className="text-navy-300 font-medium">
             {new Date(sale.endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </span>
         </p>
@@ -189,7 +189,7 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
       {/* Notes */}
       {sale.notes && (
         <div
-          className={`text-stone-300 prose prose-invert prose-sm max-w-none
+          className={`text-navy-300 prose prose-invert prose-sm max-w-none
             [&_a]:text-brand-400 [&_a:hover]:text-brand-300 [&_a]:underline [&_a]:underline-offset-2
             [&_p]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4
             ${compact ? 'text-xs mb-3' : 'text-sm mb-6'}`}
@@ -232,7 +232,7 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
           <div className="mt-2">
             <button
               onClick={() => setShowCalendar(v => !v)}
-              className="inline-flex items-center gap-1.5 text-xs text-stone-400 hover:text-brand-400 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-navy-400 hover:text-brand-400 transition-colors"
             >
               <CalendarDays size={13} />
               {showCalendar ? 'Hide calendar' : 'Show calendar'}
@@ -261,8 +261,8 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
       {/* Editions */}
       {editions.length > 0 && (
         <section className={compact ? 'mt-5' : 'mt-8'}>
-          <h3 className={`font-semibold text-stone-400 uppercase tracking-wider mb-3 ${compact ? 'text-xs' : 'text-sm'}`}>
-            Included Editions <span className="text-stone-600 normal-case font-normal">({editions.length})</span>
+          <h3 className={`font-semibold text-navy-400 uppercase tracking-wider mb-3 ${compact ? 'text-xs' : 'text-sm'}`}>
+            Included Editions <span className="text-navy-600 normal-case font-normal">({editions.length})</span>
           </h3>
           <SaleEditionsGrid
             editions={editions}

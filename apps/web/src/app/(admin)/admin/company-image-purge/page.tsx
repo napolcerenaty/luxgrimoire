@@ -50,11 +50,11 @@ function PurgeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="bg-navy-900 border border-navy-700 rounded-2xl w-full max-w-md shadow-2xl">
         {/* Header */}
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-stone-800">
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-navy-800">
           <AlertTriangle size={20} className="text-red-400 shrink-0" />
-          <h2 className="text-stone-100 font-semibold text-base">Purge Official Images</h2>
+          <h2 className="text-navy-100 font-semibold text-base">Purge Official Images</h2>
         </div>
 
         <div className="px-6 py-5 space-y-4">
@@ -65,14 +65,14 @@ function PurgeModal({
                 <CheckCircle2 size={18} />
                 <span className="font-medium text-sm">Purge complete</span>
               </div>
-              <div className="bg-stone-800 rounded-xl px-4 py-3 text-sm space-y-1">
-                <p className="text-stone-300">
+              <div className="bg-navy-800 rounded-xl px-4 py-3 text-sm space-y-1">
+                <p className="text-navy-300">
                   Edition images deleted: <span className="text-brand-400 font-medium">{result.deletedEditionImages}</span>
                 </p>
-                <p className="text-stone-300">
+                <p className="text-navy-300">
                   Subscription month images deleted: <span className="text-brand-400 font-medium">{result.deletedMonthImages}</span>
                 </p>
-                <p className="text-stone-300">
+                <p className="text-navy-300">
                   Sale announcement images deleted: <span className="text-brand-400 font-medium">{result.deletedAnnouncementImages}</span>
                 </p>
               </div>
@@ -90,7 +90,7 @@ function PurgeModal({
               )}
               <button
                 onClick={onClose}
-                className="w-full mt-2 px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors"
+                className="w-full mt-2 px-4 py-2 rounded-xl bg-navy-800 hover:bg-navy-700 text-navy-300 text-sm font-medium transition-colors"
               >
                 Close
               </button>
@@ -108,16 +108,16 @@ function PurgeModal({
               </div>
 
               <div>
-                <label className="block text-stone-400 text-xs mb-1.5">
+                <label className="block text-navy-400 text-xs mb-1.5">
                   Type the company name to confirm:{' '}
-                  <span className="text-stone-200 font-medium">{company.name}</span>
+                  <span className="text-navy-200 font-medium">{company.name}</span>
                 </label>
                 <input
                   type="text"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder={company.name}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                  className="w-full bg-navy-800 border border-navy-700 rounded-xl px-3 py-2 text-navy-100 text-sm placeholder:text-navy-600 focus:outline-none focus:ring-2 focus:ring-red-500/40"
                 />
               </div>
 
@@ -131,7 +131,7 @@ function PurgeModal({
                 <button
                   onClick={onClose}
                   disabled={loading}
-                  className="flex-1 px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2 rounded-xl bg-navy-800 hover:bg-navy-700 text-navy-300 text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -175,7 +175,7 @@ export default function CompanyImagePurgePage() {
 
   if (user?.role !== 'ADMIN') {
     return (
-      <div className="text-stone-400 py-12 text-center text-sm">
+      <div className="text-navy-400 py-12 text-center text-sm">
         This section is restricted to admins.
       </div>
     )
@@ -190,8 +190,8 @@ export default function CompanyImagePurgePage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-stone-100">Image Purge</h1>
-        <p className="text-stone-400 text-sm mt-1">
+        <h1 className="text-2xl font-bold text-navy-100">Image Purge</h1>
+        <p className="text-navy-400 text-sm mt-1">
           Permanently remove all official images for a company from Cloudinary and the database.
           Use this when a company revokes image rights.
         </p>
@@ -212,7 +212,7 @@ export default function CompanyImagePurgePage() {
 
       {/* Company list */}
       <div className="space-y-2">
-        <h2 className="text-stone-300 text-sm font-semibold uppercase tracking-widest px-1">
+        <h2 className="text-navy-300 text-sm font-semibold uppercase tracking-widest px-1">
           Companies
         </h2>
 
@@ -221,25 +221,25 @@ export default function CompanyImagePurgePage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by company name…"
-          className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+          className="w-full bg-navy-800 border border-navy-700 rounded-xl px-3 py-2 text-navy-100 text-sm placeholder:text-navy-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
         />
 
         {isLoading ? (
-          <div className="text-stone-400 text-sm py-6 text-center">Loading…</div>
+          <div className="text-navy-400 text-sm py-6 text-center">Loading…</div>
         ) : companies.length === 0 ? (
-          <div className="text-stone-500 text-sm py-6 text-center">
+          <div className="text-navy-500 text-sm py-6 text-center">
             {search.trim() ? 'No companies match your search.' : 'No companies found.'}
           </div>
         ) : (
-          <div className="rounded-2xl border border-stone-800 divide-y divide-stone-800 overflow-hidden">
+          <div className="rounded-2xl border border-navy-800 divide-y divide-navy-800 overflow-hidden">
             {companies.map((company) => (
               <div
                 key={company.slug}
-                className="flex items-center gap-4 px-5 py-4 bg-stone-900 hover:bg-stone-800/60 transition-colors"
+                className="flex items-center gap-4 px-5 py-4 bg-navy-900 hover:bg-navy-800/60 transition-colors"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-stone-100 font-medium text-sm truncate">{company.name}</p>
-                  <p className="text-stone-500 text-xs">{company.slug}</p>
+                  <p className="text-navy-100 font-medium text-sm truncate">{company.name}</p>
+                  <p className="text-navy-500 text-xs">{company.slug}</p>
                 </div>
                 <button
                   onClick={() => setPurgeTarget(company)}

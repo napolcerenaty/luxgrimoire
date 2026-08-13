@@ -24,7 +24,7 @@ export function BookBundleInfo({ editionIds }: Props) {
 
   return (
     <section className="mt-12">
-      <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Part of a Bundle</h2>
+      <h2 className="text-xl font-serif font-semibold text-navy-100 mb-4">Part of a Bundle</h2>
       <div className="flex flex-col gap-3">
         {matchingBundles.map(bundle => {
           // The specific book this info is being shown for — its own allocated price when
@@ -35,15 +35,15 @@ export function BookBundleInfo({ editionIds }: Props) {
           return (
           <div
             key={bundle.id}
-            className="bg-stone-900 border border-stone-800 rounded-2xl p-4 flex items-center justify-between gap-4"
+            className="bg-navy-900 border border-navy-800 rounded-2xl p-4 flex items-center justify-between gap-4"
           >
             <div>
-              <p className="text-stone-200 font-medium">
+              <p className="text-navy-200 font-medium">
                 {bundle.title ?? new Date(bundle.purchasedAt).toLocaleDateString(undefined, {
                   year: 'numeric', month: 'long', day: 'numeric'
                 })}
               </p>
-              <div className="flex flex-wrap gap-3 mt-1 text-sm text-stone-400">
+              <div className="flex flex-wrap gap-3 mt-1 text-sm text-navy-400">
                 <span>{bundle.bookCount ?? 0} book{(bundle.bookCount ?? 0) !== 1 ? 's' : ''}</span>
                 <span>Total: {bundle.totalAmount} {bundle.currency}</span>
                 {thisBookCost != null && (bundle.bookCount ?? 0) > 1 && (

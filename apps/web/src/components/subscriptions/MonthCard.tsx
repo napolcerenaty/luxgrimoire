@@ -57,7 +57,7 @@ export default function MonthCard({
 
   if (skipped) {
     return (
-      <div className="relative rounded-xl overflow-hidden bg-stone-900 border border-brand-800/40 select-none flex flex-col h-full">
+      <div className="relative rounded-xl overflow-hidden bg-navy-900 border border-brand-800/40 select-none flex flex-col h-full">
         <div className="aspect-[2/3] overflow-hidden bg-brand-950/20 relative flex flex-col items-center justify-center gap-1.5 px-3">
           <span className="text-brand-400 font-serif text-xl">⏭</span>
           <span className="text-brand-400 font-serif text-xs tracking-widest uppercase text-center">Skipped</span>
@@ -100,13 +100,13 @@ export default function MonthCard({
 
   const inner = (
     <div
-      className="relative rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/50 transition-colors select-none flex flex-col h-full"
+      className="relative rounded-xl overflow-hidden bg-navy-900 border border-navy-800 hover:border-brand-700/50 transition-colors select-none flex flex-col h-full"
       style={{ cursor: bookSlug ? 'pointer' : 'default' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Image area */}
-      <div className="aspect-[2/3] overflow-hidden bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 relative">
+      <div className="aspect-[2/3] overflow-hidden bg-gradient-to-br from-navy-700 via-navy-800 to-navy-900 relative">
         {thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -115,7 +115,7 @@ export default function MonthCard({
             className={`w-full h-full object-cover transition-opacity duration-300 ${hovered && hoverImageUrl ? 'opacity-0' : 'opacity-100'}`}
           />
         ) : (
-          <div className="w-full h-full relative bg-stone-950 flex flex-col items-center justify-center gap-1.5 px-3">
+          <div className="w-full h-full relative bg-navy-950 flex flex-col items-center justify-center gap-1.5 px-3">
             {/* Very subtle brand gradient overlay */}
             <div
               className="absolute inset-0 opacity-[0.18]"
@@ -125,11 +125,11 @@ export default function MonthCard({
                   : { background: 'linear-gradient(135deg, #1c1917 0%, #0c0a09 60%, #1c1917 100%)' }
               }
             />
-            <span className="relative z-10 text-stone-400 font-serif text-xs tracking-widest uppercase text-center">
+            <span className="relative z-10 text-navy-400 font-serif text-xs tracking-widest uppercase text-center">
               {monthName} {year}
             </span>
             {theme && (
-              <span className="relative z-10 text-stone-500 text-xs italic uppercase text-center line-clamp-3">
+              <span className="relative z-10 text-navy-500 text-xs italic uppercase text-center line-clamp-3">
                 {theme}
               </span>
             )}
@@ -148,13 +148,13 @@ export default function MonthCard({
 
         {/* Hover overlay with book title — sits above the ribbon (ribbon ~28px) */}
         {hovered && (
-          <div className="absolute inset-0 bg-stone-950/70 flex flex-col items-center justify-center pb-8 px-3 pointer-events-none">
+          <div className="absolute inset-0 bg-navy-950/70 flex flex-col items-center justify-center pb-8 px-3 pointer-events-none">
             {mainBook?.edition ? (
-              <p className="text-stone-100 text-xs font-serif font-semibold text-center leading-snug line-clamp-4">
+              <p className="text-navy-100 text-xs font-serif font-semibold text-center leading-snug line-clamp-4">
                 {mainBook.title}
               </p>
             ) : (
-              <p className="text-stone-400 text-xs text-center italic">Book details coming soon</p>
+              <p className="text-navy-400 text-xs text-center italic">Book details coming soon</p>
             )}
           </div>
         )}
@@ -177,7 +177,7 @@ export default function MonthCard({
           {cardArtist ? (
             <Link
               href={`/artists/${cardArtist.slug}`}
-              className="text-[10px] text-stone-500 hover:text-brand-400 transition-colors leading-none"
+              className="text-[10px] text-navy-500 hover:text-brand-400 transition-colors leading-none"
               onClick={(e) => e.stopPropagation()}
             >
               card art by {cardArtist.instagram ? `@${cardArtist.instagram.replace(/^@/, '')}` : cardArtist.name}
@@ -187,9 +187,9 @@ export default function MonthCard({
           )}
           {/* Theme — single line, truncated */}
           {theme ? (
-            <p className="text-stone-300 text-xs font-serif italic uppercase leading-snug">{theme}</p>
+            <p className="text-navy-300 text-xs font-serif italic uppercase leading-snug">{theme}</p>
           ) : (
-            <p className="text-stone-600 text-xs italic leading-snug">No theme yet</p>
+            <p className="text-navy-600 text-xs italic leading-snug">No theme yet</p>
           )}
         </div>
         {isSpoiler && (

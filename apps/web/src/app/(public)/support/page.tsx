@@ -17,14 +17,14 @@ export default function SupportPage() {
         <h1 className="text-4xl font-serif font-bold text-brand-400 mb-4 tracking-wide">
           Support LuxGrimoire
         </h1>
-        <p className="text-stone-400 text-base leading-relaxed">
+        <p className="text-navy-400 text-base leading-relaxed">
           LuxGrimoire is a passion project built for the book community.
         </p>
       </div>
 
-      <div className="space-y-6 text-stone-300 text-sm leading-relaxed">
-        <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6">
-          <h2 className="font-serif text-lg text-stone-100 font-semibold mb-3">✨ Always free</h2>
+      <div className="space-y-6 text-navy-300 text-sm leading-relaxed">
+        <div className="rounded-xl border border-navy-700 bg-navy-900/60 p-6">
+          <h2 className="font-serif text-lg text-navy-100 font-semibold mb-3">✨ Always free</h2>
           <p>
             LuxGrimoire was made for people who genuinely love collecting books 📚 Special editions, subscription boxes,
             signed copies, beautiful shelves, preorder stress — all of it.
@@ -39,8 +39,8 @@ export default function SupportPage() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6">
-          <h2 className="font-serif text-lg text-stone-100 font-semibold mb-3">🌙 An independent passion project</h2>
+        <div className="rounded-xl border border-navy-700 bg-navy-900/60 p-6">
+          <h2 className="font-serif text-lg text-navy-100 font-semibold mb-3">🌙 An independent passion project</h2>
           <p>
             LuxGrimoire is developed and maintained by one person who simply wanted a better way to keep track of the
             books they love.
@@ -56,7 +56,7 @@ export default function SupportPage() {
         </div>
 
         <div className="rounded-xl border border-brand-800/40 bg-brand-950/20 p-6">
-          <h2 className="font-serif text-lg text-stone-100 font-semibold mb-3">☕ Support the project</h2>
+          <h2 className="font-serif text-lg text-navy-100 font-semibold mb-3">☕ Support the project</h2>
           <p className="mb-5">
             If LuxGrimoire has helped you discover a new edition, avoid missing a preorder, organize your collection, or
             simply made collecting more enjoyable 📖, and you'd like to support the project, you're very welcome to buy
@@ -70,14 +70,14 @@ export default function SupportPage() {
             href="https://buymeacoffee.com/luxgrimoire"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold font-serif text-sm transition-colors shadow-lg shadow-brand-900/30"
+            className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-brand-500 hover:bg-brand-400 text-navy-950 font-semibold font-serif text-sm transition-colors shadow-lg shadow-brand-900/30"
           >
             <Coffee size={18} />
             Buy me a coffee
           </a>
         </div>
 
-        <p className="text-stone-500 text-xs text-center pt-2">
+        <p className="text-navy-500 text-xs text-center pt-2">
           You can also support the project by{' '}
           <Link href="/data-requests" className="text-brand-600 hover:text-brand-500 underline underline-offset-2">
             contributing data

@@ -101,15 +101,15 @@ export function TagEditor({
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Add tag…"
-            className="w-full bg-stone-800 border border-brand-500/40 rounded-lg px-2 py-1 text-[11px] text-stone-100 placeholder:text-stone-600 focus:outline-none"
+            className="w-full bg-navy-800 border border-brand-500/40 rounded-lg px-2 py-1 text-[11px] text-navy-100 placeholder:text-navy-600 focus:outline-none"
           />
           {(suggestions.length > 0 || input.trim()) && (
-            <div className="absolute top-full left-0 right-0 mt-0.5 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl overflow-hidden max-h-32 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-0.5 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl overflow-hidden max-h-32 overflow-y-auto">
               {input.trim() && !localTags.includes(input.trim()) && !suggestions.includes(input.trim()) && (
                 <button
                   type="button"
                   onClick={() => addTag(input)}
-                  className="w-full text-left text-[11px] px-2.5 py-1.5 hover:bg-stone-800 text-brand-400 transition-colors"
+                  className="w-full text-left text-[11px] px-2.5 py-1.5 hover:bg-navy-800 text-brand-400 transition-colors"
                 >
                   + Add &ldquo;{input.trim()}&rdquo;
                 </button>
@@ -119,7 +119,7 @@ export function TagEditor({
                   key={t}
                   type="button"
                   onClick={() => addTag(t)}
-                  className="w-full text-left text-[11px] px-2.5 py-1.5 hover:bg-stone-800 text-stone-300 transition-colors"
+                  className="w-full text-left text-[11px] px-2.5 py-1.5 hover:bg-navy-800 text-navy-300 transition-colors"
                 >
                   {t}
                 </button>
@@ -131,7 +131,7 @@ export function TagEditor({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1 text-[10px] text-stone-600 hover:text-brand-400 transition-colors"
+          className="inline-flex items-center gap-1 text-[10px] text-navy-600 hover:text-brand-400 transition-colors"
         >
           <Tag size={10} />
           {localTags.length === 0 ? 'Add tag' : 'Edit tags'}

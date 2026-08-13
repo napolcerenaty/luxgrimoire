@@ -89,11 +89,11 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
     const leftDate = new Date(status.leftAt!)
     const waitDays = Math.floor((leftDate.getTime() - joinDate.getTime()) / 86400000)
     return (
-      <div className="flex items-center gap-2 text-sm text-stone-400 mt-2">
-        <Clock className="w-4 h-4 text-stone-500 shrink-0" />
+      <div className="flex items-center gap-2 text-sm text-navy-400 mt-2">
+        <Clock className="w-4 h-4 text-navy-500 shrink-0" />
         <span>
           Waited{' '}
-          <span className="text-stone-300 font-semibold">{waitDays} day{waitDays !== 1 ? 's' : ''}</span>{' '}
+          <span className="text-navy-300 font-semibold">{waitDays} day{waitDays !== 1 ? 's' : ''}</span>{' '}
           on the waitlist before subscribing
         </span>
       </div>
@@ -106,35 +106,35 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
     const daysOnList = Math.floor((Date.now() - joinDate.getTime()) / 86400000)
     return (
       <div className="mt-2">
-        <div className="bg-stone-800/60 border border-stone-700/60 rounded-xl px-4 py-3 space-y-2">
+        <div className="bg-navy-800/60 border border-navy-700/60 rounded-xl px-4 py-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-stone-400 shrink-0" />
-              <p className="text-sm text-stone-200 font-medium">On the waitlist</p>
+              <Clock className="w-4 h-4 text-navy-400 shrink-0" />
+              <p className="text-sm text-navy-200 font-medium">On the waitlist</p>
             </div>
             <button
               onClick={handleLeave}
               disabled={busy}
-              className="flex items-center gap-1 text-xs text-stone-500 hover:text-red-400 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 text-xs text-navy-500 hover:text-red-400 transition-colors disabled:opacity-50"
             >
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
               Remove
             </button>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-stone-400 pl-6">
+          <div className="flex items-center gap-1.5 text-xs text-navy-400 pl-6">
             {editingDate ? (
               <>
                 <input
                   type="date"
                   value={dateInput}
                   onChange={e => handleDateInputChange(e.target.value)}
-                  className={`bg-stone-700 border rounded px-2 py-0.5 text-stone-100 focus:outline-none focus:border-brand-400 text-xs w-full ${dateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
+                  className={`bg-navy-700 border rounded px-2 py-0.5 text-navy-100 focus:outline-none focus:border-brand-400 text-xs w-full ${dateInvalid ? 'border-red-500/70' : 'border-navy-600'}`}
                 />
                 <button onClick={handleSaveDate} disabled={busy || !dateInput}
                   className="text-green-400 hover:text-green-300 disabled:opacity-40 shrink-0">
                   {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                 </button>
-                <button onClick={() => setEditingDate(false)} className="text-stone-500 hover:text-stone-300 shrink-0">
+                <button onClick={() => setEditingDate(false)} className="text-navy-500 hover:text-navy-300 shrink-0">
                   <X className="w-3 h-3" />
                 </button>
               </>
@@ -144,7 +144,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
                 <span className="flex-1" />
                 <button
                   onClick={() => { setDateInput(joinDate.toISOString().slice(0, 10)); setDateInvalid(false); setEditingDate(true) }}
-                  className="flex items-center gap-1 text-stone-600 hover:text-stone-400 transition-colors"
+                  className="flex items-center gap-1 text-navy-600 hover:text-navy-400 transition-colors"
                   title="Edit date"
                 >
                   <Pencil className="w-3 h-3" />
@@ -165,23 +165,23 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
   return (
     <div className="mt-4">
       {showDateForm ? (
-        <div className="bg-stone-800/60 border border-stone-700/60 rounded-xl px-4 py-3 space-y-2">
+        <div className="bg-navy-800/60 border border-navy-700/60 rounded-xl px-4 py-3 space-y-2">
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-stone-400 shrink-0" />
-            <span className="text-xs text-stone-400">Joined waitlist on:</span>
+            <Clock className="w-4 h-4 text-navy-400 shrink-0" />
+            <span className="text-xs text-navy-400">Joined waitlist on:</span>
           </div>
           <div className="flex items-center gap-2 pl-6">
             <input
               type="date"
               value={dateInput}
               onChange={e => handleDateInputChange(e.target.value)}
-              className={`flex-1 min-w-0 bg-stone-700 border rounded px-2 py-1 text-stone-100 focus:outline-none focus:border-brand-400 text-xs ${dateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
+              className={`flex-1 min-w-0 bg-navy-700 border rounded px-2 py-1 text-navy-100 focus:outline-none focus:border-brand-400 text-xs ${dateInvalid ? 'border-red-500/70' : 'border-navy-600'}`}
             />
             <button onClick={() => handleJoin(dateInput || undefined)} disabled={busy}
-              className="text-xs px-3 py-1 rounded-lg bg-stone-700 text-stone-200 hover:bg-stone-600 transition-colors disabled:opacity-50 shrink-0">
+              className="text-xs px-3 py-1 rounded-lg bg-navy-700 text-navy-200 hover:bg-navy-600 transition-colors disabled:opacity-50 shrink-0">
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : 'Save'}
             </button>
-            <button onClick={() => setShowDateForm(false)} className="text-stone-500 hover:text-stone-300 shrink-0">
+            <button onClick={() => setShowDateForm(false)} className="text-navy-500 hover:text-navy-300 shrink-0">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -189,7 +189,7 @@ export default function WaitlistButton({ subscriptionSlug }: WaitlistButtonProps
       ) : (
         <button
           onClick={() => { setDateInput(new Date().toISOString().slice(0, 10)); setDateInvalid(false); setShowDateForm(true) }}
-          className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-xl bg-stone-800/60 border border-stone-700/60 hover:border-stone-600 hover:bg-stone-800 text-sm text-stone-400 hover:text-stone-300 transition-all"
+          className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-xl bg-navy-800/60 border border-navy-700/60 hover:border-navy-600 hover:bg-navy-800 text-sm text-navy-400 hover:text-navy-300 transition-all"
         >
           <Clock className="w-4 h-4" />
           I&apos;m on the waitlist

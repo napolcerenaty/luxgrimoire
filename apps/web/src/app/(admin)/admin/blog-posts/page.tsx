@@ -65,8 +65,8 @@ export default function BlogPostsAdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-stone-100">Blog Posts</h1>
-        <p className="mt-1 text-sm text-stone-400">
+        <h1 className="text-2xl font-bold text-navy-100">Blog Posts</h1>
+        <p className="mt-1 text-sm text-navy-400">
           Set each post&apos;s feature image from your Cloudinary media library, or upload a new one directly —
           no need to open Ghost or Cloudinary separately.
         </p>
@@ -74,26 +74,26 @@ export default function BlogPostsAdminPage() {
 
       <div className="grid gap-3">
         {isLoading && (
-          <div className="rounded-2xl border border-stone-800 bg-stone-900 p-6 text-sm text-stone-400">Loading…</div>
+          <div className="rounded-2xl border border-navy-800 bg-navy-900 p-6 text-sm text-navy-400">Loading…</div>
         )}
         {!isLoading && posts.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-stone-700 bg-stone-900/70 p-8 text-center text-sm text-stone-400">
+          <div className="rounded-2xl border border-dashed border-navy-700 bg-navy-900/70 p-8 text-center text-sm text-navy-400">
             No posts found.
           </div>
         )}
         {posts.map((post) => (
-          <div key={post.id} className="flex items-center gap-4 rounded-2xl border border-stone-800 bg-stone-900 p-4">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-stone-700 bg-stone-800 flex items-center justify-center">
+          <div key={post.id} className="flex items-center gap-4 rounded-2xl border border-navy-800 bg-navy-900 p-4">
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-navy-700 bg-navy-800 flex items-center justify-center">
               {post.featureImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={post.featureImage} alt={post.title} className="h-full w-full object-cover" />
               ) : (
-                <span className="text-[10px] text-stone-600">No image</span>
+                <span className="text-[10px] text-navy-600">No image</span>
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-stone-100">{post.title}</p>
-              <p className="truncate text-xs text-stone-500">/{post.slug}</p>
+              <p className="truncate font-medium text-navy-100">{post.title}</p>
+              <p className="truncate text-xs text-navy-500">/{post.slug}</p>
             </div>
             <button onClick={() => openEditor(post)} className={BTN_GHOST}>
               Edit image
@@ -110,7 +110,7 @@ export default function BlogPostsAdminPage() {
         {editing && (
           <div className="space-y-4">
             {editing.featureImage && !isCloudinaryUrl(editing.featureImage) && (
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-navy-500">
                 Current image isn&apos;t hosted on Cloudinary yet — uploading or picking one below will replace it.
               </p>
             )}

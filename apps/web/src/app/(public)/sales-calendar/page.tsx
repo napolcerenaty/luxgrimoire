@@ -205,21 +205,21 @@ export default function SalesCalendarPage() {
     <div className="container mx-auto px-4 py-10 max-w-3xl">
       <div className="flex items-center gap-3 mb-2">
         <CalendarDays size={24} className="text-brand-400" />
-        <h1 className="text-3xl font-serif font-bold text-stone-100">Sales &amp; Renewals Calendar</h1>
+        <h1 className="text-3xl font-serif font-bold text-navy-100">Sales &amp; Renewals Calendar</h1>
       </div>
-      <p className="text-sm text-stone-500 mb-6">
+      <p className="text-sm text-navy-500 mb-6">
         Every book box sale and subscription renewal, across every company, in one place.
       </p>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-xl px-1 py-1">
+        <div className="flex items-center gap-1 bg-navy-800 border border-navy-700 rounded-xl px-1 py-1">
           {(['all', 'renewals', 'sales'] as TypeFilter[]).map(t => (
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
-                typeFilter === t ? 'bg-stone-700 text-brand-400' : 'text-stone-400 hover:text-stone-200'
+                typeFilter === t ? 'bg-navy-700 text-brand-400' : 'text-navy-400 hover:text-navy-200'
               }`}
             >
               {t}
@@ -230,7 +230,7 @@ export default function SalesCalendarPage() {
         <select
           value={companyId}
           onChange={e => setCompanyId(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-300 focus:outline-none focus:border-brand-500 min-w-[160px]"
+          className="bg-navy-800 border border-navy-700 rounded-xl px-3 py-2 text-sm text-navy-300 focus:outline-none focus:border-brand-500 min-w-[160px]"
         >
           <option value="">All companies</option>
           {companies.map(c => (
@@ -252,7 +252,7 @@ export default function SalesCalendarPage() {
       />
 
       {!isLoading && !hasAnyEvents && (
-        <p className="text-center text-stone-500 py-8 text-sm">
+        <p className="text-center text-navy-500 py-8 text-sm">
           No {typeFilter === 'all' ? 'events' : typeFilter} found for {monthLabel}
           {companyId ? ` from ${companies.find(c => c.id === companyId)?.name ?? 'this company'}` : ''}.
         </p>
@@ -263,12 +263,12 @@ export default function SalesCalendarPage() {
         <button
           onClick={handleDownload}
           disabled={!hasAnyEvents}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-200 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Download size={15} />
           Download {monthLabel} events
         </button>
-        <p className="text-xs text-stone-600 text-center max-w-sm">
+        <p className="text-xs text-navy-600 text-center max-w-sm">
           Includes only what&apos;s shown above for {monthLabel} — switch months and download again to get other periods.
         </p>
       </div>

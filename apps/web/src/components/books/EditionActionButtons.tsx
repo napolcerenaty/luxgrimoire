@@ -190,9 +190,9 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
 
   if (!user) {
     return (
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-700/60 bg-stone-800/40">
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-navy-700/60 bg-navy-800/40">
         <LogIn size={16} className="text-brand-400 shrink-0" />
-        <p className="text-sm text-stone-400 flex-1">Sign in to add this edition to your collection or wishlist.</p>
+        <p className="text-sm text-navy-400 flex-1">Sign in to add this edition to your collection or wishlist.</p>
         <Link
           href="/login"
           className="shrink-0 text-xs font-medium text-brand-400 hover:text-brand-300 underline-offset-2 hover:underline transition-colors"
@@ -221,12 +221,12 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
           !isInCollection && (
             status === 'wishlist' ? (
               <button onClick={handleRemoveWishlist} disabled={isPending}
-                className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-brand-400 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-stone-700">
+                className="inline-flex items-center gap-2 bg-navy-800 hover:bg-navy-700 text-brand-400 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-navy-700">
                 <BookmarkCheck size={16} />On Wishlist
               </button>
             ) : (
               <button onClick={handleAddWishlist} disabled={isPending}
-                className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-stone-200 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-stone-700 hover:border-stone-600">
+                className="inline-flex items-center gap-2 bg-navy-800 hover:bg-navy-700 text-navy-200 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-navy-700 hover:border-navy-600">
                 <Bookmark size={16} />{isPending ? 'Adding…' : 'Add to Wishlist'}
               </button>
             )
@@ -236,12 +236,12 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
         {/* Collection state — hidden if sale date is in the future */}
         {!isFutureSale && (isInCollection ? (
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 text-sm text-stone-400">
+            <span className="inline-flex items-center gap-1.5 text-sm text-navy-400">
               <CheckCircle size={15} className="text-brand-400" />
               {addedOnce ? 'Added to collection' : 'In your collection'}
             </span>
             <button onClick={openModal}
-              className="text-xs text-stone-500 hover:text-stone-300 underline-offset-2 hover:underline transition-colors">
+              className="text-xs text-navy-500 hover:text-navy-300 underline-offset-2 hover:underline transition-colors">
               + Add another copy
             </button>
           </div>
@@ -258,37 +258,37 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) closeModal() }}>
-          <div className="w-full max-w-sm bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-sm bg-navy-900 border border-navy-700 rounded-2xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h2 className="font-serif font-semibold text-stone-100">
+              <h2 className="font-serif font-semibold text-navy-100">
                 {status === 'wishlist' ? 'Move to Collection' : 'Add to Collection'}
               </h2>
-              <button onClick={() => closeModal()} className="p-1 text-stone-500 hover:text-stone-200 transition-colors">
+              <button onClick={() => closeModal()} className="p-1 text-navy-500 hover:text-navy-200 transition-colors">
                 <X size={16} />
               </button>
             </div>
             {bookTitle && (
-              <p className="text-sm text-stone-400">
-                <span className="text-stone-200 font-medium">{bookTitle}</span>
+              <p className="text-sm text-navy-400">
+                <span className="text-navy-200 font-medium">{bookTitle}</span>
               </p>
             )}
 
             {step === 'bundle' && bundles.length > 0 ? (
               <div className="space-y-4">
-                <p className="text-sm text-stone-400">This edition was part of a bundle:</p>
+                <p className="text-sm text-navy-400">This edition was part of a bundle:</p>
                 {bundles.map(b => (
-                  <p key={b.id} className="text-sm font-medium text-stone-200">📦 {b.title}</p>
+                  <p key={b.id} className="text-sm font-medium text-navy-200">📦 {b.title}</p>
                 ))}
                 {error && <p className="text-xs text-red-400">{error}</p>}
                 <div className="flex flex-col gap-2 pt-2">
                   <button onClick={() => { setSelectedBundle(null); setStep('form') }}
-                    className="w-full bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+                    className="w-full bg-brand-500 hover:bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
                     Add just this book
                   </button>
                   <button
                     onClick={() => handleAddAsSet(bundles[0])}
                     disabled={bundleFetching}
-                    className="w-full bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                    className="w-full bg-navy-800 hover:bg-navy-700 text-navy-200 border border-navy-700 px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2">
                     {bundleFetching ? <><Loader2 size={14} className="animate-spin" />Loading…</> : 'Add as set'}
                   </button>
                 </div>

@@ -146,25 +146,25 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
         {view !== 'calendar' && (
           <>
             <div className="relative flex-1 min-w-[180px]">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-500 pointer-events-none" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search announcements…"
-                className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-500 text-sm"
+                className="w-full bg-navy-800 border border-navy-700 rounded-xl pl-9 pr-4 py-2.5 text-navy-100 placeholder-navy-500 focus:outline-none focus:border-brand-500 text-sm"
               />
             </div>
 
-            <div className="inline-flex items-center gap-1 rounded-xl border border-stone-700 bg-stone-800 p-1 shrink-0">
+            <div className="inline-flex items-center gap-1 rounded-xl border border-navy-700 bg-navy-800 p-1 shrink-0">
               <button
                 onClick={() => setTab('live')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'live' ? 'bg-stone-700 text-brand-400' : 'text-stone-400 hover:text-stone-200'}`}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'live' ? 'bg-navy-700 text-brand-400' : 'text-navy-400 hover:text-navy-200'}`}
               >
                 Live &amp; Upcoming
               </button>
               <button
                 onClick={() => setTab('past')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'past' ? 'bg-stone-700 text-brand-400' : 'text-stone-400 hover:text-stone-200'}`}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'past' ? 'bg-navy-700 text-brand-400' : 'text-navy-400 hover:text-navy-200'}`}
               >
                 Past
               </button>
@@ -172,24 +172,24 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
           </>
         )}
 
-        <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-xl px-1 shrink-0">
+        <div className="flex items-center gap-1 bg-navy-800 border border-navy-700 rounded-xl px-1 shrink-0">
           <button
             onClick={() => setView('grid')}
-            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-navy-700 text-brand-400' : 'text-navy-500 hover:text-navy-300'}`}
             aria-label="Grid view"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
           <button
             onClick={() => setView('list')}
-            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-navy-700 text-brand-400' : 'text-navy-500 hover:text-navy-300'}`}
             aria-label="List view"
           >
             <List className="w-4 h-4" />
           </button>
           <button
             onClick={() => setView('calendar')}
-            className={`p-1.5 rounded transition-colors ${view === 'calendar' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'calendar' ? 'bg-navy-700 text-brand-400' : 'text-navy-500 hover:text-navy-300'}`}
             aria-label="Calendar view"
           >
             <CalendarDays className="w-4 h-4" />
@@ -211,18 +211,18 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
             interestEnabled
           />
           {tiers.length === 0 && (
-            <p className="text-center text-stone-500 py-8 text-sm">No sales for {monthLabel}.</p>
+            <p className="text-center text-navy-500 py-8 text-sm">No sales for {monthLabel}.</p>
           )}
           <div className="mt-6 flex flex-col items-center gap-1.5">
             <button
               onClick={handleDownload}
               disabled={tiers.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-200 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Download size={15} />
               Download {monthLabel} events
             </button>
-            <p className="text-xs text-stone-600 text-center max-w-sm">
+            <p className="text-xs text-navy-600 text-center max-w-sm">
               Includes only what&apos;s shown above for {monthLabel} — switch months and download again to get other periods.
             </p>
           </div>
@@ -230,11 +230,11 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
       ) : isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-stone-800 bg-stone-900 animate-pulse aspect-[2/3]" />
+            <div key={i} className="rounded-2xl border border-navy-800 bg-navy-900 animate-pulse aspect-[2/3]" />
           ))}
         </div>
       ) : isEmpty ? (
-        <div className="text-center py-20 text-stone-500">
+        <div className="text-center py-20 text-navy-500">
           <Megaphone size={40} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg">{tab === 'past' ? 'No past announcements.' : 'No live or upcoming announcements.'}</p>
         </div>
@@ -245,7 +245,7 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
               {announcements.map((a) => <AnnouncementCard key={a.id} a={a} />)}
             </div>
           ) : (
-            <div className="flex flex-col divide-y divide-stone-800">
+            <div className="flex flex-col divide-y divide-navy-800">
               {announcements.map((a) => <AnnouncementListRow key={a.id} a={a} />)}
             </div>
           )}
@@ -255,7 +255,7 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
               <button
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
-                className="px-6 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-700 text-navy-300 text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {isFetchingNextPage ? 'Loading…' : 'Show more'}
               </button>
