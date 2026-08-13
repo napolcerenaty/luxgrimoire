@@ -3808,23 +3808,12 @@ export class SubscriptionsService {
         const resolved = resolveEffectiveBasePrice(subPriceChanges, year, month, fallbackBase, entry.costCurrency, comboFirstBilledYearMonth);
         const basePrice = resolved.price ?? fallbackBase;
 
-        const group = await this.prisma.userPurchaseGroup.create({
-          data: {
-            userId,
-            fromSubscription: true,
-            subscriptionEntryId: entry.id,
-            totalAmount: basePrice,
-            shippingAmount: entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null,
-            currency: entry.costCurrency ?? 'USD',
-            purchasedAt: renewalDate,
-            title: `Subscription – ${year}/${String(month).padStart(2, '0')}`,
-          },
-        });
-
         // Same per-book override/remainder allocation as the non-combo path — combo months
         // can carry choiceGroupId too (via their component subscriptions' months), so the
         // multi-book equal-split gap applies here as well. dto.bookPrices.monthId matches the
         // synthetic comboId here, mirroring how dto.selectedMonthIds is combo-aware above.
+        // Resolved BEFORE creating the group so a validation error never leaves an orphaned,
+        // book-less purchase group behind.
         const comboPriceOverrides = new Map<string, number>();
         for (const bp of dto.bookPrices ?? []) {
           if (bp.monthId === comboId && monthBooks.some(mb => mb.editionId === bp.editionId)) {
@@ -3832,13 +3821,24 @@ export class SubscriptionsService {
           }
         }
         const comboEditionIds = monthBooks.map(mb => mb.editionId).filter(Boolean);
-        const { prices: comboPerBookPrices, distribution: comboDistribution } = resolvePerBookPrices(comboEditionIds, comboPriceOverrides, basePrice);
-        if (comboDistribution === 'CUSTOM') {
-          await this.prisma.userPurchaseGroup.update({
-            where: { id: group.id },
-            data: { priceDistribution: 'CUSTOM' },
-          });
-        }
+        // allowGrowth: a paid additional book choice costs extra on top of the box price —
+        // the resolved total can exceed basePrice instead of being capped at it.
+        const { prices: comboPerBookPrices, distribution: comboDistribution, totalAmount: comboResolvedTotal } =
+          resolvePerBookPrices(comboEditionIds, comboPriceOverrides, basePrice, { allowGrowth: true });
+
+        const group = await this.prisma.userPurchaseGroup.create({
+          data: {
+            userId,
+            fromSubscription: true,
+            subscriptionEntryId: entry.id,
+            totalAmount: comboResolvedTotal,
+            shippingAmount: entry.shippingCost ? parseFloat(entry.shippingCost.toString()) : null,
+            currency: entry.costCurrency ?? 'USD',
+            purchasedAt: renewalDate,
+            title: `Subscription – ${year}/${String(month).padStart(2, '0')}`,
+            priceDistribution: comboDistribution,
+          },
+        });
 
         for (const mb of monthBooks) {
           try {
@@ -4113,17 +4113,34 @@ export class SubscriptionsService {
         ? `Subscription Bundle – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`
         : `Subscription – ${monthRecord.year}/${String(monthRecord.month).padStart(2, '0')}`;
 
+      // Overrides only apply to editions actually resolved into this unit (monthBooks already
+      // reflects choice-group picks) — an override for an unselected choice-group alternative
+      // is silently ignored rather than creating an orphaned allocation. Resolved BEFORE
+      // creating the group so a validation error never leaves an orphaned, book-less group.
+      const priceOverridesForUnit = new Map<string, number>();
+      for (const bp of dto.bookPrices ?? []) {
+        if (unit.monthIds.includes(bp.monthId) && monthBooks.some(mb => mb.editionId === bp.editionId)) {
+          priceOverridesForUnit.set(bp.editionId, bp.price);
+        }
+      }
+      const unitEditionIds = monthBooks.map(mb => mb.editionId!).filter(Boolean);
+      // allowGrowth: a paid additional book choice costs extra on top of the box price — the
+      // resolved total can exceed baseAmount instead of being capped at it.
+      const { prices: perBookPrices, distribution, totalAmount: resolvedUnitTotal } =
+        resolvePerBookPrices(unitEditionIds, priceOverridesForUnit, baseAmount, { allowGrowth: true });
+
       // Create ONE purchase group per unit (per bundle period, or per month for regular subs)
       const group = await this.prisma.userPurchaseGroup.create({
         data: {
           userId,
           fromSubscription: true,
           subscriptionEntryId: entry.id,
-          totalAmount: baseAmount,
+          totalAmount: resolvedUnitTotal,
           shippingAmount: shippingAmt,
           currency: (batch ? batch.currency : null) ?? entry.costCurrency ?? 'USD',
           purchasedAt: purchasedAtDate,
           title: groupTitle,
+          priceDistribution: distribution,
         },
       });
 
@@ -4190,24 +4207,6 @@ export class SubscriptionsService {
             });
           }
         }
-      }
-
-      // Overrides only apply to editions actually resolved into this unit (monthBooks already
-      // reflects choice-group picks) — an override for an unselected choice-group alternative
-      // is silently ignored rather than creating an orphaned allocation.
-      const priceOverridesForUnit = new Map<string, number>();
-      for (const bp of dto.bookPrices ?? []) {
-        if (unit.monthIds.includes(bp.monthId) && monthBooks.some(mb => mb.editionId === bp.editionId)) {
-          priceOverridesForUnit.set(bp.editionId, bp.price);
-        }
-      }
-      const unitEditionIds = monthBooks.map(mb => mb.editionId!).filter(Boolean);
-      const { prices: perBookPrices, distribution } = resolvePerBookPrices(unitEditionIds, priceOverridesForUnit, baseAmount);
-      if (distribution === 'CUSTOM') {
-        await this.prisma.userPurchaseGroup.update({
-          where: { id: group.id },
-          data: { priceDistribution: 'CUSTOM' },
-        });
       }
 
       for (const mb of monthBooks) {

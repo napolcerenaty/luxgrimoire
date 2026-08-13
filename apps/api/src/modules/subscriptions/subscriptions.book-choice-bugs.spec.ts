@@ -256,12 +256,14 @@ describe('backfillSubscription — combo path respects book choice', () => {
       bookPrices: [{ monthId: 'COMBO_2026_7', editionId: 'ed-extra', price: 9.99 }],
     } as any);
 
-    expect(prisma.userPurchaseGroup.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'pg-1' }, data: { priceDistribution: 'CUSTOM' } }),
+    expect(prisma.userPurchaseGroup.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ totalAmount: 39.98, priceDistribution: 'CUSTOM' }) }), // 9.99 + 29.99
     );
     const createCalls = (prisma.userBookEntry.create as jest.Mock).mock.calls;
     const byEdition = Object.fromEntries(createCalls.map((c: any) => [c[0].data.editionId, c[0].data.basePrice]));
-    expect(byEdition).toEqual({ 'ed-a': 20, 'ed-extra': 9.99 });
+    // ed-extra: its exact extra price. ed-a keeps the FULL box price (29.99), not a shrunken
+    // remainder — the extra choice adds on top, it doesn't carve into the chosen book's price.
+    expect(byEdition).toEqual({ 'ed-a': 29.99, 'ed-extra': 9.99 });
   });
 });
 
