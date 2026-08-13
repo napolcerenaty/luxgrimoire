@@ -6,7 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 
 const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 
-export type PersonEntry = { id?: string; name: string }
+export type PersonEntry = { id?: string; name: string; slug?: string }
 
 export function PersonPicker({ endpoint, placeholder, onAdd, initialQuery }: {
   endpoint: 'authors' | 'artists'
@@ -35,8 +35,8 @@ export function PersonPicker({ endpoint, placeholder, onAdd, initialQuery }: {
     timerRef.current = setTimeout(() => setDq(v), 300)
   }
 
-  const pick = (item: { id: string; name: string }) => {
-    onAdd({ id: item.id, name: item.name })
+  const pick = (item: { id: string; name: string; slug: string }) => {
+    onAdd({ id: item.id, name: item.name, slug: item.slug })
     setQ(''); setDq('')
   }
 
@@ -45,10 +45,10 @@ export function PersonPicker({ endpoint, placeholder, onAdd, initialQuery }: {
     if (!trimmed || creating) return
     setCreating(true)
     try {
-      const created = await authFetch<{ id: string; name: string }>(
+      const created = await authFetch<{ id: string; name: string; slug: string }>(
         `/${endpoint}`, { method: 'POST', body: JSON.stringify({ name: trimmed }) }
       )
-      onAdd({ id: created.id, name: created.name })
+      onAdd({ id: created.id, name: created.name, slug: created.slug })
       setQ(''); setDq('')
     } catch (e: unknown) {
       alert(`Failed to create: ${e instanceof Error ? e.message : String(e)}`)

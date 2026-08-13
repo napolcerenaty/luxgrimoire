@@ -16,7 +16,14 @@ const BTN_SM = 'px-2 py-1 rounded-lg text-xs font-medium transition-colors'
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'CAD', 'AUD', 'NZD', 'PLN', 'SGD', 'CHF', 'SEK', 'DKK', 'NOK']
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type ArtistEntry = { id?: string; name: string; role: string; existing?: boolean; contributionId?: string }
+export type ArtistEntry = {
+  id?: string; name: string; role: string; existing?: boolean; contributionId?: string
+  /** Present once the artist is linked to a real Artist row — lets the identity (name/studio) be edited in place. */
+  slug?: string
+  isCollective?: boolean
+  studioId?: string | null
+  studioName?: string | null
+}
 export type EditionCompany = { id: string; name: string; slug: string; defaultCurrency?: string | null }
 /** One manually-entered sale date for a standalone edition (no linked SaleAnnouncement) —
  *  date only, no time. Editions linked to an announcement resolve their date live from its
@@ -620,6 +627,100 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   )
 })
 
+// ─── ArtistIdentityEditor ───────────────────────────────────────────────────────
+/** Inline editor for an existing Artist's real identity (name + studio/collective link) —
+ *  lets an admin fix a historical "@handle-only" credit while going back through old
+ *  editions, without leaving the edition editor. Edits the shared Artist row (PATCH),
+ *  so the fix applies everywhere that artist is credited, not just this edition. */
+type ArtistIdentity = { name: string; isCollective: boolean; studioId: string | null; studioName: string | null }
+
+function ArtistIdentityEditor({ artistSlug, initial, onSaved, onCancel }: {
+  artistSlug: string
+  initial: ArtistIdentity
+  onSaved: (updated: ArtistIdentity) => void
+  onCancel: () => void
+}) {
+  const qc = useQueryClient()
+
+  // Always re-fetch the current record on open — the entry in the artists list may only
+  // carry name/id/slug (e.g. freshly picked via PersonPicker), not studio info yet.
+  const { data: full, isLoading } = useQuery({
+    queryKey: ['artist-identity', artistSlug],
+    queryFn: () => authFetch<{ name: string; isCollective?: boolean; studioId?: string | null; studio?: { name: string } | null }>(`/artists/${artistSlug}`),
+  })
+
+  const [form, setForm] = useState<ArtistIdentity | null>(null)
+  useEffect(() => {
+    if (full && !form) {
+      setForm({
+        name: full.name,
+        isCollective: full.isCollective ?? false,
+        studioId: full.studioId ?? null,
+        studioName: full.studio?.name ?? null,
+      })
+    }
+  }, [full, form])
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: ArtistIdentity) =>
+      authFetch(`/artists/${artistSlug}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: payload.name, isCollective: payload.isCollective, studioId: payload.studioId ?? '' }),
+      }),
+    onSuccess: (_res, payload) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'artists'] })
+      onSaved(payload)
+    },
+  })
+
+  if (isLoading || !form) {
+    return <div className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-xs text-stone-500">Loading artist…</div>
+  }
+
+  return (
+    <div className="bg-stone-800 border border-brand-600/50 rounded-lg p-3 space-y-2">
+      <div>
+        <label className="text-[10px] font-semibold uppercase text-stone-500">Artist name</label>
+        <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+          className="w-full bg-stone-900 border border-stone-700 rounded px-2 py-1.5 text-sm text-stone-100 focus:outline-none focus:border-brand-400" />
+      </div>
+      <label className="flex items-center gap-2 text-xs text-stone-300">
+        <input type="checkbox" checked={form.isCollective} className="accent-brand-400"
+          onChange={e => setForm({ ...form, isCollective: e.target.checked })} />
+        This is a studio/collective, not an individual person
+      </label>
+      <div>
+        <label className="text-[10px] font-semibold uppercase text-stone-500">Studio / collective (optional)</label>
+        {form.studioId && form.studioName ? (
+          <div className="flex items-center gap-2 bg-stone-900 border border-stone-700 rounded px-2 py-1.5">
+            <span className="text-sm text-stone-200 flex-1">{form.studioName}</span>
+            <button type="button" onClick={() => setForm({ ...form, studioId: null, studioName: null })}
+              className="text-stone-500 hover:text-stone-300 text-sm">×</button>
+          </div>
+        ) : (
+          <PersonPicker
+            endpoint="artists"
+            placeholder="Search or create the studio this artist publishes under…"
+            onAdd={(entry: PersonEntry) => setForm({ ...form, studioId: entry.id ?? null, studioName: entry.name })}
+          />
+        )}
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button type="button" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate(form)}
+          className="text-xs px-3 py-1.5 rounded bg-brand-600 text-white hover:bg-brand-500 disabled:opacity-40">
+          {saveMutation.isPending ? 'Saving…' : 'Save'}
+        </button>
+        <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded text-stone-400 hover:text-stone-200">
+          Cancel
+        </button>
+      </div>
+      {saveMutation.isError && (
+        <p className="text-xs text-red-400">Failed to save — try again.</p>
+      )}
+    </div>
+  )
+}
+
 // ─── EditionFieldsSection ─────────────────────────────────────────────────────
 export interface EditionFieldsSectionProps {
   companyId: string
@@ -689,6 +790,8 @@ export function EditionFieldsSection({
   pendingFeatureTags, featurePreviewRef,
   companies, collections,
 }: EditionFieldsSectionProps) {
+  const [editingIdentityIndex, setEditingIdentityIndex] = useState<number | null>(null)
+
   const handleRemoveArtist = (index: number) => {
     const art = artists[index]
     if (art.existing && art.id) {
@@ -853,16 +956,44 @@ export function EditionFieldsSection({
             {artists.map((art, i) => (
               <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <div className="flex-1 min-w-0">
-                  {art.id ? (
+                  {art.id && art.slug && editingIdentityIndex === i ? (
+                    <ArtistIdentityEditor
+                      artistSlug={art.slug}
+                      initial={{
+                        name: art.name,
+                        isCollective: art.isCollective ?? false,
+                        studioId: art.studioId ?? null,
+                        studioName: art.studioName ?? null,
+                      }}
+                      onSaved={(updated) => {
+                        onArtistsChange?.(artists.map((x, j) => j === i ? {
+                          ...x, name: updated.name, isCollective: updated.isCollective,
+                          studioId: updated.studioId, studioName: updated.studioName,
+                        } : x))
+                        setEditingIdentityIndex(null)
+                      }}
+                      onCancel={() => setEditingIdentityIndex(null)}
+                    />
+                  ) : art.id ? (
                     <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
                       {!art.existing && art.id && <span className="text-brand-400 text-[9px] font-semibold uppercase">new</span>}
-                      <span className="flex-1">{art.name}</span>
+                      <span className="flex-1 truncate">{art.name}</span>
+                      {art.studioName && (
+                        <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-stone-700/90 text-stone-300 border border-stone-600 shrink-0 max-w-[100px] truncate">
+                          {art.studioName}
+                        </span>
+                      )}
+                      {art.slug && (
+                        <button type="button" onClick={() => setEditingIdentityIndex(i)}
+                          title="Edit this artist's name/studio"
+                          className="text-stone-500 hover:text-brand-400 text-xs shrink-0">✎</button>
+                      )}
                       <button
                         onClick={() => {
                           if (art.existing && art.id) onRemoveExistingArtist?.(art.id)
                           onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false, contributionId: undefined } : x))
                         }}
-                        className="text-stone-500 hover:text-red-400 text-xs">×</button>
+                        className="text-stone-500 hover:text-red-400 text-xs shrink-0">×</button>
                     </div>
                   ) : art.name ? (
                     <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
@@ -878,7 +1009,7 @@ export function EditionFieldsSection({
                   ) : (
                     <PersonPicker endpoint="artists" placeholder="Search or create artist…"
                       initialQuery={art.name || undefined}
-                      onAdd={(a: PersonEntry) => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: a.id, name: a.name } : x))} />
+                      onAdd={(a: PersonEntry) => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: a.id, name: a.name, slug: a.slug } : x))} />
                   )}
                 </div>
                 <div className="flex flex-1 gap-2 items-center">
