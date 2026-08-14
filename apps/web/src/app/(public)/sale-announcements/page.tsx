@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
-import { Megaphone, Search, LayoutGrid, List, X } from 'lucide-react'
+import { Megaphone, Search, LayoutGrid, List, X, CalendarDays } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { AnnouncementCard, AnnouncementListRow, type ListSaleAnnouncement } from '@/components/sales/AnnouncementCard'
 
@@ -74,12 +74,21 @@ export default function SaleAnnouncementsPage() {
           <Megaphone size={24} className="text-brand-400" />
           <h1 className="text-3xl font-serif font-bold text-navy-100">Sales</h1>
         </div>
-        <Link
-          href="/sale-announcement-requests"
-          className="text-xs text-brand-500 hover:text-brand-400 border border-navy-700 hover:border-brand-700 px-3 py-1.5 rounded-full transition-colors font-serif"
-        >
-          + Report a sale
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/sales-calendar"
+            className="flex items-center gap-1.5 text-xs text-navy-200 bg-navy-800 hover:bg-navy-700 border border-navy-700 hover:border-brand-600/50 px-3 py-1.5 rounded-full transition-colors font-serif"
+          >
+            <CalendarDays size={13} />
+            View as Calendar
+          </Link>
+          <Link
+            href="/sale-announcement-requests"
+            className="text-xs text-brand-500 hover:text-brand-400 border border-navy-700 hover:border-brand-700 px-3 py-1.5 rounded-full transition-colors font-serif"
+          >
+            + Report a sale
+          </Link>
+        </div>
       </div>
 
       {/* Filters row */}

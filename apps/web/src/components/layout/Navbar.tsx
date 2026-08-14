@@ -20,6 +20,7 @@ const NAV_LINKS = [
   { href: '/subscriptions', label: 'Subscriptions' },
   { href: '/books-by-month', label: 'Boxes by Month' },
   { href: '/sale-announcements', label: 'Sale Announcements' },
+  { href: '/sales-calendar', label: 'Sales Calendar' },
   { href: '/blog', label: 'Blog' },
 ]
 
