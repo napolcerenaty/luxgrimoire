@@ -240,16 +240,16 @@ function SalesCalendarContent() {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
-      <div className="flex items-center justify-between gap-3 mb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
         <div className="flex items-center gap-3">
-          <CalendarDays size={24} className="text-brand-400" />
+          <CalendarDays size={24} className="text-brand-400 shrink-0" />
           <h1 className="text-3xl font-serif font-bold text-navy-100">Sales &amp; Renewals Calendar</h1>
         </div>
         <button
           onClick={handleDownload}
           disabled={!hasAnyEvents}
           title={`Includes only what's shown for ${monthLabel} — switch months and download again to get other periods.`}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-300 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-300 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 self-start sm:self-auto"
         >
           <Download size={13} />
           <span className="hidden sm:inline">Download {monthLabel}</span>
