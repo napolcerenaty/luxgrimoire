@@ -40,7 +40,7 @@ export default async function CompanySaleAnnouncementsPage({ params }: Props) {
       </Link>
       <h1 className="text-3xl font-serif font-bold text-navy-100 mb-6">Sale Announcements</h1>
       <Suspense fallback={<div className="h-40 rounded-2xl bg-navy-900 animate-pulse" />}>
-        <CompanySaleAnnouncementsList companyId={company.id} />
+        <CompanySaleAnnouncementsList companyId={company.id} companyName={company.name} />
       </Suspense>
     </div>
   )

@@ -10,6 +10,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { useBrandColors } from '@/lib/useBrandColors'
 import { strHue } from '@/lib/calendarPills'
 import { downloadIcsCalendar, type CalendarExportEvent } from '@/lib/ics'
+import { trackEvent } from '@/lib/trackEvent'
 import { renewalDayInMonth, type CalEntry } from '@/lib/renewalDayInMonth'
 import CalendarGrid, { CalendarRenewalItem, CalendarSaleItem } from '@/components/calendar/CalendarGrid'
 
@@ -57,6 +58,10 @@ export default function SalesCalendarPage() {
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [companyId, setCompanyId] = useState('')
+
+  useEffect(() => {
+    trackEvent('/analytics/public/sales-calendar-view')
+  }, [])
 
   const year = viewDate.getFullYear()
   const month0 = viewDate.getMonth()
@@ -211,6 +216,7 @@ export default function SalesCalendarPage() {
       `LuxGrimoire — ${monthLabel}`,
       `luxgrimoire-sales-calendar-${year}-${String(month).padStart(2, '0')}.ics`,
     )
+    trackEvent('/analytics/sales-calendar-ics-download')
   }
 
   return (

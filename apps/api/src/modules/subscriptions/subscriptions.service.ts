@@ -2512,6 +2512,7 @@ export class SubscriptionsService {
       where: {
         isHidden: false,
         isUpcoming: false,
+        isContentStream: false,
         renewalDay: { not: null },
       },
       select: {

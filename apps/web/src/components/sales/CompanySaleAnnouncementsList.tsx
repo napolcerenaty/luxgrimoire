@@ -12,6 +12,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import { useAuth } from '@/components/AuthProvider'
 import { strHue } from '@/lib/calendarPills'
 import { downloadIcsCalendar, type CalendarExportEvent } from '@/lib/ics'
+import { trackEvent } from '@/lib/trackEvent'
 import CalendarGrid, { type CalendarSaleItem } from '@/components/calendar/CalendarGrid'
 import { AnnouncementCard, AnnouncementListRow, type ListSaleAnnouncement } from '@/components/sales/AnnouncementCard'
 
@@ -41,9 +42,10 @@ interface SaleInterest {
 
 interface Props {
   companyId: string
+  companyName?: string
 }
 
-export function CompanySaleAnnouncementsList({ companyId }: Props) {
+export function CompanySaleAnnouncementsList({ companyId, companyName }: Props) {
   const { theme } = useTheme()
   const { user } = useAuth()
   const router = useRouter()
@@ -58,6 +60,13 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
   // of resetting to the default grid view — see project memory for the bug this fixes.
   const rawView = searchParams.get('view')
   const view: 'grid' | 'list' | 'calendar' = rawView === 'list' || rawView === 'calendar' ? rawView : 'grid'
+
+  useEffect(() => {
+    if (view === 'calendar') {
+      trackEvent('/analytics/public/company-calendar-view', { companyId, companyName: companyName ?? companyId })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, companyId])
 
   // The selected day inside CalendarGrid isn't part of the restored URL state, so on browser
   // back the agenda panel comes back collapsed/shorter than it was — the browser's native
@@ -163,6 +172,7 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
       `${tiers[0]?.announcement.company?.name ?? 'Company'} — ${monthLabel}`,
       `sales-calendar-${year}-${String(month).padStart(2, '0')}.ics`,
     )
+    trackEvent('/analytics/sales-calendar-ics-download', { companyId, companyName: companyName ?? companyId })
   }
 
   const { data, isLoading, isFetchingNextPage, fetchNextPage, hasNextPage } = useInfiniteQuery({

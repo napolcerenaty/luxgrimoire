@@ -6,6 +6,11 @@ import { ChevronLeft, ChevronRight, Bell, RefreshCw, X } from 'lucide-react'
 import { hexLuminance, pillStyle, withHighlightGlow, highlightDotShadow } from '@/lib/calendarPills'
 import { SalePillBell } from '@/components/calendar/SalePillBell'
 
+// Max pills (renewals + sales combined) rendered inline per desktop day cell before the rest
+// collapse behind a "+N more" trigger — without this, a day with dozens of renewals (e.g. every
+// subscription billing on the 1st) balloons its cell far past its own grid row.
+const DESKTOP_PILL_CAP = 4
+
 export interface CalendarRenewalItem {
   id: string
   label: string
@@ -169,6 +174,12 @@ export default function CalendarGrid({
             const renewals = cell.current ? renewalsForDay(cell.day) : []
             const sales = cell.current ? salesForDay(cell.day) : []
             const totalEvents = renewals.length + sales.length
+            // A day with dozens of renewals (e.g. every subscription that bills on the 1st)
+            // would otherwise balloon this cell far past its row — cap what renders inline and
+            // push the rest behind a "+N more" trigger that opens the same day agenda below.
+            const visibleRenewals = renewals.slice(0, DESKTOP_PILL_CAP)
+            const visibleSales = sales.slice(0, Math.max(0, DESKTOP_PILL_CAP - visibleRenewals.length))
+            const hiddenCount = totalEvents - visibleRenewals.length - visibleSales.length
             const isSelected = cell.current && selectedDay === cell.day
             return (
               <div
@@ -202,7 +213,7 @@ export default function CalendarGrid({
                 {/* Desktop pills — click opens this day's agenda (below) instead of navigating
                     straight to the sale/subscription, so the interest bell stays reachable
                     without leaving the calendar. Hover still shows a quick preview tooltip. */}
-                {renewals.map(r => {
+                {visibleRenewals.map(r => {
                   const ps = withHighlightGlow(pillStyle(r.brandColors, r.hue, 'renewal', lightMode), r.highlight)
                   return (
                     <span key={r.id} className="hidden sm:block">
@@ -229,7 +240,7 @@ export default function CalendarGrid({
                   )
                 })}
 
-                {sales.map(s => {
+                {visibleSales.map(s => {
                   const ps = withHighlightGlow(pillStyle(s.brandColors, s.hue, 'sale', lightMode), s.highlight)
                   return (
                     <span key={s.id} className="hidden sm:block">
@@ -273,6 +284,21 @@ export default function CalendarGrid({
                     </span>
                   )
                 })}
+
+                {hiddenCount > 0 && (
+                  <span className="hidden sm:block">
+                    <button
+                      type="button"
+                      className="w-full rounded px-1 py-0.5 text-[10px] leading-tight text-navy-500 hover:text-navy-300 text-left transition-colors"
+                      onClick={e => {
+                        e.stopPropagation()
+                        setSelectedDay(cell.day)
+                      }}
+                    >
+                      +{hiddenCount} more
+                    </button>
+                  </span>
+                )}
 
                 {/* Mobile: colored dots — sales filled, renewals ring */}
                 {totalEvents > 0 && cell.current && (

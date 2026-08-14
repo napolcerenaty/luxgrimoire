@@ -13,6 +13,7 @@ import { useBrandColors } from '@/lib/useBrandColors'
 import { resolveInterestDate } from '@/lib/saleTiers'
 import { strHue, pillStyle } from '@/lib/calendarPills'
 import { downloadIcsCalendar, type CalendarExportEvent } from '@/lib/ics'
+import { trackEvent } from '@/lib/trackEvent'
 import { renewalDayInMonth, type CalEntry } from '@/lib/renewalDayInMonth'
 import CalendarGrid, { CalendarRenewalItem, CalendarSaleItem } from '@/components/calendar/CalendarGrid'
 
@@ -235,6 +236,7 @@ export default function CalendarPage() {
       `My LuxGrimoire Calendar — ${monthLabel}`,
       `my-calendar-${year}-${String(month0 + 1).padStart(2, '0')}.ics`,
     )
+    trackEvent('/analytics/calendar-ics-download')
   }
 
   return (
