@@ -163,6 +163,13 @@ export class SubscriptionsService {
   private readonly catalogBooksKey = (version: number, year: number, month: number) =>
     `subscriptions:catalog-books:v${version}:${year}:${month}`;
 
+  // Global renewal calendar (public /sales-calendar) — renewals barely change (only when a
+  // subscription is added/edited, or the rare company-wide month skip), so a long TTL with no
+  // explicit invalidation is an acceptable tradeoff: worst case is a stale render for a few hours.
+  private readonly CALENDAR_RENEWALS_TTL = 24 * 60 * 60 * 1000;
+  private readonly calendarRenewalsKey = (year: number, month: number) =>
+    `subscriptions:calendar-renewals:${year}:${month}`;
+
   private async getCatalogGapsCacheVersion(): Promise<number> {
     return (await this.cache.get<number>(this.catalogGapsBustKey())) ?? 0;
   }
@@ -2497,6 +2504,10 @@ export class SubscriptionsService {
    * meaning in a non-user-specific view).
    */
   async getGlobalCalendarRenewals(year: number, month: number) {
+    const cacheKey = this.calendarRenewalsKey(year, month);
+    const cached = await this.cache.get(cacheKey);
+    if (cached) return cached;
+
     const subs = await this.prisma.subscription.findMany({
       where: {
         isHidden: false,
@@ -2570,6 +2581,7 @@ export class SubscriptionsService {
       });
     }
 
+    await this.cache.set(cacheKey, results, this.CALENDAR_RENEWALS_TTL);
     return results;
   }
 

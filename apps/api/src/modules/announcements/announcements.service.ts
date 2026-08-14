@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Prisma, SaleType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
@@ -58,8 +60,26 @@ export class AnnouncementsService {
     private readonly typesense: TypesenseService,
     private readonly uploadService: UploadService,
     private readonly mediaAssetsService: MediaAssetsService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
     @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
   ) {}
+
+  // Global sale-tier calendar (public /sales-calendar + company embed) — sales/tiers change
+  // far less often than they're viewed, so a long TTL pays off, but (unlike the renewal
+  // calendar) admins actively edit dates/tiers, so this one needs real invalidation: every
+  // mutation that can affect what the calendar shows bumps the version via invalidateCalendarCache.
+  private readonly CALENDAR_TIERS_TTL = 24 * 60 * 60 * 1000;
+  private readonly calendarTiersBustKey = () => 'announcements:calendar-tiers-bust';
+  private readonly calendarTiersKey = (version: number, year: number, month: number, companyId?: string) =>
+    `announcements:calendar-tiers:v${version}:${year}:${month}:${companyId ?? ''}`;
+
+  private async getCalendarTiersCacheVersion(): Promise<number> {
+    return (await this.cache.get<number>(this.calendarTiersBustKey())) ?? 0;
+  }
+
+  private async invalidateCalendarCache(): Promise<void> {
+    await this.cache.set(this.calendarTiersBustKey(), Date.now(), this.CALENDAR_TIERS_TTL);
+  }
 
   private async deleteCloudinaryImages(ids: (string | null | undefined)[]): Promise<void> {
     await deleteCloudinaryImages(ids, this.uploadService);
@@ -293,6 +313,11 @@ export class AnnouncementsService {
    *  Powers the public /sales-calendar page. `companyId` narrows to one company's tiers, for
    *  the per-company calendar embed on the company sale-announcements list. */
   async getCalendarTiers(year: number, month: number, companyId?: string) {
+    const version = await this.getCalendarTiersCacheVersion();
+    const cacheKey = this.calendarTiersKey(version, year, month, companyId);
+    const cached = await this.cache.get(cacheKey);
+    if (cached) return cached;
+
     const monthStart = new Date(Date.UTC(year, month - 1, 1));
     const monthEnd = new Date(Date.UTC(year, month, 1));
 
@@ -320,7 +345,10 @@ export class AnnouncementsService {
       },
     });
 
-    if (tiers.length === 0) return [];
+    if (tiers.length === 0) {
+      await this.cache.set(cacheKey, [], this.CALENDAR_TIERS_TTL);
+      return [];
+    }
 
     // Stage numbering ("2 of 3") must reflect the WHOLE sale's tier sequence for that region, not
     // just whichever of its tiers happen to fall in the queried month — a sale's First Access could
@@ -350,7 +378,7 @@ export class AnnouncementsService {
       saleRegionCount.set(saleId, (saleRegionCount.get(saleId) ?? 0) + 1);
     }
 
-    return tiers.map((t) => {
+    const result = tiers.map((t) => {
       const key = `${t.announcement.id}::${t.regionId ?? ''}`;
       const group = stageGroups.get(key) ?? [t.id];
       return {
@@ -364,6 +392,9 @@ export class AnnouncementsService {
         multiRegion: (saleRegionCount.get(t.announcement.id) ?? 1) > 1,
       };
     });
+
+    await this.cache.set(cacheKey, result, this.CALENDAR_TIERS_TTL);
+    return result;
   }
 
   /** Countdown target for a company's page: the soonest upcoming tier across every live/
@@ -659,6 +690,7 @@ export class AnnouncementsService {
     }
 
     await this.indexSale(announcement.id);
+    await this.invalidateCalendarCache();
     return this.findById(announcement.id);
   }
 
@@ -761,6 +793,7 @@ export class AnnouncementsService {
     }
 
     await this.indexSale(id);
+    await this.invalidateCalendarCache();
     return this.findById(id);
   }
 
@@ -770,6 +803,7 @@ export class AnnouncementsService {
     const extraImages: string[] = Array.isArray(existing.extraImagesJson) ? existing.extraImagesJson as string[] : [];
     await this.typesense.deleteDocument('sales', id);
     await this.prisma.saleAnnouncement.delete({ where: { id } });
+    await this.invalidateCalendarCache();
     void this.deleteCloudinaryImages([existing.imageUrl, ...extraImages]);
   }
 
@@ -882,6 +916,7 @@ export class AnnouncementsService {
     }
 
     await this.indexSale(copy.id);
+    await this.invalidateCalendarCache();
     return this.findById(copy.id);
   }
 
@@ -965,12 +1000,14 @@ export class AnnouncementsService {
       ? await this.prisma.saleAnnouncementRegion.update({ where: { id }, data: payload })
       : await this.prisma.saleAnnouncementRegion.create({ data: payload });
     this.scheduledReminders?.recalculateForAnnouncement(saleId).catch(() => {});
+    await this.invalidateCalendarCache();
     return region;
   }
 
   async adminDeleteRegion(saleId: string, regionId: string) {
     // SaleTier rows scoped to this region cascade-delete via the FK (onDelete: Cascade).
     await this.prisma.saleAnnouncementRegion.deleteMany({ where: { id: regionId, saleId } });
+    await this.invalidateCalendarCache();
   }
 
   // ── Tier endpoints ───────────────────────────────────────────────────────────
@@ -990,12 +1027,14 @@ export class AnnouncementsService {
       ? await this.prisma.saleTier.update({ where: { id: dto.id }, data: payload })
       : await this.prisma.saleTier.create({ data: payload });
     this.scheduledReminders?.recalculateForAnnouncement(saleId).catch(() => {});
+    await this.invalidateCalendarCache();
     return tier;
   }
 
   async adminDeleteTier(saleId: string, tierId: string) {
     await this.prisma.saleTier.deleteMany({ where: { id: tierId, saleId } });
     this.scheduledReminders?.recalculateForAnnouncement(saleId).catch(() => {});
+    await this.invalidateCalendarCache();
   }
 
   private async indexSale(saleId: string): Promise<void> {

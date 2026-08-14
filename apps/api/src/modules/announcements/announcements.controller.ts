@@ -3,10 +3,9 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AnnouncementsService } from './announcements.service';
-import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto, AssignEditionToItemDto, UpsertSaleTierDto } from './announcements.dto';
+import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto, AssignEditionToItemDto, UpsertSaleTierDto, CalendarQueryDto } from './announcements.dto';
 import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CacheControlInterceptor } from '../../common/interceptors/cache-control.interceptor';
-import { YearMonthQueryDto } from '../subscriptions/subscriptions.dto';
 
 const TRENDING_TTL = 60 * 60 * 1000;
 
@@ -268,8 +267,8 @@ export class AnnouncementsController {
    *  the public /sales-calendar page. */
   @Public()
   @Get('calendar')
-  getCalendar(@Query() query: YearMonthQueryDto, @Query('companyId') companyId?: string) {
-    return this.announcementsService.getCalendarTiers(query.year, query.month, companyId);
+  getCalendar(@Query() query: CalendarQueryDto) {
+    return this.announcementsService.getCalendarTiers(query.year, query.month, query.companyId);
   }
 
   @Public()
