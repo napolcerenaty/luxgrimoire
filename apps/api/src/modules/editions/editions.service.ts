@@ -758,7 +758,7 @@ export class EditionsService {
         artists: {
           select: {
             id: true, role: true,
-            artist: { select: { id: true, name: true, slug: true, isCollective: true, studioId: true, studio: { select: { id: true, name: true, slug: true } } } },
+            artist: { select: { id: true, name: true } },
           },
         },
         featureTags: {

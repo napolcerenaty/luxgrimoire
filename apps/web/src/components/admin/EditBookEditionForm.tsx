@@ -261,11 +261,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
 
   // Artists state — initialized from existing contributions
   const [artists, setArtists] = useState<ArtistEntry[]>(() =>
-    (edition.artists ?? []).map(a => ({
-      id: a.artist.id, name: a.artist.name, role: a.role, existing: true, contributionId: a.id,
-      slug: a.artist.slug, isCollective: a.artist.isCollective, studioId: a.artist.studioId ?? null,
-      studioName: a.artist.studio?.name ?? null,
-    }))
+    (edition.artists ?? []).map(a => ({ id: a.artist.id, name: a.artist.name, role: a.role, existing: true, contributionId: a.id }))
   )
   // Map of contributionId → original role for detecting in-place changes
   const originalContribs = new Map((edition.artists ?? []).filter(a => a.id).map(a => [a.id!, a.role]))
