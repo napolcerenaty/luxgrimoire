@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
+const INP = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
 
 export function GenreTagsPicker({ genres, onChange, allowNew = true, staticOptions, endpoint = '/books/genres' }: { genres: string[]; onChange: (v: string[]) => void; allowNew?: boolean; staticOptions?: string[]; endpoint?: string }) {
   const [q, setQ] = useState('')
@@ -84,8 +84,8 @@ export function GenreTagsPicker({ genres, onChange, allowNew = true, staticOptio
   }
 
   const dropdownClasses = openUpward
-    ? 'absolute z-50 bottom-full left-0 right-0 bg-stone-800 border border-stone-700 rounded-xl mb-1 shadow-2xl max-h-52 overflow-y-auto'
-    : 'absolute z-50 top-full left-0 right-0 bg-stone-800 border border-stone-700 rounded-xl mt-1 shadow-2xl max-h-52 overflow-y-auto'
+    ? 'absolute z-50 bottom-full left-0 right-0 bg-navy-800 border border-navy-700 rounded-xl mb-1 shadow-2xl max-h-52 overflow-y-auto'
+    : 'absolute z-50 top-full left-0 right-0 bg-navy-800 border border-navy-700 rounded-xl mt-1 shadow-2xl max-h-52 overflow-y-auto'
 
   return (
     <div>
@@ -104,13 +104,13 @@ export function GenreTagsPicker({ genres, onChange, allowNew = true, staticOptio
           <div className={dropdownClasses}>
             {filtered.map((g, idx) => (
               <button key={g} type="button" onMouseDown={() => add(g)}
-                className={`w-full text-left px-3 py-2 text-sm text-stone-200 transition-colors ${activeIndex === idx ? 'bg-stone-700' : 'hover:bg-stone-700'}`}>
+                className={`w-full text-left px-3 py-2 text-sm text-navy-200 transition-colors ${activeIndex === idx ? 'bg-navy-700' : 'hover:bg-navy-700'}`}>
                 {g}
               </button>
             ))}
             {hasAddNew && (
               <button type="button" onMouseDown={() => add(q.trim())}
-                className={`w-full text-left px-3 py-2 text-xs text-brand-400 transition-colors border-t border-stone-700 ${activeIndex === filtered.length ? 'bg-stone-700' : 'hover:bg-stone-700'}`}>
+                className={`w-full text-left px-3 py-2 text-xs text-brand-400 transition-colors border-t border-navy-700 ${activeIndex === filtered.length ? 'bg-navy-700' : 'hover:bg-navy-700'}`}>
                 + Add &ldquo;{q.trim()}&rdquo;
               </button>
             )}

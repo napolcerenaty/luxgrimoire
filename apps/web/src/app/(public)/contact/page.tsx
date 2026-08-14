@@ -39,7 +39,7 @@ export default function ContactPage() {
         <Mail size={22} className="text-brand-400" />
         <h1 className="text-4xl font-serif font-bold text-brand-400 tracking-wide">Contact Us</h1>
       </div>
-      <p className="text-stone-400 text-sm mb-10">
+      <p className="text-navy-400 text-sm mb-10">
         Questions, feedback, partnership enquiries, or want to become a contributor?
         We'd love to hear from you.
         For copyright or data issues please use the{' '}
@@ -52,53 +52,53 @@ export default function ContactPage() {
       {status === 'sent' ? (
         <div className="rounded-xl border border-emerald-800 bg-emerald-950/30 px-6 py-8 text-center">
           <p className="text-lg font-serif text-emerald-400 mb-2">Message sent!</p>
-          <p className="text-sm text-stone-400">We'll get back to you as soon as possible.</p>
+          <p className="text-sm text-navy-400">We'll get back to you as soon as possible.</p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-stone-400 mb-1.5">Name</label>
+              <label className="block text-xs font-semibold text-navy-400 mb-1.5">Name</label>
               <input
                 required
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-stone-600"
+                className="w-full px-3 py-2 rounded-lg border border-navy-700 bg-navy-800/60 text-navy-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-navy-600"
                 placeholder="Your name"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-stone-400 mb-1.5">Email</label>
+              <label className="block text-xs font-semibold text-navy-400 mb-1.5">Email</label>
               <input
                 type="email"
                 required
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-stone-600"
+                className="w-full px-3 py-2 rounded-lg border border-navy-700 bg-navy-800/60 text-navy-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-navy-600"
                 placeholder="you@example.com"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-stone-400 mb-1.5">Subject</label>
+            <label className="block text-xs font-semibold text-navy-400 mb-1.5">Subject</label>
             <input
               required
               value={form.subject}
               onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-stone-600"
+              className="w-full px-3 py-2 rounded-lg border border-navy-700 bg-navy-800/60 text-navy-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-navy-600"
               placeholder="What is this about?"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-stone-400 mb-1.5">Message</label>
+            <label className="block text-xs font-semibold text-navy-400 mb-1.5">Message</label>
             <textarea
               required
               rows={6}
               value={form.message}
               onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-stone-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-stone-600 resize-none"
+              className="w-full px-3 py-2 rounded-lg border border-navy-700 bg-navy-800/60 text-navy-200 text-sm focus:outline-none focus:border-brand-600 placeholder:text-navy-600 resize-none"
               placeholder="Your message…"
             />
           </div>
@@ -110,7 +110,7 @@ export default function ContactPage() {
           <button
             type="submit"
             disabled={status === 'sending'}
-            className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-stone-950 font-serif font-semibold rounded-full transition-colors text-sm"
+            className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-navy-950 font-serif font-semibold rounded-full transition-colors text-sm"
           >
             <Send size={14} />
             {status === 'sending' ? 'Sending…' : 'Send message'}

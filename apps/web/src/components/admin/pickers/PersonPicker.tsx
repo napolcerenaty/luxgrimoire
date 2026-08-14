@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
+const INP = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
 
 export type PersonEntry = { id?: string; name: string; slug?: string }
 
@@ -62,17 +62,17 @@ export function PersonPicker({ endpoint, placeholder, onAdd, initialQuery }: {
       <input value={q} onChange={e => handleQ(e.target.value)}
         placeholder={placeholder} className={INP} />
       {q.length >= 2 && (
-        <div className="absolute z-20 top-full left-0 right-0 bg-stone-800 border border-stone-700 rounded-xl mt-1 shadow-2xl max-h-48 overflow-y-auto">
-          {isFetching && <div className="px-3 py-2 text-stone-500 text-xs">Searching…</div>}
+        <div className="absolute z-20 top-full left-0 right-0 bg-navy-800 border border-navy-700 rounded-xl mt-1 shadow-2xl max-h-48 overflow-y-auto">
+          {isFetching && <div className="px-3 py-2 text-navy-500 text-xs">Searching…</div>}
           {results.map(r => (
             <button key={r.id} type="button" onClick={() => pick(r)}
-              className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors">
+              className="w-full text-left px-3 py-2 text-sm text-navy-200 hover:bg-navy-700 transition-colors">
               {r.name}
             </button>
           ))}
           {!exactMatch && (
             <button type="button" onClick={createNew} disabled={creating}
-              className="w-full text-left px-3 py-2 text-xs text-brand-400 hover:bg-stone-700 border-t border-stone-700 transition-colors disabled:opacity-50">
+              className="w-full text-left px-3 py-2 text-xs text-brand-400 hover:bg-navy-700 border-t border-navy-700 transition-colors disabled:opacity-50">
               {creating ? 'Creating…' : `+ Create "${q}"`}
             </button>
           )}

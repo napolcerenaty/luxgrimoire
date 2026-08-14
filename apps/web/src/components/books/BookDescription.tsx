@@ -14,7 +14,7 @@ export function BookDescription({ description, maxChars = 400 }: Props) {
 
   return (
     <div>
-      <p className="text-stone-300 leading-relaxed text-sm whitespace-pre-line">{displayed}</p>
+      <p className="text-navy-300 leading-relaxed text-sm whitespace-pre-line">{displayed}</p>
       {isLong && (
         <button
           onClick={() => setExpanded(v => !v)}

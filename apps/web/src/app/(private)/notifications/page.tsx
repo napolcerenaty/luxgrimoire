@@ -103,9 +103,9 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Bell size={22} className="text-brand-400" />
-          <h1 className="text-2xl font-bold text-stone-100">Notifications</h1>
+          <h1 className="text-2xl font-bold text-navy-100">Notifications</h1>
           {total > 0 && (
-            <span className="text-xs text-stone-500 bg-stone-800 px-2 py-0.5 rounded-full">
+            <span className="text-xs text-navy-500 bg-navy-800 px-2 py-0.5 rounded-full">
               {total}
             </span>
           )}
@@ -115,16 +115,16 @@ export default function NotificationsPage() {
           <button
             onClick={() => markAllReadMutation.mutate()}
             disabled={markAllReadMutation.isPending || unreadCount === 0}
-            className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-brand-400 disabled:opacity-40 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-navy-400 hover:text-brand-400 disabled:opacity-40 transition-colors"
           >
             <CheckCheck size={14} />
             Mark all read
           </button>
-          <div className="w-px h-4 bg-stone-700" />
+          <div className="w-px h-4 bg-navy-700" />
           <button
             onClick={() => deleteAllReadMutation.mutate()}
             disabled={deleteAllReadMutation.isPending}
-            className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-rose-400 disabled:opacity-40 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-navy-400 hover:text-rose-400 disabled:opacity-40 transition-colors"
           >
             <Trash2 size={14} />
             Delete read
@@ -133,15 +133,15 @@ export default function NotificationsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-stone-900 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-4 bg-navy-900 rounded-xl p-1 w-fit">
         {(['all', 'unread'] as const).map((t) => (
           <button
             key={t}
             onClick={() => handleTabChange(t)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
               tab === t
-                ? 'bg-brand-400 text-stone-950'
-                : 'text-stone-400 hover:text-stone-200'
+                ? 'bg-brand-400 text-navy-950'
+                : 'text-navy-400 hover:text-navy-200'
             }`}
           >
             {t}
@@ -150,13 +150,13 @@ export default function NotificationsPage() {
       </div>
 
       {/* List */}
-      <div className="rounded-xl border border-stone-800 overflow-hidden">
+      <div className="rounded-xl border border-navy-800 overflow-hidden">
         {isLoading ? (
           <div className="py-16 flex justify-center">
             <div className="w-6 h-6 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : notifications.length === 0 ? (
-          <div className="py-16 text-center text-stone-500">
+          <div className="py-16 text-center text-navy-500">
             <Bell size={32} className="mx-auto mb-3 opacity-30" />
             <p>No notifications</p>
           </div>
@@ -164,21 +164,21 @@ export default function NotificationsPage() {
           notifications.map((n) => (
             <div
               key={n.id}
-              className={`flex items-start gap-4 px-5 py-4 border-b border-stone-800 last:border-0 transition-colors ${
-                !n.readAt ? 'bg-brand-500/5' : 'bg-stone-900/50'
+              className={`flex items-start gap-4 px-5 py-4 border-b border-navy-800 last:border-0 transition-colors ${
+                !n.readAt ? 'bg-brand-500/5' : 'bg-navy-900/50'
               }`}
             >
               {/* Unread dot */}
               <div className="mt-2 shrink-0">
-                <div className={`w-2 h-2 rounded-full ${!n.readAt ? 'bg-brand-400' : 'bg-stone-700'}`} />
+                <div className={`w-2 h-2 rounded-full ${!n.readAt ? 'bg-brand-400' : 'bg-navy-700'}`} />
               </div>
 
               {/* Content */}
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium leading-snug ${!n.readAt ? 'text-stone-100' : 'text-stone-400'}`}>
+                <p className={`text-sm font-medium leading-snug ${!n.readAt ? 'text-navy-100' : 'text-navy-400'}`}>
                   {n.title}
                 </p>
-                {n.body && <p className="text-sm text-stone-500 mt-1">{n.body}</p>}
+                {n.body && <p className="text-sm text-navy-500 mt-1">{n.body}</p>}
                 {n.link && n.link.startsWith('/') && (
                   <a
                     href={n.link}
@@ -187,10 +187,10 @@ export default function NotificationsPage() {
                     View →
                   </a>
                 )}
-                <p className="text-xs text-stone-600 mt-1.5">
+                <p className="text-xs text-navy-600 mt-1.5">
                   {timeAgo(n.createdAt)}
                   {n.expiresAt && (
-                    <span className="ml-2 text-stone-700">· {expiresIn(n.expiresAt)}</span>
+                    <span className="ml-2 text-navy-700">· {expiresIn(n.expiresAt)}</span>
                   )}
                 </p>
               </div>
@@ -201,7 +201,7 @@ export default function NotificationsPage() {
                   <button
                     onClick={() => markReadMutation.mutate(n.id)}
                     disabled={markReadMutation.isPending}
-                    className="p-1.5 rounded-lg text-stone-500 hover:text-brand-400 hover:bg-stone-800 transition-colors"
+                    className="p-1.5 rounded-lg text-navy-500 hover:text-brand-400 hover:bg-navy-800 transition-colors"
                     title="Mark as read"
                   >
                     <Check size={14} />
@@ -210,7 +210,7 @@ export default function NotificationsPage() {
                 <button
                   onClick={() => deleteMutation.mutate(n.id)}
                   disabled={deleteMutation.isPending}
-                  className="p-1.5 rounded-lg text-stone-500 hover:text-rose-400 hover:bg-stone-800 transition-colors"
+                  className="p-1.5 rounded-lg text-navy-500 hover:text-rose-400 hover:bg-navy-800 transition-colors"
                   title="Delete"
                 >
                   <X size={14} />
@@ -223,11 +223,11 @@ export default function NotificationsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-sm text-stone-400">
+        <div className="flex items-center justify-between mt-4 text-sm text-navy-400">
           <button
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
-            className="px-3 py-1.5 rounded-lg border border-stone-700 hover:border-brand-600 disabled:opacity-40 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-navy-700 hover:border-brand-600 disabled:opacity-40 transition-colors"
           >
             ← Previous
           </button>
@@ -237,7 +237,7 @@ export default function NotificationsPage() {
           <button
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1.5 rounded-lg border border-stone-700 hover:border-brand-600 disabled:opacity-40 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-navy-700 hover:border-brand-600 disabled:opacity-40 transition-colors"
           >
             Next →
           </button>

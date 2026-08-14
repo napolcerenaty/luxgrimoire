@@ -25,7 +25,7 @@ const STATUS_OPTIONS = ['PENDING', 'APPROVED', 'REMOVED']
 const STATUS_STYLES: Record<string, string> = {
   PENDING: 'text-brand-400 bg-brand-500/10 border-brand-500/30',
   APPROVED: 'text-green-400 bg-green-500/10 border-green-500/30',
-  REMOVED: 'text-stone-500 bg-stone-700/30 border-stone-600/30',
+  REMOVED: 'text-navy-500 bg-navy-700/30 border-navy-600/30',
 }
 
 // ─── Single expanded panel ────────────────────────────────────────────────────
@@ -102,9 +102,9 @@ function EditionPanel({
   const displayImages = localImages.length ? localImages : images
 
   return (
-    <div className="divide-y divide-stone-800/60">
+    <div className="divide-y divide-navy-800/60">
       {isLoading && (
-        <p className="text-stone-500 text-xs px-4 py-3">Loading…</p>
+        <p className="text-navy-500 text-xs px-4 py-3">Loading…</p>
       )}
 
       {dirtyIds && (
@@ -120,11 +120,11 @@ function EditionPanel({
       )}
 
       {displayImages.map((img, idx) => (
-        <div key={img.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-800/30 transition-colors">
+        <div key={img.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-navy-800/30 transition-colors">
           <button
             type="button"
             onClick={() => setLightboxUrl(img.url)}
-            className="flex-shrink-0 w-[54px] h-[80px] rounded overflow-hidden bg-stone-800 ring-1 ring-stone-700 hover:ring-brand-500/60 transition-all"
+            className="flex-shrink-0 w-[54px] h-[80px] rounded overflow-hidden bg-navy-800 ring-1 ring-navy-700 hover:ring-brand-500/60 transition-all"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -139,19 +139,19 @@ function EditionPanel({
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[img.status] ?? ''}`}>
                 {img.status}
               </span>
-              <span className="text-xs text-stone-300">{img.user.username}</span>
+              <span className="text-xs text-navy-300">{img.user.username}</span>
               {img.instagramHandle && (
                 <a
                   href={`https://instagram.com/${img.instagramHandle}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[11px] text-stone-500 hover:text-brand-400 transition-colors"
+                  className="text-[11px] text-navy-500 hover:text-brand-400 transition-colors"
                 >
                   @{img.instagramHandle}
                 </a>
               )}
             </div>
-            <p className="text-[10px] text-stone-600">
+            <p className="text-[10px] text-navy-600">
               Submitted {new Date(img.createdAt).toLocaleDateString()} · Consent {img.consentGiven ? '✓' : '✗'} {new Date(img.consentedAt).toLocaleDateString()}
             </p>
           </div>
@@ -168,7 +168,7 @@ function EditionPanel({
               <button
                 onClick={() => updateStatus.mutate({ id: img.id, status: 'REMOVED' })}
                 disabled={updateStatus.isPending}
-                className="px-2 py-1 text-[11px] rounded bg-stone-800/50 text-stone-400 hover:bg-stone-700/60 disabled:opacity-50 transition-colors border border-stone-700/40"
+                className="px-2 py-1 text-[11px] rounded bg-navy-800/50 text-navy-400 hover:bg-navy-700/60 disabled:opacity-50 transition-colors border border-navy-700/40"
               >Hide</button>
             )}
             <button
@@ -183,13 +183,13 @@ function EditionPanel({
               type="button"
               onClick={() => moveImage(idx, -1)}
               disabled={idx === 0}
-              className="w-6 h-6 flex items-center justify-center rounded text-[13px] text-stone-500 hover:text-stone-200 hover:bg-stone-700 disabled:opacity-20 transition-colors"
+              className="w-6 h-6 flex items-center justify-center rounded text-[13px] text-navy-500 hover:text-navy-200 hover:bg-navy-700 disabled:opacity-20 transition-colors"
             >↑</button>
             <button
               type="button"
               onClick={() => moveImage(idx, 1)}
               disabled={idx === displayImages.length - 1}
-              className="w-6 h-6 flex items-center justify-center rounded text-[13px] text-stone-500 hover:text-stone-200 hover:bg-stone-700 disabled:opacity-20 transition-colors"
+              className="w-6 h-6 flex items-center justify-center rounded text-[13px] text-navy-500 hover:text-navy-200 hover:bg-navy-700 disabled:opacity-20 transition-colors"
             >↓</button>
           </div>
         </div>
@@ -203,7 +203,7 @@ function EditionPanel({
           <button
             type="button"
             onClick={() => setLightboxUrl(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-stone-800/90 text-stone-200 hover:bg-stone-700 flex items-center justify-center text-lg z-10 border border-stone-600"
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-navy-800/90 text-navy-200 hover:bg-navy-700 flex items-center justify-center text-lg z-10 border border-navy-600"
           >✕</button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -230,13 +230,13 @@ function CollapsibleEditionGroup({
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="rounded-xl border border-stone-700/60 bg-stone-900/30 overflow-hidden">
+    <div className="rounded-xl border border-navy-700/60 bg-navy-900/30 overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-4 py-2.5 bg-stone-800/50 border-b border-stone-700/40 hover:bg-stone-800/80 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-2.5 bg-navy-800/50 border-b border-navy-700/40 hover:bg-navy-800/80 transition-colors text-left"
       >
-        <span className="text-[11px] text-stone-500 transition-transform duration-200" style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+        <span className="text-[11px] text-navy-500 transition-transform duration-200" style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
         <a
           href={`/editions/${summary.slug}`}
           target="_blank"
@@ -246,7 +246,7 @@ function CollapsibleEditionGroup({
         >
           {summary.name}
         </a>
-        <span className="text-stone-600 text-xs shrink-0 ml-auto">
+        <span className="text-navy-600 text-xs shrink-0 ml-auto">
           {summary.count} image{summary.count !== 1 ? 's' : ''}
         </span>
       </button>
@@ -272,7 +272,7 @@ export default function AdminCommunityImagesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-serif font-semibold text-stone-100">Community Images</h1>
+        <h1 className="text-2xl font-serif font-semibold text-navy-100">Community Images</h1>
         <div className="flex gap-2 flex-wrap">
           {STATUS_OPTIONS.map(s => (
             <button
@@ -280,8 +280,8 @@ export default function AdminCommunityImagesPage() {
               onClick={() => setStatusFilter(s === statusFilter ? '' : s)}
               className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
                 statusFilter === s
-                  ? STATUS_STYLES[s] ?? 'text-stone-300 bg-stone-700 border-stone-600'
-                  : 'text-stone-500 border-stone-700 hover:border-stone-500'
+                  ? STATUS_STYLES[s] ?? 'text-navy-300 bg-navy-700 border-navy-600'
+                  : 'text-navy-500 border-navy-700 hover:border-navy-500'
               }`}
             >
               {s}
@@ -290,7 +290,7 @@ export default function AdminCommunityImagesPage() {
           {statusFilter && (
             <button
               onClick={() => setStatusFilter('')}
-              className="px-3 py-1.5 text-xs rounded-full border border-stone-700 text-stone-500 hover:border-stone-500"
+              className="px-3 py-1.5 text-xs rounded-full border border-navy-700 text-navy-500 hover:border-navy-500"
             >
               All
             </button>
@@ -298,9 +298,9 @@ export default function AdminCommunityImagesPage() {
         </div>
       </div>
 
-      {isLoading && <p className="text-stone-500 text-sm">Loading…</p>}
+      {isLoading && <p className="text-navy-500 text-sm">Loading…</p>}
       {!isLoading && editions.length === 0 && (
-        <p className="text-stone-500 text-sm">No images found.</p>
+        <p className="text-navy-500 text-sm">No images found.</p>
       )}
 
       <div className="space-y-3">

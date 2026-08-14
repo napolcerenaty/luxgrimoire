@@ -9,14 +9,14 @@ import { Megaphone, CheckCircle, Clock, XCircle, ExternalLink } from 'lucide-rea
 const STATUS_STYLES: Record<string, string> = {
   pending: 'text-brand-400 bg-brand-500/10 border-brand-500/30',
   processed: 'text-green-400 bg-green-500/10 border-green-500/30',
-  declined: 'text-stone-500 bg-stone-700/30 border-stone-600/30',
+  declined: 'text-navy-500 bg-navy-700/30 border-navy-600/30',
 }
 const STATUS_ICON: Record<string, React.ElementType> = {
   pending: Clock, processed: CheckCircle, declined: XCircle,
 }
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
-const LBL = 'block text-sm text-stone-400 mb-1'
+const INP = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
+const LBL = 'block text-sm text-navy-400 mb-1'
 
 interface MyRequest {
   id: string; url: string; notes: string | null; status: string; adminNote: string | null; createdAt: string
@@ -51,10 +51,10 @@ export default function SaleAnnouncementRequestsPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 space-y-8">
       <div>
-        <h1 className="text-3xl font-serif font-bold text-stone-100 flex items-center gap-3">
+        <h1 className="text-3xl font-serif font-bold text-navy-100 flex items-center gap-3">
           <Megaphone size={28} className="text-brand-400" /> Report a Sale
         </h1>
-        <p className="text-stone-400 text-sm mt-2">
+        <p className="text-navy-400 text-sm mt-2">
           Spotted a sale from a book box company not listed here? Submit the link and we'll add it.
         </p>
       </div>
@@ -63,10 +63,10 @@ export default function SaleAnnouncementRequestsPage() {
         <div className="bg-green-950/30 border border-green-700/40 rounded-2xl p-6 text-center">
           <CheckCircle size={36} className="text-green-400 mx-auto mb-3" />
           <p className="text-green-400 font-semibold text-lg">Submitted!</p>
-          <p className="text-stone-400 text-sm mt-1">We'll review the link and add it to the sale announcements.</p>
+          <p className="text-navy-400 text-sm mt-1">We'll review the link and add it to the sale announcements.</p>
         </div>
       ) : (
-        <form onSubmit={e => { e.preventDefault(); submit.mutate() }} className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+        <form onSubmit={e => { e.preventDefault(); submit.mutate() }} className="bg-navy-900 border border-navy-800 rounded-2xl p-6 space-y-4">
           <div>
             <label className={LBL}>Sale page URL *</label>
             <input required type="url" className={INP} value={url} onChange={e => setUrl(e.target.value)}
@@ -79,7 +79,7 @@ export default function SaleAnnouncementRequestsPage() {
           </div>
           {submit.isError && <p className="text-red-400 text-sm">{(submit.error as Error).message}</p>}
           <button type="submit" disabled={submit.isPending}
-            className="w-full bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50">
+            className="w-full bg-brand-500 hover:bg-brand-400 text-navy-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50">
             {submit.isPending ? 'Submitting…' : 'Submit Sale Link'}
           </button>
         </form>
@@ -87,17 +87,17 @@ export default function SaleAnnouncementRequestsPage() {
 
       {user && (
         <div>
-          <h2 className="text-lg font-serif font-semibold text-stone-200 mb-3">My Submissions</h2>
+          <h2 className="text-lg font-serif font-semibold text-navy-200 mb-3">My Submissions</h2>
           {myRequests.isLoading ? (
-            <p className="text-stone-500 text-sm">Loading…</p>
+            <p className="text-navy-500 text-sm">Loading…</p>
           ) : myRequests.data?.length === 0 ? (
-            <p className="text-stone-600 text-sm">No submissions yet.</p>
+            <p className="text-navy-600 text-sm">No submissions yet.</p>
           ) : (
             <div className="space-y-3">
               {myRequests.data?.map(r => {
                 const Icon = STATUS_ICON[r.status] ?? Clock
                 return (
-                  <div key={r.id} className="bg-stone-900 border border-stone-800 rounded-xl p-4">
+                  <div key={r.id} className="bg-navy-900 border border-navy-800 rounded-xl p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -110,10 +110,10 @@ export default function SaleAnnouncementRequestsPage() {
                           <ExternalLink size={12} className="shrink-0" />
                           <span className="truncate">{r.url}</span>
                         </a>
-                        {r.notes && <p className="text-xs text-stone-500 mt-1">{r.notes}</p>}
-                        {r.adminNote && <p className="text-xs text-stone-400 mt-1 italic">Note: {r.adminNote}</p>}
+                        {r.notes && <p className="text-xs text-navy-500 mt-1">{r.notes}</p>}
+                        {r.adminNote && <p className="text-xs text-navy-400 mt-1 italic">Note: {r.adminNote}</p>}
                       </div>
-                      <span className="text-xs text-stone-600 shrink-0">{new Date(r.createdAt).toLocaleDateString()}</span>
+                      <span className="text-xs text-navy-600 shrink-0">{new Date(r.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
                 )

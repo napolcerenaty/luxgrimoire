@@ -8,8 +8,8 @@ import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
 
 const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
-const LABEL_CLASS = 'block text-xs text-stone-400 mb-1 font-medium uppercase tracking-wide'
+  'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
+const LABEL_CLASS = 'block text-xs text-navy-400 mb-1 font-medium uppercase tracking-wide'
 
 type TargetType = 'all' | 'role' | 'users'
 
@@ -121,15 +121,15 @@ export default function AdminNotificationsPage() {
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
         <Bell size={22} className="text-brand-400" />
-        <h1 className="text-2xl font-bold text-stone-100">Notifications</h1>
+        <h1 className="text-2xl font-bold text-navy-100">Notifications</h1>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         {/* ─── Send Notification ─────────────────────────────────────────────── */}
-        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+        <section className="bg-navy-900 border border-navy-800 rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-5">
             <Send size={16} className="text-brand-400" />
-            <h2 className="text-base font-semibold text-stone-100">Send Notification</h2>
+            <h2 className="text-base font-semibold text-navy-100">Send Notification</h2>
           </div>
 
           <div className="flex flex-col gap-4">
@@ -143,8 +143,8 @@ export default function AdminNotificationsPage() {
                     onClick={() => { setTargetType(t); setSelectedUsers([]) }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
                       targetType === t
-                        ? 'bg-brand-400 text-stone-950'
-                        : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+                        ? 'bg-brand-400 text-navy-950'
+                        : 'bg-navy-800 text-navy-400 hover:text-navy-200'
                     }`}
                   >
                     {t === 'all' ? 'All users' : t === 'role' ? 'By role' : 'Specific users'}
@@ -179,12 +179,12 @@ export default function AdminNotificationsPage() {
                     {selectedUsers.map((u) => (
                       <span
                         key={u.id}
-                        className="flex items-center gap-1 bg-stone-800 text-stone-300 text-xs px-2 py-1 rounded-lg"
+                        className="flex items-center gap-1 bg-navy-800 text-navy-300 text-xs px-2 py-1 rounded-lg"
                       >
                         {u.username}
                         <button
                           onClick={() => setSelectedUsers((prev) => prev.filter((x) => x.id !== u.id))}
-                          className="text-stone-500 hover:text-rose-400"
+                          className="text-navy-500 hover:text-rose-400"
                         >
                           ×
                         </button>
@@ -200,16 +200,16 @@ export default function AdminNotificationsPage() {
                   onChange={(e) => setUserSearch(e.target.value)}
                 />
                 {userSearch.trim() === '' && (
-                  <div className="mt-1 text-xs text-stone-500">Type to search users…</div>
+                  <div className="mt-1 text-xs text-navy-500">Type to search users…</div>
                 )}
                 {userSearch.trim() !== '' && debouncedUserSearch.length < 2 && (
-                  <div className="mt-1 text-xs text-stone-500">Type at least 2 characters…</div>
+                  <div className="mt-1 text-xs text-navy-500">Type at least 2 characters…</div>
                 )}
                 {debouncedUserSearch.length >= 2 && isFetchingUsers && (
-                  <div className="mt-1 text-xs text-stone-500">Searching users…</div>
+                  <div className="mt-1 text-xs text-navy-500">Searching users…</div>
                 )}
                 {debouncedUserSearch.length >= 2 && !isFetchingUsers && filteredUsers.length > 0 && (
-                  <div className="mt-1 bg-stone-800 border border-stone-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                  <div className="mt-1 bg-navy-800 border border-navy-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
                     {filteredUsers.map((u) => (
                       <button
                         key={u.id}
@@ -217,17 +217,17 @@ export default function AdminNotificationsPage() {
                           setSelectedUsers((prev) => [...prev, u])
                           setUserSearch('')
                         }}
-                        className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-stone-700 transition-colors"
+                        className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-navy-700 transition-colors"
                       >
-                        <span className="text-sm text-stone-200">{u.username}</span>
-                        <span className="text-xs text-stone-500">{u.email}</span>
-                        <span className="ml-auto text-xs text-stone-600">{u.role}</span>
+                        <span className="text-sm text-navy-200">{u.username}</span>
+                        <span className="text-xs text-navy-500">{u.email}</span>
+                        <span className="ml-auto text-xs text-navy-600">{u.role}</span>
                       </button>
                     ))}
                   </div>
                 )}
                 {debouncedUserSearch.length >= 2 && !isFetchingUsers && filteredUsers.length === 0 && (
-                  <div className="mt-1 text-xs text-stone-500">No users found.</div>
+                  <div className="mt-1 text-xs text-navy-500">No users found.</div>
                 )}
               </div>
             )}
@@ -286,7 +286,7 @@ export default function AdminNotificationsPage() {
               <button
                 onClick={() => sendMutation.mutate()}
                 disabled={!title.trim() || sendMutation.isPending || (targetType === 'users' && selectedUsers.length === 0)}
-                className="flex items-center gap-2 bg-brand-400 text-stone-950 font-semibold px-5 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors text-sm"
+                className="flex items-center gap-2 bg-brand-400 text-navy-950 font-semibold px-5 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors text-sm"
               >
                 <Send size={14} />
                 {sendMutation.isPending ? 'Sending…' : 'Send'}
@@ -301,10 +301,10 @@ export default function AdminNotificationsPage() {
         </section>
 
         {/* ─── Settings ─────────────────────────────────────────────────────── */}
-        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+        <section className="bg-navy-900 border border-navy-800 rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-5">
             <Settings size={16} className="text-brand-400" />
-            <h2 className="text-base font-semibold text-stone-100">Settings</h2>
+            <h2 className="text-base font-semibold text-navy-100">Settings</h2>
           </div>
 
           <div className="flex flex-col gap-4">
@@ -324,12 +324,12 @@ export default function AdminNotificationsPage() {
                 <button
                   onClick={() => saveTtlMutation.mutate(Number(ttlInput))}
                   disabled={ttlInput === '' || saveTtlMutation.isPending}
-                  className="px-4 py-2 rounded-lg bg-stone-700 text-stone-200 hover:bg-stone-600 disabled:opacity-50 transition-colors text-sm"
+                  className="px-4 py-2 rounded-lg bg-navy-700 text-navy-200 hover:bg-navy-600 disabled:opacity-50 transition-colors text-sm"
                 >
                   {saveTtlMutation.isPending ? 'Saving…' : 'Save'}
                 </button>
                 {settingsData && (
-                  <span className="text-stone-500 text-xs">Current: {settingsData.ttlDays} days</span>
+                  <span className="text-navy-500 text-xs">Current: {settingsData.ttlDays} days</span>
                 )}
               </div>
             </div>
@@ -337,18 +337,18 @@ export default function AdminNotificationsPage() {
         </section>
 
         {/* ─── Cleanup ──────────────────────────────────────────────────────── */}
-        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+        <section className="bg-navy-900 border border-navy-800 rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <Trash2 size={16} className="text-brand-400" />
-            <h2 className="text-base font-semibold text-stone-100">Maintenance</h2>
+            <h2 className="text-base font-semibold text-navy-100">Maintenance</h2>
           </div>
-          <p className="text-stone-500 text-sm mb-4">
+          <p className="text-navy-500 text-sm mb-4">
             Expired notifications are purged automatically once a day. You can also trigger a manual cleanup.
           </p>
           <button
             onClick={() => cleanupMutation.mutate()}
             disabled={cleanupMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-stone-800 border border-stone-700 text-stone-300 hover:border-rose-600 hover:text-rose-400 disabled:opacity-50 transition-colors text-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-navy-800 border border-navy-700 text-navy-300 hover:border-rose-600 hover:text-rose-400 disabled:opacity-50 transition-colors text-sm"
           >
             <Trash2 size={14} />
             {cleanupMutation.isPending ? 'Running…' : 'Purge expired now'}

@@ -20,10 +20,10 @@ export function SubscriberCountBadge({ subscriptionSlug }: SubscriberCountBadgeP
   if (count === null || count === 0) return null;
 
   return (
-    <div className="flex items-center gap-1.5 text-sm text-stone-400">
+    <div className="flex items-center gap-1.5 text-sm text-navy-400">
       <span>👥</span>
       <span>
-        <span className="text-stone-200 font-medium">{count.toLocaleString()}</span>
+        <span className="text-navy-200 font-medium">{count.toLocaleString()}</span>
         {' '}active subscribers
       </span>
     </div>

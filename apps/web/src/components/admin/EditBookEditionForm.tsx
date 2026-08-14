@@ -66,16 +66,16 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
 
   return (
     <div className="space-y-3">
-      <span className="text-xs text-stone-500 uppercase tracking-wide font-semibold">Edition History</span>
+      <span className="text-xs text-navy-500 uppercase tracking-wide font-semibold">Edition History</span>
 
       {/* Current chain display */}
       {(prev || next) && (
-        <div className="flex flex-col gap-1.5 p-2 bg-stone-800/50 rounded-lg text-xs text-stone-400">
+        <div className="flex flex-col gap-1.5 p-2 bg-navy-800/50 rounded-lg text-xs text-navy-400">
           {prev && (
             <div className="flex items-center gap-2">
-              <span className="text-stone-500">← Previous:</span>
-              <span className="text-stone-300">{prev.bookBoxCompany?.name ?? prev.slug}</span>
-              <span className="text-stone-600 text-[10px]">{prev.resolvedSaleDate?.date?.slice(0, 10)}</span>
+              <span className="text-navy-500">← Previous:</span>
+              <span className="text-navy-300">{prev.bookBoxCompany?.name ?? prev.slug}</span>
+              <span className="text-navy-600 text-[10px]">{prev.resolvedSaleDate?.date?.slice(0, 10)}</span>
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -88,9 +88,9 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
           </div>
           {next && (
             <div className="flex items-center gap-2">
-              <span className="text-stone-500">→ Next:</span>
-              <span className="text-stone-300">{next.bookBoxCompany?.name ?? next.slug}</span>
-              <span className="text-stone-600 text-[10px]">{next.resolvedSaleDate?.date?.slice(0, 10)}</span>
+              <span className="text-navy-500">→ Next:</span>
+              <span className="text-navy-300">{next.bookBoxCompany?.name ?? next.slug}</span>
+              <span className="text-navy-600 text-[10px]">{next.resolvedSaleDate?.date?.slice(0, 10)}</span>
             </div>
           )}
         </div>
@@ -112,7 +112,7 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search editions by company or name…"
-            className="w-full px-3 py-1.5 rounded bg-stone-700 text-stone-200 text-sm placeholder-stone-500 focus:outline-none"
+            className="w-full px-3 py-1.5 rounded bg-navy-700 text-navy-200 text-sm placeholder-navy-500 focus:outline-none"
           />
           {candidates.length > 0 && (
             <div className="flex flex-col gap-1">
@@ -122,10 +122,10 @@ function EditionHistorySection({ edition, onLinked }: { edition: ApiBookEdition;
                   type="button"
                   disabled={linking}
                   onClick={() => handleLink(c.slug)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded bg-stone-700 hover:bg-stone-600 text-sm text-stone-200 text-left transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded bg-navy-700 hover:bg-navy-600 text-sm text-navy-200 text-left transition-colors"
                 >
                   <span>{c.bookBoxCompany?.name ?? c.slug}</span>
-                  {c.generalSaleDate && <span className="text-stone-500 text-xs">{c.generalSaleDate.slice(0, 10)}</span>}
+                  {c.generalSaleDate && <span className="text-navy-500 text-xs">{c.generalSaleDate.slice(0, 10)}</span>}
                 </button>
               ))}
             </div>
@@ -182,15 +182,15 @@ function EditionVariantSection({ edition, onLinked }: { edition: ApiBookEdition;
 
   return (
     <div className="space-y-3">
-      <span className="text-xs text-stone-500 uppercase tracking-wide font-semibold">Edition Variants</span>
-      <p className="text-xs text-stone-500">
+      <span className="text-xs text-navy-500 uppercase tracking-wide font-semibold">Edition Variants</span>
+      <p className="text-xs text-navy-500">
         Simultaneously-released variants of this edition (e.g. White/Black/Numbered) — not a reissue.
       </p>
 
       {(edition.variants ?? []).length > 0 && (
         <div className="flex flex-col gap-1.5">
           {edition.variants!.map(v => (
-            <div key={v.id} className="flex items-center gap-2 p-2 bg-stone-800/50 rounded-lg text-xs text-stone-300">
+            <div key={v.id} className="flex items-center gap-2 p-2 bg-navy-800/50 rounded-lg text-xs text-navy-300">
               <span className="flex-1">{v.variantLabel ?? v.bookBoxCompany?.name ?? v.slug}</span>
               <button type="button" onClick={() => handleUnlink(v.slug)} disabled={linking} className={BTN_DANGER}>
                 Unlink
@@ -207,7 +207,7 @@ function EditionVariantSection({ edition, onLinked }: { edition: ApiBookEdition;
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           placeholder="Search editions by company or name…"
-          className="w-full px-3 py-1.5 rounded bg-stone-700 text-stone-200 text-sm placeholder-stone-500 focus:outline-none"
+          className="w-full px-3 py-1.5 rounded bg-navy-700 text-navy-200 text-sm placeholder-navy-500 focus:outline-none"
         />
         {candidates.length > 0 && (
           <div className="flex flex-col gap-1">
@@ -217,7 +217,7 @@ function EditionVariantSection({ edition, onLinked }: { edition: ApiBookEdition;
                 type="button"
                 disabled={linking}
                 onClick={() => handleLink(c.slug)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded bg-stone-700 hover:bg-stone-600 text-sm text-stone-200 text-left transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 rounded bg-navy-700 hover:bg-navy-600 text-sm text-navy-200 text-left transition-colors"
               >
                 <span>{c.variantLabel ?? c.bookBoxCompany?.name ?? c.slug}</span>
               </button>
@@ -431,9 +431,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
   return (
     <div className="space-y-4">
       <div>
-        <span className="text-xs text-stone-500 uppercase tracking-wide font-semibold">Edition details</span>
+        <span className="text-xs text-navy-500 uppercase tracking-wide font-semibold">Edition details</span>
         {edition.book?.title && (
-          <p className="text-stone-300 text-sm mt-0.5">{formatEditionDisplayTitle(edition.book, { variantLabel })}</p>
+          <p className="text-navy-300 text-sm mt-0.5">{formatEditionDisplayTitle(edition.book, { variantLabel })}</p>
         )}
       </div>
 
@@ -444,9 +444,9 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
           value={variantLabel}
           onChange={e => setVariantLabel(e.target.value)}
           placeholder="e.g. White Edition, Overlay Edition, Numbered — leave blank if this isn't a variant"
-          className="w-full px-3 py-1.5 rounded bg-stone-700 text-stone-200 text-sm placeholder-stone-500 focus:outline-none"
+          className="w-full px-3 py-1.5 rounded bg-navy-700 text-navy-200 text-sm placeholder-navy-500 focus:outline-none"
         />
-        <p className="text-xs text-stone-500 mt-1">Shown as a suffix on the title, e.g. &quot;Book Title (White Edition)&quot;.</p>
+        <p className="text-xs text-navy-500 mt-1">Shown as a suffix on the title, e.g. &quot;Book Title (White Edition)&quot;.</p>
       </div>
 
       <EditionFieldsSection
@@ -482,10 +482,10 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
         collections={collections}
       />
 
-      <hr className="border-stone-700/50" />
+      <hr className="border-navy-700/50" />
       <EditionHistorySection edition={edition} onLinked={() => qc.invalidateQueries({ queryKey: ['admin', 'editions'] })} />
 
-      <hr className="border-stone-700/50" />
+      <hr className="border-navy-700/50" />
       <EditionVariantSection edition={edition} onLinked={() => qc.invalidateQueries({ queryKey: ['admin', 'editions'] })} />
 
       <div className="flex gap-2 pt-1">

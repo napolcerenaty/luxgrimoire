@@ -246,7 +246,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden border-b border-stone-800 bg-gradient-to-b from-stone-950 to-stone-900">
+      <div className="relative overflow-hidden border-b border-navy-800 bg-gradient-to-b from-navy-950 to-navy-900">
         <div className="container mx-auto px-4 py-10 max-w-5xl">
           <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-10 items-start">
 
@@ -256,7 +256,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {edition.bookBoxCompany && (
                 <Link
                   href={`/companies/${edition.bookBoxCompany.slug}`}
-                  className="text-center md:text-left w-full font-serif font-semibold uppercase tracking-widest text-stone-300 hover:text-brand-400 transition-colors text-base leading-snug"
+                  className="text-center md:text-left w-full font-serif font-semibold uppercase tracking-widest text-navy-300 hover:text-brand-400 transition-colors text-base leading-snug"
                 >
                   {edition.bookBoxCompany.name}
                 </Link>
@@ -288,14 +288,14 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 // editions (e.g. subscriptions) where we only have community photos.
                 const showCompanyCredit = allImages.length > 0 && !!company?.website
                 return (
-                  <div className="text-xs text-stone-400 mt-1 text-center leading-5 w-full">
+                  <div className="text-xs text-navy-400 mt-1 text-center leading-5 w-full">
                     <span>📷 photo by</span>
                     {credits.map(({ handle, role }) => (
                       <div key={handle}>
                         <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
                           @{handle}<ExternalLink size={10} className="shrink-0" />
                         </a>
-                        {role && <span className="text-stone-500"> ({role})</span>}
+                        {role && <span className="text-navy-500"> ({role})</span>}
                       </div>
                     ))}
                     {showCompanyCredit && (
@@ -314,8 +314,8 @@ export default async function EditionPage({ params, searchParams }: Props) {
             {/* ── Right: Info ── */}
             <div>
               {/* Breadcrumb */}
-              <div className="flex items-center gap-2 text-sm text-stone-500 mb-4 flex-wrap">
-                <span className="text-stone-500">Books</span>
+              <div className="flex items-center gap-2 text-sm text-navy-500 mb-4 flex-wrap">
+                <span className="text-navy-500">Books</span>
                 <span>›</span>
                 {book && (
                   <>
@@ -325,7 +325,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                     <span>›</span>
                   </>
                 )}
-                <span className="text-stone-400">{editionLabel ?? 'Edition'}</span>
+                <span className="text-navy-400">{editionLabel ?? 'Edition'}</span>
               </div>
 
               {/* Series */}
@@ -344,11 +344,11 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 </p>
               ) : null}
               {book?.seriesEntries && book.seriesEntries.filter(e => !e.isPrimary).length > 0 && (
-                <p className="text-xs text-stone-500 mb-2">
+                <p className="text-xs text-navy-500 mb-2">
                   Also in{' '}
                   {book.seriesEntries.filter(e => !e.isPrimary).map((entry, i, arr) => (
                     <span key={entry.seriesId}>
-                      <Link href={`/series/${entry.series.slug}`} className="text-stone-400 hover:text-brand-400 transition-colors hover:underline">
+                      <Link href={`/series/${entry.series.slug}`} className="text-navy-400 hover:text-brand-400 transition-colors hover:underline">
                         {entry.series.name}{entry.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(entry.volumeNumbers)}` : ''}
                       </Link>
                       {i < arr.length - 1 && ', '}
@@ -360,7 +360,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {/* Title */}
               {book && (
                 <Link href={`/books/${book.slug}`} className="group">
-                  <h1 className="text-4xl font-serif font-bold text-stone-100 mb-1 leading-tight group-hover:text-brand-400 transition-colors">
+                  <h1 className="text-4xl font-serif font-bold text-navy-100 mb-1 leading-tight group-hover:text-brand-400 transition-colors">
                     {formatEditionDisplayTitle(book, edition)}
                   </h1>
                 </Link>
@@ -368,12 +368,12 @@ export default async function EditionPage({ params, searchParams }: Props) {
 
               {/* Authors — directly below title */}
               {book?.authors && book.authors.length > 0 && (
-                <p className="text-stone-400 text-sm mb-3">
+                <p className="text-navy-400 text-sm mb-3">
                   by{' '}
                   {book.authors.map((author, i) => (
                     <span key={author.id}>
                       {i > 0 && ', '}
-                      <Link href={`/authors/${author.slug}`} className="text-stone-300 hover:text-brand-400 hover:underline transition-colors">
+                      <Link href={`/authors/${author.slug}`} className="text-navy-300 hover:text-brand-400 hover:underline transition-colors">
                         {author.name}
                       </Link>
                     </span>
@@ -441,13 +441,13 @@ export default async function EditionPage({ params, searchParams }: Props) {
               <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
                 {edition.publisher && (
                   <>
-                    <dt className="text-stone-500">Publisher</dt>
-                    <dd className="text-stone-200">{edition.publisher}</dd>
+                    <dt className="text-navy-500">Publisher</dt>
+                    <dd className="text-navy-200">{edition.publisher}</dd>
                   </>
                 )}
                 {edition.collection && (
                   <>
-                    <dt className="text-stone-500">Collection</dt>
+                    <dt className="text-navy-500">Collection</dt>
                     <dd>
                       <Link
                           href={`/companies/${edition.bookBoxCompany?.slug}/collections/${edition.collection.slug}`}
@@ -460,20 +460,20 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 )}
                 {edition.basePrice && (
                   <>
-                    <dt className="text-stone-500">Price</dt>
-                    <dd className="text-stone-200">{edition.basePrice} {edition.currency ?? ''}</dd>
+                    <dt className="text-navy-500">Price</dt>
+                    <dd className="text-navy-200">{edition.basePrice} {edition.currency ?? ''}</dd>
                   </>
                 )}
                 {edition.language && (
                   <>
-                    <dt className="text-stone-500">Language</dt>
-                    <dd className="text-stone-200">{edition.language.charAt(0).toUpperCase() + edition.language.slice(1).toLowerCase()}</dd>
+                    <dt className="text-navy-500">Language</dt>
+                    <dd className="text-navy-200">{edition.language.charAt(0).toUpperCase() + edition.language.slice(1).toLowerCase()}</dd>
                   </>
                 )}
                 {edition.resolvedSaleDate && (
                   <>
-                    <dt className="text-stone-500">Available from</dt>
-                    <dd className="text-stone-200">{formatDate(edition.resolvedSaleDate.date)} ({edition.resolvedSaleDate.label})</dd>
+                    <dt className="text-navy-500">Available from</dt>
+                    <dd className="text-navy-200">{formatDate(edition.resolvedSaleDate.date)} ({edition.resolvedSaleDate.label})</dd>
                   </>
                 )}
                 {/* Subscription info */}
@@ -500,11 +500,11 @@ export default async function EditionPage({ params, searchParams }: Props) {
                     : [sub]
                   return (
                     <Fragment key={mb.month.id}>
-                      <dt className="text-stone-500">Subscription</dt>
+                      <dt className="text-navy-500">Subscription</dt>
                       <dd>
                         {displaySubs.map((s, i) => (
                           <span key={s.id}>
-                            {i > 0 && <span className="text-stone-600 mx-1">/</span>}
+                            {i > 0 && <span className="text-navy-600 mx-1">/</span>}
                             <Link
                               href={`/subscriptions/${s.slug}`}
                               className="text-brand-400 hover:underline"
@@ -514,14 +514,14 @@ export default async function EditionPage({ params, searchParams }: Props) {
                           </span>
                         ))}
                         {mb.month.series && (
-                          <span className="text-stone-400 ml-1">· {mb.month.series.name}</span>
+                          <span className="text-navy-400 ml-1">· {mb.month.series.name}</span>
                         )}
-                        <span className="text-stone-500 ml-1 text-xs">
+                        <span className="text-navy-500 ml-1 text-xs">
                           {new Date(mb.month.year, mb.month.month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                           {mb.month.theme ? ` · ${mb.month.theme}` : ''}
                         </span>
                         {siblings.length > 0 && (
-                          <span className="text-stone-400 text-xs ml-1">
+                          <span className="text-navy-400 text-xs ml-1">
                             · set with{' '}
                             {siblings.map((s, i) => (
                               <span key={s.book.slug}>
@@ -546,7 +546,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                           </span>
                         )}
                         {choiceSiblings.length > 0 && (
-                          <span className="text-stone-400 text-xs ml-1">
+                          <span className="text-navy-400 text-xs ml-1">
                             · choice option with{' '}
                             {choiceSiblings.map((s, i) => (
                               <span key={s.book.slug}>
@@ -577,7 +577,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 {/* Bundle info */}
                 {bundles.map((se) => (
                   <Fragment key={se.announcement.id}>
-                    <dt className="text-stone-500">Bundle</dt>
+                    <dt className="text-navy-500">Bundle</dt>
                     <dd>
                       <Link
                         href={`/sale-announcements/${se.announcement.id}`}
@@ -600,10 +600,10 @@ export default async function EditionPage({ params, searchParams }: Props) {
         {/* ── Features ─────────────────────────────────────────────────────── */}
         {features.length > 0 && (
           <section>
-            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">What&apos;s Included</h2>
+            <h2 className="text-xl font-serif font-semibold text-navy-100 mb-4">What&apos;s Included</h2>
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {features.map((f) => (
-                <li key={f} className="flex items-start gap-2 text-sm text-stone-300">
+                <li key={f} className="flex items-start gap-2 text-sm text-navy-300">
                   <span className="text-brand-500 mt-0.5 shrink-0">✦</span>
                   <span>{normDisplay(f)}</span>
                 </li>
@@ -615,7 +615,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
         {/* ── Artists ──────────────────────────────────────────────────────── */}
         {artistList.length > 0 && (
           <section>
-            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Artists</h2>
+            <h2 className="text-xl font-serif font-semibold text-navy-100 mb-4">Artists</h2>
             <div className="flex flex-wrap gap-4">
               {artistList.map(({ artist, roles }) => {
                 const cleanName = artist.name.startsWith('@') ? artist.name.slice(1) : artist.name
@@ -630,21 +630,21 @@ export default async function EditionPage({ params, searchParams }: Props) {
                         <img
                           src={photoUrl}
                           alt={cleanName}
-                          className="w-10 h-10 rounded-full object-cover ring-1 ring-stone-700 group-hover:ring-brand-500/50 transition-all shrink-0"
+                          className="w-10 h-10 rounded-full object-cover ring-1 ring-navy-700 group-hover:ring-brand-500/50 transition-all shrink-0"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-stone-800 flex items-center justify-center text-stone-400 font-serif text-base shrink-0 ring-1 ring-stone-700 group-hover:ring-brand-500/50 transition-all">
+                        <div className="w-10 h-10 rounded-full bg-navy-800 flex items-center justify-center text-navy-400 font-serif text-base shrink-0 ring-1 ring-navy-700 group-hover:ring-brand-500/50 transition-all">
                           {cleanName[0]?.toUpperCase()}
                         </div>
                       )}
 
                       {/* Name + roles */}
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-stone-200 group-hover:text-brand-400 transition-colors leading-tight truncate max-w-[160px]">
+                        <p className="text-sm font-medium text-navy-200 group-hover:text-brand-400 transition-colors leading-tight truncate max-w-[160px]">
                           {cleanName}
                         </p>
                         {roles.map((role) => (
-                          <p key={role} className="text-sm text-stone-400">{normDisplay(role)}</p>
+                          <p key={role} className="text-sm text-navy-400">{normDisplay(role)}</p>
                         ))}
                       </div>
                     </Link>
@@ -653,7 +653,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                     {studio?.name && (
                       <Link
                         href={`/artists/${studio.slug}`}
-                        className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full leading-tight bg-stone-800/90 text-stone-300 border border-stone-600 hover:border-brand-500/50 hover:text-brand-400 transition-colors shrink-0 max-w-[100px] truncate"
+                        className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full leading-tight bg-navy-800/90 text-navy-300 border border-navy-600 hover:border-brand-500/50 hover:text-brand-400 transition-colors shrink-0 max-w-[100px] truncate"
                       >
                         {studio.name}
                       </Link>
@@ -668,10 +668,10 @@ export default async function EditionPage({ params, searchParams }: Props) {
         {/* ── Contains (omnibus) ───────────────────────────────────────────── */}
         {book?.isOmnibus && book.omnibusComponents && book.omnibusComponents.length > 0 && (
           <section>
-            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Contains</h2>
+            <h2 className="text-xl font-serif font-semibold text-navy-100 mb-4">Contains</h2>
             <div className="space-y-1">
               {book.omnibusComponents.map(c => (
-                <div key={c.id} className="flex items-center gap-2 text-sm text-stone-300">
+                <div key={c.id} className="flex items-center gap-2 text-sm text-navy-300">
                   {c.volumeNumber != null && (
                     <span className="text-xs text-brand-600/80 font-semibold w-12 shrink-0">Vol. {c.volumeNumber}</span>
                   )}
@@ -687,15 +687,15 @@ export default async function EditionPage({ params, searchParams }: Props) {
         {/* ── Edition History ──────────────────────────────────────────────── */}
         {(edition.previousEdition || edition.nextEdition) && (
           <section>
-            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Edition History</h2>
+            <h2 className="text-xl font-serif font-semibold text-navy-100 mb-4">Edition History</h2>
             <div className="space-y-2">
               {edition.previousEdition && (
                 <Link href={`/editions/${edition.previousEdition.slug}`}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-brand-600/40 transition-colors text-sm">
-                  <span className="text-stone-500">←</span>
+                  className="flex items-center gap-3 p-3 rounded-xl bg-navy-800/50 border border-navy-700/40 hover:border-brand-600/40 transition-colors text-sm">
+                  <span className="text-navy-500">←</span>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-xs text-stone-500 uppercase tracking-wide">Older edition</span>
-                    <span className="text-stone-300 truncate">
+                    <span className="text-xs text-navy-500 uppercase tracking-wide">Older edition</span>
+                    <span className="text-navy-300 truncate">
                       {edition.previousEdition.bookBoxCompany?.name ?? edition.previousEdition.slug}
                       {edition.previousEdition.collection ? ` — ${edition.previousEdition.collection.name}` : ''}
                     </span>
@@ -704,15 +704,15 @@ export default async function EditionPage({ params, searchParams }: Props) {
               )}
               {edition.nextEdition && (
                 <Link href={`/editions/${edition.nextEdition.slug}`}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-brand-600/40 transition-colors text-sm">
+                  className="flex items-center gap-3 p-3 rounded-xl bg-navy-800/50 border border-navy-700/40 hover:border-brand-600/40 transition-colors text-sm">
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-xs text-stone-500 uppercase tracking-wide">Newer edition available</span>
-                    <span className="text-stone-300 truncate">
+                    <span className="text-xs text-navy-500 uppercase tracking-wide">Newer edition available</span>
+                    <span className="text-navy-300 truncate">
                       {edition.nextEdition.bookBoxCompany?.name ?? edition.nextEdition.slug}
                       {edition.nextEdition.collection ? ` — ${edition.nextEdition.collection.name}` : ''}
                     </span>
                   </div>
-                  <span className="text-stone-500">→</span>
+                  <span className="text-navy-500">→</span>
                 </Link>
               )}
             </div>
@@ -722,13 +722,13 @@ export default async function EditionPage({ params, searchParams }: Props) {
         {/* ── Available Variants ───────────────────────────────────────────── */}
         {edition.variants && edition.variants.length > 0 && (
           <section>
-            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Available Variants</h2>
+            <h2 className="text-xl font-serif font-semibold text-navy-100 mb-4">Available Variants</h2>
             <div className="space-y-2">
               {edition.variants.map((v) => (
                 <Link key={v.id} href={`/editions/${v.slug}`}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-brand-600/40 transition-colors text-sm">
+                  className="flex items-center gap-3 p-3 rounded-xl bg-navy-800/50 border border-navy-700/40 hover:border-brand-600/40 transition-colors text-sm">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-stone-300 truncate">
+                    <span className="text-navy-300 truncate">
                       {v.variantLabel ?? v.bookBoxCompany?.name ?? v.slug}
                     </span>
                   </div>
@@ -741,7 +741,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
         {/* ── Reprint History ──────────────────────────────────────────────── */}
         {reprints.length > 0 && (
           <section>
-            <h2 className="text-xl font-serif font-semibold text-stone-100 mb-4">Reprint History</h2>
+            <h2 className="text-xl font-serif font-semibold text-navy-100 mb-4">Reprint History</h2>
             <div className="space-y-2">
               {saleEditions.map((se, i) => {
                 const sa = se.announcement
@@ -756,16 +756,16 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   <Link
                     key={sa.id}
                     href={`/sale-announcements/${sa.id}`}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-brand-600/40 transition-colors text-sm"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-navy-800/50 border border-navy-700/40 hover:border-brand-600/40 transition-colors text-sm"
                   >
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span className="text-stone-300 truncate">{sa.title}</span>
-                      {dateStr && <span className="text-xs text-stone-500 mt-0.5">{dateStr}</span>}
+                      <span className="text-navy-300 truncate">{sa.title}</span>
+                      {dateStr && <span className="text-xs text-navy-500 mt-0.5">{dateStr}</span>}
                     </div>
                     {se.isReprint ? (
                       <span className="text-xs bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded-full shrink-0">🔁 Reprint</span>
                     ) : (
-                      <span className="text-xs bg-stone-700 text-stone-400 px-2 py-0.5 rounded-full shrink-0">Original</span>
+                      <span className="text-xs bg-navy-700 text-navy-400 px-2 py-0.5 rounded-full shrink-0">Original</span>
                     )}
                   </Link>
                 )
