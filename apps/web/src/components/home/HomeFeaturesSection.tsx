@@ -22,14 +22,14 @@ function FeatureIcon({ name }: { name: string }) {
 
 function FeatureCard({ feature }: { feature: HomepageFeature }) {
   return (
-    <div className="w-72 flex-shrink-0 snap-start rounded-2xl border border-stone-800 bg-stone-900 p-6 transition-colors hover:border-brand-700/40 sm:w-80">
+    <div className="w-72 flex-shrink-0 snap-start rounded-2xl border border-navy-800 bg-navy-900 p-6 transition-colors hover:border-brand-700/40 sm:w-80">
       <div className="mb-3 flex items-center gap-3">
-        <div className="shrink-0 rounded-xl bg-stone-800 p-3 text-brand-400">
+        <div className="shrink-0 rounded-xl bg-navy-800 p-3 text-brand-400">
           <FeatureIcon name={feature.iconName} />
         </div>
-        <h3 className="font-serif text-lg leading-snug text-stone-100">{feature.title}</h3>
+        <h3 className="font-serif text-lg leading-snug text-navy-100">{feature.title}</h3>
       </div>
-      <p className={`text-sm leading-relaxed text-stone-400 ${feature.ctaHref ? 'mb-4' : ''}`}>
+      <p className={`text-sm leading-relaxed text-navy-400 ${feature.ctaHref ? 'mb-4' : ''}`}>
         {feature.description}
       </p>
       {feature.ctaHref && (
@@ -57,7 +57,7 @@ export function FeaturesCarousel({ features }: { features: HomepageFeature[] }) 
           className="absolute left-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                      bg-gradient-to-r from-[var(--bg)] to-transparent
                      opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
-                     text-stone-400 hover:text-brand-400"
+                     text-navy-400 hover:text-brand-400"
         >
           <ChevronLeft size={24} />
         </button>
@@ -77,7 +77,7 @@ export function FeaturesCarousel({ features }: { features: HomepageFeature[] }) 
           className="absolute right-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                      bg-gradient-to-l from-[var(--bg)] to-transparent
                      opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
-                     text-stone-400 hover:text-brand-400"
+                     text-navy-400 hover:text-brand-400"
         >
           <ChevronRight size={24} />
         </button>

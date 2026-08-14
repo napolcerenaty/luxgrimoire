@@ -50,6 +50,16 @@ export class AnalyticsService {
   }
 
   /**
+   * Raw count of blog_post_view events for a given slug. No deduplication —
+   * every page render counts, matching how the event is recorded.
+   */
+  async getBlogPostViewCount(slug: string): Promise<number> {
+    return this.prisma.analyticsEvent.count({
+      where: { eventType: 'blog_post_view', entityId: slug },
+    });
+  }
+
+  /**
    * Aggregation query for admin panel.
    * Returns up to `limit` rows of { label, count } ordered by count DESC.
    * Uses Prisma.sql tagged templates — parameters are always bound, never interpolated.

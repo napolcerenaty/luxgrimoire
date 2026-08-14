@@ -53,7 +53,7 @@ export function PushEnableBanner() {
   return (
     <div className="flex items-center gap-3 bg-brand-500/10 border-b border-brand-500/20 px-4 py-2.5 text-sm">
       <Bell size={15} className="text-brand-400 shrink-0" />
-      <p className="flex-1 text-stone-200">
+      <p className="flex-1 text-navy-200">
         You have push notifications enabled — 
         <button
           onClick={handleEnable}
@@ -64,7 +64,7 @@ export function PushEnableBanner() {
         </button>
         {' '}to receive alerts here too.
       </p>
-      <button onClick={dismiss} className="text-stone-500 hover:text-stone-300 shrink-0" aria-label="Dismiss">
+      <button onClick={dismiss} className="text-navy-500 hover:text-navy-300 shrink-0" aria-label="Dismiss">
         <X size={15} />
       </button>
     </div>

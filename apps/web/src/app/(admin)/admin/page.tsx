@@ -49,12 +49,12 @@ function CountCard({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 rounded-xl border ${accentClasses.border} bg-stone-900 px-4 py-3 transition-colors group`}
+      className={`flex items-center gap-3 rounded-xl border ${accentClasses.border} bg-navy-900 px-4 py-3 transition-colors group`}
     >
       <span className={`text-2xl flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg ${accentClasses.ring}`}>{icon}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-stone-400 leading-tight">{label}</p>
-        <p className="text-stone-200 font-semibold text-sm mt-0.5">{countLabel}</p>
+        <p className="text-xs text-navy-400 leading-tight">{label}</p>
+        <p className="text-navy-200 font-semibold text-sm mt-0.5">{countLabel}</p>
       </div>
       {count > 0 && (
         <span className={`flex-shrink-0 text-[11px] font-bold rounded-full px-2 py-0.5 min-w-[22px] text-center ${accentClasses.badge}`}>
@@ -62,7 +62,7 @@ function CountCard({
         </span>
       )}
       {count === 0 && (
-        <span className="flex-shrink-0 text-[11px] text-stone-600">✓</span>
+        <span className="flex-shrink-0 text-[11px] text-navy-600">✓</span>
       )}
     </Link>
   )
@@ -114,8 +114,8 @@ export default function AdminDashboard() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-stone-100 mb-1">Dashboard</h1>
-          <p className="text-stone-400 text-sm">
+          <h1 className="text-2xl font-bold text-navy-100 mb-1">Dashboard</h1>
+          <p className="text-navy-400 text-sm">
             {totalAttention === null ? 'Loading…' : totalAttention === 0 ? '✓ Everything is up to date' : `${totalAttention} item${totalAttention !== 1 ? 's' : ''} need attention`}
           </p>
         </div>
@@ -126,13 +126,13 @@ export default function AdminDashboard() {
         <div className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 mb-6 transition-colors ${
           maintenance?.enabled
             ? 'bg-red-950/40 border-red-700/50'
-            : 'bg-stone-900 border-stone-800'
+            : 'bg-navy-900 border-navy-800'
         }`}>
           <div>
-            <p className={`text-sm font-semibold ${maintenance?.enabled ? 'text-red-300' : 'text-stone-200'}`}>
+            <p className={`text-sm font-semibold ${maintenance?.enabled ? 'text-red-300' : 'text-navy-200'}`}>
               {maintenance?.enabled ? '🔴 Maintenance mode is ON' : '🟢 Site is live'}
             </p>
-            <p className="text-xs text-stone-500 mt-0.5">
+            <p className="text-xs text-navy-500 mt-0.5">
               {maintenance?.enabled
                 ? 'Non-admin users see the maintenance page.'
                 : 'All users can access the site normally.'}
@@ -154,7 +154,7 @@ export default function AdminDashboard() {
 
       {/* Needs attention — count cards */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-stone-500 mb-3">Needs attention</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-navy-500 mb-3">Needs attention</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <CountCard
             href="/admin/community-images"
@@ -206,7 +206,7 @@ export default function AdminDashboard() {
       {/* Users overview */}
       {isAdmin && (
         <section className="mb-8">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-stone-500 mb-3">Users</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-navy-500 mb-3">Users</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <CountCard
               href="/admin/users"

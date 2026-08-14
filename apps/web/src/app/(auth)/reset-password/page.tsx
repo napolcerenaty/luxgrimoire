@@ -71,7 +71,7 @@ function ResetPasswordForm() {
       )}
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-stone-300 mb-1.5">
+        <label htmlFor="password" className="block text-sm font-medium text-navy-300 mb-1.5">
           New password
         </label>
         <div className="relative">
@@ -82,12 +82,12 @@ function ResetPasswordForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
+            className="w-full bg-navy-900 border border-navy-700 text-navy-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors"
           />
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-300 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-500 hover:text-navy-300 transition-colors"
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -97,7 +97,7 @@ function ResetPasswordForm() {
       </div>
 
       <div>
-        <label htmlFor="confirm" className="block text-sm font-medium text-stone-300 mb-1.5">
+        <label htmlFor="confirm" className="block text-sm font-medium text-navy-300 mb-1.5">
           Confirm new password
         </label>
         <div className="relative">
@@ -108,12 +108,12 @@ function ResetPasswordForm() {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder="••••••••"
-            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
+            className="w-full bg-navy-900 border border-navy-700 text-navy-100 rounded-lg px-4 py-2.5 pr-10 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors"
           />
           <button
             type="button"
             onClick={() => setShowConfirm((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-300 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-500 hover:text-navy-300 transition-colors"
             aria-label={showConfirm ? 'Hide password' : 'Show password'}
           >
             {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -130,12 +130,12 @@ function ResetPasswordForm() {
       <button
         type="submit"
         disabled={loading || !token}
-        className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-60 disabled:cursor-not-allowed text-stone-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
+        className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-60 disabled:cursor-not-allowed text-navy-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
       >
         {loading ? 'Resetting…' : 'Reset password'}
       </button>
 
-      <p className="text-center text-sm text-stone-400">
+      <p className="text-center text-sm text-navy-400">
         <Link href="/login" className="text-brand-400 hover:text-brand-300 transition-colors">
           ← Back to login
         </Link>
@@ -146,12 +146,12 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full">
+    <div className="bg-navy-900 border border-navy-800 rounded-2xl p-8 shadow-2xl max-w-md w-full">
       <div className="text-center mb-8">
         <h1 className="font-serif italic text-3xl text-brand-400 mb-1">LuxGrimoire</h1>
-        <p className="text-stone-400 text-sm">Set a new password</p>
+        <p className="text-navy-400 text-sm">Set a new password</p>
       </div>
-      <Suspense fallback={<div className="text-stone-400 text-sm text-center">Loading…</div>}>
+      <Suspense fallback={<div className="text-navy-400 text-sm text-center">Loading…</div>}>
         <ResetPasswordForm />
       </Suspense>
     </div>

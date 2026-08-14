@@ -12,6 +12,7 @@ import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { isValidCalendarDate } from '@/lib/dateValidation'
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
 import { TagEditor } from '@/components/collection/TagEditor'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -50,6 +51,13 @@ interface FeeTemplate {
   isActive: boolean
 }
 
+interface PurchaseGroupBookEntry {
+  id: string
+  editionId: string | null
+  basePrice: string | null
+  edition: { book: { title: string } | null } | null
+}
+
 interface PurchaseGroup {
   id: string
   title: string | null
@@ -62,9 +70,11 @@ interface PurchaseGroup {
   fromSubscription: boolean
   isSecondHand: boolean
   sourcePlatform: string | null
+  priceDistribution?: string
   fees: PurchaseFee[]
   discounts: PurchaseDiscount[]
   refunds: PurchaseRefund[]
+  bookEntries?: PurchaseGroupBookEntry[]
   _count?: { bookEntries: number }
 }
 
@@ -199,11 +209,11 @@ function fmtDate(dateStr: string | null | undefined): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const INP_BASE = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
+const INP_BASE = 'bg-navy-800 border border-navy-700 rounded-lg px-3 py-1.5 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
 const INP = INP_BASE + ' w-full'
 const INP_FLEX = INP_BASE + ' flex-1 min-w-0'
 /** Swaps the border color of an INP_* class string to flag an invalid field. */
-const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
+const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-navy-700', 'border-red-500/70') : base
 const FEE_CATEGORIES = [
   { value: 'VAT', label: 'VAT' },
   { value: 'CUSTOMS', label: 'Customs' },
@@ -212,13 +222,13 @@ const FEE_CATEGORIES = [
   { value: 'PRICE_ADJUSTMENT', label: 'Price Adjustment' },
   { value: 'OTHER', label: 'Other' },
 ]
-const SEC_HDR = 'text-xs uppercase tracking-widest font-semibold text-stone-500 mb-3'
+const SEC_HDR = 'text-xs uppercase tracking-widest font-semibold text-navy-500 mb-3'
 
 function EditBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="ml-2 text-stone-500 hover:text-brand-400 transition-colors"
+      className="ml-2 text-navy-500 hover:text-brand-400 transition-colors"
       title="Edit"
     >
       <Pencil size={13} />
@@ -238,7 +248,7 @@ function SaveCancelBtns({ onSave, onCancel, saving }: { onSave: () => void; onCa
       </button>
       <button
         onClick={onCancel}
-        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-stone-700 text-stone-400 text-xs hover:border-stone-500 transition-colors"
+        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-navy-700 text-navy-400 text-xs hover:border-navy-500 transition-colors"
       >
         <X size={12} /> Cancel
       </button>
@@ -260,7 +270,7 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
       <select
         value={status}
         onChange={e => setStatus(e.target.value)}
-        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
+        className="text-xs bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-200 focus:outline-none focus:border-brand-400"
       >
         {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const).map(s => (
           <option key={s} value={s}>{s}</option>
@@ -270,14 +280,14 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
         type="date"
         value={date}
         onChange={e => setDate(e.target.value)}
-        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
+        className="text-xs bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-200 focus:outline-none focus:border-brand-400"
       />
       <button
         onClick={() => onSave(status, date)}
         disabled={saving}
         className="text-xs text-brand-400 hover:text-brand-300 disabled:opacity-50"
       ><Check size={11} /></button>
-      <button onClick={onCancel} className="text-xs text-stone-500 hover:text-stone-300"><X size={11} /></button>
+      <button onClick={onCancel} className="text-xs text-navy-500 hover:text-navy-300"><X size={11} /></button>
     </div>
   )
 }
@@ -296,22 +306,22 @@ function AddReadingHistoryForm({ onSave, onCancel, saving }: {
   return (
     <div className="flex flex-col gap-2 mt-1 text-xs">
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-center">
-        <label className="text-stone-500 shrink-0">Started</label>
+        <label className="text-navy-500 shrink-0">Started</label>
         <input
           type="date"
           value={startedAt}
           onChange={e => setStartedAt(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 w-full"
+          className="bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-200 focus:outline-none focus:border-brand-400 w-full"
         />
-        <label className="text-stone-500 shrink-0">Finished</label>
+        <label className="text-navy-500 shrink-0">Finished</label>
         <input
           type="date"
           value={finishedAt}
           onChange={e => setFinishedAt(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 w-full"
+          className="bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-200 focus:outline-none focus:border-brand-400 w-full"
         />
       </div>
-      <label className="flex items-center gap-1.5 text-stone-400 cursor-pointer w-fit">
+      <label className="flex items-center gap-1.5 text-navy-400 cursor-pointer w-fit">
         <input type="checkbox" checked={isDnf} onChange={e => setIsDnf(e.target.checked)} className="accent-brand-400" />
         DNF
       </label>
@@ -320,11 +330,11 @@ function AddReadingHistoryForm({ onSave, onCancel, saving }: {
         placeholder="Notes (optional)"
         value={notes}
         onChange={e => setNotes(e.target.value)}
-        className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 w-full"
+        className="bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-200 focus:outline-none focus:border-brand-400 w-full"
       />
       <div className="flex gap-2">
         <button onClick={() => onSave({ startedAt, finishedAt, isDnf, notes })} disabled={saving} className="text-brand-400 hover:text-brand-300 disabled:opacity-50"><Check size={11} /></button>
-        <button onClick={onCancel} className="text-stone-500 hover:text-stone-300"><X size={11} /></button>
+        <button onClick={onCancel} className="text-navy-500 hover:text-navy-300"><X size={11} /></button>
       </div>
     </div>
   )
@@ -359,6 +369,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [editDiscounts, setEditDiscounts] = useState<{ id?: string; name: string; amount: string }[]>([])
   const [editPurchasedAt, setEditPurchasedAt] = useState('')
   const [editPurchaseNotes, setEditPurchaseNotes] = useState('')
+  const [editEntryPrices, setEditEntryPrices] = useState<Record<string, string>>({})
+  const [invalidPriceEntryIds, setInvalidPriceEntryIds] = useState<Set<string>>(new Set())
   const [savingPurchase, setSavingPurchase] = useState(false)
 
   // Error state
@@ -566,6 +578,21 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     return () => window.removeEventListener('collection:updated', handler)
   }, [editionId])
 
+  // While editing purchase costs for a multi-book group, once any book has a price the total
+  // becomes a calculated, read-only sum — same all-or-nothing rule as Add to Collection.
+  useEffect(() => {
+    const bookEntries = entry?.purchaseGroup?.bookEntries ?? []
+    if (bookEntries.length <= 1) return
+    const anyFilled = bookEntries.some(be => (editEntryPrices[be.id] ?? '').trim() !== '')
+    if (!anyFilled) return
+    const sum = bookEntries.reduce((s, be) => {
+      const raw = (editEntryPrices[be.id] ?? '').trim()
+      return s + (raw === '' ? 0 : parseDecimalInput(raw))
+    }, 0)
+    setEditTotalAmount(sum.toFixed(2))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.purchaseGroup?.bookEntries, editEntryPrices])
+
   if (loading || !entry) return null
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -628,6 +655,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       setEditDiscounts((pg.discounts ?? []).map(d => ({ id: d.id, name: d.name, amount: String(d.amount) })))
       setEditPurchasedAt(pg.purchasedAt ? pg.purchasedAt.slice(0, 10) : '')
       setEditPurchaseNotes(pg.notes ?? '')
+      // Pre-fill from the real per-book allocation when this group already has one — otherwise
+      // leave blank (equal split so far), same "all filled or none" rule as Add to Collection.
+      const prices: Record<string, string> = {}
+      for (const be of pg.bookEntries ?? []) {
+        if (be.basePrice != null) prices[be.id] = String(be.basePrice)
+      }
+      setEditEntryPrices(prices)
+      setInvalidPriceEntryIds(new Set())
     } else {
       setEditTotalAmount('')
       setEditCurrency('EUR')
@@ -635,6 +670,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       setEditDiscounts([])
       setEditPurchasedAt('')
       setEditPurchaseNotes('')
+      setEditEntryPrices({})
+      setInvalidPriceEntryIds(new Set())
     }
     setSaveError(null)
     setPurchaseErrorField(null)
@@ -655,6 +692,22 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
         setSaveError('Shipping must be 0 or greater.'); setPurchaseErrorField('shipping'); return
       }
     }
+    // Per-book pricing is all-or-nothing: once any book has a price, every book in the group needs one.
+    const pgBookEntriesForSave = entry!.purchaseGroup?.bookEntries ?? []
+    const perBookModeForSave = pgBookEntriesForSave.length > 1 && pgBookEntriesForSave.some(be => (editEntryPrices[be.id] ?? '').trim() !== '')
+    const nextInvalidPriceEntryIds = new Set<string>()
+    if (perBookModeForSave) {
+      for (const be of pgBookEntriesForSave) {
+        const raw = (editEntryPrices[be.id] ?? '').trim()
+        const n = parseFloat(raw.replace(',', '.'))
+        if (raw === '' || isNaN(n) || n < 0) nextInvalidPriceEntryIds.add(be.id)
+      }
+    }
+    setInvalidPriceEntryIds(nextInvalidPriceEntryIds)
+    if (nextInvalidPriceEntryIds.size > 0) {
+      setSaveError('Enter a price for every book below, or clear all of them to set one total price instead.')
+      return
+    }
     setPurchaseErrorField(null)
     setSavingPurchase(true)
     setSaveError(null)
@@ -667,6 +720,16 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       }
       if (editShippingAmount) payload.shippingAmount = parseFloat(editShippingAmount)
       if (editPurchaseNotes) payload.notes = editPurchaseNotes
+      if (pgBookEntriesForSave.length > 1) {
+        if (perBookModeForSave) {
+          payload.priceDistribution = 'CUSTOM'
+          payload.entryPrices = Object.fromEntries(
+            pgBookEntriesForSave.map(be => [be.id, parseDecimalInput(editEntryPrices[be.id])]),
+          )
+        } else {
+          payload.priceDistribution = 'EQUAL'
+        }
+      }
       let groupId: string
       if (pg) {
         await authFetch(`/collection/bundles/${pg.id}`, {
@@ -1093,6 +1156,16 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const pg = entry.purchaseGroup
   const isFromSubscription = !!entry.subscriptionEntryId
 
+  // Per-book price editing (only meaningful for a multi-book purchase group) — same
+  // all-or-nothing rule as Add to Collection: fill in any book price and every book needs one,
+  // with the total below calculated automatically from them.
+  const pgBookEntries = pg?.bookEntries ?? []
+  const perBookPriceMode = pgBookEntries.length > 1 && pgBookEntries.some(be => (editEntryPrices[be.id] ?? '').trim() !== '')
+  const editEntryPriceSum = pgBookEntries.reduce((sum, be) => {
+    const raw = (editEntryPrices[be.id] ?? '').trim()
+    return sum + (raw === '' ? 0 : parseDecimalInput(raw))
+  }, 0)
+
   // Cost calculations from purchase group
   const pgTotal = pg ? parseFloat(String(pg.totalAmount)) : null
   const pgShipping = pg?.shippingAmount ? parseFloat(String(pg.shippingAmount)) : null
@@ -1172,7 +1245,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       {/* Copy switcher — shown when user has multiple copies of the same edition */}
       {allEntries.length > 1 && (
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] uppercase tracking-widest text-stone-500 mr-1">Copy:</span>
+          <span className="text-[10px] uppercase tracking-widest text-navy-500 mr-1">Copy:</span>
           {allEntries.map((e, i) => (
             <button
               key={e.id}
@@ -1180,7 +1253,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
                 i === selectedCopyIdx
                   ? 'border-brand-500/50 bg-brand-500/10 text-brand-400'
-                  : 'border-stone-700 text-stone-400 hover:border-stone-500'
+                  : 'border-navy-700 text-navy-400 hover:border-navy-500'
               }`}
             >
               #{i + 1}
@@ -1224,7 +1297,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Price</label>
-                  <input type="number" step="0.01" min="0" value={editTotalAmount} onChange={e => { setEditTotalAmount(e.target.value); if (purchaseErrorField === 'amount') { setSaveError(null); setPurchaseErrorField(null) } }} placeholder="0.00" className={inpErr(INP_FLEX, purchaseErrorField === 'amount') + ' w-20'} />
+                  <input
+                    type="number" step="0.01" min="0"
+                    value={editTotalAmount}
+                    disabled={perBookPriceMode}
+                    onChange={e => { setEditTotalAmount(e.target.value); if (purchaseErrorField === 'amount') { setSaveError(null); setPurchaseErrorField(null) } }}
+                    placeholder="0.00"
+                    className={inpErr(INP_FLEX, purchaseErrorField === 'amount') + ' w-20' + (perBookPriceMode ? ' opacity-60 cursor-not-allowed' : '')}
+                  />
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
@@ -1237,6 +1317,42 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                   </select>
                 </div>
               </div>
+
+              {/* Per-book price — only for a multi-book purchase group. Same all-or-nothing
+                  rule as Add to Collection: fill in any book and every book needs a price. */}
+              {pgBookEntries.length > 1 && (
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Per-book price</label>
+                  <div className="flex flex-col gap-1.5">
+                    {pgBookEntries.map(be => (
+                      <div key={be.id} className="flex items-center gap-2">
+                        <span className="flex-1 min-w-0 truncate text-xs" style={{ color: 'var(--text-dim)' }}>
+                          {be.edition?.book?.title ?? 'Book'}
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          value={editEntryPrices[be.id] ?? ''}
+                          onChange={e => {
+                            setEditEntryPrices(prev => ({ ...prev, [be.id]: e.target.value }))
+                            if (invalidPriceEntryIds.has(be.id)) {
+                              setInvalidPriceEntryIds(prev => { const next = new Set(prev); next.delete(be.id); return next })
+                              setSaveError(null)
+                            }
+                          }}
+                          className={inpErr(INP_BASE, invalidPriceEntryIds.has(be.id)) + ' w-20 text-right shrink-0'}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                    {perBookPriceMode
+                      ? `Pricing books individually — fill in all ${pgBookEntries.length}, price above is calculated automatically.`
+                      : 'Leave every book price blank to split the total price evenly — or price each book individually here instead.'}
+                  </p>
+                </div>
+              )}
 
               {/* Discounts list */}
               <div>
@@ -1260,7 +1376,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       <button
                         type="button"
                         onClick={() => setEditDiscounts(prev => prev.filter((_, j) => j !== i))}
-                        className="text-stone-600 hover:text-red-400 transition-colors shrink-0"
+                        className="text-navy-600 hover:text-red-400 transition-colors shrink-0"
                       >
                         <X size={13} />
                       </button>
@@ -1290,9 +1406,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       editingFeeId === fee.id ? (
                         <div key={fee.id} className="flex flex-col gap-1.5 pt-0.5">
                           {editFeeTemplateId ? (
-                            <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded border border-stone-700" style={{ color: 'var(--text-dim)' }}>
+                            <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded border border-navy-700" style={{ color: 'var(--text-dim)' }}>
                               <span className="flex-1 truncate">{editFeeName}</span>
-                              <span className="text-stone-500">{FEE_CATEGORIES.find(c => c.value === editFeeCategory)?.label ?? editFeeCategory}</span>
+                              <span className="text-navy-500">{FEE_CATEGORIES.find(c => c.value === editFeeCategory)?.label ?? editFeeCategory}</span>
                             </div>
                           ) : (
                             <div className="flex gap-1.5">
@@ -1314,7 +1430,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             <button onClick={saveEditFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-brand-500/10 border border-brand-500/30 text-brand-400 hover:bg-brand-500/20 transition-colors disabled:opacity-50">
                               <Check size={11} /> Save
                             </button>
-                            <button onClick={() => { setEditingFeeId(null); setEditFeeError(null); setEditFeeErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                            <button onClick={() => { setEditingFeeId(null); setEditFeeError(null); setEditFeeErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-navy-700 text-navy-400 hover:border-navy-500 transition-colors">
                               <X size={11} /> Cancel
                             </button>
                           </div>
@@ -1322,13 +1438,13 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       ) : (
                         <div key={fee.id} className="flex items-center gap-1.5 text-xs">
                           <span className="flex-1 truncate" style={{ color: 'var(--text-dim)' }}>{fee.name}</span>
-                          <span className="text-stone-500">{FEE_CATEGORIES.find(c => c.value === fee.category)?.label ?? fee.category}</span>
+                          <span className="text-navy-500">{FEE_CATEGORIES.find(c => c.value === fee.category)?.label ?? fee.category}</span>
                           <span style={{ color: 'var(--text-dim)' }}>{parseFloat(fee.amount).toFixed(2)} {fee.currency}</span>
-                          <span className="text-stone-500">{fee.date ? fee.date.slice(0, 10) : ''}</span>
-                          <button onClick={() => openEditFee(fee)} className="text-stone-600 hover:text-brand-400 transition-colors shrink-0">
+                          <span className="text-navy-500">{fee.date ? fee.date.slice(0, 10) : ''}</span>
+                          <button onClick={() => openEditFee(fee)} className="text-navy-600 hover:text-brand-400 transition-colors shrink-0">
                             <Pencil size={11} />
                           </button>
-                          <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                          <button onClick={() => deleteFee(fee.id)} className="text-navy-600 hover:text-red-400 transition-colors shrink-0">
                             <Trash2 size={11} />
                           </button>
                         </div>
@@ -1349,7 +1465,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                                   if (t.defaultCurrency) setNewFeeCurrency(t.defaultCurrency)
                                   if (t.category) setNewFeeCategory(t.category)
                                 }}
-                                className={`px-2 py-0.5 rounded text-xs border transition-colors ${newFeeTemplateId === t.id ? 'border-brand-500/60 text-brand-400' : 'border-stone-600 text-stone-400 hover:border-brand-500/40 hover:text-brand-400'}`}
+                                className={`px-2 py-0.5 rounded text-xs border transition-colors ${newFeeTemplateId === t.id ? 'border-brand-500/60 text-brand-400' : 'border-navy-600 text-navy-400 hover:border-brand-500/40 hover:text-brand-400'}`}
                               >
                                 {t.name}
                               </button>
@@ -1357,10 +1473,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           </div>
                         )}
                         {newFeeTemplateId ? (
-                          <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded border border-stone-700" style={{ color: 'var(--text-dim)' }}>
+                          <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded border border-navy-700" style={{ color: 'var(--text-dim)' }}>
                             <span className="flex-1 truncate">{newFeeName}</span>
-                            <span className="text-stone-500">{FEE_CATEGORIES.find(c => c.value === newFeeCategory)?.label ?? newFeeCategory}</span>
-                            <button type="button" onClick={clearNewFeeTemplate} className="text-stone-500 hover:text-red-400 transition-colors shrink-0">
+                            <span className="text-navy-500">{FEE_CATEGORIES.find(c => c.value === newFeeCategory)?.label ?? newFeeCategory}</span>
+                            <button type="button" onClick={clearNewFeeTemplate} className="text-navy-500 hover:text-red-400 transition-colors shrink-0">
                               <X size={11} />
                             </button>
                           </div>
@@ -1384,7 +1500,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-brand-500/10 border border-brand-500/30 text-brand-400 hover:bg-brand-500/20 transition-colors disabled:opacity-50">
                             <Check size={11} /> Add
                           </button>
-                          <button onClick={() => { setAddingFee(false); setNewFeeError(null); setNewFeeErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                          <button onClick={() => { setAddingFee(false); setNewFeeError(null); setNewFeeErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-navy-700 text-navy-400 hover:border-navy-500 transition-colors">
                             <X size={11} /> Cancel
                           </button>
                         </div>
@@ -1407,8 +1523,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       <div key={r.id} className="flex items-center gap-1.5 text-xs">
                         <span className="flex-1 truncate text-orange-400">{r.reason ?? 'Refund'}</span>
                         <span className="text-orange-400">{parseFloat(r.amount).toFixed(2)} {r.currency}</span>
-                        <span className="text-stone-500">{r.date ? r.date.slice(0, 10) : ''}</span>
-                        <button onClick={() => deleteRefund(r.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                        <span className="text-navy-500">{r.date ? r.date.slice(0, 10) : ''}</span>
+                        <button onClick={() => deleteRefund(r.id)} className="text-navy-600 hover:text-red-400 transition-colors shrink-0">
                           <Trash2 size={11} />
                         </button>
                       </div>
@@ -1428,7 +1544,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <button onClick={saveNewRefund} disabled={savingRefund} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 transition-colors disabled:opacity-50">
                             <Check size={11} /> Add
                           </button>
-                          <button onClick={() => { setAddingRefund(false); setRefundError(null); setRefundErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
+                          <button onClick={() => { setAddingRefund(false); setRefundError(null); setRefundErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-navy-700 text-navy-400 hover:border-navy-500 transition-colors">
                             <X size={11} /> Cancel
                           </button>
                         </div>
@@ -1484,7 +1600,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       <div key={fee.id} className="flex justify-between items-baseline gap-2">
                         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                           {fee.name}
-                          {fee.date && <span className="ml-1 text-stone-600">{fee.date.slice(0, 10)}</span>}
+                          {fee.date && <span className="ml-1 text-navy-600">{fee.date.slice(0, 10)}</span>}
                         </span>
                         <span className="text-right">
                           <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{amt.toFixed(2)} {fee.currency}</span>
@@ -1515,7 +1631,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                               <span className="block text-xs text-green-500/60">{converted(amt, d.currency, (d as any).date ?? pg.purchasedAt)?.replace('≈', '≈ −')}</span>
                             )}
                           </span>
-                          <button onClick={() => deleteDiscount(d.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
+                          <button onClick={() => deleteDiscount(d.id)} className="text-navy-600 hover:text-red-400 transition-colors shrink-0">
                             <Trash2 size={11} />
                           </button>
                         </span>
@@ -1912,13 +2028,13 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           }
                         }}
                         disabled={savingEditTracking || !editTrackingNumber.trim()}
-                        className="flex-1 text-xs py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
+                        className="flex-1 text-xs py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-navy-950 font-semibold transition-colors"
                       >
                         {savingEditTracking ? '…' : 'Save'}
                       </button>
                       <button
                         onClick={() => setEditingTrackingId(null)}
-                        className="text-xs py-1.5 px-3 rounded-lg border border-stone-700 text-stone-400 hover:text-stone-200 transition-colors"
+                        className="text-xs py-1.5 px-3 rounded-lg border border-navy-700 text-navy-400 hover:text-navy-200 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1951,7 +2067,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                         await authFetch(`/collection/${entry.id}/tracking/${tn.id}`, { method: 'DELETE' })
                         await refetchEntry()
                       }}
-                      className="p-1 text-stone-500 hover:text-red-400 transition-colors shrink-0"
+                      className="p-1 text-navy-500 hover:text-red-400 transition-colors shrink-0"
                       title="Remove"
                     >
                       <Trash2 size={11} />
@@ -1995,13 +2111,13 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       }
                     }}
                     disabled={savingTracking || !newTrackingNumber.trim()}
-                    className="flex-1 text-xs py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
+                    className="flex-1 text-xs py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-navy-950 font-semibold transition-colors"
                   >
                     {savingTracking ? '…' : 'Save'}
                   </button>
                   <button
                     onClick={() => { setAddingTracking(false); setNewTrackingNumber(''); setNewTrackingLabel('') }}
-                    className="text-xs py-1.5 px-3 rounded-lg border border-stone-700 text-stone-400 hover:text-stone-200 transition-colors"
+                    className="text-xs py-1.5 px-3 rounded-lg border border-navy-700 text-navy-400 hover:text-navy-200 transition-colors"
                   >
                     Cancel
                   </button>
@@ -2025,12 +2141,12 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
             </div>
           ) : entry.orderNumber ? (
             <div className="flex items-center gap-1.5">
-              <span className="flex-1 min-w-0 text-sm text-stone-200">{entry.orderNumber}</span>
+              <span className="flex-1 min-w-0 text-sm text-navy-200">{entry.orderNumber}</span>
               <EditBtn onClick={openOrderNumberEdit} />
               <button
                 onClick={deleteOrderNumber}
                 disabled={deletingOrderNumber}
-                className="p-1 text-stone-500 hover:text-red-400 transition-colors disabled:opacity-40 shrink-0"
+                className="p-1 text-navy-500 hover:text-red-400 transition-colors disabled:opacity-40 shrink-0"
                 title="Remove order number"
               >
                 <Trash2 size={11} />
@@ -2078,7 +2194,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <select
                             value={historyEditStatus}
                             onChange={e => setHistoryEditStatus(e.target.value)}
-                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
+                            className="text-xs bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-200 focus:outline-none focus:border-brand-400"
                           >
                             {OWNERSHIP_STATUSES.map(s => <option key={s} value={s}>{fmtOwnership(s)}</option>)}
                           </select>
@@ -2086,30 +2202,30 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             type="date"
                             value={historyEditDate}
                             onChange={e => setHistoryEditDate(e.target.value)}
-                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
+                            className="text-xs bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-200 focus:outline-none focus:border-brand-400"
                           />
                           <button
                             onClick={() => saveHistoryEdit(h.id)}
                             disabled={historySaving}
                             className="text-xs text-brand-400 hover:text-brand-300 disabled:opacity-50"
                           ><Check size={11} /></button>
-                          <button onClick={() => setHistoryEditId(null)} className="text-xs text-stone-500 hover:text-stone-300"><X size={11} /></button>
+                          <button onClick={() => setHistoryEditId(null)} className="text-xs text-navy-500 hover:text-navy-300"><X size={11} /></button>
                         </div>
                       ) : (
                         <div key={h.id} className="group flex items-center gap-2 text-xs">
-                          <span className="w-1.5 h-1.5 rounded-full bg-stone-500 shrink-0" />
-                          <span className={`px-2 py-0.5 rounded-full font-medium ${OWNERSHIP_COLORS[h.status] ?? 'bg-stone-700 text-stone-300'}`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-navy-500 shrink-0" />
+                          <span className={`px-2 py-0.5 rounded-full font-medium ${OWNERSHIP_COLORS[h.status] ?? 'bg-navy-700 text-navy-300'}`}>
                             {fmtOwnership(h.status)}
                           </span>
                           <span style={{ color: 'var(--text-muted)' }}>{fmtDate(h.changedAt)}</span>
                           <span className="ml-auto flex items-center gap-2">
                             <button
                               onClick={() => { setHistoryEditId(h.id); setHistoryEditStatus(h.status); setHistoryEditDate(h.changedAt.slice(0, 10)) }}
-                              className="text-stone-500 hover:text-brand-400 transition-colors p-1.5 -m-1.5"
+                              className="text-navy-500 hover:text-brand-400 transition-colors p-1.5 -m-1.5"
                             ><Pencil size={12} /></button>
                             <button
                               onClick={() => deleteHistoryEntry(h.id)}
-                              className="text-stone-500 hover:text-red-400 transition-colors p-1.5 -m-1.5"
+                              className="text-navy-500 hover:text-red-400 transition-colors p-1.5 -m-1.5"
                             ><Trash2 size={12} /></button>
                           </span>
                         </div>
@@ -2160,22 +2276,22 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       readingHistoryEditId === rh.id ? (
                         <div key={rh.id} className="flex flex-col gap-1.5 text-xs">
                           <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-center">
-                            <label className="text-stone-500 shrink-0">Started</label>
+                            <label className="text-navy-500 shrink-0">Started</label>
                             <input
                               type="date"
                               value={readingHistoryEditStartedAt}
                               onChange={e => setReadingHistoryEditStartedAt(e.target.value)}
-                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 text-xs w-full"
+                              className="bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-200 focus:outline-none focus:border-brand-400 text-xs w-full"
                             />
-                            <label className="text-stone-500 shrink-0">Finished</label>
+                            <label className="text-navy-500 shrink-0">Finished</label>
                             <input
                               type="date"
                               value={readingHistoryEditFinishedAt}
                               onChange={e => setReadingHistoryEditFinishedAt(e.target.value)}
-                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 text-xs w-full"
+                              className="bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-200 focus:outline-none focus:border-brand-400 text-xs w-full"
                             />
                           </div>
-                          <label className="flex items-center gap-1.5 text-stone-400 cursor-pointer w-fit">
+                          <label className="flex items-center gap-1.5 text-navy-400 cursor-pointer w-fit">
                             <input
                               type="checkbox"
                               checked={readingHistoryEditIsDnf}
@@ -2189,17 +2305,17 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             placeholder="Notes (optional)"
                             value={readingHistoryEditNotes}
                             onChange={e => setReadingHistoryEditNotes(e.target.value)}
-                            className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 text-xs w-full"
+                            className="bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-200 focus:outline-none focus:border-brand-400 text-xs w-full"
                           />
                           <div className="flex gap-2">
                             <button onClick={() => saveReadingHistoryEdit(rh.id)} disabled={readingHistorySaving} className="text-brand-400 hover:text-brand-300 disabled:opacity-50"><Check size={11} /></button>
-                            <button onClick={() => setReadingHistoryEditId(null)} className="text-stone-500 hover:text-stone-300"><X size={11} /></button>
+                            <button onClick={() => setReadingHistoryEditId(null)} className="text-navy-500 hover:text-navy-300"><X size={11} /></button>
                           </div>
                         </div>
                       ) : (
                         <div key={rh.id} className="group flex flex-col gap-0.5 text-xs">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="w-1.5 h-1.5 rounded-full bg-stone-500 shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-navy-500 shrink-0" />
                             {rh.isDnf && (
                               <span className="px-2 py-0.5 rounded-full font-medium badge-dnf">DNF</span>
                             )}
@@ -2227,9 +2343,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                                   setReadingHistoryEditIsDnf(rh.isDnf)
                                   setReadingHistoryEditNotes(rh.notes ?? '')
                                 }}
-                                className="text-stone-500 hover:text-brand-400 transition-colors p-1.5 -m-1.5"
+                                className="text-navy-500 hover:text-brand-400 transition-colors p-1.5 -m-1.5"
                               ><Pencil size={12} /></button>
-                              <button onClick={() => deleteReadingHistoryEntry(rh.id)} className="text-stone-500 hover:text-red-400 transition-colors p-1.5 -m-1.5"><Trash2 size={12} /></button>
+                              <button onClick={() => deleteReadingHistoryEntry(rh.id)} className="text-navy-500 hover:text-red-400 transition-colors p-1.5 -m-1.5"><Trash2 size={12} /></button>
                             </span>
                           </div>
                           {rh.notes && (

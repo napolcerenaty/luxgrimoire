@@ -41,16 +41,16 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
 
   if (loading || !user || needsConsent) {
     return (
-      <div className="min-h-screen bg-stone-950 flex items-center justify-center">
-        <div className="text-stone-400 font-serif text-lg animate-pulse">Loading…</div>
+      <div className="min-h-screen bg-navy-950 flex items-center justify-center">
+        <div className="text-navy-400 font-serif text-lg animate-pulse">Loading…</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-stone-950 flex">
+    <div className="min-h-screen bg-navy-950 flex">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-56 border-r border-stone-800 pt-4 px-6 pb-6 gap-2 shrink-0">
+      <aside className="hidden md:flex flex-col w-56 border-r border-navy-800 pt-4 px-6 pb-6 gap-2 shrink-0">
         <nav className="flex flex-col gap-1">
           {NAV_LINKS.map(({ href, label, icon: Icon }) => (
             <Link
@@ -60,7 +60,7 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
                 'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
                 pathname === href
                   ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
-                  : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800',
+                  : 'text-navy-400 hover:text-navy-100 hover:bg-navy-800',
               )}
             >
               <Icon size={16} />
@@ -77,14 +77,14 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-stone-950 border-t border-stone-800 flex items-center justify-around px-2 py-2 z-40">
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-navy-950 border-t border-navy-800 flex items-center justify-around px-2 py-2 z-40">
         {NAV_LINKS.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
             className={clsx(
               'flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-xs transition-colors',
-              pathname === href ? 'text-brand-400' : 'text-stone-500 hover:text-stone-300',
+              pathname === href ? 'text-brand-400' : 'text-navy-500 hover:text-navy-300',
             )}
           >
             <Icon size={20} />

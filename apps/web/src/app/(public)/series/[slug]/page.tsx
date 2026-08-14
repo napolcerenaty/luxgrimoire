@@ -75,10 +75,10 @@ export default async function SeriesPage({ params }: Props) {
 
       {/* Header */}
       <div className="mb-8">
-        <p className="text-xs text-stone-500 uppercase tracking-widest mb-1">Series</p>
+        <p className="text-xs text-navy-500 uppercase tracking-widest mb-1">Series</p>
         <h1 className="text-3xl font-serif font-bold text-brand-400">{series.name}</h1>
         {seriesAuthors.length > 0 && (
-          <p className="text-stone-400 text-sm mt-1">
+          <p className="text-navy-400 text-sm mt-1">
             by{' '}
             {seriesAuthors.map((a, i) => (
               <span key={a.id}>
@@ -90,7 +90,7 @@ export default async function SeriesPage({ params }: Props) {
             ))}
           </p>
         )}
-        <p className="text-stone-500 text-xs mt-1">{totalCount} book{totalCount !== 1 ? 's' : ''}</p>
+        <p className="text-navy-500 text-xs mt-1">{totalCount} book{totalCount !== 1 ? 's' : ''}</p>
       </div>
 
       {/* Individual volumes */}
@@ -105,7 +105,7 @@ export default async function SeriesPage({ params }: Props) {
           surprising sitting in a strictly-numbered list of individual volumes. */}
       {series.omnibuses.length > 0 && (
         <div className="mt-12">
-          <h2 className="text-xs uppercase tracking-widest text-stone-500 font-medium mb-4 border-b border-stone-800 pb-2">
+          <h2 className="text-xs uppercase tracking-widest text-navy-500 font-medium mb-4 border-b border-navy-800 pb-2">
             Also available as a bind-up edition
           </h2>
           <div className="flex flex-col gap-10">
@@ -127,7 +127,7 @@ function SeriesBookSection({ book }: { book: RawBook }) {
 
   return (
     <div>
-      <div className="flex items-baseline gap-3 mb-4 border-b border-stone-800 pb-3">
+      <div className="flex items-baseline gap-3 mb-4 border-b border-navy-800 pb-3">
         {volumeLabel && (
           <span className="text-xs font-semibold uppercase tracking-widest text-brand-600/80 shrink-0">
             {volumeLabel}
@@ -135,14 +135,14 @@ function SeriesBookSection({ book }: { book: RawBook }) {
         )}
         <Link
           href={`/books/${book.slug}`}
-          className="text-xl font-serif font-semibold text-stone-100 hover:text-brand-400 transition-colors"
+          className="text-xl font-serif font-semibold text-navy-100 hover:text-brand-400 transition-colors"
         >
           {book.title}
         </Link>
       </div>
 
       {editions.length === 0 ? (
-        <p className="text-stone-600 text-sm italic">No verified editions yet.</p>
+        <p className="text-navy-600 text-sm italic">No verified editions yet.</p>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
           {editions.map((edition) => (

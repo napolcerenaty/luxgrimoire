@@ -33,7 +33,7 @@ export default function ConsentPage() {
   if (checking || !auth.user) {
     return (
       <div className="max-w-md mx-auto mt-16 px-4">
-        <p className="text-stone-400 text-sm animate-pulse">Loading…</p>
+        <p className="text-navy-400 text-sm animate-pulse">Loading…</p>
       </div>
     )
   }
@@ -79,21 +79,21 @@ export default function ConsentPage() {
       <h1 className="text-2xl font-bold mb-2">One last step</h1>
 
       {isNewUser ? (
-        <p className="text-stone-400 text-sm mb-6">
+        <p className="text-navy-400 text-sm mb-6">
           Before continuing, please review and accept our policies.
         </p>
       ) : (
-        <div className="text-stone-400 text-sm mb-6 space-y-4">
+        <div className="text-navy-400 text-sm mb-6 space-y-4">
           <p>We&apos;ve updated our policies since you last agreed. Please review the changes below and accept to continue.</p>
           {gap.outdated.terms && (
-            <div className="border border-stone-800 rounded-lg p-3">
-              <p className="font-medium text-stone-200 mb-1">Terms of Use</p>
+            <div className="border border-navy-800 rounded-lg p-3">
+              <p className="font-medium text-navy-200 mb-1">Terms of Use</p>
               <p>{gap.terms?.summary ?? 'The Terms of Use have been updated.'}</p>
             </div>
           )}
           {gap.outdated.privacy && (
-            <div className="border border-stone-800 rounded-lg p-3">
-              <p className="font-medium text-stone-200 mb-1">Privacy Policy</p>
+            <div className="border border-navy-800 rounded-lg p-3">
+              <p className="font-medium text-navy-200 mb-1">Privacy Policy</p>
               <p>{gap.privacy?.summary ?? 'The Privacy Policy has been updated.'}</p>
             </div>
           )}
@@ -108,7 +108,7 @@ export default function ConsentPage() {
             onChange={e => setAccepted(e.target.checked)}
             className="mt-1 accent-brand-500"
           />
-          <span className="text-sm text-stone-300">
+          <span className="text-sm text-navy-300">
             I have read and agree to the{' '}
             <Link href="/terms" target="_blank" className="text-brand-400 underline hover:text-brand-300">
               Terms &amp; Conditions
@@ -125,7 +125,7 @@ export default function ConsentPage() {
         <button
           type="submit"
           disabled={!accepted || loading}
-          className="w-full py-2 rounded bg-brand-500 text-stone-900 font-semibold hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="w-full py-2 rounded bg-brand-500 text-navy-900 font-semibold hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Saving…' : 'Continue'}
         </button>

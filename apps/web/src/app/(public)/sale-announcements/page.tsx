@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import type { PaginatedResponse } from '@luxgrimoire/shared-types'
-import { Megaphone, Search, LayoutGrid, List, X } from 'lucide-react'
+import { Megaphone, Search, LayoutGrid, List, X, CalendarDays } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { AnnouncementCard, AnnouncementListRow, type ListSaleAnnouncement } from '@/components/sales/AnnouncementCard'
 
@@ -72,26 +72,38 @@ export default function SaleAnnouncementsPage() {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Megaphone size={24} className="text-brand-400" />
-          <h1 className="text-3xl font-serif font-bold text-stone-100">Sales</h1>
+          <h1 className="text-3xl font-serif font-bold text-navy-100">Sales</h1>
         </div>
-        <Link
-          href="/sale-announcement-requests"
-          className="text-xs text-brand-500 hover:text-brand-400 border border-stone-700 hover:border-brand-700 px-3 py-1.5 rounded-full transition-colors font-serif"
-        >
-          + Report a sale
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href={(() => {
+              const selectedCompanyName = companyId ? companies.find(c => c.id === companyId)?.name : undefined
+              return selectedCompanyName ? `/sales-calendar?company=${encodeURIComponent(selectedCompanyName)}` : '/sales-calendar'
+            })()}
+            className="flex items-center gap-1.5 text-xs text-navy-200 bg-navy-800 hover:bg-navy-700 border border-navy-700 hover:border-brand-600/50 px-3 py-1.5 rounded-full transition-colors font-serif"
+          >
+            <CalendarDays size={13} />
+            View as Calendar
+          </Link>
+          <Link
+            href="/sale-announcement-requests"
+            className="text-xs text-brand-500 hover:text-brand-400 border border-navy-700 hover:border-brand-700 px-3 py-1.5 rounded-full transition-colors font-serif"
+          >
+            + Report a sale
+          </Link>
+        </div>
       </div>
 
       {/* Filters row */}
       <div className="flex flex-wrap gap-3 mb-4">
         {/* Search */}
         <div className="relative flex-1 min-w-[180px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-500 pointer-events-none" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by sale title…"
-            className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-9 pr-4 py-2.5 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-500 text-sm"
+            className="w-full bg-navy-800 border border-navy-700 rounded-xl pl-9 pr-4 py-2.5 text-navy-100 placeholder-navy-500 focus:outline-none focus:border-brand-500 text-sm"
           />
         </div>
 
@@ -100,7 +112,7 @@ export default function SaleAnnouncementsPage() {
           value={companyId}
           onChange={(e) => setCompanyId(e.target.value)}
           disabled={companiesLoading}
-          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-brand-500 min-w-[160px] disabled:opacity-60"
+          className="bg-navy-800 border border-navy-700 rounded-xl px-3 py-2.5 text-sm text-navy-300 focus:outline-none focus:border-brand-500 min-w-[160px] disabled:opacity-60"
         >
           <option value="">{companiesLoading ? 'Loading…' : 'All companies'}</option>
           {companies.map((c) => (
@@ -112,7 +124,7 @@ export default function SaleAnnouncementsPage() {
         <select
           value={saleType}
           onChange={(e) => setSaleType(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-brand-500 min-w-[150px]"
+          className="bg-navy-800 border border-navy-700 rounded-xl px-3 py-2.5 text-sm text-navy-300 focus:outline-none focus:border-brand-500 min-w-[150px]"
         >
           <option value="">All types</option>
           <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
@@ -122,41 +134,41 @@ export default function SaleAnnouncementsPage() {
         </select>
 
         {/* Date from */}
-        <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-brand-500">
-          <span className="shrink-0 text-stone-500 text-xs">From</span>
+        <label className="flex items-center gap-1.5 bg-navy-800 border border-navy-700 rounded-xl px-3 py-2.5 text-sm text-navy-400 focus-within:border-brand-500">
+          <span className="shrink-0 text-navy-500 text-xs">From</span>
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
             title="First Access / Early Access / General Sale date from"
-            className="bg-transparent text-stone-300 focus:outline-none"
+            className="bg-transparent text-navy-300 focus:outline-none"
           />
         </label>
 
         {/* Date to */}
-        <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2.5 text-sm text-stone-400 focus-within:border-brand-500">
-          <span className="shrink-0 text-stone-500 text-xs">To</span>
+        <label className="flex items-center gap-1.5 bg-navy-800 border border-navy-700 rounded-xl px-3 py-2.5 text-sm text-navy-400 focus-within:border-brand-500">
+          <span className="shrink-0 text-navy-500 text-xs">To</span>
           <input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
             title="First Access / Early Access / General Sale date to"
-            className="bg-transparent text-stone-300 focus:outline-none"
+            className="bg-transparent text-navy-300 focus:outline-none"
           />
         </label>
 
         {/* View toggle */}
-        <div className="flex items-center gap-1 bg-stone-800 border border-stone-700 rounded-xl px-1">
+        <div className="flex items-center gap-1 bg-navy-800 border border-navy-700 rounded-xl px-1">
           <button
             onClick={() => setView('grid')}
-            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-navy-700 text-brand-400' : 'text-navy-500 hover:text-navy-300'}`}
             aria-label="Grid view"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
           <button
             onClick={() => setView('list')}
-            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-navy-700 text-brand-400' : 'text-navy-500 hover:text-navy-300'}`}
             aria-label="List view"
           >
             <List className="w-4 h-4" />
@@ -167,13 +179,13 @@ export default function SaleAnnouncementsPage() {
       {/* Active filters + clear */}
       {hasFilters && (
         <div className="flex items-center gap-2 mb-6 flex-wrap">
-          <span className="text-xs text-stone-500">Active filters:</span>
-          {debouncedSearch && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">"{debouncedSearch}"</span>}
-          {companyId && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{companies.find(c => c.id === companyId)?.name ?? companyId}</span>}
-          {saleType && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">{{ LIMITED_PREORDER: '⏳ Limited Preorder', OPEN_PREORDER: '🔓 Open Preorder', OVERSTOCK: '📦 Overstock', SALE: '🏷️ Sale' }[saleType] ?? saleType}</span>}
-          {dateFrom && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">from {dateFrom}</span>}
-          {dateTo && <span className="text-xs bg-stone-800 border border-stone-700 px-2 py-0.5 rounded-full text-stone-300">to {dateTo}</span>}
-          <button onClick={clearFilters} className="text-xs text-stone-500 hover:text-stone-300 flex items-center gap-0.5 transition-colors">
+          <span className="text-xs text-navy-500">Active filters:</span>
+          {debouncedSearch && <span className="text-xs bg-navy-800 border border-navy-700 px-2 py-0.5 rounded-full text-navy-300">"{debouncedSearch}"</span>}
+          {companyId && <span className="text-xs bg-navy-800 border border-navy-700 px-2 py-0.5 rounded-full text-navy-300">{companies.find(c => c.id === companyId)?.name ?? companyId}</span>}
+          {saleType && <span className="text-xs bg-navy-800 border border-navy-700 px-2 py-0.5 rounded-full text-navy-300">{{ LIMITED_PREORDER: '⏳ Limited Preorder', OPEN_PREORDER: '🔓 Open Preorder', OVERSTOCK: '📦 Overstock', SALE: '🏷️ Sale' }[saleType] ?? saleType}</span>}
+          {dateFrom && <span className="text-xs bg-navy-800 border border-navy-700 px-2 py-0.5 rounded-full text-navy-300">from {dateFrom}</span>}
+          {dateTo && <span className="text-xs bg-navy-800 border border-navy-700 px-2 py-0.5 rounded-full text-navy-300">to {dateTo}</span>}
+          <button onClick={clearFilters} className="text-xs text-navy-500 hover:text-navy-300 flex items-center gap-0.5 transition-colors">
             <X size={12} /> Clear all
           </button>
         </div>
@@ -182,11 +194,11 @@ export default function SaleAnnouncementsPage() {
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-stone-800 bg-stone-900 animate-pulse aspect-[2/3]" />
+            <div key={i} className="rounded-2xl border border-navy-800 bg-navy-900 animate-pulse aspect-[2/3]" />
           ))}
         </div>
       ) : isEmpty ? (
-        <div className="text-center py-20 text-stone-500">
+        <div className="text-center py-20 text-navy-500">
           <Megaphone size={40} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg">{hasFilters ? 'No results found.' : 'No upcoming sales at the moment.'}</p>
           {!hasFilters && (
@@ -205,7 +217,7 @@ export default function SaleAnnouncementsPage() {
               {announcements.map((a) => <AnnouncementCard key={a.id} a={a} />)}
             </div>
           ) : (
-            <div className="flex flex-col divide-y divide-stone-800">
+            <div className="flex flex-col divide-y divide-navy-800">
               {announcements.map((a) => <AnnouncementListRow key={a.id} a={a} />)}
             </div>
           )}
@@ -214,7 +226,7 @@ export default function SaleAnnouncementsPage() {
               <button
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
-                className="px-6 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-700 text-navy-300 text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {isFetchingNextPage ? 'Loading…' : 'Show more'}
               </button>
@@ -223,7 +235,7 @@ export default function SaleAnnouncementsPage() {
         </>
       )}
 
-      <div className="mt-12 text-center text-stone-500 text-sm">
+      <div className="mt-12 text-center text-navy-500 text-sm">
         Don&apos;t see a sale you know about?{' '}
         <Link href="/sale-announcement-requests" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
           Let us know!

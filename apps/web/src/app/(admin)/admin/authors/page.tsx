@@ -140,7 +140,7 @@ function AuthorForm({ initial, onSubmit, submitting, submitLabel }: AuthorFormPr
       <button
         type="submit"
         disabled={submitting}
-        className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
+        className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
       >
         {submitting ? 'Saving…' : submitLabel}
       </button>
@@ -208,10 +208,10 @@ export default function AdminAuthorsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-stone-100">Authors</h1>
+        <h1 className="text-2xl font-bold text-navy-100">Authors</h1>
         <button
           onClick={() => createModal.open()}
-          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
+          className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
         >
           Add Author
         </button>
@@ -223,12 +223,12 @@ export default function AdminAuthorsPage() {
           placeholder="Search authors…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          className="w-full max-w-sm bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-400 text-sm"
+          className="w-full max-w-sm bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 placeholder-navy-500 focus:outline-none focus:border-brand-400 text-sm"
         />
       </div>
 
       {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-navy-400 py-8 text-center">Loading…</div>
       ) : (
         <>
           <DataTable
