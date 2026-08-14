@@ -59,6 +59,19 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
   const rawView = searchParams.get('view')
   const view: 'grid' | 'list' | 'calendar' = rawView === 'list' || rawView === 'calendar' ? rawView : 'grid'
 
+  // The selected day inside CalendarGrid isn't part of the restored URL state, so on browser
+  // back the agenda panel comes back collapsed/shorter than it was — the browser's native
+  // scroll-position restore then lands you on the now-empty space below it. Scoping
+  // scrollRestoration to 'manual' while this page is mounted stops that (and restores whatever
+  // the browser's default was again once you navigate away).
+  useEffect(() => {
+    const original = window.history.scrollRestoration
+    window.history.scrollRestoration = 'manual'
+    return () => {
+      window.history.scrollRestoration = original
+    }
+  }, [])
+
   const today = new Date()
   const yearParam = parseInt(searchParams.get('year') ?? '', 10)
   const monthParam = parseInt(searchParams.get('month') ?? '', 10)
