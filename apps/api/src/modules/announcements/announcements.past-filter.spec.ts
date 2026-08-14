@@ -30,7 +30,8 @@ describe('AnnouncementsService.findAll — pastOnly filter', () => {
     const uploadService = mockDeep<UploadService>();
     const mediaAssetsService = mockDeep<MediaAssetsService>();
     const userCostSnapshotService = mockDeep<UserCostSnapshotCronService>();
-    service = new AnnouncementsService(prisma, typesense, uploadService, mediaAssetsService, userCostSnapshotService, undefined);
+    const cache = { get: async () => undefined, set: async () => {} } as any;
+    service = new AnnouncementsService(prisma, typesense, uploadService, mediaAssetsService, userCostSnapshotService, cache, undefined);
 
     (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.saleAnnouncement.count as jest.Mock).mockResolvedValue(0);

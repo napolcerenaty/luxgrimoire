@@ -317,9 +317,9 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
     <section className="mt-12">
       {/* Header row: title + search */}
       <div className="flex items-center gap-3 mb-5">
-        <h2 className="text-2xl font-serif font-semibold text-stone-100 shrink-0">Books</h2>
+        <h2 className="text-2xl font-serif font-semibold text-navy-100 shrink-0">Books</h2>
         <div className="ml-auto relative w-full max-w-[12rem]">
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-navy-500 pointer-events-none">
             <SearchIcon />
           </span>
           <input
@@ -327,7 +327,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search books…"
-            className="pl-8 pr-3 py-1.5 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-200 placeholder-stone-500 focus:outline-none focus:border-brand-600/60 w-full"
+            className="pl-8 pr-3 py-1.5 text-sm rounded-lg bg-navy-800 border border-navy-700 text-navy-200 placeholder-navy-500 focus:outline-none focus:border-brand-600/60 w-full"
           />
         </div>
       </div>
@@ -358,7 +358,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
               className={`shrink-0 snap-start whitespace-nowrap flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-medium font-serif transition-colors border ${
                 activeTab === idx
                   ? 'bg-brand-900/30 border-brand-600 text-brand-400'
-                  : 'bg-stone-800 border-stone-700 text-stone-400'
+                  : 'bg-navy-800 border-navy-700 text-navy-400'
               }`}
             >
               {/* No truncation — several groups can share a long common prefix (e.g.
@@ -366,7 +366,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
                   indistinguishable from each other. The strip already scrolls/drags, so a
                   wider chip costs nothing. */}
               <span>{group.label}</span>
-              {totals[idx] !== undefined && <span className="text-stone-500">({totals[idx]})</span>}
+              {totals[idx] !== undefined && <span className="text-navy-500">({totals[idx]})</span>}
             </button>
           )
         })}
@@ -375,10 +375,10 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
       {/* Ownership/skip filter chips — only appears once we know the logged-in user has at
           least one status to filter by, on the currently visible batch of editions. */}
       {hasAnyStatus && (
-        <div className="inline-flex items-center gap-1 rounded-lg border border-stone-700 bg-stone-900/60 p-1 mb-5" aria-label="Filter by your status — select any combination">
+        <div className="inline-flex items-center gap-1 rounded-lg border border-navy-700 bg-navy-900/60 p-1 mb-5" aria-label="Filter by your status — select any combination">
           <button
             onClick={() => setStatusFilters(new Set())}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${statusFilters.size === 0 ? 'bg-stone-700 text-stone-100' : 'text-stone-400 hover:text-stone-200'}`}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${statusFilters.size === 0 ? 'bg-navy-700 text-navy-100' : 'text-navy-400 hover:text-navy-200'}`}
           >
             All
           </button>
@@ -387,7 +387,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
               key={value}
               onClick={() => toggleStatusFilter(value)}
               aria-pressed={statusFilters.has(value)}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${statusFilters.has(value) ? 'bg-stone-700 text-stone-100' : 'text-stone-400 hover:text-stone-200'}`}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${statusFilters.has(value) ? 'bg-navy-700 text-navy-100' : 'text-navy-400 hover:text-navy-200'}`}
             >
               <span className={`h-2 w-2 rounded-full ${dotClass}`} /> {label}
             </button>
@@ -397,7 +397,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
 
       {/* Grid */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-16 text-stone-500 text-sm">
+        <div className="flex items-center justify-center py-16 text-navy-500 text-sm">
           Loading…
         </div>
       ) : filteredDisplayed.length > 0 ? (
@@ -424,7 +424,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
               <button
                 onClick={loadMore}
                 disabled={isFetchingMore}
-                className="px-5 py-2 text-sm rounded-lg bg-stone-800 border border-stone-700 text-stone-300 hover:bg-stone-700 hover:text-brand-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2 text-sm rounded-lg bg-navy-800 border border-navy-700 text-navy-300 hover:bg-navy-700 hover:text-brand-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isFetchingMore ? 'Loading…' : `Load more (${serverTotal - displayed.length} remaining)`}
               </button>
@@ -432,7 +432,7 @@ export function CompanyBooksSection({ companySlug, groups, brandColors }: Props)
           </div>
         </>
       ) : (
-        <p className="text-stone-500 text-sm py-10 text-center">
+        <p className="text-navy-500 text-sm py-10 text-center">
           {isSearching
             ? 'No books match your search.'
             : statusFilters.size > 0

@@ -65,9 +65,9 @@ export function CompanySaleAnnouncementsSection({ companyId, companySlug }: Prop
       )}
 
       {latestItems.length > 0 && (
-        <div className="rounded-2xl border border-stone-800 bg-stone-900/60 p-4">
+        <div className="rounded-2xl border border-navy-800 bg-navy-900/60 p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-serif font-semibold text-stone-200">Latest Announcements</h3>
+            <h3 className="text-sm font-serif font-semibold text-navy-200">Latest Announcements</h3>
             <Link href={seeAllHref} className="text-xs text-brand-500 hover:text-brand-400 transition-colors">
               View all →
             </Link>
@@ -80,15 +80,15 @@ export function CompanySaleAnnouncementsSection({ companyId, companySlug }: Prop
                   key={a.id}
                   href={seeAllHref}
                   title={a.title}
-                  className="flex items-center gap-2.5 text-left hover:bg-stone-800/60 transition-colors rounded-lg p-1.5 -m-1.5"
+                  className="flex items-center gap-2.5 text-left hover:bg-navy-800/60 transition-colors rounded-lg p-1.5 -m-1.5"
                 >
-                  <div className="w-8 h-12 shrink-0 rounded bg-stone-950 overflow-hidden">
+                  <div className="w-8 h-12 shrink-0 rounded bg-navy-950 overflow-hidden">
                     {cover && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={cover} alt="" className="w-full h-full object-cover" />
                     )}
                   </div>
-                  <p className="text-xs text-stone-300 line-clamp-2 leading-snug">{a.title}</p>
+                  <p className="text-xs text-navy-300 line-clamp-2 leading-snug">{a.title}</p>
                 </Link>
               )
             })}

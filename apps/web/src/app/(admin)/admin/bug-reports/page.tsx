@@ -14,7 +14,7 @@ const STATUS_STYLES: Record<string, string> = {
   open: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
   in_progress: 'text-brand-400 bg-brand-500/10 border-brand-500/30',
   resolved: 'text-green-400 bg-green-500/10 border-green-500/30',
-  wontfix: 'text-stone-500 bg-stone-700/30 border-stone-600/30',
+  wontfix: 'text-navy-500 bg-navy-700/30 border-navy-600/30',
 }
 
 interface BugReport {
@@ -71,13 +71,13 @@ export default function AdminBugReportsPage() {
         <div className="flex items-center gap-3">
           <Bug size={22} className="text-brand-400" />
           <div>
-            <h1 className="font-serif text-2xl font-bold text-stone-100">Bug Reports</h1>
-            <p className="text-sm text-stone-500">{data?.total ?? 0} total reports</p>
+            <h1 className="font-serif text-2xl font-bold text-navy-100">Bug Reports</h1>
+            <p className="text-sm text-navy-500">{data?.total ?? 0} total reports</p>
           </div>
         </div>
         <button
           onClick={() => queryClient.invalidateQueries({ queryKey: ['admin', 'bug-reports'] })}
-          className="p-2 rounded-lg text-stone-400 hover:text-brand-400 hover:bg-stone-800 transition-colors"
+          className="p-2 rounded-lg text-navy-400 hover:text-brand-400 hover:bg-navy-800 transition-colors"
           title="Refresh"
         >
           <RefreshCw size={16} />
@@ -93,7 +93,7 @@ export default function AdminBugReportsPage() {
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               statusFilter === s
                 ? 'bg-brand-500/10 text-brand-400 border-brand-500/30'
-                : 'text-stone-400 border-stone-700 hover:border-stone-500'
+                : 'text-navy-400 border-navy-700 hover:border-navy-500'
             }`}
           >
             {s === '' ? 'All' : s.replace('_', ' ')}
@@ -102,15 +102,15 @@ export default function AdminBugReportsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-20 text-stone-500">Loading…</div>
+        <div className="text-center py-20 text-navy-500">Loading…</div>
       ) : data?.items.length === 0 ? (
-        <div className="text-center py-20 text-stone-500">No reports found.</div>
+        <div className="text-center py-20 text-navy-500">No reports found.</div>
       ) : (
         <div className="space-y-3">
           {data?.items.map(report => (
             <div
               key={report.id}
-              className="bg-stone-900 border border-stone-800 rounded-2xl p-4 hover:border-stone-700 transition-colors"
+              className="bg-navy-900 border border-navy-800 rounded-2xl p-4 hover:border-navy-700 transition-colors"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -118,22 +118,22 @@ export default function AdminBugReportsPage() {
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[report.status] ?? STATUS_STYLES.open}`}>
                       {report.status.replace(/_/g, ' ').toUpperCase()}
                     </span>
-                    <span className="text-xs text-stone-600 bg-stone-800 px-2 py-0.5 rounded-full">
+                    <span className="text-xs text-navy-600 bg-navy-800 px-2 py-0.5 rounded-full">
                       {report.category}
                     </span>
                     {report.user && (
-                      <span className="text-xs text-stone-500">by {report.user.username}</span>
+                      <span className="text-xs text-navy-500">by {report.user.username}</span>
                     )}
-                    <span className="text-xs text-stone-600">
+                    <span className="text-xs text-navy-600">
                       {new Date(report.createdAt).toLocaleString()}
                     </span>
                   </div>
 
-                  <p className="font-medium text-stone-200 text-sm">{report.title}</p>
-                  <p className="text-sm text-stone-400 mt-1 whitespace-pre-wrap">{report.description}</p>
+                  <p className="font-medium text-navy-200 text-sm">{report.title}</p>
+                  <p className="text-sm text-navy-400 mt-1 whitespace-pre-wrap">{report.description}</p>
 
                   {report.pageUrl && (
-                    <p className="text-xs text-stone-600 mt-2 font-mono truncate">{report.pageUrl}</p>
+                    <p className="text-xs text-navy-600 mt-2 font-mono truncate">{report.pageUrl}</p>
                   )}
                 </div>
 
@@ -141,7 +141,7 @@ export default function AdminBugReportsPage() {
                   <select
                     value={report.status}
                     onChange={e => updateStatus.mutate({ id: report.id, status: e.target.value })}
-                    className="text-xs bg-stone-800 border border-stone-700 rounded-lg px-2 py-1 text-stone-300 focus:outline-none focus:border-brand-500"
+                    className="text-xs bg-navy-800 border border-navy-700 rounded-lg px-2 py-1 text-navy-300 focus:outline-none focus:border-brand-500"
                   >
                     {STATUS_OPTIONS.map(s => (
                       <option key={s} value={s}>{s.replace('_', ' ')}</option>
@@ -151,7 +151,7 @@ export default function AdminBugReportsPage() {
                     onClick={() => {
                       if (confirm('Delete this report?')) deleteReport.mutate(report.id)
                     }}
-                    className="p-1.5 rounded-lg text-stone-600 hover:text-rose-400 hover:bg-rose-950/30 transition-colors self-end"
+                    className="p-1.5 rounded-lg text-navy-600 hover:text-rose-400 hover:bg-rose-950/30 transition-colors self-end"
                   >
                     <Trash2 size={13} />
                   </button>

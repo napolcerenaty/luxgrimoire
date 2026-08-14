@@ -37,7 +37,7 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
                 href="/"
                 aria-label="Back to the LuxGrimoire app"
                 title="Back to the LuxGrimoire app"
-                className="inline-flex items-center gap-1.5 rounded-full border border-brand-700/60 text-brand-400 hover:bg-brand-700 hover:text-stone-950 transition-colors font-semibold font-serif tracking-wide p-1.5 sm:pl-3 sm:pr-3.5 sm:py-1.5"
+                className="inline-flex items-center gap-1.5 rounded-full border border-brand-700/60 text-brand-400 hover:bg-brand-700 hover:text-navy-950 transition-colors font-semibold font-serif tracking-wide p-1.5 sm:pl-3 sm:pr-3.5 sm:py-1.5"
               >
                 <ArrowLeft size={14} />
                 <span className="hidden sm:inline text-xs">Open App</span>

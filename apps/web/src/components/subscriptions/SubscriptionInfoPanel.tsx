@@ -274,13 +274,13 @@ export default function SubscriptionInfoPanel({
 
   // Subscriber cost panel JSX (reused in 2-col layout)
   const costPanel = price ? (
-    <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-4 space-y-2">
+    <div className="rounded-xl border border-navy-700/60 bg-navy-900/60 p-4 space-y-2">
       {loading ? (
-        <div className="text-stone-500 text-sm">Loading price info…</div>
+        <div className="text-navy-500 text-sm">Loading price info…</div>
       ) : isSubscriber ? (
         <>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-stone-500 uppercase tracking-wider">Your subscription cost</p>
+            <p className="text-xs text-navy-500 uppercase tracking-wider">Your subscription cost</p>
             <button
               type="button"
               onClick={() => openEditCosts()}
@@ -291,21 +291,21 @@ export default function SubscriptionInfoPanel({
           </div>
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between items-baseline gap-2">
-              <span className="text-stone-400">Box</span>
+              <span className="text-navy-400">Box</span>
               <span className="text-right">
-                <span className="text-stone-100 font-medium">{priceNum?.toFixed(2)} {entryCurrency}</span>
+                <span className="text-navy-100 font-medium">{priceNum?.toFixed(2)} {entryCurrency}</span>
                 {priceNum !== null && converted(priceNum) && (
-                  <span className="block text-xs text-stone-500">{converted(priceNum)}</span>
+                  <span className="block text-xs text-navy-500">{converted(priceNum)}</span>
                 )}
               </span>
             </div>
             {shipping !== null && (
               <div className="flex justify-between items-baseline gap-2">
-                <span className="text-stone-400">Shipping</span>
+                <span className="text-navy-400">Shipping</span>
                 <span className="text-right">
-                  <span className="text-stone-100">{shipping.toFixed(2)} {entryCurrency}</span>
+                  <span className="text-navy-100">{shipping.toFixed(2)} {entryCurrency}</span>
                   {converted(shipping) && (
-                    <span className="block text-xs text-stone-500">{converted(shipping)}</span>
+                    <span className="block text-xs text-navy-500">{converted(shipping)}</span>
                   )}
                 </span>
               </div>
@@ -324,44 +324,44 @@ export default function SubscriptionInfoPanel({
                 : (amtInEntry != null ? convertedRate : null)
               return (
                 <div key={i} className="flex justify-between items-baseline gap-2">
-                  <span className="text-stone-500 text-xs">{link.feeTemplate.name}</span>
-                  <span className="text-right text-xs text-stone-400">
+                  <span className="text-navy-500 text-xs">{link.feeTemplate.name}</span>
+                  <span className="text-right text-xs text-navy-400">
                     {amtNum != null
                       ? <>
                           {amtNum.toFixed(2)} {feeCur}
                           {amtInEntry != null && (
-                            <span className="block text-stone-500">≈ {amtInEntry.toFixed(2)} {entryCurrency}</span>
+                            <span className="block text-navy-500">≈ {amtInEntry.toFixed(2)} {entryCurrency}</span>
                           )}
                           {feeToUserRate && userCurrency && userCurrency !== feeCur && (
-                            <span className="block text-stone-500">
+                            <span className="block text-navy-500">
                               ≈ {((amtInEntry ?? amtNum) * feeToUserRate).toFixed(2)} {userCurrency}
                             </span>
                           )}
                         </>
-                      : <span className="italic text-stone-600">variable</span>
+                      : <span className="italic text-navy-600">variable</span>
                     }
                   </span>
                 </div>
               )
             })}
             {total !== null && (
-              <div className="flex justify-between items-baseline gap-2 pt-2 border-t border-stone-700/60">
-                <span className="text-stone-300 font-medium">Total / month</span>
+              <div className="flex justify-between items-baseline gap-2 pt-2 border-t border-navy-700/60">
+                <span className="text-navy-300 font-medium">Total / month</span>
                 <span className="text-right">
-                  <span className="text-stone-100 font-semibold">{total.toFixed(2)} {entryCurrency}</span>
+                  <span className="text-navy-100 font-semibold">{total.toFixed(2)} {entryCurrency}</span>
                   {converted(total) && (
-                    <span className="block text-xs text-stone-400 font-medium">{converted(total)}</span>
+                    <span className="block text-xs text-navy-400 font-medium">{converted(total)}</span>
                   )}
                 </span>
               </div>
             )}
           </div>
-          <div className="pt-3 border-t border-stone-700/60 space-y-1.5">
+          <div className="pt-3 border-t border-navy-700/60 space-y-1.5">
             {myEntry?.nextRenewalDate ? (
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-stone-500">🔄</span>
-                <span className="text-stone-400">Renews on</span>
-                <span className="text-stone-100 font-medium">
+                <span className="text-navy-500">🔄</span>
+                <span className="text-navy-400">Renews on</span>
+                <span className="text-navy-100 font-medium">
                   {new Date(myEntry.nextRenewalDate).toLocaleDateString('en-GB', {
                     day: 'numeric', month: 'long', year: 'numeric',
                   })}
@@ -369,9 +369,9 @@ export default function SubscriptionInfoPanel({
               </div>
             ) : myEntry?.renewalDay ? (
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-stone-500">🔄</span>
-                <span className="text-stone-400">Renews on</span>
-                <span className="text-stone-100 font-medium">{nextRenewalFromDay(myEntry.renewalDay, skipStatus?.skippedMonths)}</span>
+                <span className="text-navy-500">🔄</span>
+                <span className="text-navy-400">Renews on</span>
+                <span className="text-navy-100 font-medium">{nextRenewalFromDay(myEntry.renewalDay, skipStatus?.skippedMonths)}</span>
               </div>
             ) : null}
             {myEntry?.nextRenewalPriceChanged && myEntry.nextRenewalNewPrice && (
@@ -390,9 +390,9 @@ export default function SubscriptionInfoPanel({
             )}
           </div>
           {(prepayOptions?.length ?? 0) > 0 && (
-            <div className="pt-3 border-t border-stone-700/60">
-              <p className="text-xs text-stone-500 uppercase tracking-wider mb-1">Billing Mode</p>
-              <p className="text-xs text-stone-400">
+            <div className="pt-3 border-t border-navy-700/60">
+              <p className="text-xs text-navy-500 uppercase tracking-wider mb-1">Billing Mode</p>
+              <p className="text-xs text-navy-400">
                 {myEntry?.scheduledPrepayOptionId
                   ? `Prepaid: ${prepayOptions?.find(o => o.id === myEntry.scheduledPrepayOptionId)?.label ?? prepayOptions?.find(o => o.id === myEntry.scheduledPrepayOptionId)?.months + ' months'}`
                   : 'Standard (monthly)'}
@@ -402,26 +402,26 @@ export default function SubscriptionInfoPanel({
         </>
       ) : user ? (
         <>
-          <p className="text-xs text-stone-500 uppercase tracking-wider mb-2">Base price</p>
+          <p className="text-xs text-navy-500 uppercase tracking-wider mb-2">Base price</p>
           {preferredCurrencyPrice ? (
             <>
-              <p className="text-2xl font-serif font-semibold text-stone-100">
-                {parseFloat(preferredCurrencyPrice).toFixed(2)} <span className="text-base font-normal text-stone-400">{userCurrency}/mo</span>
+              <p className="text-2xl font-serif font-semibold text-navy-100">
+                {parseFloat(preferredCurrencyPrice).toFixed(2)} <span className="text-base font-normal text-navy-400">{userCurrency}/mo</span>
               </p>
             </>
           ) : (
             <>
-              <p className="text-2xl font-serif font-semibold text-stone-100">
-                {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-stone-400">{currency}/mo</span>
+              <p className="text-2xl font-serif font-semibold text-navy-100">
+                {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-navy-400">{currency}/mo</span>
               </p>
               {convertedRate && userCurrency && (
-                <p className="text-sm text-stone-500 mt-0.5">
+                <p className="text-sm text-navy-500 mt-0.5">
                   ≈ {(parseFloat(price) * convertedRate).toFixed(2)} {userCurrency}/mo
                 </p>
               )}
             </>
           )}
-          <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
+          <p className="text-xs text-navy-500 mt-1">+ shipping & applicable taxes</p>
           {futurePriceChanges
             .filter(pc => preferredCurrencyPrice ? pc.currency === userCurrency : true)
             .map(pc => (
@@ -435,11 +435,11 @@ export default function SubscriptionInfoPanel({
         </>
       ) : (
         <>
-          <p className="text-xs text-stone-500 uppercase tracking-wider mb-2">Starting from</p>
-          <p className="text-2xl font-serif font-semibold text-stone-100">
-            {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-stone-400">{currency}/mo</span>
+          <p className="text-xs text-navy-500 uppercase tracking-wider mb-2">Starting from</p>
+          <p className="text-2xl font-serif font-semibold text-navy-100">
+            {parseFloat(price).toFixed(2)} <span className="text-base font-normal text-navy-400">{currency}/mo</span>
           </p>
-          <p className="text-xs text-stone-500 mt-1">+ shipping & applicable taxes</p>
+          <p className="text-xs text-navy-500 mt-1">+ shipping & applicable taxes</p>
           {futurePriceChanges.map(pc => (
             <p key={`${pc.effectiveYear}-${pc.effectiveMonth}`} className="text-xs text-brand-500/80 mt-1">
               From {MONTHS_SHORT[pc.effectiveMonth - 1]} {pc.effectiveYear}: {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}/mo
@@ -448,17 +448,17 @@ export default function SubscriptionInfoPanel({
         </>
       )}
       {user && !isSubscriber && countryFeeHints.length > 0 && (
-        <div className="pt-3 border-t border-stone-700/60">
-          <p className="text-xs text-stone-500 mb-1.5">
+        <div className="pt-3 border-t border-navy-700/60">
+          <p className="text-xs text-navy-500 mb-1.5">
             🌍 Subscribers from {user?.shippingCountry} report:
           </p>
           <div className="space-y-1">
             {countryFeeHints.map(hint => (
               <div key={hint.category} className="flex items-center justify-between text-xs">
-                <span className="text-stone-500">
+                <span className="text-navy-500">
                   {hint.category === '__shipping__' ? 'Shipping' : formatFeeCategory(hint.category)}
                 </span>
-                <span className="text-stone-600">
+                <span className="text-navy-600">
                   {hint.count}/{hint.totalSubscribers}
                   {hint.avgAmount != null && hint.currency && (
                     <> · avg {hint.avgAmount.toFixed(2)} {hint.currency}</>
@@ -475,21 +475,21 @@ export default function SubscriptionInfoPanel({
   return (
     <div className="space-y-4">
       {/* Metadata row */}
-      <div className="flex flex-wrap items-center justify-between gap-y-2 text-sm text-stone-400">
+      <div className="flex flex-wrap items-center justify-between gap-y-2 text-sm text-navy-400">
         <div className="flex flex-wrap gap-x-6 gap-y-2">
           <span className="flex items-center gap-1.5">
-              <span className="text-stone-500">📦</span>
+              <span className="text-navy-500">📦</span>
               <span>{formatInterval(intervalMonths)}</span>
             </span>
           {country && (
             <span className="flex items-center gap-1.5">
-              <span className="text-stone-500">📍</span>
+              <span className="text-navy-500">📍</span>
               <span>{country}</span>
             </span>
           )}
           {shipsInternationally && (
             <span className="flex items-center gap-1.5">
-              <span className="text-stone-500">✈️</span>
+              <span className="text-navy-500">✈️</span>
               <span>Ships internationally</span>
             </span>
           )}
@@ -537,9 +537,9 @@ export default function SubscriptionInfoPanel({
             )}
           </p>
           {myEntry.cancellationReason && (
-            <p className="text-xs text-stone-500">Reason: {myEntry.cancellationReason}</p>
+            <p className="text-xs text-navy-500">Reason: {myEntry.cancellationReason}</p>
           )}
-          <p className="text-xs text-stone-600 mt-1">You can add this subscription to your list again by clicking the button below.</p>
+          <p className="text-xs text-navy-600 mt-1">You can add this subscription to your list again by clicking the button below.</p>
         </div>
       )}
 
@@ -551,7 +551,7 @@ export default function SubscriptionInfoPanel({
             <button
               type="button"
               onClick={() => openJoinModal()}
-              className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
+              className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-navy-100 text-sm font-medium transition-colors"
             >
               + Add to my subscriptions
             </button>
@@ -710,30 +710,30 @@ function EditEntryCostsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-5 border-b border-stone-800">
-          <h2 className="text-base font-semibold text-stone-100">Edit subscription costs</h2>
-          <button onClick={onClose} className="text-stone-500 hover:text-stone-300 text-lg leading-none">✕</button>
+      <div className="bg-navy-900 border border-navy-700 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between p-5 border-b border-navy-800">
+          <h2 className="text-base font-semibold text-navy-100">Edit subscription costs</h2>
+          <button onClick={onClose} className="text-navy-500 hover:text-navy-300 text-lg leading-none">✕</button>
         </div>
 
         <div className="overflow-y-auto p-5 space-y-4">
-          <p className="text-xs text-stone-500">Changes apply to all books added from the next renewal onwards.</p>
+          <p className="text-xs text-navy-500">Changes apply to all books added from the next renewal onwards.</p>
 
           {/* Currency */}
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Cost currency</label>
+            <label className="block text-xs text-navy-400 mb-1">Cost currency</label>
             <input
               type="text"
               value={costCurrency}
               onChange={e => setCostCurrency(e.target.value.toUpperCase())}
               maxLength={3}
-              className="w-24 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm uppercase"
+              className="w-24 bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 text-sm uppercase"
             />
           </div>
 
           {/* Base price */}
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Base price ({costCurrency})</label>
+            <label className="block text-xs text-navy-400 mb-1">Base price ({costCurrency})</label>
             <input
               type="number"
               step="0.01"
@@ -741,7 +741,7 @@ function EditEntryCostsModal({
               value={basePrice}
               onChange={e => setBasePrice(e.target.value)}
               placeholder="e.g. 34.99"
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
+              className="w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 text-sm"
             />
             {currencyChanged && (
               <p className="mt-1 text-xs text-amber-400">
@@ -752,7 +752,7 @@ function EditEntryCostsModal({
 
           {/* Shipping */}
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Shipping ({costCurrency})</label>
+            <label className="block text-xs text-navy-400 mb-1">Shipping ({costCurrency})</label>
             <input
               type="number"
               step="0.01"
@@ -760,7 +760,7 @@ function EditEntryCostsModal({
               value={shippingCost}
               onChange={e => setShippingCost(e.target.value)}
               placeholder="e.g. 8.00"
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm"
+              className="w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 text-sm"
             />
           </div>
 
@@ -769,14 +769,14 @@ function EditEntryCostsModal({
               type="checkbox"
               checked={isForwarding}
               onChange={e => setIsForwarding(e.target.checked)}
-              className="rounded border-stone-600 bg-stone-800 text-brand-500"
+              className="rounded border-navy-600 bg-navy-800 text-brand-500"
             />
-            <span className="text-sm text-stone-300">📦 Forwarding packages</span>
+            <span className="text-sm text-navy-300">📦 Forwarding packages</span>
           </label>
 
           {/* Fee templates */}
           <div>
-            <p className="text-xs text-stone-400 mb-2">Fees</p>
+            <p className="text-xs text-navy-400 mb-2">Fees</p>
 
             {/* Linked fees */}
             {feeLinks.length > 0 && (
@@ -786,14 +786,14 @@ function EditEntryCostsModal({
                   const defaultAmt = tpl?.defaultAmount != null ? String(tpl.defaultAmount) : ''
                   const defaultCur = tpl?.defaultCurrency ?? costCurrency
                   return (
-                    <div key={link.templateId} className="bg-stone-800/60 rounded-lg px-3 py-2 flex gap-2 items-start">
+                    <div key={link.templateId} className="bg-navy-800/60 rounded-lg px-3 py-2 flex gap-2 items-start">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className="text-sm text-stone-200">{link.name}</span>
+                          <span className="text-sm text-navy-200">{link.name}</span>
                           <button
                             type="button"
                             onClick={() => setFeeLinks(prev => prev.filter(f => f.templateId !== link.templateId))}
-                            className="text-stone-600 hover:text-red-400 text-xs transition-colors flex-shrink-0"
+                            className="text-navy-600 hover:text-red-400 text-xs transition-colors flex-shrink-0"
                           >✕ Remove</button>
                         </div>
                         <div className="flex gap-2">
@@ -804,7 +804,7 @@ function EditEntryCostsModal({
                             value={link.customAmount}
                             onChange={e => setFeeLinks(prev => prev.map(f => f.templateId === link.templateId ? { ...f, customAmount: e.target.value } : f))}
                             placeholder={defaultAmt || 'amount'}
-                            className="w-28 bg-stone-900 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100"
+                            className="w-28 bg-navy-900 border border-navy-700 rounded px-2 py-1 text-xs text-navy-100"
                           />
                           <input
                             type="text"
@@ -812,7 +812,7 @@ function EditEntryCostsModal({
                             onChange={e => setFeeLinks(prev => prev.map(f => f.templateId === link.templateId ? { ...f, customCurrency: e.target.value.toUpperCase() } : f))}
                             placeholder={defaultCur}
                             maxLength={3}
-                            className="w-14 bg-stone-900 border border-stone-700 rounded px-2 py-1 text-xs text-stone-100 uppercase"
+                            className="w-14 bg-navy-900 border border-navy-700 rounded px-2 py-1 text-xs text-navy-100 uppercase"
                           />
                         </div>
                       </div>
@@ -825,7 +825,7 @@ function EditEntryCostsModal({
             {/* Available (unlinked) templates */}
             {allTemplates.filter(t => !feeLinks.find(f => f.templateId === t.id)).length > 0 && (
               <div>
-                <p className="text-xs text-stone-600 mb-1.5">Add from your templates:</p>
+                <p className="text-xs text-navy-600 mb-1.5">Add from your templates:</p>
                 <div className="flex flex-wrap gap-2">
                   {allTemplates
                     .filter(t => !feeLinks.find(f => f.templateId === t.id))
@@ -834,12 +834,12 @@ function EditEntryCostsModal({
                         key={t.id}
                         type="button"
                         onClick={() => toggleTemplate(t)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-full border border-stone-700 text-stone-400 text-xs hover:border-brand-600 hover:text-brand-400 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 rounded-full border border-navy-700 text-navy-400 text-xs hover:border-brand-600 hover:text-brand-400 transition-colors"
                       >
                         <span>+</span>
                         <span>{t.name}</span>
                         {t.defaultAmount != null && (
-                          <span className="text-stone-600">({t.defaultAmount} {t.defaultCurrency})</span>
+                          <span className="text-navy-600">({t.defaultAmount} {t.defaultCurrency})</span>
                         )}
                       </button>
                     ))
@@ -849,7 +849,7 @@ function EditEntryCostsModal({
             )}
 
             {allTemplates.length === 0 && (
-              <p className="text-xs text-stone-600 italic">No fee templates defined in settings.</p>
+              <p className="text-xs text-navy-600 italic">No fee templates defined in settings.</p>
             )}
           </div>
 
@@ -857,11 +857,11 @@ function EditEntryCostsModal({
 
           {/* Billing Mode */}
           {(prepayOptions?.length ?? 0) > 0 && (
-            <div className="border-t border-stone-800 pt-4">
-              <label className="block text-xs text-stone-400 mb-2">Billing Mode</label>
-              <p className="text-xs text-stone-500 mb-2">Takes effect from the next renewal.</p>
+            <div className="border-t border-navy-800 pt-4">
+              <label className="block text-xs text-navy-400 mb-2">Billing Mode</label>
+              <p className="text-xs text-navy-500 mb-2">Takes effect from the next renewal.</p>
               <select
-                className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+                className="w-full bg-navy-800 border border-navy-600 rounded-lg px-3 py-2 text-navy-100 text-sm"
                 value={scheduledPrepayOptionId ?? ''}
                 onChange={e => setScheduledPrepayOptionId(e.target.value || null)}
               >
@@ -881,11 +881,11 @@ function EditEntryCostsModal({
           )}
         </div>
 
-        <div className="flex gap-3 p-5 border-t border-stone-800">
+        <div className="flex gap-3 p-5 border-t border-navy-800">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 rounded-lg border border-stone-700 text-stone-400 text-sm hover:border-stone-500 transition-colors"
+            className="flex-1 py-2 rounded-lg border border-navy-700 text-navy-400 text-sm hover:border-navy-500 transition-colors"
           >
             Cancel
           </button>
@@ -893,7 +893,7 @@ function EditEntryCostsModal({
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 py-2 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+            className="flex-1 py-2 rounded-lg bg-brand-700 hover:bg-brand-600 text-navy-100 text-sm font-medium transition-colors disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save changes'}
           </button>
@@ -933,41 +933,41 @@ function billingTypeLabel(billingType: string): string {
 function SkipPolicyInfoPanel({ policy }: { policy: ApiSubscriptionSkipPolicy }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-stone-400">{policyTypeLabel(policy.type)}</p>
+      <p className="text-xs text-navy-400">{policyTypeLabel(policy.type)}</p>
 
       {policy.maxSkips !== null && (
-        <p className="text-xs text-stone-400">
-          Max skips: <span className="text-stone-300 font-medium">{policy.maxSkips}</span>
+        <p className="text-xs text-navy-400">
+          Max skips: <span className="text-navy-300 font-medium">{policy.maxSkips}</span>
           {policy.windowMonths ? ` per ${policy.windowMonths}-month window` : ''}
         </p>
       )}
 
       {policy.maxConsecutive !== null && (
-        <p className="text-xs text-stone-400">
-          Max consecutive skips: <span className="text-stone-300 font-medium">{policy.maxConsecutive}</span>
+        <p className="text-xs text-navy-400">
+          Max consecutive skips: <span className="text-navy-300 font-medium">{policy.maxConsecutive}</span>
         </p>
       )}
 
       {policy.skipHow && (
-        <p className="text-xs text-stone-400">
-          How to skip: <span className="text-stone-300">{policy.skipHow}</span>
+        <p className="text-xs text-navy-400">
+          How to skip: <span className="text-navy-300">{policy.skipHow}</span>
         </p>
       )}
 
       {policy.notes && (
-        <p className="text-xs text-stone-500 italic whitespace-pre-line">{policy.notes}</p>
+        <p className="text-xs text-navy-500 italic whitespace-pre-line">{policy.notes}</p>
       )}
 
       {policy.allowUnskip && (
-        <div className="border-t border-stone-700 pt-2 flex flex-col gap-1 mt-1">
-          <p className="text-xs text-stone-400 font-medium">Unskip allowed</p>
+        <div className="border-t border-navy-700 pt-2 flex flex-col gap-1 mt-1">
+          <p className="text-xs text-navy-400 font-medium">Unskip allowed</p>
           {policy.unskipHow && (
-            <p className="text-xs text-stone-400">
-              How to unskip: <span className="text-stone-300">{policy.unskipHow}</span>
+            <p className="text-xs text-navy-400">
+              How to unskip: <span className="text-navy-300">{policy.unskipHow}</span>
             </p>
           )}
           {policy.unskipNotes && (
-            <p className="text-xs text-stone-500 italic">{policy.unskipNotes}</p>
+            <p className="text-xs text-navy-500 italic">{policy.unskipNotes}</p>
           )}
         </div>
       )}
@@ -981,8 +981,8 @@ function SkipPoliciesInfoPanel({ policies }: { policies: ApiSubscriptionSkipPoli
   const isMulti = policies.length > 1
 
   return (
-    <div className="rounded-lg border border-stone-700 p-4 flex flex-col gap-3">
-      <p className="text-sm font-semibold text-stone-200">Skip Policy</p>
+    <div className="rounded-lg border border-navy-700 p-4 flex flex-col gap-3">
+      <p className="text-sm font-semibold text-navy-200">Skip Policy</p>
       {isMulti ? (
         <div className="flex flex-col gap-4">
           {policies.map(policy => (

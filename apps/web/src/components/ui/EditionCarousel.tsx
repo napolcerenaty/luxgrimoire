@@ -36,7 +36,7 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
     <Link
       key={card.id}
       href={card.href}
-      className="flex-shrink-0 w-40 group rounded-lg overflow-hidden border border-stone-700 hover:border-brand-600/60 transition-all duration-250"
+      className="flex-shrink-0 w-40 group rounded-lg overflow-hidden border border-navy-700 hover:border-brand-600/60 transition-all duration-250"
       style={{ background: 'var(--bg-raised)' }}
     >
       {/* Cover */}
@@ -59,13 +59,13 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
                 style={brandGradientStyle(card.brandColors)}
               />
             )}
-            <span className="relative text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4 px-3">{card.title}</span>
+            <span className="relative text-xs font-serif text-navy-300/80 text-center leading-snug line-clamp-4 px-3">{card.title}</span>
           </div>
         )}
 
         {/* Top badge */}
         {card.badge && (
-          <span className="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-tight bg-stone-800/90 text-stone-300 border border-stone-600">
+          <span className="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-tight bg-navy-800/90 text-navy-300 border border-navy-600">
             {card.badge}
           </span>
         )}
@@ -97,12 +97,12 @@ const CarouselCardItem = memo(function CarouselCardItem({ card }: { card: Carous
         </p>
         {/* Title – fixed 2-line slot so cards align regardless of title length */}
         <div className="h-[2.25rem] overflow-hidden my-0.5">
-          <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
+          <p className="text-xs font-serif font-semibold text-navy-200 group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
             {card.title}
           </p>
         </div>
         {/* Author – always rendered for height consistency */}
-        <p className="text-[10px] text-stone-500 line-clamp-1 font-sans leading-tight">
+        <p className="text-[10px] text-navy-500 line-clamp-1 font-sans leading-tight">
           {card.author || '\u00A0'}
         </p>
       </div>
@@ -129,16 +129,16 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
       {centered ? (
         <div className="flex flex-col items-center mb-6 gap-3">
           <div className="flex items-center gap-4 w-full">
-            <span className="flex-1 h-px bg-stone-700" />
-            <h2 className="text-xl sm:text-2xl font-serif font-semibold text-stone-100 tracking-wide sm:tracking-widest text-center">
+            <span className="flex-1 h-px bg-navy-700" />
+            <h2 className="text-xl sm:text-2xl font-serif font-semibold text-navy-100 tracking-wide sm:tracking-widest text-center">
               {title}
             </h2>
-            <span className="flex-1 h-px bg-stone-700" />
+            <span className="flex-1 h-px bg-navy-700" />
           </div>
           {viewAllHref && (
             <Link
               href={viewAllHref}
-              className="text-xs text-brand-500 hover:text-brand-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-brand-700 px-3 py-1 rounded-full"
+              className="text-xs text-brand-500 hover:text-brand-400 transition-colors font-serif tracking-wide border border-navy-700 hover:border-brand-700 px-3 py-1 rounded-full"
             >
               View all →
             </Link>
@@ -146,11 +146,11 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
         </div>
       ) : (
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-serif font-semibold text-stone-100 tracking-widest">{title}</h2>
+          <h2 className="text-2xl font-serif font-semibold text-navy-100 tracking-widest">{title}</h2>
           {viewAllHref && (
             <Link
               href={viewAllHref}
-              className="text-xs text-brand-500 hover:text-brand-400 transition-colors font-serif tracking-wide border border-stone-700 hover:border-brand-700 px-3 py-1 rounded-full"
+              className="text-xs text-brand-500 hover:text-brand-400 transition-colors font-serif tracking-wide border border-navy-700 hover:border-brand-700 px-3 py-1 rounded-full"
             >
               View all →
             </Link>
@@ -167,7 +167,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
           className="absolute left-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                      bg-gradient-to-r from-[var(--bg)] to-transparent
                      opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
-                     text-stone-400 hover:text-brand-400"
+                     text-navy-400 hover:text-brand-400"
         >
           <ChevronLeft size={24} />
         </button>
@@ -179,7 +179,7 @@ export const EditionCarousel = memo(function EditionCarousel({ title, viewAllHre
           className="absolute right-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center
                      bg-gradient-to-l from-[var(--bg)] to-transparent
                      opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200
-                     text-stone-400 hover:text-brand-400"
+                     text-navy-400 hover:text-brand-400"
         >
           <ChevronRight size={24} />
         </button>

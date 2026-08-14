@@ -12,8 +12,8 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { CURRENCIES } from '@/components/sale/SaleFormFields'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
-const LABEL = 'block text-xs text-stone-400 mb-1'
+const INPUT = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
+const LABEL = 'block text-xs text-navy-400 mb-1'
 const BTN_SM = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors'
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 // ─── Cloud image helper ───────────────────────────────────────────────────────
@@ -25,12 +25,12 @@ function Cover({ id, size = 56 }: { id?: string | null; size?: number }) {
   const url = cloudUrl(id, size)
   return (
     <div
-      className="shrink-0 rounded-lg overflow-hidden bg-stone-800 border border-stone-700 flex items-center justify-center"
+      className="shrink-0 rounded-lg overflow-hidden bg-navy-800 border border-navy-700 flex items-center justify-center"
       style={{ width: size, height: size }}
     >
       {url
         ? <img src={url} alt="" className="w-full h-full object-cover" />
-        : <span className="text-stone-600 text-[10px]">—</span>
+        : <span className="text-navy-600 text-[10px]">—</span>
       }
     </div>
   )
@@ -166,34 +166,34 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
         <div className="flex items-center gap-2">
           <Cover id={null} size={40} />
           <div className="flex-1">
-            <div className="text-stone-100 text-sm font-medium">{selectedBook.title}</div>
+            <div className="text-navy-100 text-sm font-medium">{selectedBook.title}</div>
             {selectedBook.authors?.length > 0 && (
-              <div className="text-stone-500 text-xs">{selectedBook.authors.map(a => a.author.name).join(', ')}</div>
+              <div className="text-navy-500 text-xs">{selectedBook.authors.map(a => a.author.name).join(', ')}</div>
             )}
           </div>
           <button type="button" onClick={() => setSelectedBook(null)}
-            className="text-stone-500 hover:text-stone-300 text-xs">← Back</button>
+            className="text-navy-500 hover:text-navy-300 text-xs">← Back</button>
         </div>
 
         {/* Edition list */}
-        <div className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Pick edition</div>
+        <div className="text-xs text-navy-400 font-semibold uppercase tracking-wide">Pick edition</div>
         {editions.length === 0 && (
-          <div className="text-stone-500 text-xs px-2">No editions yet — create one below.</div>
+          <div className="text-navy-500 text-xs px-2">No editions yet — create one below.</div>
         )}
         <div className="space-y-1 max-h-52 overflow-y-auto">
           {editions.map(ed => (
             <button key={ed.id} type="button"
               onClick={() => addBookMutation.mutate({ bookId: selectedBook.id, editionId: ed.id })}
               disabled={addBookMutation.isPending}
-              className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-stone-800 hover:bg-stone-700 transition-colors"
+              className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-navy-800 hover:bg-navy-700 transition-colors"
             >
               <Cover id={ed.additionalImages?.[0]} size={36} />
               <div>
-                <div className="text-stone-100 text-xs">
+                <div className="text-navy-100 text-xs">
                   {editionCompany(ed) ?? ''}
                   {ed.variantLabel && <span className="text-brand-400"> ({ed.variantLabel})</span>}
                 </div>
-                <div className="text-stone-500 text-xs">{ed.bookBoxCompanyCustomName ?? ''}</div>
+                <div className="text-navy-500 text-xs">{ed.bookBoxCompanyCustomName ?? ''}</div>
               </div>
             </button>
           ))}
@@ -210,20 +210,20 @@ function BookSearch({ slug, subscriptionId, defaultCurrency, defaultCompanyId, d
     <div className="space-y-2">
       <input value={search} onChange={e => handleSearchChange(e.target.value)}
         placeholder="Search books by title…" className={INPUT} />
-      {searching && <div className="text-stone-500 text-xs">Searching…</div>}
+      {searching && <div className="text-navy-500 text-xs">Searching…</div>}
       {search.length >= 2 && !searching && bookResults && (
         <div className="space-y-1">
           {bookResults.data.length === 0
-            ? <div className="text-stone-500 text-xs px-2">No books found</div>
+            ? <div className="text-navy-500 text-xs px-2">No books found</div>
             : bookResults.data.map(book => (
               <button key={book.id} type="button" onClick={() => setSelectedBook(book)}
-                className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-stone-800 hover:bg-stone-700 transition-colors"
+                className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-navy-800 hover:bg-navy-700 transition-colors"
               >
                 <Cover id={null} size={36} />
                 <div>
-                  <div className="text-stone-100 text-sm">{book.title}</div>
+                  <div className="text-navy-100 text-sm">{book.title}</div>
                   {book.authors?.length > 0 && (
-                    <div className="text-stone-500 text-xs">{book.authors.map(a => a.author.name).join(', ')}</div>
+                    <div className="text-navy-500 text-xs">{book.authors.map(a => a.author.name).join(', ')}</div>
                   )}
                 </div>
               </button>
@@ -342,7 +342,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
   return (
     <div
       id={`month-${month.year}-${month.month}`}
-      className={`bg-stone-900 border rounded-2xl transition-shadow ${highlighted ? 'border-brand-400 ring-2 ring-brand-400' : 'border-stone-800'}`}
+      className={`bg-navy-900 border rounded-2xl transition-shadow ${highlighted ? 'border-brand-400 ring-2 ring-brand-400' : 'border-navy-800'}`}
     >
       {/* Header row */}
       <div className="flex items-start gap-3 p-4">
@@ -350,7 +350,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <span className="text-stone-100 font-semibold">{monthLabel}</span>
+              <span className="text-navy-100 font-semibold">{monthLabel}</span>
               {(() => {
                 // Build effective signature type for each book
                 const counts: Record<string, number> = {}
@@ -380,11 +380,11 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                 setEditCover(month.coverImage ?? '')
                 setEditCardArtistId(month.cardArtist?.id ?? null)
                 setEditCardArtistName(month.cardArtist?.name ?? '')
-              }} className={`${BTN_SM} ${editing ? 'bg-stone-600 text-stone-200' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+              }} className={`${BTN_SM} ${editing ? 'bg-navy-600 text-navy-200' : 'bg-navy-700 text-navy-300 hover:bg-navy-600'}`}>
                 {editing ? 'Cancel' : 'Edit'}
               </button>
               <button onClick={() => setBooksOpen(!booksOpen)}
-                className={`${BTN_SM} ${booksOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+                className={`${BTN_SM} ${booksOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-navy-700 text-navy-300 hover:bg-navy-600'}`}>
                 Books {booksOpen ? '▲' : '▼'}
               </button>
               <button
@@ -396,27 +396,27 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                 <button
                   onClick={() => { if (confirm(unskipConfirmMessage(monthLabel, isContentStream))) unmarkSkippedMutation.mutate() }}
                   disabled={unmarkSkippedMutation.isPending}
-                  className={`${BTN_SM} bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50`}
+                  className={`${BTN_SM} bg-navy-700 text-navy-300 hover:bg-navy-600 disabled:opacity-50`}
                 >{unmarkSkippedMutation.isPending ? '…' : 'Unskip'}</button>
               ) : (
                 <button
                   onClick={() => setSkipFormOpen(!skipFormOpen)}
-                  className={`${BTN_SM} ${skipFormOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}
+                  className={`${BTN_SM} ${skipFormOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-navy-700 text-navy-300 hover:bg-navy-600'}`}
                 >Mark skipped</button>
               )}
             </div>
           </div>
-          {month.theme && <p className="text-stone-400 text-sm mt-0.5 truncate">{month.theme}</p>}
+          {month.theme && <p className="text-navy-400 text-sm mt-0.5 truncate">{month.theme}</p>}
           {month.cardArtist && (
-            <p className="text-stone-500 text-xs mt-0.5">🎨 {month.cardArtist.name}</p>
+            <p className="text-navy-500 text-xs mt-0.5">🎨 {month.cardArtist.name}</p>
           )}
-          <p className="text-stone-500 text-xs mt-0.5">{month.books.length} book{month.books.length !== 1 ? 's' : ''}</p>
+          <p className="text-navy-500 text-xs mt-0.5">{month.books.length} book{month.books.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
 
       {/* Skipped banner */}
       {skipped && (
-        <div className="border-t border-stone-800 px-4 py-3 bg-brand-900/10">
+        <div className="border-t border-navy-800 px-4 py-3 bg-brand-900/10">
           <p className="text-brand-400 text-sm font-medium">⏭ Skipped — this month doesn&apos;t happen for this subscription&apos;s subscribers</p>
           {skipped.reason && <p className="text-brand-500/80 text-xs mt-0.5">{skipped.reason}</p>}
         </div>
@@ -424,7 +424,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
 
       {/* Mark-skipped inline form */}
       {skipFormOpen && !skipped && (
-        <div className="border-t border-stone-800 p-4 space-y-3 bg-stone-800/30">
+        <div className="border-t border-navy-800 p-4 space-y-3 bg-navy-800/30">
           <p className="text-red-400 text-xs bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">
             This month already has content — skipping will <strong>permanently delete</strong> its theme, cover image{month.books.length > 0 ? `, and ${month.books.length} linked book${month.books.length !== 1 ? 's' : ''}` : ''}. This cannot be undone.
           </p>
@@ -439,24 +439,24 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             </p>
           )}
           <div>
-            <label className={LABEL}>Reason <span className="text-stone-600">(optional — shown to subscribers)</span></label>
+            <label className={LABEL}>Reason <span className="text-navy-600">(optional — shown to subscribers)</span></label>
             <textarea value={skipReason} onChange={e => setSkipReason(e.target.value)} rows={2}
               placeholder="e.g. Printer delay — this box will ship next month instead" className={INPUT} />
           </div>
           <div className="flex gap-2">
             <button type="button" disabled={markSkippedMutation.isPending} onClick={confirmMarkSkipped}
-              className="bg-red-500/90 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-red-500 disabled:opacity-50 text-sm">
+              className="bg-red-500/90 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-red-500 disabled:opacity-50 text-sm">
               {markSkippedMutation.isPending ? 'Marking…' : 'Delete content & confirm skip'}
             </button>
             <button type="button" onClick={() => setSkipFormOpen(false)}
-              className="text-stone-400 hover:text-stone-200 text-sm px-2">Cancel</button>
+              className="text-navy-400 hover:text-navy-200 text-sm px-2">Cancel</button>
           </div>
         </div>
       )}
 
       {/* Edit form */}
       {editing && (
-        <div className="border-t border-stone-800 p-4 space-y-3 bg-stone-800/30">
+        <div className="border-t border-navy-800 p-4 space-y-3 bg-navy-800/30">
           <div>
             <label className={LABEL}>Theme / title</label>
             <input value={editTheme} onChange={e => setEditTheme(e.target.value)}
@@ -475,12 +475,12 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             </select>
           </div>
           <div>
-            <label className={LABEL}>Card artist <span className="text-stone-600">(optional — credit for box design)</span></label>
+            <label className={LABEL}>Card artist <span className="text-navy-600">(optional — credit for box design)</span></label>
             {editCardArtistId ? (
-              <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2">
-                <span className="text-stone-200 text-sm flex-1">🎨 {editCardArtistName}</span>
+              <div className="flex items-center gap-2 bg-navy-800 border border-navy-700 rounded-lg px-3 py-2">
+                <span className="text-navy-200 text-sm flex-1">🎨 {editCardArtistName}</span>
                 <button type="button" onClick={() => { setEditCardArtistId(null); setEditCardArtistName('') }}
-                  className="text-stone-500 hover:text-red-400 text-xs transition-colors">✕</button>
+                  className="text-navy-500 hover:text-red-400 text-xs transition-colors">✕</button>
               </div>
             ) : (
               <PersonPicker endpoint="artists" placeholder="Search or create artist…"
@@ -488,7 +488,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             )}
           </div>
           <button type="button"disabled={updateMutation.isPending} onClick={() => updateMutation.mutate()}
-            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
+            className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
             {updateMutation.isPending ? 'Saving…' : 'Save changes'}
           </button>
         </div>
@@ -496,21 +496,21 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
 
       {/* Books panel */}
       {booksOpen && (
-        <div className="border-t border-stone-800 p-4 space-y-4">
+        <div className="border-t border-navy-800 p-4 space-y-4">
           {/* Existing books */}
           {month.books.length > 0 && (
             <div className="space-y-2">
               {month.books.map(mb => (
                 <div key={mb.id}
-                  className="flex items-center gap-3 bg-stone-800/60 rounded-xl px-3 py-2">
+                  className="flex items-center gap-3 bg-navy-800/60 rounded-xl px-3 py-2">
                   <Cover id={mb.edition?.additionalImages?.[0] ?? null} size={44} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-stone-100 text-sm font-medium truncate">{formatEditionDisplayTitle(mb.book, mb.edition)}</div>
+                    <div className="text-navy-100 text-sm font-medium truncate">{formatEditionDisplayTitle(mb.book, mb.edition)}</div>
                     {mb.edition
-                      ? <div className="text-stone-400 text-xs">
+                      ? <div className="text-navy-400 text-xs">
                           {editionCompany(mb.edition) || null}
                         </div>
-                      : <div className="text-stone-500 text-xs italic">No specific edition</div>
+                      : <div className="text-navy-500 text-xs italic">No specific edition</div>
                     }
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                       {mb.isMainBook && <span className="text-xs text-brand-500">main book</span>}
@@ -520,7 +520,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                         const isOverride = !!mb.signatureType
                         const label = effective === 'signed' ? '✍️ Signed' : effective === 'autopen' ? '✒️ Autopen' : effective === 'digitally_signed' ? '🖨️ Digitally Signed' : effective === 'signed_bookplate' ? '🏷️ Bookplate' : 'Unsigned'
                         return (
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${isOverride ? 'bg-purple-500/20 text-purple-300' : 'bg-stone-700 text-stone-400'}`}
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${isOverride ? 'bg-purple-500/20 text-purple-300' : 'bg-navy-700 text-navy-400'}`}
                             title={isOverride ? 'Book override' : 'From month default'}>
                             {label}
                           </span>
@@ -531,7 +531,7 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
                   <select
                     value={mb.signatureType ?? ''}
                     onChange={e => updateBookSignatureMutation.mutate({ monthBookId: mb.id, signatureType: e.target.value || null })}
-                    className="text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-300 focus:outline-none focus:border-brand-400"
+                    className="text-xs bg-navy-700 border border-navy-600 rounded px-2 py-1 text-navy-300 focus:outline-none focus:border-brand-400"
                     title="Signature type override for this book"
                   >
                     <option value="">—</option>
@@ -560,8 +560,8 @@ function MonthCard({ month, slug, subscriptionId, defaultCurrency, defaultCompan
             books={month.books} onRefresh={refresh} />
 
           {/* Add book */}
-          <div className="bg-stone-800/40 rounded-xl p-3 border border-stone-700 space-y-2">
-            <div className="text-stone-400 text-xs font-semibold uppercase tracking-wide">Add book</div>
+          <div className="bg-navy-800/40 rounded-xl p-3 border border-navy-700 space-y-2">
+            <div className="text-navy-400 text-xs font-semibold uppercase tracking-wide">Add book</div>
             <BookSearch slug={slug} subscriptionId={subscriptionId} defaultCurrency={defaultCurrency}
               defaultCompanyId={defaultCompanyId} defaultPrice={defaultPrice} renewalDay={renewalDay}
               renewalDayUserSet={renewalDayUserSet} renewalMonthOffset={renewalMonthOffset}
@@ -631,12 +631,12 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
                   Ungroup
                 </button>
               </div>
-              <div className="text-xs text-stone-400">
+              <div className="text-xs text-navy-400">
                 Deadline: {g.choiceDeadlineDaysBefore} day(s) before renewal
               </div>
               <div className="flex flex-wrap gap-2">
                 {g.options.map(o => (
-                  <span key={o.id} className="text-xs px-2 py-1 rounded bg-stone-800 text-stone-300">
+                  <span key={o.id} className="text-xs px-2 py-1 rounded bg-navy-800 text-navy-300">
                     {formatEditionDisplayTitle(o.book, o.edition)}{o.edition ? ` — ${editionCompany(o.edition) ?? ''}` : ''}
                   </span>
                 ))}
@@ -647,11 +647,11 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
       )}
 
       {ungrouped.length >= 2 && (
-        <div className="bg-stone-800/40 rounded-xl p-3 border border-stone-700 space-y-2">
-          <div className="text-stone-400 text-xs font-semibold uppercase tracking-wide">Group books as a choice</div>
+        <div className="bg-navy-800/40 rounded-xl p-3 border border-navy-700 space-y-2">
+          <div className="text-navy-400 text-xs font-semibold uppercase tracking-wide">Group books as a choice</div>
           <div className="flex flex-wrap gap-2">
             {ungrouped.map(b => (
-              <label key={b.id} className="flex items-center gap-1 text-xs text-stone-300 cursor-pointer">
+              <label key={b.id} className="flex items-center gap-1 text-xs text-navy-300 cursor-pointer">
                 <input type="checkbox" checked={selectedIds.includes(b.id)}
                   onChange={e => setSelectedIds(ids => e.target.checked ? [...ids, b.id] : ids.filter(id => id !== b.id))} />
                 {formatEditionDisplayTitle(b.book, b.edition)}{b.edition ? ` — ${editionCompany(b.edition) ?? ''}` : ''}
@@ -659,20 +659,20 @@ function ChoiceGroupsPanel({ slug, monthYear, monthMonth, books, onRefresh }: {
             ))}
           </div>
           <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label (optional)"
-            className="text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-200 w-full focus:outline-none focus:border-brand-400" />
+            className="text-xs bg-navy-700 border border-navy-600 rounded px-2 py-1 text-navy-200 w-full focus:outline-none focus:border-brand-400" />
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 text-xs text-stone-300 cursor-pointer">
+            <label className="flex items-center gap-1.5 text-xs text-navy-300 cursor-pointer">
               <input type="checkbox" checked={allowMultiple} onChange={e => setAllowMultiple(e.target.checked)} />
               Allow picking both
             </label>
-            <label className="flex items-center gap-1.5 text-xs text-stone-400">
+            <label className="flex items-center gap-1.5 text-xs text-navy-400">
               Deadline (days before renewal)
               <input type="number" min={0} value={deadlineDays} onChange={e => setDeadlineDays(e.target.value)}
-                className="w-14 text-xs bg-stone-700 border border-stone-600 rounded px-2 py-1 text-stone-200 focus:outline-none focus:border-brand-400" />
+                className="w-14 text-xs bg-navy-700 border border-navy-600 rounded px-2 py-1 text-navy-200 focus:outline-none focus:border-brand-400" />
             </label>
           </div>
           <button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || selectedIds.length < 2}
-            className="text-xs px-3 py-1.5 rounded bg-brand-400 text-stone-950 font-semibold hover:bg-brand-300 disabled:opacity-40 transition-colors">
+            className="text-xs px-3 py-1.5 rounded bg-brand-400 text-navy-950 font-semibold hover:bg-brand-300 disabled:opacity-40 transition-colors">
             Create choice group ({selectedIds.length} selected)
           </button>
         </div>
@@ -724,8 +724,8 @@ function AddMonthForm({ slug, onSuccess, open, onClose, initialYear, initialMont
   if (!open) return null
 
   return (
-    <div className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-3">
-      <div className="text-stone-100 font-semibold text-sm">New Month</div>
+    <div className="bg-navy-900 border border-navy-700 rounded-2xl p-4 space-y-3">
+      <div className="text-navy-100 font-semibold text-sm">New Month</div>
       {deepLinkBanner && (
         <div className="bg-brand-500/10 border border-brand-500/30 rounded-lg px-3 py-2 text-brand-400 text-xs">
           {deepLinkBanner}
@@ -762,12 +762,12 @@ function AddMonthForm({ slug, onSuccess, open, onClose, initialYear, initialMont
         </select>
       </div>
       <div>
-        <label className={LABEL}>Card artist <span className="text-stone-600">(optional — credit for box design)</span></label>
+        <label className={LABEL}>Card artist <span className="text-navy-600">(optional — credit for box design)</span></label>
         {cardArtistId ? (
-          <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2">
-            <span className="text-stone-200 text-sm flex-1">🎨 {cardArtistName}</span>
+          <div className="flex items-center gap-2 bg-navy-800 border border-navy-700 rounded-lg px-3 py-2">
+            <span className="text-navy-200 text-sm flex-1">🎨 {cardArtistName}</span>
             <button type="button" onClick={() => { setCardArtistId(null); setCardArtistName('') }}
-              className="text-stone-500 hover:text-red-400 text-xs transition-colors">✕</button>
+              className="text-navy-500 hover:text-red-400 text-xs transition-colors">✕</button>
           </div>
         ) : (
           <PersonPicker endpoint="artists" placeholder="Search or create artist…"
@@ -778,11 +778,11 @@ function AddMonthForm({ slug, onSuccess, open, onClose, initialYear, initialMont
         value={cover} onChange={setCover} aspectRatio="1/1" />
       <div className="flex gap-2">
         <button type="button" disabled={mutation.isPending} onClick={() => mutation.mutate()}
-          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
+          className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
           {mutation.isPending ? 'Adding…' : 'Add Month'}
         </button>
         <button type="button" onClick={onClose}
-          className="bg-stone-700 text-stone-300 px-4 py-2 rounded-lg hover:bg-stone-600 text-sm">Cancel</button>
+          className="bg-navy-700 text-navy-300 px-4 py-2 rounded-lg hover:bg-navy-600 text-sm">Cancel</button>
       </div>
     </div>
   )
@@ -878,24 +878,24 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
   const validRows = rows.filter(r => r._valid)
 
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+    <div className="bg-navy-900 border border-navy-800 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-4 hover:bg-stone-800/40 transition-colors">
+        className="w-full flex items-center justify-between p-4 hover:bg-navy-800/40 transition-colors">
         <div className="flex items-center gap-2">
           <span className="text-brand-400 text-sm">📥</span>
-          <span className="text-stone-200 font-semibold text-sm">Import Months from CSV</span>
-          <span className="text-stone-500 text-xs">bulk historical import</span>
+          <span className="text-navy-200 font-semibold text-sm">Import Months from CSV</span>
+          <span className="text-navy-500 text-xs">bulk historical import</span>
         </div>
-        <span className="text-stone-400 text-xs">{open ? '▲' : '▼'}</span>
+        <span className="text-navy-400 text-xs">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
-        <div className="border-t border-stone-800 p-4 space-y-4">
-          <div className="text-stone-400 text-xs bg-stone-800/50 rounded-lg p-3 space-y-1">
-            <div className="font-semibold text-stone-300">CSV format (comma-separated, header optional):</div>
+        <div className="border-t border-navy-800 p-4 space-y-4">
+          <div className="text-navy-400 text-xs bg-navy-800/50 rounded-lg p-3 space-y-1">
+            <div className="font-semibold text-navy-300">CSV format (comma-separated, header optional):</div>
             <code className="text-brand-400/80 block">year,month,theme,signatureType</code>
-            <div>Example: <code className="text-stone-300">2024,8,Dark Fairytales,signed</code></div>
-            <div>Valid signature types: <code className="text-stone-300">signed</code>, <code className="text-stone-300">autopen</code>, <code className="text-stone-300">digitally_signed</code>, <code className="text-stone-300">signed_bookplate</code>, <code className="text-stone-300">unsigned</code> (or leave empty)</div>
+            <div>Example: <code className="text-navy-300">2024,8,Dark Fairytales,signed</code></div>
+            <div>Valid signature types: <code className="text-navy-300">signed</code>, <code className="text-navy-300">autopen</code>, <code className="text-navy-300">digitally_signed</code>, <code className="text-navy-300">signed_bookplate</code>, <code className="text-navy-300">unsigned</code> (or leave empty)</div>
           </div>
 
           <div>
@@ -908,7 +908,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
               >
                 Choose file
               </button>
-              <span className="text-stone-400 text-xs">{fileName ?? 'No file selected'}</span>
+              <span className="text-navy-400 text-xs">{fileName ?? 'No file selected'}</span>
             </div>
             <input
               ref={fileInputRef}
@@ -922,22 +922,22 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
           {rows.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="text-xs text-stone-400">
+                <div className="text-xs text-navy-400">
                   {validRows.length} valid row{validRows.length !== 1 ? 's' : ''} ready to import
                   {rows.length !== validRows.length && (
                     <span className="text-red-400 ml-2">· {rows.length - validRows.length} with errors</span>
                   )}
                 </div>
                 <button type="button" onClick={() => { setRows([]); setProgress(null); setFileName(null) }}
-                  className="text-stone-500 hover:text-stone-300 text-xs">Clear</button>
+                  className="text-navy-500 hover:text-navy-300 text-xs">Clear</button>
               </div>
 
-              <div className="max-h-64 overflow-y-auto rounded-lg border border-stone-700 divide-y divide-stone-700/50">
-                <div className="grid grid-cols-4 gap-2 px-3 py-1.5 bg-stone-800 text-xs font-semibold text-stone-400 uppercase tracking-wide sticky top-0">
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-navy-700 divide-y divide-navy-700/50">
+                <div className="grid grid-cols-4 gap-2 px-3 py-1.5 bg-navy-800 text-xs font-semibold text-navy-400 uppercase tracking-wide sticky top-0">
                   <span>Year</span><span>Month</span><span>Theme</span><span>Signature</span>
                 </div>
                 {rows.map((r, i) => (
-                  <div key={i} className={`grid grid-cols-4 gap-2 px-3 py-1.5 text-xs ${r._valid ? 'text-stone-300' : 'text-red-400 bg-red-900/10'}`}>
+                  <div key={i} className={`grid grid-cols-4 gap-2 px-3 py-1.5 text-xs ${r._valid ? 'text-navy-300' : 'text-red-400 bg-red-900/10'}`}>
                     <span>{r.year}</span>
                     <span>{r.month} {r._valid ? `— ${MONTH_NAMES[parseInt(r.month) - 1] ?? ''}` : ''}</span>
                     <span className="truncate">{r.theme || '—'}</span>
@@ -949,13 +949,13 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
               {progress && (
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-stone-700 rounded-full h-1.5">
+                    <div className="flex-1 bg-navy-700 rounded-full h-1.5">
                       <div
                         className="bg-brand-400 h-1.5 rounded-full transition-all"
                         style={{ width: `${(progress.done / progress.total) * 100}%` }}
                       />
                     </div>
-                    <span className="text-xs text-stone-400 whitespace-nowrap">{progress.done} / {progress.total}</span>
+                    <span className="text-xs text-navy-400 whitespace-nowrap">{progress.done} / {progress.total}</span>
                   </div>
                   {progress.errors.length > 0 && (
                     <div className="text-xs text-red-400 space-y-0.5">
@@ -972,7 +972,7 @@ function CsvImportPanel({ subscriptionId, slug, onImported }: { subscriptionId: 
                 type="button"
                 disabled={importing || validRows.length === 0}
                 onClick={importAll}
-                className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm"
+                className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm"
               >
                 {importing ? `Importing… (${progress?.done ?? 0}/${progress?.total ?? 0})` : `Import ${validRows.length} month${validRows.length !== 1 ? 's' : ''}`}
               </button>
@@ -1031,19 +1031,19 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
   })
 
   return (
-    <div id="price-changes" className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-3">
+    <div id="price-changes" className="bg-navy-900 border border-navy-700 rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-stone-100 font-semibold text-sm">💰 Price Change History</h3>
+        <h3 className="text-navy-100 font-semibold text-sm">💰 Price Change History</h3>
         <button
           onClick={() => setShowForm(v => !v)}
-          className={`${BTN_SM} ${showForm ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
+          className={`${BTN_SM} ${showForm ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' : 'bg-navy-700 hover:bg-navy-600 text-navy-300'}`}
         >
           {showForm ? 'Cancel' : '+ Add Price Change'}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-stone-800 rounded-xl p-3 space-y-3 border border-stone-700">
+        <div className="bg-navy-800 rounded-xl p-3 space-y-3 border border-navy-700">
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={LABEL}>Month *</label>
@@ -1080,7 +1080,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
           <button
             disabled={addMutation.isPending || !price || !currency}
             onClick={() => addMutation.mutate()}
-            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm"
+            className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm"
           >
             {addMutation.isPending ? 'Saving…' : 'Save Price Change'}
           </button>
@@ -1088,25 +1088,25 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
       )}
 
       {isLoading ? (
-        <p className="text-stone-500 text-sm">Loading…</p>
+        <p className="text-navy-500 text-sm">Loading…</p>
       ) : !changes?.length ? (
-        <p className="text-stone-600 text-sm italic">No price changes recorded yet.</p>
+        <p className="text-navy-600 text-sm italic">No price changes recorded yet.</p>
       ) : (
         <div className="space-y-2">
           {changes.map(pc => {
             const isSentinel = pc.effectiveYear === 1900
             return (
-              <div key={pc.id} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-stone-800/50 border border-brand-900/40' : 'bg-stone-800'}`}>
+              <div key={pc.id} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-navy-800/50 border border-brand-900/40' : 'bg-navy-800'}`}>
                 <div className="space-y-0.5">
-                  <span className="text-stone-100 font-medium">
+                  <span className="text-navy-100 font-medium">
                     {isSentinel
                       ? <span className="text-brand-400/80">⚓ Base price (sentinel)</span>
                       : <>{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</>
                     }
                     {' '}— {parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}
                   </span>
-                  {isSentinel && <p className="text-stone-500 text-xs">Initial base price. Cannot be deleted.</p>}
-                  {pc.notes && <p className="text-stone-500 text-xs">{pc.notes}</p>}
+                  {isSentinel && <p className="text-navy-500 text-xs">Initial base price. Cannot be deleted.</p>}
+                  {pc.notes && <p className="text-navy-500 text-xs">{pc.notes}</p>}
                 </div>
                 {!isSentinel && (
                   <button
@@ -1166,22 +1166,22 @@ function ImportMonthsFromVariantPanel({ parentSlug, parentId }: { parentSlug: st
   }
 
   return (
-    <div className="bg-stone-900 border border-purple-700/40 rounded-2xl p-4 space-y-3 w-full">
+    <div className="bg-navy-900 border border-purple-700/40 rounded-2xl p-4 space-y-3 w-full">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-stone-100 font-semibold text-sm">Import months from variant</div>
-          <div className="text-stone-400 text-xs mt-0.5">
+          <div className="text-navy-100 font-semibold text-sm">Import months from variant</div>
+          <div className="text-navy-400 text-xs mt-0.5">
             Moves all months from a variant subscription to this content stream. This cannot be undone.
           </div>
         </div>
         <button type="button" onClick={() => { setOpen(false); setSelectedSlug(''); setConfirmed(false) }}
-          className="text-stone-500 hover:text-stone-300 text-sm">✕</button>
+          className="text-navy-500 hover:text-navy-300 text-sm">✕</button>
       </div>
 
       <div>
         <label className={LABEL}>Source variant *</label>
         {variants.length === 0 ? (
-          <p className="text-stone-500 text-xs">No variants found for this content stream.</p>
+          <p className="text-navy-500 text-xs">No variants found for this content stream.</p>
         ) : (
           <select value={selectedSlug} onChange={e => { setSelectedSlug(e.target.value); setConfirmed(false) }} className={INPUT}>
             <option value="">— Select variant —</option>
@@ -1195,7 +1195,7 @@ function ImportMonthsFromVariantPanel({ parentSlug, parentId }: { parentSlug: st
       {selectedSlug && (
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="accent-brand-400" />
-          <span className="text-xs text-stone-300">
+          <span className="text-xs text-navy-300">
             I understand this will move all months from the selected variant to this content stream and cannot be undone.
           </span>
         </label>
@@ -1254,25 +1254,25 @@ function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; com
   }
 
   return (
-    <div className="bg-stone-900 border border-blue-700/40 rounded-2xl p-4 space-y-3">
+    <div className="bg-navy-900 border border-blue-700/40 rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-stone-100 font-semibold text-sm">Migrate months to content stream</div>
-          <div className="text-stone-400 text-xs mt-0.5">
+          <div className="text-navy-100 font-semibold text-sm">Migrate months to content stream</div>
+          <div className="text-navy-400 text-xs mt-0.5">
             Moves all {monthCount} month{monthCount !== 1 ? 's' : ''} from this subscription to a content stream. This cannot be undone.
           </div>
         </div>
         <button type="button" onClick={() => { setOpen(false); setSelectedId(''); setConfirmed(false) }}
-          className="text-stone-500 hover:text-stone-300 text-sm">✕</button>
+          className="text-navy-500 hover:text-navy-300 text-sm">✕</button>
       </div>
 
       <div>
         <label className={LABEL}>Target content stream *</label>
         {streams.length === 0 && !companyId && (
-          <p className="text-stone-500 text-xs">Loading…</p>
+          <p className="text-navy-500 text-xs">Loading…</p>
         )}
         {streams.length === 0 && companyId && (
-          <p className="text-stone-500 text-xs">No content streams found for this company. Create one first.</p>
+          <p className="text-navy-500 text-xs">No content streams found for this company. Create one first.</p>
         )}
         {streams.length > 0 && (
           <select value={selectedId} onChange={e => { setSelectedId(e.target.value); setConfirmed(false) }} className={INPUT}>
@@ -1287,7 +1287,7 @@ function MigrateMonthsPanel({ slug, companyId, monthCount }: { slug: string; com
       {selectedId && (
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="accent-brand-400" />
-          <span className="text-xs text-stone-300">
+          <span className="text-xs text-navy-300">
             I understand this will move all {monthCount} month{monthCount !== 1 ? 's' : ''} to the selected content stream and this action cannot be undone.
           </span>
         </label>
@@ -1385,14 +1385,14 @@ function MarkMonthSkippedForm({ slug, isBundleSubscription, isContentStream, onC
       <div className="flex justify-end">
         <button
           onClick={() => setOpen(!open)}
-          className={`${BTN_SM} ${open ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-stone-800 text-stone-400 border border-stone-700 hover:text-stone-200 hover:border-stone-600'}`}
+          className={`${BTN_SM} ${open ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-navy-800 text-navy-400 border border-navy-700 hover:text-navy-200 hover:border-navy-600'}`}
         >
           {open ? 'Cancel' : '⏭ Skip a month'}
         </button>
       </div>
 
       {open && (
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 mt-3 space-y-3">
+        <div className="bg-navy-900 border border-navy-800 rounded-2xl p-4 mt-3 space-y-3">
           {isContentStream && (
             <p className="text-brand-400 text-xs bg-brand-900/20 border border-brand-700/40 rounded-lg px-3 py-2">
               This subscription is a content stream — skipping applies to every variant that shares it.
@@ -1418,12 +1418,12 @@ function MarkMonthSkippedForm({ slug, isBundleSubscription, isContentStream, onC
             </div>
           </div>
           <div>
-            <label className={LABEL}>Reason <span className="text-stone-600">(optional — shown to subscribers)</span></label>
+            <label className={LABEL}>Reason <span className="text-navy-600">(optional — shown to subscribers)</span></label>
             <textarea value={reason} onChange={e => setReason(e.target.value)} rows={2}
               placeholder="e.g. Printer delay — this box will ship next month instead" className={INPUT} />
           </div>
           <button type="button" disabled={markMutation.isPending} onClick={() => markMutation.mutate()}
-            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
+            className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
             {markMutation.isPending ? 'Marking…' : 'Confirm skip'}
           </button>
         </div>
@@ -1456,7 +1456,7 @@ function SkippedMonthOnlyCard({ slug, year, month, reason, onChange, highlighted
   return (
     <div
       id={`month-${year}-${month}`}
-      className={`bg-stone-900 border rounded-2xl p-4 flex items-center justify-between gap-3 ${highlighted ? 'border-brand-400 ring-2 ring-brand-400' : 'border-brand-800/40'}`}
+      className={`bg-navy-900 border rounded-2xl p-4 flex items-center justify-between gap-3 ${highlighted ? 'border-brand-400 ring-2 ring-brand-400' : 'border-brand-800/40'}`}
     >
       <div className="min-w-0">
         <span className="text-brand-400 font-semibold">⏭ {monthLabel} — Skipped</span>
@@ -1465,7 +1465,7 @@ function SkippedMonthOnlyCard({ slug, year, month, reason, onChange, highlighted
       <button
         onClick={() => { if (confirm(unskipConfirmMessage(monthLabel, isContentStream))) unmarkMutation.mutate() }}
         disabled={unmarkMutation.isPending}
-        className={`${BTN_SM} bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 shrink-0`}
+        className={`${BTN_SM} bg-navy-700 text-navy-300 hover:bg-navy-600 disabled:opacity-50 shrink-0`}
       >{unmarkMutation.isPending ? '…' : 'Unskip'}</button>
     </div>
   )
@@ -1632,9 +1632,9 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <Link href="/admin/subscriptions" className="text-stone-500 text-sm hover:text-stone-300 mb-1 block">← Subscriptions</Link>
-          <h1 className="text-2xl font-bold text-stone-100">{subscription?.name ?? slug}</h1>
-          <p className="text-stone-500 text-sm">Manage months &amp; books</p>
+          <Link href="/admin/subscriptions" className="text-navy-500 text-sm hover:text-navy-300 mb-1 block">← Subscriptions</Link>
+          <h1 className="text-2xl font-bold text-navy-100">{subscription?.name ?? slug}</h1>
+          <p className="text-navy-500 text-sm">Manage months &amp; books</p>
         </div>
       </div>
 
@@ -1665,13 +1665,13 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
           <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => setAddMonthOpen(!addMonthOpen)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${addMonthOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' : 'bg-brand-400 text-stone-950 hover:bg-brand-300'}`}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${addMonthOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' : 'bg-brand-400 text-navy-950 hover:bg-brand-300'}`}
             >
               + Add Month
             </button>
             <button
               onClick={() => setFilterEmpty(f => !f)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors border ${filterEmpty ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-stone-800 text-stone-400 border-stone-700 hover:text-stone-200 hover:border-stone-600'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors border ${filterEmpty ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-navy-800 text-navy-400 border-navy-700 hover:text-navy-200 hover:border-navy-600'}`}
             >
               📭 {filterEmpty ? `Without books (${displayedMonths.length})` : 'Show without books'}
             </button>
@@ -1718,13 +1718,13 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
 
         {/* Month list — real content and skip-only entries interleaved, one chronological list */}
         {isLoading ? (
-          <div className="text-stone-400 py-8 text-center">Loading months…</div>
+          <div className="text-navy-400 py-8 text-center">Loading months…</div>
         ) : !months?.length && skipOnlyEntries.length === 0 ? (
-          <div className="text-stone-500 text-center py-8 bg-stone-900/50 rounded-2xl border border-stone-800">
+          <div className="text-navy-500 text-center py-8 bg-navy-900/50 rounded-2xl border border-navy-800">
             No months yet — add the first one above.
           </div>
         ) : combinedList.length === 0 ? (
-          <div className="text-stone-500 text-center py-8 bg-stone-900/50 rounded-2xl border border-stone-800">
+          <div className="text-navy-500 text-center py-8 bg-navy-900/50 rounded-2xl border border-navy-800">
             All months have at least one book linked. 🎉
           </div>
         ) : (
@@ -1762,7 +1762,7 @@ export default function SubscriptionMonthsPage({ params }: { params: Promise<{ s
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="px-5 py-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm transition-colors disabled:opacity-40"
+                  className="px-5 py-2 rounded-lg bg-navy-800 hover:bg-navy-700 text-navy-300 text-sm transition-colors disabled:opacity-40"
                 >
                   {loadingMore ? 'Loading…' : `Load older months (${months.length} of ${firstPage?.total ?? '?'})`}
                 </button>

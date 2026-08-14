@@ -22,7 +22,8 @@ describe('AnnouncementsService.getNextSale', () => {
     const uploadService = mockDeep<UploadService>();
     const mediaAssetsService = mockDeep<MediaAssetsService>();
     const userCostSnapshotService = mockDeep<UserCostSnapshotCronService>();
-    service = new AnnouncementsService(prisma, typesense, uploadService, mediaAssetsService, userCostSnapshotService, undefined);
+    const cache = { get: async () => undefined, set: async () => {} } as any;
+    service = new AnnouncementsService(prisma, typesense, uploadService, mediaAssetsService, userCostSnapshotService, cache, undefined);
   });
 
   it('returns an empty result when the company has no live/upcoming sales', async () => {

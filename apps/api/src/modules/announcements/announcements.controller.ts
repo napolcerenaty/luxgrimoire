@@ -3,7 +3,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AnnouncementsService } from './announcements.service';
-import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto, AssignEditionToItemDto, UpsertSaleTierDto } from './announcements.dto';
+import { CreateSaleAnnouncementDto, UpdateSaleAnnouncementDto, UpsertSaleAnnouncementItemDto, AssignEditionToItemDto, UpsertSaleTierDto, CalendarQueryDto } from './announcements.dto';
 import { Public, Roles, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { CacheControlInterceptor } from '../../common/interceptors/cache-control.interceptor';
 
@@ -261,6 +261,14 @@ export class AnnouncementsController {
   @Delete('admin/:id/items/:itemId')
   adminDeleteItem(@Param('id') id: string, @Param('itemId') itemId: string) {
     return this.announcementsService.adminDeleteItem(id, itemId);
+  }
+
+  /** Global (not per-user) sale-tier calendar — every SaleTier falling in a given month, for
+   *  the public /sales-calendar page. */
+  @Public()
+  @Get('calendar')
+  getCalendar(@Query() query: CalendarQueryDto) {
+    return this.announcementsService.getCalendarTiers(query.year, query.month, query.companyId);
   }
 
   @Public()

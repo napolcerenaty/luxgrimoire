@@ -29,7 +29,7 @@ const CATEGORY_COLORS: Record<FeeCategory, string> = {
   PROCESSING: 'bg-orange-900/60 text-orange-300',
   FORWARDING: 'bg-cyan-900/60 text-cyan-300',
   PRICE_ADJUSTMENT: 'bg-rose-900/60 text-rose-300',
-  OTHER: 'bg-stone-700 text-stone-300',
+  OTHER: 'bg-navy-700 text-navy-300',
 }
 
 interface TemplateFormState {
@@ -121,22 +121,22 @@ export default function FeeTemplateManager() {
   }
 
   const inputCls =
-    'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors'
+    'w-full bg-navy-800 border border-navy-700 text-navy-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors'
   const selectCls =
-    'bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400 transition-colors'
+    'bg-navy-800 border border-navy-700 text-navy-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400 transition-colors'
 
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
+    <div className="bg-navy-900 border border-navy-800 rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="font-serif font-semibold text-stone-100 text-lg">Fee Templates</h2>
-          <p className="text-xs text-stone-400 mt-0.5">
+          <h2 className="font-serif font-semibold text-navy-100 text-lg">Fee Templates</h2>
+          <p className="text-xs text-navy-400 mt-0.5">
             Reusable templates for recurring fees &amp; taxes
           </p>
         </div>
         <button
           onClick={() => { setShowAddForm(true); setFormError(null) }}
-          className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-xl text-sm transition-colors"
+          className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 text-navy-950 font-semibold px-3 py-1.5 rounded-xl text-sm transition-colors"
         >
           <Plus size={14} />
           Add template
@@ -145,11 +145,11 @@ export default function FeeTemplateManager() {
 
       {/* Add form */}
       {showAddForm && (
-        <div className="bg-stone-800/60 border border-stone-700 rounded-xl p-4 mb-4 space-y-3">
+        <div className="bg-navy-800/60 border border-navy-700 rounded-xl p-4 mb-4 space-y-3">
           <p className="text-xs font-semibold text-brand-400 uppercase tracking-wider">New template</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Name *</label>
+              <label className="block text-xs text-navy-400 mb-1">Name *</label>
               <input
                 type="text"
                 value={addForm.name}
@@ -159,7 +159,7 @@ export default function FeeTemplateManager() {
               />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Category</label>
+              <label className="block text-xs text-navy-400 mb-1">Category</label>
               <select
                 value={addForm.category}
                 onChange={(e) => setAddForm({ ...addForm, category: e.target.value as FeeCategory })}
@@ -171,7 +171,7 @@ export default function FeeTemplateManager() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Default amount</label>
+              <label className="block text-xs text-navy-400 mb-1">Default amount</label>
               <input
                 type="number"
                 min="0"
@@ -183,7 +183,7 @@ export default function FeeTemplateManager() {
               />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Currency</label>
+              <label className="block text-xs text-navy-400 mb-1">Currency</label>
               <select
                 value={addForm.defaultCurrency}
                 onChange={(e) => setAddForm({ ...addForm, defaultCurrency: e.target.value })}
@@ -199,14 +199,14 @@ export default function FeeTemplateManager() {
           <div className="flex gap-2 justify-end">
             <button
               onClick={() => { setShowAddForm(false); setAddForm(emptyForm()); setFormError(null) }}
-              className="px-3 py-1.5 text-sm text-stone-400 hover:text-stone-200 transition-colors"
+              className="px-3 py-1.5 text-sm text-navy-400 hover:text-navy-200 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={() => createMutation.mutate()}
               disabled={createMutation.isPending || !addForm.name.trim()}
-              className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
+              className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-navy-950 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
             >
               {createMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
               Save
@@ -217,18 +217,18 @@ export default function FeeTemplateManager() {
 
       {/* List */}
       {isLoading ? (
-        <div className="flex items-center gap-2 text-stone-400 text-sm py-4">
+        <div className="flex items-center gap-2 text-navy-400 text-sm py-4">
           <Loader2 size={16} className="animate-spin" /> Loading…
         </div>
       ) : templates.length === 0 ? (
-        <p className="text-sm text-stone-500 py-4">No templates yet. Add one above.</p>
+        <p className="text-sm text-navy-500 py-4">No templates yet. Add one above.</p>
       ) : (
         <div className="space-y-2">
           {templates.map((t) => (
             <div
               key={t.id}
               className={`border rounded-xl p-3 transition-colors ${
-                t.isActive ? 'border-stone-700 bg-stone-800/40' : 'border-stone-800 bg-stone-900/40 opacity-60'
+                t.isActive ? 'border-navy-700 bg-navy-800/40' : 'border-navy-800 bg-navy-900/40 opacity-60'
               }`}
             >
               {editingId === t.id ? (
@@ -273,7 +273,7 @@ export default function FeeTemplateManager() {
                   <div className="flex gap-2 justify-end">
                     <button
                       onClick={() => setEditingId(null)}
-                      className="p-1 text-stone-400 hover:text-stone-200 transition-colors"
+                      className="p-1 text-navy-400 hover:text-navy-200 transition-colors"
                       title="Cancel"
                     >
                       <X size={15} />
@@ -293,18 +293,18 @@ export default function FeeTemplateManager() {
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-stone-100 truncate">{t.name}</span>
+                      <span className="text-sm font-medium text-navy-100 truncate">{t.name}</span>
                       <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[t.category]}`}>
                         {CATEGORIES.find((c) => c.value === t.category)?.label ?? t.category}
                       </span>
                       {!t.isActive && (
-                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-stone-700 text-stone-400">
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-navy-700 text-navy-400">
                           ARCHIVED
                         </span>
                       )}
                     </div>
                     {t.defaultAmount != null && (
-                      <p className="text-xs text-stone-400 mt-0.5">
+                      <p className="text-xs text-navy-400 mt-0.5">
                         {t.defaultAmount} {t.defaultCurrency}
                       </p>
                     )}
@@ -312,14 +312,14 @@ export default function FeeTemplateManager() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => toggleActive(t)}
-                      className="p-1.5 text-stone-500 hover:text-brand-400 transition-colors rounded"
+                      className="p-1.5 text-navy-500 hover:text-brand-400 transition-colors rounded"
                       title={t.isActive ? 'Archive' : 'Unarchive'}
                     >
                       {t.isActive ? <Archive size={14} /> : <ArchiveRestore size={14} />}
                     </button>
                     <button
                       onClick={() => startEdit(t)}
-                      className="p-1.5 text-stone-500 hover:text-brand-400 transition-colors rounded"
+                      className="p-1.5 text-navy-500 hover:text-brand-400 transition-colors rounded"
                       title="Edit"
                     >
                       <Pencil size={14} />
@@ -327,7 +327,7 @@ export default function FeeTemplateManager() {
                     <button
                       onClick={() => deleteMutation.mutate(t.id)}
                       disabled={deleteMutation.isPending}
-                      className="p-1.5 text-stone-500 hover:text-red-400 transition-colors rounded disabled:opacity-50"
+                      className="p-1.5 text-navy-500 hover:text-red-400 transition-colors rounded disabled:opacity-50"
                       title="Delete"
                     >
                       <Trash2 size={14} />

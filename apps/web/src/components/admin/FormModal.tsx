@@ -16,12 +16,12 @@ export default function FormModal({ open, title, onClose, children }: FormModalP
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-stone-900 border border-stone-800 rounded-2xl w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-800 shrink-0">
-          <h2 className="text-lg font-semibold text-stone-100">{title}</h2>
+      <div className="relative bg-navy-900 border border-navy-800 rounded-2xl w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-navy-800 shrink-0">
+          <h2 className="text-lg font-semibold text-navy-100">{title}</h2>
           <button
             onClick={onClose}
-            className="text-stone-400 hover:text-stone-200 transition-colors"
+            className="text-navy-400 hover:text-navy-200 transition-colors"
             aria-label="Close"
           >
             <X size={20} />

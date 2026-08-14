@@ -1,5 +1,15 @@
 import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, IsEnum, IsInt } from 'class-validator';
 import { BaseNumericPriceCurrencyDto } from '../../common/dto/price.dto';
+import { YearMonthQueryDto } from '../subscriptions/subscriptions.dto';
+
+/** YearMonthQueryDto + an optional companyId — the ValidationPipe's whitelist rejects any query
+ *  param not declared on the DTO class, so GET /announcements/calendar needs its own DTO rather
+ *  than reusing the bare YearMonthQueryDto other month-scoped endpoints share. */
+export class CalendarQueryDto extends YearMonthQueryDto {
+  @IsOptional()
+  @IsString()
+  companyId?: string;
+}
 
 export type SaleType = 'LIMITED_PREORDER' | 'OPEN_PREORDER' | 'OVERSTOCK' | 'SALE';
 const SALE_TYPES: SaleType[] = ['LIMITED_PREORDER', 'OPEN_PREORDER', 'OVERSTOCK', 'SALE'];

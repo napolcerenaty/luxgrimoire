@@ -11,10 +11,10 @@ import { X, Plus, MoveRight } from 'lucide-react'
 
 export type { FeeEntry, DiscountEntry, FeeTemplate }
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors'
-const LABEL = 'block text-xs font-medium text-stone-400 mb-1'
+const INPUT = 'w-full bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-3 py-2 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors'
+const LABEL = 'block text-xs font-medium text-navy-400 mb-1'
 /** Swaps the border color of an input class string to flag an invalid field. */
-const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
+const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-navy-700', 'border-red-500/70') : base
 
 const SIGNATURE_LABELS: Record<string, string> = {
   unsigned: 'Unsigned',
@@ -252,17 +252,17 @@ export function CollectionFormModal({
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-sm bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-sm bg-navy-900 border border-navy-700 rounded-2xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <h2 className="font-serif font-semibold text-stone-100">{title}</h2>
-          <button onClick={onClose} className="p-1 text-stone-500 hover:text-stone-200 transition-colors">
+          <h2 className="font-serif font-semibold text-navy-100">{title}</h2>
+          <button onClick={onClose} className="p-1 text-navy-500 hover:text-navy-200 transition-colors">
             <X size={16} />
           </button>
         </div>
 
         {subtitle && (
-          <p className="text-sm text-stone-400">
-            <span className="text-stone-200 font-medium">{subtitle}</span>
+          <p className="text-sm text-navy-400">
+            <span className="text-navy-200 font-medium">{subtitle}</span>
           </p>
         )}
 
@@ -284,12 +284,12 @@ export function CollectionFormModal({
           {/* Edition selection (multi-select when > 1 edition) */}
           {editions.length > 1 && (
             <div className="space-y-2">
-              <span className="text-xs font-medium text-stone-400">Select editions to add</span>
+              <span className="text-xs font-medium text-navy-400">Select editions to add</span>
               <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                 {editions.map(ed => {
                   const checked = selectedEditionIds.includes(ed.editionId)
                   return (
-                    <label key={ed.editionId} className="flex items-center gap-2.5 cursor-pointer rounded-lg border border-stone-700 px-3 py-2 hover:border-stone-600 transition-colors">
+                    <label key={ed.editionId} className="flex items-center gap-2.5 cursor-pointer rounded-lg border border-navy-700 px-3 py-2 hover:border-navy-600 transition-colors">
                       <input
                         type="checkbox"
                         checked={checked}
@@ -298,7 +298,7 @@ export function CollectionFormModal({
                         )}
                         className="w-4 h-4 accent-brand-500 shrink-0"
                       />
-                      <span className="text-sm text-stone-300 leading-tight flex-1">
+                      <span className="text-sm text-navy-300 leading-tight flex-1">
                         {ed.edition?.book?.title ?? 'Edition'}
                       </span>
                       {checked && selectedEditionIds.length > 1 && (
@@ -315,7 +315,7 @@ export function CollectionFormModal({
                             }
                           }}
                           onClick={e => e.stopPropagation()}
-                          className={`w-16 bg-stone-800 border rounded px-1.5 py-0.5 text-stone-100 text-xs text-right shrink-0 ${invalidPriceEditionIds.has(ed.editionId) ? 'border-red-500/70' : 'border-stone-600'}`}
+                          className={`w-16 bg-navy-800 border rounded px-1.5 py-0.5 text-navy-100 text-xs text-right shrink-0 ${invalidPriceEditionIds.has(ed.editionId) ? 'border-red-500/70' : 'border-navy-600'}`}
                         />
                       )}
                     </label>
@@ -326,7 +326,7 @@ export function CollectionFormModal({
                 <p className="text-xs text-red-400">Select at least one edition</p>
               )}
               {selectedEditionIds.length > 1 && (
-                <p className="text-[11px] text-stone-500">
+                <p className="text-[11px] text-navy-500">
                   {perBookPriceMode
                     ? `Pricing books individually — fill in all ${selectedEditionIds.length}, total below is calculated automatically.`
                     : 'Leave every book price blank and set one total below to split it evenly — or price each book individually here instead.'}
@@ -338,10 +338,10 @@ export function CollectionFormModal({
           {/* Edition variants (conditional) */}
           {editionsNeedingSelection.length > 0 && (
             <div className="space-y-3">
-              <span className="text-xs font-medium text-stone-400">Edition variants</span>
+              <span className="text-xs font-medium text-navy-400">Edition variants</span>
               {editionsNeedingSelection.map(ed => (
-                <div key={ed.editionId} className="rounded-xl border border-stone-700 p-3 space-y-2">
-                  <p className="text-xs text-stone-400 font-medium">
+                <div key={ed.editionId} className="rounded-xl border border-navy-700 p-3 space-y-2">
+                  <p className="text-xs text-navy-400 font-medium">
                     {ed.edition?.book?.title ?? 'Edition'}
                   </p>
                   <div className="flex flex-wrap gap-3">
@@ -355,10 +355,10 @@ export function CollectionFormModal({
                           onChange={() => setSelectedVariants(prev => ({ ...prev, [ed.editionId]: v.signatureType }))}
                           className="accent-brand-500"
                         />
-                        <span className="text-sm text-stone-300">
+                        <span className="text-sm text-navy-300">
                           {SIGNATURE_LABELS[v.signatureType] ?? v.signatureType}
                           {v.price != null && (
-                            <span className="text-stone-500 ml-1">({v.price} {v.currency ?? currency})</span>
+                            <span className="text-navy-500 ml-1">({v.price} {v.currency ?? currency})</span>
                           )}
                         </span>
                       </label>
@@ -394,23 +394,23 @@ export function CollectionFormModal({
             </div>
           </div>
           {perBookPriceMode && (
-            <p className="text-[11px] text-stone-500 -mt-2">Price paid is calculated automatically from the book prices above.</p>
+            <p className="text-[11px] text-navy-500 -mt-2">Price paid is calculated automatically from the book prices above.</p>
           )}
 
           {/* Additional fees */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-stone-400">Additional fees (optional)</span>
+              <span className="text-xs font-medium text-navy-400">Additional fees (optional)</span>
               <button type="button"
                 onClick={() => { feeKeyRef.current++; setFeeEntries(prev => [...prev, { key: feeKeyRef.current, templateId: '', amount: '', currency, name: '', category: 'OTHER' }]) }}
                 className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 transition-colors">
                 <Plus size={12} /> Add fee
               </button>
             </div>
-            {feeEntries.length === 0 && <p className="text-xs text-stone-500 italic">No additional fees</p>}
+            {feeEntries.length === 0 && <p className="text-xs text-navy-500 italic">No additional fees</p>}
             <div className="space-y-2">
               {feeEntries.map(fee => (
-                <div key={fee.key} className="flex flex-col gap-2 border border-stone-800 rounded-xl p-2">
+                <div key={fee.key} className="flex flex-col gap-2 border border-navy-800 rounded-xl p-2">
                   {/* Fee template pills — same pattern as the collection entry's Edit Costs panel */}
                   {feeTemplates.length > 0 && (
                     <div className="flex flex-wrap gap-1">
@@ -422,7 +422,7 @@ export function CollectionFormModal({
                             currency: t.defaultCurrency ?? f.currency,
                             category: t.category ?? f.category,
                           } : f))}
-                          className={`px-2 py-0.5 rounded text-xs border transition-colors ${fee.templateId === t.id ? 'border-brand-500/60 text-brand-400' : 'border-stone-600 text-stone-400 hover:border-brand-500/40 hover:text-brand-400'}`}
+                          className={`px-2 py-0.5 rounded text-xs border transition-colors ${fee.templateId === t.id ? 'border-brand-500/60 text-brand-400' : 'border-navy-600 text-navy-400 hover:border-brand-500/40 hover:text-brand-400'}`}
                         >
                           {t.name}
                         </button>
@@ -431,11 +431,11 @@ export function CollectionFormModal({
                   )}
                   <div className="flex gap-2">
                     {fee.templateId ? (
-                      <div className="flex-1 min-w-0 flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-xl border border-stone-700 text-stone-300">
+                      <div className="flex-1 min-w-0 flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-xl border border-navy-700 text-navy-300">
                         <span className="flex-1 truncate">{fee.name}</span>
-                        <span className="text-stone-500 shrink-0">{FEE_CATEGORIES.find(c => c.value === fee.category)?.label ?? fee.category}</span>
+                        <span className="text-navy-500 shrink-0">{FEE_CATEGORIES.find(c => c.value === fee.category)?.label ?? fee.category}</span>
                         <button type="button" onClick={() => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, templateId: '', name: '', category: 'OTHER' } : f))}
-                          className="text-stone-500 hover:text-red-400 transition-colors shrink-0">
+                          className="text-navy-500 hover:text-red-400 transition-colors shrink-0">
                           <X size={11} />
                         </button>
                       </div>
@@ -444,16 +444,16 @@ export function CollectionFormModal({
                         <input type="text" value={fee.name}
                           onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, name: e.target.value } : f))}
                           placeholder="Fee name"
-                          className="flex-1 min-w-0 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors" />
+                          className="flex-1 min-w-0 bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors" />
                         <select value={fee.category}
                           onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, category: e.target.value } : f))}
-                          className="w-32 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors">
+                          className="w-32 bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors">
                           {FEE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                         </select>
                       </>
                     )}
                     <button type="button" onClick={() => setFeeEntries(prev => prev.filter(f => f.key !== fee.key))}
-                      className="p-2 text-stone-500 hover:text-red-400 transition-colors shrink-0">
+                      className="p-2 text-navy-500 hover:text-red-400 transition-colors shrink-0">
                       <X size={14} />
                     </button>
                   </div>
@@ -464,10 +464,10 @@ export function CollectionFormModal({
                         if (invalidFeeKeys.has(fee.key)) { setInvalidFeeKeys(prev => { const next = new Set(prev); next.delete(fee.key); return next }); setValidationError(null) }
                       }}
                       placeholder="0.00"
-                      className={inpErr('w-24 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors', invalidFeeKeys.has(fee.key))} />
+                      className={inpErr('w-24 bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors', invalidFeeKeys.has(fee.key))} />
                     <select value={fee.currency}
                       onChange={e => setFeeEntries(prev => prev.map(f => f.key === fee.key ? { ...f, currency: e.target.value } : f))}
-                      className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors">
+                      className="bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400 transition-colors">
                       {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
@@ -479,35 +479,35 @@ export function CollectionFormModal({
           {/* Discounts */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-stone-400">Discounts (optional)</span>
+              <span className="text-xs font-medium text-navy-400">Discounts (optional)</span>
               <button type="button"
                 onClick={() => { discountKeyRef.current++; setDiscountEntries(prev => [...prev, { key: discountKeyRef.current, name: '', amount: '', currency }]) }}
                 className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors">
                 <Plus size={12} /> Add discount
               </button>
             </div>
-            {discountEntries.length === 0 && <p className="text-xs text-stone-500 italic">No discounts</p>}
+            {discountEntries.length === 0 && <p className="text-xs text-navy-500 italic">No discounts</p>}
             <div className="space-y-2">
               {discountEntries.map(disc => (
                 <div key={disc.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
                   <input type="text" value={disc.name}
                     onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, name: e.target.value } : d))}
                     placeholder="e.g. Promo code, loyalty…"
-                    className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors" />
+                    className="w-full bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors" />
                   <input type="text" value={disc.amount}
                     onChange={e => {
                       setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, amount: e.target.value } : d))
                       if (invalidDiscountKeys.has(disc.key)) { setInvalidDiscountKeys(prev => { const next = new Set(prev); next.delete(disc.key); return next }); setValidationError(null) }
                     }}
                     placeholder="0.00"
-                    className={inpErr('w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors', invalidDiscountKeys.has(disc.key))} />
+                    className={inpErr('w-20 bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors', invalidDiscountKeys.has(disc.key))} />
                   <select value={disc.currency}
                     onChange={e => setDiscountEntries(prev => prev.map(d => d.key === disc.key ? { ...d, currency: e.target.value } : d))}
-                    className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors">
+                    className="bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400 transition-colors">
                     {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   <button type="button" onClick={() => setDiscountEntries(prev => prev.filter(d => d.key !== disc.key))}
-                    className="p-2 text-stone-500 hover:text-red-400 transition-colors">
+                    className="p-2 text-navy-500 hover:text-red-400 transition-colors">
                     <X size={14} />
                   </button>
                 </div>
@@ -526,9 +526,9 @@ export function CollectionFormModal({
                 type="checkbox"
                 checked={isSecondHand}
                 onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
-                className="w-4 h-4 rounded border-stone-600 bg-stone-800 accent-orange-500"
+                className="w-4 h-4 rounded border-navy-600 bg-navy-800 accent-orange-500"
               />
-              <span className="text-sm text-stone-300">&#x1F504; Second hand</span>
+              <span className="text-sm text-navy-300">&#x1F504; Second hand</span>
             </label>
             {isSecondHand && (
               <select value={sourcePlatform} onChange={e => setSourcePlatform(e.target.value)} className={INPUT}>
@@ -538,17 +538,17 @@ export function CollectionFormModal({
             )}
           </div>
 
-          {note && <p className="text-xs text-stone-500">{note}</p>}
+          {note && <p className="text-xs text-navy-500">{note}</p>}
           {validationError && <p className="text-xs text-red-400">{validationError}</p>}
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose}
-              className="flex-1 py-2 rounded-xl border border-stone-700 text-stone-400 text-sm hover:bg-stone-800 transition-colors">
+              className="flex-1 py-2 rounded-xl border border-navy-700 text-navy-400 text-sm hover:bg-navy-800 transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={submitting || (editions.length > 1 && selectedEditionIds.length === 0)}
-              className="flex-1 flex items-center justify-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
+              className="flex-1 flex items-center justify-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-navy-950 font-semibold py-2 rounded-xl text-sm transition-colors">
               <MoveRight size={14} />
               {submitting ? 'Saving…' : submitLabel}
             </button>

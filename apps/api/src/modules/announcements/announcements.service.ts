@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Prisma, SaleType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
@@ -60,8 +62,26 @@ export class AnnouncementsService {
     private readonly uploadService: UploadService,
     private readonly mediaAssetsService: MediaAssetsService,
     private readonly userCostSnapshotService: UserCostSnapshotCronService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
     @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
   ) {}
+
+  // Global sale-tier calendar (public /sales-calendar + company embed) — sales/tiers change
+  // far less often than they're viewed, so a long TTL pays off, but (unlike the renewal
+  // calendar) admins actively edit dates/tiers, so this one needs real invalidation: every
+  // mutation that can affect what the calendar shows bumps the version via invalidateCalendarCache.
+  private readonly CALENDAR_TIERS_TTL = 24 * 60 * 60 * 1000;
+  private readonly calendarTiersBustKey = () => 'announcements:calendar-tiers-bust';
+  private readonly calendarTiersKey = (version: number, year: number, month: number, companyId?: string) =>
+    `announcements:calendar-tiers:v${version}:${year}:${month}:${companyId ?? ''}`;
+
+  private async getCalendarTiersCacheVersion(): Promise<number> {
+    return (await this.cache.get<number>(this.calendarTiersBustKey())) ?? 0;
+  }
+
+  private async invalidateCalendarCache(): Promise<void> {
+    await this.cache.set(this.calendarTiersBustKey(), Date.now(), this.CALENDAR_TIERS_TTL);
+  }
 
   private async deleteCloudinaryImages(ids: (string | null | undefined)[]): Promise<void> {
     await deleteCloudinaryImages(ids, this.uploadService);
@@ -307,6 +327,94 @@ export class AnnouncementsService {
     const prediction = await this.userCostSnapshotService.predict(userId, sale.companyId, sale._count.editions);
     if (!prediction) return { available: false };
     return { available: true, ...prediction };
+  }
+
+  /** Every SaleTier (any region) falling within (year, month) — global, not tied to any user.
+   *  Powers the public /sales-calendar page. `companyId` narrows to one company's tiers, for
+   *  the per-company calendar embed on the company sale-announcements list. */
+  async getCalendarTiers(year: number, month: number, companyId?: string) {
+    const version = await this.getCalendarTiersCacheVersion();
+    const cacheKey = this.calendarTiersKey(version, year, month, companyId);
+    const cached = await this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const monthStart = new Date(Date.UTC(year, month - 1, 1));
+    const monthEnd = new Date(Date.UTC(year, month, 1));
+
+    const tiers = await this.prisma.saleTier.findMany({
+      where: {
+        date: { gte: monthStart, lt: monthEnd },
+        ...(companyId ? { announcement: { companyId } } : {}),
+      },
+      orderBy: { date: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        date: true,
+        regionId: true,
+        region: { select: { id: true, name: true } },
+        announcement: {
+          select: {
+            id: true,
+            title: true,
+            imageUrl: true,
+            saleType: true,
+            company: { select: { id: true, name: true, slug: true, brandColors: true } },
+          },
+        },
+      },
+    });
+
+    if (tiers.length === 0) {
+      await this.cache.set(cacheKey, [], this.CALENDAR_TIERS_TTL);
+      return [];
+    }
+
+    // Stage numbering ("2 of 3") must reflect the WHOLE sale's tier sequence for that region, not
+    // just whichever of its tiers happen to fall in the queried month — a sale's First Access could
+    // be in June and General Sale in July. One extra query, scoped to only the sales present this
+    // month, fetches every sibling tier (any month) to compute each tier's position via its `order`.
+    const saleIds = Array.from(new Set(tiers.map((t) => t.announcement.id)));
+    const siblingTiers = await this.prisma.saleTier.findMany({
+      where: { saleId: { in: saleIds } },
+      orderBy: { order: 'asc' },
+      select: { id: true, saleId: true, regionId: true },
+    });
+    const stageGroups = new Map<string, string[]>();
+    for (const t of siblingTiers) {
+      const key = `${t.saleId}::${t.regionId ?? ''}`;
+      const group = stageGroups.get(key);
+      if (group) group.push(t.id);
+      else stageGroups.set(key, [t.id]);
+    }
+
+    // Whether a sale has more than one distinct region-group (default set counts as one group
+    // too) — used by the frontend to decide whether a stage badge needs the region name to stay
+    // meaningful ("US 2/3") or can stay bare ("2/3") because there's nothing else to confuse it
+    // with. Derived from the same stageGroups keys, no extra query.
+    const saleRegionCount = new Map<string, number>();
+    for (const key of stageGroups.keys()) {
+      const saleId = key.slice(0, key.indexOf('::'));
+      saleRegionCount.set(saleId, (saleRegionCount.get(saleId) ?? 0) + 1);
+    }
+
+    const result = tiers.map((t) => {
+      const key = `${t.announcement.id}::${t.regionId ?? ''}`;
+      const group = stageGroups.get(key) ?? [t.id];
+      return {
+        tierId: t.id,
+        name: t.name,
+        date: t.date,
+        region: t.region,
+        announcement: t.announcement,
+        stageIndex: group.indexOf(t.id) + 1,
+        stageTotal: group.length,
+        multiRegion: (saleRegionCount.get(t.announcement.id) ?? 1) > 1,
+      };
+    });
+
+    await this.cache.set(cacheKey, result, this.CALENDAR_TIERS_TTL);
+    return result;
   }
 
   /** Countdown target for a company's page: the soonest upcoming tier across every live/
@@ -602,6 +710,7 @@ export class AnnouncementsService {
     }
 
     await this.indexSale(announcement.id);
+    await this.invalidateCalendarCache();
     return this.findById(announcement.id);
   }
 
@@ -704,6 +813,7 @@ export class AnnouncementsService {
     }
 
     await this.indexSale(id);
+    await this.invalidateCalendarCache();
     return this.findById(id);
   }
 
@@ -713,6 +823,7 @@ export class AnnouncementsService {
     const extraImages: string[] = Array.isArray(existing.extraImagesJson) ? existing.extraImagesJson as string[] : [];
     await this.typesense.deleteDocument('sales', id);
     await this.prisma.saleAnnouncement.delete({ where: { id } });
+    await this.invalidateCalendarCache();
     void this.deleteCloudinaryImages([existing.imageUrl, ...extraImages]);
   }
 
@@ -825,6 +936,7 @@ export class AnnouncementsService {
     }
 
     await this.indexSale(copy.id);
+    await this.invalidateCalendarCache();
     return this.findById(copy.id);
   }
 
@@ -908,12 +1020,14 @@ export class AnnouncementsService {
       ? await this.prisma.saleAnnouncementRegion.update({ where: { id }, data: payload })
       : await this.prisma.saleAnnouncementRegion.create({ data: payload });
     this.scheduledReminders?.recalculateForAnnouncement(saleId).catch(() => {});
+    await this.invalidateCalendarCache();
     return region;
   }
 
   async adminDeleteRegion(saleId: string, regionId: string) {
     // SaleTier rows scoped to this region cascade-delete via the FK (onDelete: Cascade).
     await this.prisma.saleAnnouncementRegion.deleteMany({ where: { id: regionId, saleId } });
+    await this.invalidateCalendarCache();
   }
 
   // ── Tier endpoints ───────────────────────────────────────────────────────────
@@ -933,12 +1047,14 @@ export class AnnouncementsService {
       ? await this.prisma.saleTier.update({ where: { id: dto.id }, data: payload })
       : await this.prisma.saleTier.create({ data: payload });
     this.scheduledReminders?.recalculateForAnnouncement(saleId).catch(() => {});
+    await this.invalidateCalendarCache();
     return tier;
   }
 
   async adminDeleteTier(saleId: string, tierId: string) {
     await this.prisma.saleTier.deleteMany({ where: { id: tierId, saleId } });
     this.scheduledReminders?.recalculateForAnnouncement(saleId).catch(() => {});
+    await this.invalidateCalendarCache();
   }
 
   private async indexSale(saleId: string): Promise<void> {

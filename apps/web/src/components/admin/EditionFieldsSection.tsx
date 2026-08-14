@@ -95,19 +95,19 @@ export function FeatureTags({ features, onChange }: { features: string[]; onChan
   return (
     <div>
       <div className="flex gap-2 mb-2">
-        <input className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 text-sm focus:outline-none focus:border-brand-400"
+        <input className="flex-1 bg-navy-800 border border-navy-700 rounded-lg px-3 py-1.5 text-navy-100 text-sm focus:outline-none focus:border-brand-400"
           value={input} placeholder="Add feature…"
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }} />
         <button type="button" onClick={add}
-          className="px-3 py-1.5 rounded-lg text-sm bg-stone-700 text-stone-200 hover:bg-stone-600">Add</button>
+          className="px-3 py-1.5 rounded-lg text-sm bg-navy-700 text-navy-200 hover:bg-navy-600">Add</button>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {features.map((f, i) => (
-          <span key={i} className="flex items-center gap-1.5 bg-stone-700 text-stone-200 text-xs px-2.5 py-1 rounded-full">
+          <span key={i} className="flex items-center gap-1.5 bg-navy-700 text-navy-200 text-xs px-2.5 py-1 rounded-full">
             {f}
             <button type="button" onClick={() => onChange(features.filter((_, j) => j !== i))}
-              className="text-stone-500 hover:text-red-400">×</button>
+              className="text-navy-500 hover:text-red-400">×</button>
           </span>
         ))}
       </div>
@@ -164,24 +164,24 @@ export function AiParseSection({ onResult, disabled }: {
   const canParse = inputMode === 'screenshot' ? !!imageBase64 : text.trim().length > 10
 
   return (
-    <div className="border border-brand-500/30 rounded-xl overflow-hidden bg-stone-900/60">
+    <div className="border border-brand-500/30 rounded-xl overflow-hidden bg-navy-900/60">
       <button type="button" onClick={() => setOpen(!open)} disabled={disabled}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-stone-800/60 transition-colors disabled:opacity-40">
+        className="w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-navy-800/60 transition-colors disabled:opacity-40">
         <span className="flex items-center gap-2 text-brand-400 font-medium">
           <span>✨</span> Parse with AI
         </span>
-        <span className="text-stone-500 text-xs">{open ? '▲' : '▼'}</span>
+        <span className="text-navy-500 text-xs">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div className="border-t border-stone-700/60 p-4 space-y-3">
+        <div className="border-t border-navy-700/60 p-4 space-y-3">
           {/* Mode toggle */}
-          <div className="flex rounded-lg overflow-hidden border border-stone-700 self-start w-fit">
+          <div className="flex rounded-lg overflow-hidden border border-navy-700 self-start w-fit">
             <button type="button" onClick={() => setInputMode('text')}
-              className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'text' ? 'bg-brand-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+              className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'text' ? 'bg-brand-600 text-white' : 'bg-navy-800 text-navy-400 hover:text-navy-200'}`}>
               Paste text
             </button>
             <button type="button" onClick={() => setInputMode('screenshot')}
-              className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-brand-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+              className={`px-3 py-1 text-xs font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-brand-600 text-white' : 'bg-navy-800 text-navy-400 hover:text-navy-200'}`}>
               Screenshot
             </button>
           </div>
@@ -193,9 +193,9 @@ export function AiParseSection({ onResult, disabled }: {
           ) : (
             <div className="space-y-2">
               <input type="file" accept="image/*" onChange={handleFileChange}
-                className="block w-full text-sm text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-stone-700 file:text-stone-200 hover:file:bg-stone-600 cursor-pointer" />
+                className="block w-full text-sm text-navy-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-navy-700 file:text-navy-200 hover:file:bg-navy-600 cursor-pointer" />
               {imagePreview && (
-                <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg border border-stone-700 object-contain" />
+                <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg border border-navy-700 object-contain" />
               )}
             </div>
           )}
@@ -204,7 +204,7 @@ export function AiParseSection({ onResult, disabled }: {
             className={`${BTN_SM} bg-brand-500/20 text-brand-300 border border-brand-500/30 hover:bg-brand-500/30 disabled:opacity-40 px-4 py-2 text-sm`}>
             {parsing ? '✨ Parsing…' : '✨ Auto-fill fields'}
           </button>
-          <p className="text-stone-500 text-xs">Fields will be pre-filled — review and adjust before saving.</p>
+          <p className="text-navy-500 text-xs">Fields will be pre-filled — review and adjust before saving.</p>
         </div>
       )}
     </div>
@@ -452,7 +452,7 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
     const editing = editingRow[tagId]
 
     return (
-      <div key={tagId} className="py-2 border-b border-stone-800 last:border-0">
+      <div key={tagId} className="py-2 border-b border-navy-800 last:border-0">
         <div className="flex items-start gap-2 mb-1.5">
           {editing ? (
             <div className="flex-1 flex items-center gap-1.5">
@@ -464,7 +464,7 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                   if (e.key === 'Enter') { e.preventDefault(); handleUpdateTag(tagId) }
                   if (e.key === 'Escape') cancelEdit(tagId)
                 }}
-                className="flex-1 text-xs bg-stone-900 border border-brand-600 rounded px-2 py-0.5 text-stone-100 focus:outline-none"
+                className="flex-1 text-xs bg-navy-900 border border-brand-600 rounded px-2 py-0.5 text-navy-100 focus:outline-none"
               />
               <button type="button" disabled={editing.saving}
                 onClick={() => handleUpdateTag(tagId)}
@@ -472,16 +472,16 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                 {editing.saving ? '…' : '✓'}
               </button>
               <button type="button" onClick={() => cancelEdit(tagId)}
-                className="shrink-0 text-xs text-stone-500 hover:text-stone-300">✕</button>
+                className="shrink-0 text-xs text-navy-500 hover:text-navy-300">✕</button>
             </div>
           ) : (
             <div className="flex-1 flex items-start justify-between gap-2 min-w-0">
-              <span className="text-xs text-stone-300 leading-snug break-words">{rawValue}</span>
+              <span className="text-xs text-navy-300 leading-snug break-words">{rawValue}</span>
               <div className="flex items-center gap-1 shrink-0">
                 <button type="button" onClick={() => startEdit(tag)}
-                  className="text-[10px] text-stone-500 hover:text-brand-400 px-1" title="Edit">✎</button>
+                  className="text-[10px] text-navy-500 hover:text-brand-400 px-1" title="Edit">✎</button>
                 <button type="button" onClick={() => handleDeleteTag(tagId)}
-                  className="text-[10px] text-stone-600 hover:text-red-400 px-1" title="Remove">🗑</button>
+                  className="text-[10px] text-navy-600 hover:text-red-400 px-1" title="Remove">🗑</button>
               </div>
             </div>
           )}
@@ -497,18 +497,18 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
                 className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${
                   isManual
                     ? 'bg-brand-900/40 border-brand-700 text-brand-200'
-                    : 'bg-stone-700 border-stone-600 text-stone-200'
+                    : 'bg-navy-700 border-navy-600 text-navy-200'
                 }`}>
                 {cat.label}
                 <button type="button" onClick={() => handleRemoveCategory(tagId, cat.slug)}
-                  className="text-stone-500 hover:text-red-400 ml-0.5 leading-none">×</button>
+                  className="text-navy-500 hover:text-red-400 ml-0.5 leading-none">×</button>
               </span>
             ))}
             {available.length > 0 && (
               <div className="flex items-center gap-1">
                 <select value=""
                   onChange={e => { if (e.target.value) handleAddCategoryToTag(tagId, rowCategories.map(c => c.slug), e.target.value) }}
-                  className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-300 focus:outline-none focus:border-brand-500 max-w-[180px]">
+                  className="text-xs bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5 text-navy-300 focus:outline-none focus:border-brand-500 max-w-[180px]">
                   <option value="">+ category…</option>
                   {Object.entries(
                     available.reduce<Record<string, typeof available>>((acc, c) => {
@@ -542,30 +542,30 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
   const availableForNew = allCategories.filter(c => !newCategories.includes(c.slug))
 
   return (
-    <div className="mt-3 p-3 bg-stone-800/50 border border-stone-700/50 rounded-lg">
+    <div className="mt-3 p-3 bg-navy-800/50 border border-navy-700/50 rounded-lg">
       <div className="mb-2">
-        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Features with categories</span>
+        <span className="text-xs font-semibold text-navy-400 uppercase tracking-wide">Features with categories</span>
       </div>
-      <p className="text-[10px] text-stone-500 mb-2">
-        <span className="inline-block w-2.5 h-2.5 rounded-full bg-stone-700 border border-stone-600 mr-1" />auto-detected
+      <p className="text-[10px] text-navy-500 mb-2">
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-navy-700 border border-navy-600 mr-1" />auto-detected
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-brand-900/40 border border-brand-700 mr-1 ml-3" />manually set
       </p>
 
       {tags.length > 0 ? (
         <div className="mb-2">{tags.map(tag => renderRow(tag))}</div>
       ) : (
-        <p className="text-xs text-stone-500 italic mb-2">No features yet.</p>
+        <p className="text-xs text-navy-500 italic mb-2">No features yet.</p>
       )}
 
       {/* Add new feature manually */}
-      <div className="mt-3 pt-3 border-t border-stone-700/50">
-        <p className="text-[10px] font-semibold uppercase text-stone-500 mb-2">Add feature manually</p>
+      <div className="mt-3 pt-3 border-t border-navy-700/50">
+        <p className="text-[10px] font-semibold uppercase text-navy-500 mb-2">Add feature manually</p>
         <div className="flex flex-wrap gap-2 items-end">
           <input
             value={newRaw}
             onChange={e => setNewRaw(e.target.value)}
             placeholder="Raw value (e.g. Foil cover, Sprayed edges…)"
-            className="flex-1 min-w-[180px] text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-200 focus:outline-none focus:border-brand-500 placeholder:text-stone-600"
+            className="flex-1 min-w-[180px] text-xs bg-navy-800 border border-navy-700 rounded px-2 py-1.5 text-navy-200 focus:outline-none focus:border-brand-500 placeholder:text-navy-600"
           />
           <div className="flex flex-col gap-1 min-w-[160px]">
             {newCategories.length > 0 && (
@@ -585,7 +585,7 @@ export const FeatureCategoryPreview = forwardRef<FeaturePreviewHandle, {
             {availableForNew.length > 0 && (
               <select value={newCategoryPick}
                 onChange={e => { const v = e.target.value; if (v) { setNewCategories(prev => [...prev, v]); setNewCategoryPick('') } }}
-                className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-stone-300 focus:outline-none focus:border-brand-500">
+                className="text-xs bg-navy-800 border border-navy-700 rounded px-2 py-1.5 text-navy-300 focus:outline-none focus:border-brand-500">
                 <option value="">+ add category…</option>
                 {Object.entries(
                   availableForNew.reduce<Record<string, typeof availableForNew>>((acc, c) => {
@@ -724,7 +724,7 @@ export function EditionFieldsSection({
             <select
               value={CURRENCIES.includes(currency) ? currency : ''}
               onChange={e => onCurrencyChange(e.target.value)}
-              className="w-24 bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm"
+              className="w-24 bg-navy-800 border border-navy-700 rounded-lg px-2 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm"
             >
               {!CURRENCIES.includes(currency) && <option value="">{currency || 'USD'}</option>}
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -764,13 +764,13 @@ export function EditionFieldsSection({
         {(isLinkedToAnnouncement || willLinkToAnnouncement) && (
           <div>
             <label className={LBL}>Resolved Sale Date</label>
-            <div className="bg-stone-800/60 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-300">
+            <div className="bg-navy-800/60 border border-navy-700 rounded-lg px-3 py-2 text-sm text-navy-300">
               {isLinkedToAnnouncement
                 ? (resolvedSaleDate
                   ? `${resolvedSaleDate.label} — ${new Date(resolvedSaleDate.date).toLocaleString()}`
                   : 'No sale date resolved yet')
                 : 'All sale dates from this announcement will apply to this edition.'}
-              <p className="text-xs text-stone-500 mt-1">
+              <p className="text-xs text-navy-500 mt-1">
                 {isLinkedToAnnouncement
                   ? "Earliest of the linked sale announcement's tiers and any manual sale dates below."
                   : "This edition will link live to the sale announcement right after creation — no dates to copy, and it always follows the announcement's tiers as they change."}
@@ -780,7 +780,7 @@ export function EditionFieldsSection({
         )}
         <div>
           <label className={LBL}>
-            Sale dates <span className="text-stone-600 font-normal normal-case tracking-normal">
+            Sale dates <span className="text-navy-600 font-normal normal-case tracking-normal">
               (date only, no time — kept sorted automatically{(isLinkedToAnnouncement || willLinkToAnnouncement) ? '; contributes to the resolved date above, e.g. a subscription renewal day entered before this edition had a sale link' : ''})
             </span>
           </label>
@@ -830,7 +830,7 @@ export function EditionFieldsSection({
 
       {/* Images */}
       <div>
-        <label className={LBL}>Images <span className="text-stone-600 font-normal normal-case tracking-normal">(first image will be the main cover)</span></label>
+        <label className={LBL}>Images <span className="text-navy-600 font-normal normal-case tracking-normal">(first image will be the main cover)</span></label>
         <MultiImageUpload
           images={allImages}
           folder="luxgrimoire/editions"
@@ -846,7 +846,7 @@ export function EditionFieldsSection({
           <label className={LBL}>Artists / contributors</label>
           <button type="button"
             onClick={() => onArtistsChange?.([...artists, { name: '', role: '' }])}
-            className={`${BTN_SM} bg-stone-700 text-stone-400 hover:bg-stone-600`}>+ Add artist</button>
+            className={`${BTN_SM} bg-navy-700 text-navy-400 hover:bg-navy-600`}>+ Add artist</button>
         </div>
         {artists.length > 0 && (
           <div className="space-y-2">
@@ -854,7 +854,7 @@ export function EditionFieldsSection({
               <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <div className="flex-1 min-w-0">
                   {art.id ? (
-                    <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
+                    <div className="flex items-center gap-1.5 bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-sm text-navy-200">
                       {!art.existing && art.id && <span className="text-brand-400 text-[9px] font-semibold uppercase">new</span>}
                       <span className="flex-1">{art.name}</span>
                       <button
@@ -862,10 +862,10 @@ export function EditionFieldsSection({
                           if (art.existing && art.id) onRemoveExistingArtist?.(art.id)
                           onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false, contributionId: undefined } : x))
                         }}
-                        className="text-stone-500 hover:text-red-400 text-xs">×</button>
+                        className="text-navy-500 hover:text-red-400 text-xs">×</button>
                     </div>
                   ) : art.name ? (
-                    <div className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
+                    <div className="flex items-center gap-1.5 bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-sm text-navy-200">
                       {!art.existing && <span className="text-brand-400 text-[9px] font-semibold uppercase">new</span>}
                       <span className="flex-1">{art.name}</span>
                       <button
@@ -873,7 +873,7 @@ export function EditionFieldsSection({
                           if (art.existing && art.id) onRemoveExistingArtist?.(art.id)
                           onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false, contributionId: undefined } : x))
                         }}
-                        className="text-stone-500 hover:text-red-400 text-xs">×</button>
+                        className="text-navy-500 hover:text-red-400 text-xs">×</button>
                     </div>
                   ) : (
                     <PersonPicker endpoint="artists" placeholder="Search or create artist…"
@@ -885,7 +885,7 @@ export function EditionFieldsSection({
                 <input value={art.role}
                   onChange={e => onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
                   placeholder="Role (e.g. cover art, map…)"
-                  className="flex-1 w-full bg-stone-800 border border-stone-700 rounded-lg px-2 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm" />
+                  className="flex-1 w-full bg-navy-800 border border-navy-700 rounded-lg px-2 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm" />
                 <button type="button" onClick={() => handleRemoveArtist(i)}
                   className="text-red-400 hover:text-red-300 text-xs shrink-0">✕</button>
                 </div>

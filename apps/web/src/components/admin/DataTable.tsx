@@ -20,20 +20,20 @@ interface DataTableProps<T> {
 function DataTable<T>({ columns, data, onEdit, onDelete, onDuplicate, duplicateLabel = 'Duplicate' }: DataTableProps<T>) {
   const hasActions = !!(onEdit || onDelete || onDuplicate)
   return (
-    <div className="overflow-x-auto rounded-2xl border border-stone-800">
-      <table className="w-full text-sm text-stone-200">
+    <div className="overflow-x-auto rounded-2xl border border-navy-800">
+      <table className="w-full text-sm text-navy-200">
         <thead>
-          <tr className="border-b border-stone-800 bg-stone-900/80">
+          <tr className="border-b border-navy-800 bg-navy-900/80">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400"
+                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-navy-400"
               >
                 {col.label}
               </th>
             ))}
             {hasActions && (
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-400">
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-navy-400">
                 Actions
               </th>
             )}
@@ -43,10 +43,10 @@ function DataTable<T>({ columns, data, onEdit, onDelete, onDuplicate, duplicateL
           {data.map((row, index) => (
             <tr
               key={(row as Record<string, unknown>).id as string ?? index}
-              className="border-b border-stone-800/50 bg-stone-900 hover:bg-stone-800/50 transition-colors"
+              className="border-b border-navy-800/50 bg-navy-900 hover:bg-navy-800/50 transition-colors"
             >
               {columns.map((col) => (
-                <td key={col.key} className="px-4 py-3 text-stone-300">
+                <td key={col.key} className="px-4 py-3 text-navy-300">
                   {col.render
                     ? col.render(row)
                     : String((row as Record<string, unknown>)[col.key] ?? '')}
@@ -66,7 +66,7 @@ function DataTable<T>({ columns, data, onEdit, onDelete, onDuplicate, duplicateL
                     {onDuplicate && (
                       <button
                         onClick={() => onDuplicate(row)}
-                        className="bg-stone-700/50 text-stone-300 border border-stone-600 px-3 py-1 rounded text-xs font-medium hover:bg-stone-600/50 transition-colors"
+                        className="bg-navy-700/50 text-navy-300 border border-navy-600 px-3 py-1 rounded text-xs font-medium hover:bg-navy-600/50 transition-colors"
                       >
                         {duplicateLabel}
                       </button>
@@ -88,7 +88,7 @@ function DataTable<T>({ columns, data, onEdit, onDelete, onDuplicate, duplicateL
             <tr>
               <td
                 colSpan={columns.length + (hasActions ? 1 : 0)}
-                className="px-4 py-8 text-center text-stone-500"
+                className="px-4 py-8 text-center text-navy-500"
               >
                 No records found
               </td>

@@ -74,17 +74,17 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
       <div className="flex items-center gap-2 mb-2">
         <button type="button" disabled={uploading}
           onClick={() => inputRef.current?.click()}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 transition-colors">
+          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-700 text-navy-300 hover:bg-navy-600 disabled:opacity-50 transition-colors">
           {uploading ? progress : images.length === 0 ? '+ Upload images' : '+ Add more images'}
         </button>
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors"
+          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-700 text-navy-300 hover:bg-navy-600 transition-colors"
         >
           Pick from library
         </button>
-        <span className="text-stone-600 text-xs">
+        <span className="text-navy-600 text-xs">
           {images.length === 0
             ? 'first image will be the main cover'
             : 'drag to reorder · first = main cover'}
@@ -108,20 +108,20 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
                 onDragEnd={() => { setDragIndex(null); setDragOver(null) }}
                 className={`relative group cursor-grab active:cursor-grabbing transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`}
               >
-                <div className={`w-16 h-20 rounded-lg overflow-hidden bg-stone-800 border transition-all ${
+                <div className={`w-16 h-20 rounded-lg overflow-hidden bg-navy-800 border transition-all ${
                   isOver
                     ? 'border-brand-400 ring-2 ring-brand-400/40 scale-105'
                     : isMain
                     ? 'border-brand-500 ring-1 ring-brand-500/40'
-                    : 'border-stone-700'
+                    : 'border-navy-700'
                 }`}>
                   {thumb
                     ? <img src={thumb} alt="" className="w-full h-full object-cover pointer-events-none" />
-                    : <span className="text-stone-600 text-[9px] flex items-center justify-center h-full">img</span>
+                    : <span className="text-navy-600 text-[9px] flex items-center justify-center h-full">img</span>
                   }
                 </div>
                 {isMain && (
-                  <span className="absolute bottom-1 left-0 right-0 text-center text-[9px] font-semibold uppercase text-brand-400 bg-stone-950/70 px-0.5 py-px leading-tight">
+                  <span className="absolute bottom-1 left-0 right-0 text-center text-[9px] font-semibold uppercase text-brand-400 bg-navy-950/70 px-0.5 py-px leading-tight">
                     main
                   </span>
                 )}
@@ -139,7 +139,7 @@ export default function MultiImageUpload({ images, folder, onChange }: Props) {
                       onChange(reordered)
                     }}
                     title="Set as main cover"
-                    className="absolute bottom-1 left-0 right-0 text-center text-[9px] text-stone-500 hover:text-brand-400 bg-stone-950/70 px-0.5 py-px leading-tight opacity-0 group-hover:opacity-100 transition-opacity">
+                    className="absolute bottom-1 left-0 right-0 text-center text-[9px] text-navy-500 hover:text-brand-400 bg-navy-950/70 px-0.5 py-px leading-tight opacity-0 group-hover:opacity-100 transition-opacity">
                     set main
                   </button>
                 )}
