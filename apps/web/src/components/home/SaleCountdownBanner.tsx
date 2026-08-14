@@ -47,15 +47,20 @@ interface NextSale {
 }
 
 export function SaleCountdownBanner({ nextSale }: { nextSale: NextSale }) {
-  const [tick, setTick] = useState(0)
+  // Computed client-side only: getCountdown() reads Date.now(), so calling it directly during
+  // render produces a different value at SSR time vs. client hydration a moment later — a text
+  // mismatch React then has to discard and re-render. Starting from null and filling it in via
+  // effect means the server never renders a Date-derived number at all.
+  const [countdown, setCountdown] = useState<CountdownParts | null>(null)
 
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1_000)
+    const update = () => setCountdown(getCountdown(new Date(nextSale.date)))
+    update()
+    const id = setInterval(update, 1_000)
     return () => clearInterval(id)
-  }, [])
+  }, [nextSale.date])
 
-  const countdown = getCountdown(new Date(nextSale.date))
-  if (countdown.expired || !countdown.within14Days) return null
+  if (!countdown || countdown.expired || !countdown.within14Days) return null
 
   const title = nextSale.title.length > 45 ? `${nextSale.title.slice(0, 45)}…` : nextSale.title
 
