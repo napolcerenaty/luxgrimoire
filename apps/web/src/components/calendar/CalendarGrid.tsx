@@ -227,13 +227,24 @@ export default function CalendarGrid({
                   const ps = withHighlightGlow(pillStyle(r.brandColors, r.hue, 'renewal', lightMode), r.highlight)
                   return (
                     <span key={r.id} className="hidden sm:block">
-                      <button
-                        type="button"
-                        className="w-full flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90 text-left"
+                      {/* role="button" div, not a real <button> — the sale pill below nests
+                          SalePillBell's own <button>, and <button> can't contain <button> per
+                          HTML parsing rules (browsers force-close the outer one, breaking React's
+                          hydration). Kept consistent here even though renewals have no nested button. */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="w-full flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90 text-left cursor-pointer"
                         style={ps}
                         onMouseEnter={e => openTooltip(e, r.label, r.hue, 'renewal', r.companyName ?? undefined)}
                         onMouseLeave={scheduleClose}
                         onClick={e => {
+                          e.stopPropagation()
+                          setSelectedDay(cell.day)
+                        }}
+                        onKeyDown={e => {
+                          if (e.key !== 'Enter' && e.key !== ' ') return
+                          e.preventDefault()
                           e.stopPropagation()
                           setSelectedDay(cell.day)
                         }}
@@ -245,7 +256,7 @@ export default function CalendarGrid({
                         {r.companyName && totalEvents <= 3 && (
                           <span className="truncate opacity-60 pl-3">{r.companyName}</span>
                         )}
-                      </button>
+                      </div>
                     </span>
                   )
                 })}
@@ -254,9 +265,13 @@ export default function CalendarGrid({
                   const ps = withHighlightGlow(pillStyle(s.brandColors, s.hue, 'sale', lightMode), s.highlight)
                   return (
                     <span key={s.id} className="hidden sm:block">
-                      <button
-                        type="button"
-                        className="w-full flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90 text-left"
+                      {/* role="button" div, not a real <button> — SalePillBell below renders its
+                          own <button>, and <button> can't legally contain <button>; browsers
+                          force-close the outer one on parse, which is exactly what broke this. */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="w-full flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90 text-left cursor-pointer"
                         style={ps}
                         onMouseEnter={e => openTooltip(
                           e,
@@ -267,6 +282,12 @@ export default function CalendarGrid({
                         )}
                         onMouseLeave={scheduleClose}
                         onClick={e => {
+                          e.stopPropagation()
+                          setSelectedDay(cell.day)
+                        }}
+                        onKeyDown={e => {
+                          if (e.key !== 'Enter' && e.key !== ' ') return
+                          e.preventDefault()
                           e.stopPropagation()
                           setSelectedDay(cell.day)
                         }}
@@ -290,7 +311,7 @@ export default function CalendarGrid({
                         {s.companyName && totalEvents <= 3 && (
                           <span className="truncate opacity-60 pl-3">{s.companyName}</span>
                         )}
-                      </button>
+                      </div>
                     </span>
                   )
                 })}
