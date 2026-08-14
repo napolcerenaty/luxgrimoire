@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Bell, RefreshCw, X } from 'lucide-react'
 import { hexLuminance, pillStyle, withHighlightGlow, highlightDotShadow } from '@/lib/calendarPills'
@@ -94,6 +94,16 @@ export default function CalendarGrid({
 
   // Mobile tap-to-detail: selected day for agenda view
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const agendaRef = useRef<HTMLDivElement>(null)
+
+  // Clicking a pill/cell/day opens the agenda below the grid, but on a tall grid (or a small
+  // viewport) it can render below the fold with no visible sign anything happened. Scroll it
+  // into view whenever a day is selected — 'nearest' is a no-op if it's already visible.
+  useEffect(() => {
+    if (selectedDay !== null) {
+      agendaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [selectedDay])
 
   // Mon–Sun header (2024-01-01 = Monday)
   const dayNames = useMemo(
@@ -334,7 +344,7 @@ export default function CalendarGrid({
 
       {/* Day agenda — shown below the grid on every screen size. On desktop, clicking a pill
           opens this instead of navigating straight away, so the interest bell stays reachable. */}
-      <div className="overflow-hidden min-w-0">
+      <div ref={agendaRef} className="overflow-hidden min-w-0">
         {selectedDay ? (
           <div className="bg-navy-900 border border-navy-800 rounded-xl p-4 overflow-hidden">
             <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
