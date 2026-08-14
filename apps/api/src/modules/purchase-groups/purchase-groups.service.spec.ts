@@ -182,6 +182,59 @@ describe('PurchaseGroupsService', () => {
 
       expect(prisma.userBookEntry.update).not.toHaveBeenCalled();
     });
+
+    it('refreshes the cost snapshot using the existing group\'s saleAnnouncementId (not user-supplied — it can\'t be changed via update)', async () => {
+      mockExistingGroup({ saleAnnouncementId: 'sale-1' });
+
+      await service.updateGroup('user-1', 'pg-1', { title: 'Renamed' });
+
+      expect(userCostSnapshotService.refreshSnapshotForSale).toHaveBeenCalledWith('user-1', 'sale-1');
+    });
+
+    it('passes null through to the cost snapshot refresh when the group has no sale link', async () => {
+      mockExistingGroup({ saleAnnouncementId: null });
+
+      await service.updateGroup('user-1', 'pg-1', { title: 'Renamed' });
+
+      expect(userCostSnapshotService.refreshSnapshotForSale).toHaveBeenCalledWith('user-1', null);
+    });
+  });
+
+  // ── cost snapshot refresh-on-write (createGroup / deleteGroup) ────────────────
+  // Guards the fire-and-forget hook into UserCostSnapshotCronService added alongside the
+  // "expected shipping/fees" feature — a group linked to a sale announcement must trigger a
+  // refresh whenever it's created/deleted, and must NOT when it has no sale link.
+  // updateGroup's equivalent tests live inside the `updateGroup` describe block above, since
+  // they need that block's local `mockExistingGroup` helper.
+
+  describe('cost snapshot refresh', () => {
+    it('createGroup: refreshes the snapshot for the sale + user when saleAnnouncementId is set', async () => {
+      const dto = makeCreateDto({ saleAnnouncementId: 'sale-1' });
+      (prisma.saleAnnouncement.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'sale-1' });
+
+      await service.createGroup('user-1', dto);
+
+      expect(userCostSnapshotService.refreshSnapshotForSale).toHaveBeenCalledWith('user-1', 'sale-1');
+    });
+
+    it('createGroup: refreshes with null (no-op inside the snapshot service) when there is no sale link', async () => {
+      const dto = makeCreateDto();
+
+      await service.createGroup('user-1', dto);
+
+      expect(userCostSnapshotService.refreshSnapshotForSale).toHaveBeenCalledWith('user-1', null);
+    });
+
+    it('deleteGroup: refreshes the snapshot for the deleted group\'s sale after deletion', async () => {
+      (prisma.userPurchaseGroup.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: 'pg-1', userId: 'user-1', saleAnnouncementId: 'sale-1',
+      });
+
+      await service.deleteGroup('user-1', 'pg-1');
+
+      expect(prisma.userPurchaseGroup.delete).toHaveBeenCalledWith({ where: { id: 'pg-1' } });
+      expect(userCostSnapshotService.refreshSnapshotForSale).toHaveBeenCalledWith('user-1', 'sale-1');
+    });
   });
 
   // ── computeGroupCosts (via getGroup) ─────────────────────────────────────────
