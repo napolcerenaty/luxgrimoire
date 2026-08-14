@@ -89,11 +89,13 @@ function SalesCalendarContent() {
   const { data: tiers = [], isLoading: tiersLoading } = useQuery<CalendarTier[]>({
     queryKey: ['sales-calendar-tiers', year, month],
     queryFn: () => apiFetch(`/announcements/calendar?year=${year}&month=${month}`),
+    staleTime: 5 * 60_000,
   })
 
   const { data: renewals = [], isLoading: renewalsLoading } = useQuery<CalendarRenewal[]>({
     queryKey: ['sales-calendar-renewals', year, month],
     queryFn: () => apiFetch(`/subscriptions/calendar?year=${year}&month=${month}`),
+    staleTime: 5 * 60_000,
   })
 
   // Personal overlay — only fetched when logged in (never triggers authFetch's 401-redirect for

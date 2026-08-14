@@ -107,6 +107,7 @@ export function CompanySaleAnnouncementsList({ companyId, companyName }: Props) 
     queryKey: ['company-sales-calendar', companyId, year, month],
     queryFn: () => apiFetch(`/announcements/calendar?year=${year}&month=${month}&companyId=${companyId}`),
     enabled: view === 'calendar',
+    staleTime: 5 * 60_000,
   })
 
   const { data: myInterests = [] } = useQuery<SaleInterest[]>({
