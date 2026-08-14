@@ -199,6 +199,18 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
 
       {view === 'calendar' ? (
         <div>
+          <div className="flex justify-end mb-3">
+            <button
+              onClick={handleDownload}
+              disabled={tiers.length === 0}
+              title={`Includes only what's shown for ${monthLabel} — switch months and download again to get other periods.`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-300 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            >
+              <Download size={13} />
+              <span className="hidden sm:inline">Download {monthLabel}</span>
+              <span className="sm:hidden">Download</span>
+            </button>
+          </div>
           <CalendarGrid
             year={year}
             month0={month0}
@@ -213,19 +225,6 @@ export function CompanySaleAnnouncementsList({ companyId }: Props) {
           {tiers.length === 0 && (
             <p className="text-center text-navy-500 py-8 text-sm">No sales for {monthLabel}.</p>
           )}
-          <div className="mt-6 flex flex-col items-center gap-1.5">
-            <button
-              onClick={handleDownload}
-              disabled={tiers.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-200 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Download size={15} />
-              Download {monthLabel} events
-            </button>
-            <p className="text-xs text-navy-600 text-center max-w-sm">
-              Includes only what&apos;s shown above for {monthLabel} — switch months and download again to get other periods.
-            </p>
-          </div>
         </div>
       ) : isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

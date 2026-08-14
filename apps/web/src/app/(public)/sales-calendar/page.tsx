@@ -203,9 +203,21 @@ export default function SalesCalendarPage() {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-3xl">
-      <div className="flex items-center gap-3 mb-2">
-        <CalendarDays size={24} className="text-brand-400" />
-        <h1 className="text-3xl font-serif font-bold text-navy-100">Sales &amp; Renewals Calendar</h1>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="flex items-center gap-3">
+          <CalendarDays size={24} className="text-brand-400" />
+          <h1 className="text-3xl font-serif font-bold text-navy-100">Sales &amp; Renewals Calendar</h1>
+        </div>
+        <button
+          onClick={handleDownload}
+          disabled={!hasAnyEvents}
+          title={`Includes only what's shown for ${monthLabel} — switch months and download again to get other periods.`}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-300 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+        >
+          <Download size={13} />
+          <span className="hidden sm:inline">Download {monthLabel}</span>
+          <span className="sm:hidden">Download</span>
+        </button>
       </div>
       <p className="text-sm text-navy-500 mb-6">
         Every book box sale and subscription renewal, across every company, in one place.
@@ -257,21 +269,6 @@ export default function SalesCalendarPage() {
           {companyId ? ` from ${companies.find(c => c.id === companyId)?.name ?? 'this company'}` : ''}.
         </p>
       )}
-
-      {/* Download */}
-      <div className="mt-6 flex flex-col items-center gap-1.5">
-        <button
-          onClick={handleDownload}
-          disabled={!hasAnyEvents}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-200 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Download size={15} />
-          Download {monthLabel} events
-        </button>
-        <p className="text-xs text-navy-600 text-center max-w-sm">
-          Includes only what&apos;s shown above for {monthLabel} — switch months and download again to get other periods.
-        </p>
-      </div>
     </div>
   )
 }
