@@ -240,49 +240,51 @@ function SalesCalendarContent() {
 
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
-        <div className="flex items-center gap-3">
-          <CalendarDays size={24} className="text-brand-400 shrink-0" />
-          <h1 className="text-3xl font-serif font-bold text-navy-100">Sales &amp; Renewals Calendar</h1>
-        </div>
-        <button
-          onClick={handleDownload}
-          disabled={!hasAnyEvents}
-          title={`Includes only what's shown for ${monthLabel} — switch months and download again to get other periods.`}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-300 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 self-start sm:self-auto"
-        >
-          <Download size={13} />
-          <span className="hidden sm:inline">Download {monthLabel}</span>
-          <span className="sm:hidden">Download</span>
-        </button>
+      <div className="flex items-center gap-3 mb-2">
+        <CalendarDays size={24} className="text-brand-400 shrink-0" />
+        <h1 className="text-3xl font-serif font-bold text-navy-100">Sales &amp; Renewals Calendar</h1>
       </div>
       <p className="text-sm text-navy-500 mb-6">
         Every book box sale and subscription renewal, across every company, in one place.
       </p>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div className="flex items-center gap-1 bg-navy-800 border border-navy-700 rounded-xl px-1 py-1">
-          {(['all', 'renewals', 'sales'] as TypeFilter[]).map(t => (
-            <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
-                typeFilter === t ? 'bg-navy-700 text-brand-400' : 'text-navy-400 hover:text-navy-200'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+      {/* Filters + download — same line on desktop (filters left, button right), stacked on
+          mobile (filters, then a full-width button below) since the download already respects
+          whatever's filtered here. */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 bg-navy-800 border border-navy-700 rounded-xl px-1 py-1">
+            {(['all', 'renewals', 'sales'] as TypeFilter[]).map(t => (
+              <button
+                key={t}
+                onClick={() => setTypeFilter(t)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
+                  typeFilter === t ? 'bg-navy-700 text-brand-400' : 'text-navy-400 hover:text-navy-200'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          <MultiSelect
+            label="companies"
+            options={companies.map(c => c.name)}
+            selected={companyNames}
+            onChange={setCompanyNames}
+            className="min-w-[180px]"
+          />
         </div>
 
-        <MultiSelect
-          label="companies"
-          options={companies.map(c => c.name)}
-          selected={companyNames}
-          onChange={setCompanyNames}
-          className="min-w-[180px]"
-        />
+        <button
+          onClick={handleDownload}
+          disabled={!hasAnyEvents}
+          title={`Includes only what's shown for ${monthLabel} — switch months and download again to get other periods.`}
+          className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl bg-navy-800 hover:bg-navy-700 border border-navy-700 text-navy-300 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+        >
+          <Download size={13} />
+          Download {monthLabel}
+        </button>
       </div>
 
       <CalendarGrid
