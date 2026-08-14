@@ -338,7 +338,6 @@ export class AnnouncementsService {
             id: true,
             title: true,
             imageUrl: true,
-            saleType: true,
             company: { select: { id: true, name: true, slug: true, brandColors: true } },
           },
         },

@@ -25,7 +25,6 @@ interface CalendarTier {
     id: string
     title: string
     imageUrl: string | null
-    saleType: string
     company: { id: string; name: string; slug: string; brandColors: string[] | null } | null
   }
   stageIndex: number
@@ -94,13 +93,13 @@ function SalesCalendarContent() {
     staleTime: 5 * 60_000,
   })
 
-  const { data: tiers = EMPTY_ARRAY, isLoading: tiersLoading } = useQuery<CalendarTier[]>({
+  const { data: tiers = EMPTY_ARRAY, isLoading: tiersLoading, isError: tiersError } = useQuery<CalendarTier[]>({
     queryKey: ['sales-calendar-tiers', year, month],
     queryFn: () => apiFetch(`/announcements/calendar?year=${year}&month=${month}`),
     staleTime: 5 * 60_000,
   })
 
-  const { data: renewals = EMPTY_ARRAY, isLoading: renewalsLoading } = useQuery<CalendarRenewal[]>({
+  const { data: renewals = EMPTY_ARRAY, isLoading: renewalsLoading, isError: renewalsError } = useQuery<CalendarRenewal[]>({
     queryKey: ['sales-calendar-renewals', year, month],
     queryFn: () => apiFetch(`/subscriptions/calendar?year=${year}&month=${month}`),
     staleTime: 5 * 60_000,
@@ -202,6 +201,7 @@ function SalesCalendarContent() {
 
   const hasAnyEvents = filteredTiers.length > 0 || filteredRenewals.length > 0
   const isLoading = tiersLoading || renewalsLoading
+  const isError = tiersError || renewalsError
 
   function handleDownload() {
     const origin = window.location.origin
@@ -300,17 +300,24 @@ function SalesCalendarContent() {
         salesForDay={salesForDay}
         interestEnabled
         onSaleInterestToggle={handleSaleInterestToggle}
+        showHighlightLegend={!!user}
       />
 
-      {!isLoading && !hasAnyEvents && (
-        <p className="text-center text-navy-500 py-8 text-sm">
-          No {typeFilter === 'all' ? 'events' : typeFilter} found for {monthLabel}
-          {companyNames.length === 1
-            ? ` from ${companyNames[0]}`
-            : companyNames.length > 1
-              ? ` from ${companyNames.length} selected companies`
-              : ''}.
+      {isError ? (
+        <p className="text-center text-red-400 py-8 text-sm">
+          Couldn&apos;t load the calendar — please try again in a moment.
         </p>
+      ) : (
+        !isLoading && !hasAnyEvents && (
+          <p className="text-center text-navy-500 py-8 text-sm">
+            No {typeFilter === 'all' ? 'events' : typeFilter} found for {monthLabel}
+            {companyNames.length === 1
+              ? ` from ${companyNames[0]}`
+              : companyNames.length > 1
+                ? ` from ${companyNames.length} selected companies`
+                : ''}.
+          </p>
+        )
       )}
     </div>
   )

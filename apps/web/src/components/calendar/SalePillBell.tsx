@@ -52,6 +52,8 @@ export function SalePillBell({ announcementId, tierId, tierName, tierRegionId, s
       type="button"
       onClick={handleClick}
       title={activeForThisTier ? 'Interested — click to remove' : 'Mark as interested'}
+      aria-label={activeForThisTier ? 'Interested — click to remove' : 'Mark as interested'}
+      aria-pressed={activeForThisTier}
       className={`shrink-0 hover:scale-110 transition-transform ${hitAreaClassName ?? ''}`}
     >
       <Bell size={size} className={activeForThisTier ? 'fill-current' : ''} />
