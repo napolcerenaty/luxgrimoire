@@ -430,7 +430,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
 
   return (
     <form onSubmit={submit} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
-      <h3 className="text-lg font-serif text-stone-100 font-semibold">Join Subscription</h3>
+      <h3 className="text-lg font-serif text-navy-100 font-semibold">Join Subscription</h3>
 
       {/* Billing period (shown whenever any prepay options exist) */}
       {activePrepayOptions && activePrepayOptions.length > 0 && (() => {
@@ -439,9 +439,9 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         const displayedOptions = forCurrency.length > 0 ? forCurrency : activePrepayOptions.filter(o => o.currency === currency)
         return (
         <div>
-          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">Billing period</label>
+          <label className="block text-xs text-navy-400 uppercase tracking-wider mb-2">Billing period</label>
           <div className="space-y-2">
-            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/5">
+            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-navy-700 hover:border-navy-500 px-3 py-2.5 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/5">
               <input
                 type="radio"
                 name="billingPeriod"
@@ -450,14 +450,14 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 className="text-brand-600 focus:ring-brand-600/30"
               />
               <div className="flex-1 flex items-center justify-between">
-                <span className="text-sm text-stone-200">Monthly</span>
+                <span className="text-sm text-navy-200">Monthly</span>
                 {subscriptionPrice && (
-                  <span className="text-xs text-stone-400">{parseFloat(subscriptionPrice).toFixed(2)} {currency} / month</span>
+                  <span className="text-xs text-navy-400">{parseFloat(subscriptionPrice).toFixed(2)} {currency} / month</span>
                 )}
               </div>
             </label>
             {displayedOptions.map(opt => (
-              <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/5">
+              <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-navy-700 hover:border-navy-500 px-3 py-2.5 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/5">
                 <input
                   type="radio"
                   name="billingPeriod"
@@ -466,18 +466,18 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                   className="text-brand-600 focus:ring-brand-600/30"
                 />
                 <div className="flex-1 flex items-center justify-between">
-                  <span className="text-sm text-stone-200">{opt.label ?? `${opt.months} months`}</span>
-                  <span className="text-xs text-stone-400">{parseFloat(String(opt.price)).toFixed(2)} {opt.currency}</span>
+                  <span className="text-sm text-navy-200">{opt.label ?? `${opt.months} months`}</span>
+                  <span className="text-xs text-navy-400">{parseFloat(String(opt.price)).toFixed(2)} {opt.currency}</span>
                 </div>
               </label>
             ))}
           </div>
-          <p className="text-xs text-stone-500 mt-1.5">Sets your scheduled renewal billing mode.</p>
+          <p className="text-xs text-navy-500 mt-1.5">Sets your scheduled renewal billing mode.</p>
         </div>
         )
       })()}
       <div>
-        <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
+        <label className="block text-xs text-navy-400 uppercase tracking-wider mb-1.5">
           {subscriptionRenewalDay != null ? 'First order date' : 'First order date (sets renewal day)'}
         </label>
         <input
@@ -485,24 +485,24 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           value={firstOrderDate}
           max={todayStr}
           onChange={e => handleFirstOrderDateChange(e.target.value)}
-          className={`bg-stone-800 border rounded-lg px-3 py-2 text-stone-100 text-sm ${firstOrderDateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
+          className={`bg-navy-800 border rounded-lg px-3 py-2 text-navy-100 text-sm ${firstOrderDateInvalid ? 'border-red-500/70' : 'border-navy-600'}`}
         />
         {subscriptionRenewalDay == null && (
-          <p className="text-xs text-stone-500 mt-1">
+          <p className="text-xs text-navy-500 mt-1">
             Renewal day will be set to{' '}
-            <span className="text-stone-300">{new Date(firstOrderDate + 'T00:00:00').getDate()}</span>
+            <span className="text-navy-300">{new Date(firstOrderDate + 'T00:00:00').getDate()}</span>
           </p>
         )}
-        <p className="text-xs text-stone-500 mt-1">This is the date you joined the subscription, not necessarily your first payment — e.g. for Fairyloot use the "Subscription activated" date.</p>
+        <p className="text-xs text-navy-500 mt-1">This is the date you joined the subscription, not necessarily your first payment — e.g. for Fairyloot use the "Subscription activated" date.</p>
       </div>
 
       {/* Currency */}
       <div>
-        <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Cost currency</label>
+        <label className="block text-xs text-navy-400 uppercase tracking-wider mb-1.5">Cost currency</label>
         <select
           value={costCurrency}
           onChange={e => setCostCurrency(e.target.value)}
-          className="bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+          className="bg-navy-800 border border-navy-600 rounded-lg px-3 py-2 text-navy-100 text-sm"
         >
           {CURRENCY_LIST.map(c => (
             <option key={c} value={c}>{c}</option>
@@ -516,7 +516,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       {/* Base price + shipping side by side */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs text-navy-400 uppercase tracking-wider mb-1.5">
             Base price ({cur})
           </label>
           <input
@@ -524,27 +524,27 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
             value={basePrice}
             onChange={e => setBasePrice(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+            className="w-full bg-navy-800 border border-navy-600 rounded-lg px-3 py-2 text-navy-100 text-sm"
           />
           {priceChanges.length > 0 && (
-            <p className={`text-[10px] mt-1 ${hasOfficialPriceForCurrency ? 'text-green-400' : 'text-stone-500'}`}>
+            <p className={`text-[10px] mt-1 ${hasOfficialPriceForCurrency ? 'text-green-400' : 'text-navy-500'}`}>
               {hasOfficialPriceForCurrency ? '🟢 Official price' : '⚪ Custom price'}
             </p>
           )}
         </div>
         <div>
-          <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">Shipping ({cur})</label>
+          <label className="block text-xs text-navy-400 uppercase tracking-wider mb-1.5">Shipping ({cur})</label>
           <input
             type="number" min={0} step="0.01"
             value={shippingCost}
             onChange={e => setShippingCost(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+            className="w-full bg-navy-800 border border-navy-600 rounded-lg px-3 py-2 text-navy-100 text-sm"
           />
         </div>
       </div>
 
-      {firstOrderDate !== todayStr && <div className="text-xs text-stone-500 leading-relaxed space-y-1.5">
+      {firstOrderDate !== todayStr && <div className="text-xs text-navy-500 leading-relaxed space-y-1.5">
         {(() => {
           // When prepay is selected, use prepay option history (validFrom/validUntil) for price changes
           if (selectedPrepayOptionId !== null) {
@@ -562,8 +562,8 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               // No historical price changes — just show current price
               return (
                 <p>
-                  Prepay option: <span className="text-stone-300">{opt.label ?? `${opt.months}-month prepay`}</span> at{' '}
-                  <span className="text-stone-300">{parseFloat(String(opt.price)).toFixed(2)} {opt.currency}</span> per batch ({opt.months} months).
+                  Prepay option: <span className="text-navy-300">{opt.label ?? `${opt.months}-month prepay`}</span> at{' '}
+                  <span className="text-navy-300">{parseFloat(String(opt.price)).toFixed(2)} {opt.currency}</span> per batch ({opt.months} months).
                   Each billing period covers {opt.months} received boxes.
                 </p>
               )
@@ -624,26 +624,26 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
             return (
               <>
                 <p>
-                  Prepay option: <span className="text-stone-300">{opt.label ?? `${opt.months}-month prepay`}</span>.
+                  Prepay option: <span className="text-navy-300">{opt.label ?? `${opt.months}-month prepay`}</span>.
                   Each billing period covers {opt.months} received boxes. We know of the following price changes:{' '}
                   {sortedOptions.map((o, i) => (
                     <span key={o.id}>
                       {i > 0 && ', '}
-                      <span className="text-stone-300">{parseFloat(String(o.price)).toFixed(2)} {o.currency}</span>
-                      {o.validFrom && <>{' '}from <span className="text-stone-300">{MONTH_NAMES[parseInt(o.validFrom.slice(5, 7)) - 1]} {o.validFrom.slice(0, 4)}</span></>}
+                      <span className="text-navy-300">{parseFloat(String(o.price)).toFixed(2)} {o.currency}</span>
+                      {o.validFrom && <>{' '}from <span className="text-navy-300">{MONTH_NAMES[parseInt(o.validFrom.slice(5, 7)) - 1]} {o.validFrom.slice(0, 4)}</span></>}
                     </span>
                   ))}
                 </p>
                 {periods.length > 0 && (
                   <div>
                     <p className="mb-1">Based on your start date, the backfill breaks down as:</p>
-                    <div className="space-y-0.5 pl-2 border-l border-stone-700">
+                    <div className="space-y-0.5 pl-2 border-l border-navy-700">
                       {periods.map((p, i) => (
                         <p key={i}>
-                          <span className="text-stone-400">{p.label}:</span>{' '}
-                          <span className="text-stone-300">{parseFloat(p.price).toFixed(2)} {p.cur}</span>
-                          {' '}<span className="text-stone-500">per batch ({prepayN} months)</span>
-                          {p.batches !== null && <span className="text-stone-500"> — {p.batches} batch{p.batches !== 1 ? 'es' : ''}</span>}
+                          <span className="text-navy-400">{p.label}:</span>{' '}
+                          <span className="text-navy-300">{parseFloat(p.price).toFixed(2)} {p.cur}</span>
+                          {' '}<span className="text-navy-500">per batch ({prepayN} months)</span>
+                          {p.batches !== null && <span className="text-navy-500"> — {p.batches} batch{p.batches !== 1 ? 'es' : ''}</span>}
                         </p>
                       ))}
                     </div>
@@ -659,9 +659,9 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           if (currencyPriceChanges.length === 0 && priceChanges.length > 0) {
             return (
               <p>
-                No official price records found for <span className="text-stone-300">{costCurrency}</span>. Past boxes will use your entered price of <span className="text-stone-300">{parseFloat(basePrice || '0').toFixed(2)} {costCurrency}</span> each.
+                No official price records found for <span className="text-navy-300">{costCurrency}</span>. Past boxes will use your entered price of <span className="text-navy-300">{parseFloat(basePrice || '0').toFixed(2)} {costCurrency}</span> each.
                 {costCurrency !== currency && (
-                  <> Official records are available in <span className="text-stone-300">{currency}</span>.</>
+                  <> Official records are available in <span className="text-navy-300">{currency}</span>.</>
                 )}
               </p>
             )
@@ -734,9 +734,9 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                   {visiblePriceChanges.map((pc, i) => (
                     <span key={i}>
                       {i > 0 && ', '}
-                      <span className="text-stone-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
+                      <span className="text-navy-300">{parseFloat(pc.newBasePrice).toFixed(2)} {pc.currency}</span>
                       {' '}from{' '}
-                      <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
+                      <span className="text-navy-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
                       {isGrandfatheredFutureChange(pc) && (
                         <span className="text-brand-500/80"> (grandfathered — won&apos;t affect you)</span>
                       )}
@@ -747,12 +747,12 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               {periods.length > 0 && (
                 <div>
                   <p className="mb-1">Based on your start date, the backfill breaks down as:</p>
-                  <div className="space-y-0.5 pl-2 border-l border-stone-700">
+                  <div className="space-y-0.5 pl-2 border-l border-navy-700">
                     {periods.map((p, i) => (
                       <p key={i}>
-                        <span className="text-stone-400">{p.label}:</span>{' '}
-                        <span className="text-stone-300">{parseFloat(p.price).toFixed(2)} {p.cur}</span>
-                        {p.months !== null && <span className="text-stone-500"> ({p.months} month{p.months !== 1 ? 's' : ''})</span>}
+                        <span className="text-navy-400">{p.label}:</span>{' '}
+                        <span className="text-navy-300">{parseFloat(p.price).toFixed(2)} {p.cur}</span>
+                        {p.months !== null && <span className="text-navy-500"> ({p.months} month{p.months !== 1 ? 's' : ''})</span>}
                       </p>
                     ))}
                   </div>
@@ -772,7 +772,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         })()}
       </div>}
       <div>
-        <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">
+        <label className="block text-xs text-navy-400 uppercase tracking-wider mb-2">
           Taxes &amp; fees
         </label>
 
@@ -787,11 +787,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                     id={`ft-${t.id}`}
                     checked={!!linked}
                     onChange={() => toggleTemplate(t)}
-                    className="mt-1 rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
+                    className="mt-1 rounded border-navy-600 bg-navy-800 text-brand-600 focus:ring-brand-600/30"
                   />
-                  <label htmlFor={`ft-${t.id}`} className="flex-1 text-sm text-stone-200 cursor-pointer pt-0.5">
+                  <label htmlFor={`ft-${t.id}`} className="flex-1 text-sm text-navy-200 cursor-pointer pt-0.5">
                     {t.name}
-                    <span className="ml-1.5 text-xs text-stone-500">{t.category}</span>
+                    <span className="ml-1.5 text-xs text-navy-500">{t.category}</span>
                   </label>
                   {linked ? (
                     <div className="flex items-center gap-1">
@@ -802,19 +802,19 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                         value={linked.customAmount}
                         onChange={e => updateAmount(t.id, e.target.value)}
                         placeholder="0.00"
-                        className="w-20 bg-stone-800 border border-stone-600 rounded-lg px-2 py-1 text-stone-100 text-sm"
+                        className="w-20 bg-navy-800 border border-navy-600 rounded-lg px-2 py-1 text-navy-100 text-sm"
                       />
                       <input
                         type="text"
                         value={linked.customCurrency}
                         onChange={e => updateCurrency(t.id, e.target.value)}
                         maxLength={3}
-                        className="w-14 bg-stone-800 border border-stone-600 rounded-lg px-2 py-1 text-stone-100 text-sm uppercase text-center"
+                        className="w-14 bg-navy-800 border border-navy-600 rounded-lg px-2 py-1 text-navy-100 text-sm uppercase text-center"
                       />
                     </div>
                   ) : (
                     t.defaultAmount != null && (
-                      <span className="text-xs text-stone-600 text-right">
+                      <span className="text-xs text-navy-600 text-right">
                         {parseFloat(String(t.defaultAmount)).toFixed(2)} {t.defaultCurrency}
                       </span>
                     )
@@ -825,25 +825,25 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
             {linkedFees.length > 0 && !allSameCurrency && (
               <></>
             )}
-            <p className="text-xs text-stone-600 mt-1">
+            <p className="text-xs text-navy-600 mt-1">
               Selected fees are tracked independently and auto-applied on backfill.
             </p>
           </div>
         ) : templatesLoaded ? (
-          <p className="text-xs text-stone-500 mb-2">
+          <p className="text-xs text-navy-500 mb-2">
             No fee templates defined.{' '}
             <a href="/profile" className="text-brand-400 underline" target="_blank" rel="noreferrer">Add them in settings.</a>
           </p>
         ) : (
-          <p className="text-xs text-stone-600 mb-2">Loading…</p>
+          <p className="text-xs text-navy-600 mb-2">Loading…</p>
         )}
 
         {userDefaultTaxRate != null && userDefaultTaxRate > 0 && (
-          <p className="text-xs text-stone-600 mt-1">Your default rate: {userDefaultTaxRate}%</p>
+          <p className="text-xs text-navy-600 mt-1">Your default rate: {userDefaultTaxRate}%</p>
         )}
       </div>
 
-      <p className="text-xs text-stone-500">
+      <p className="text-xs text-navy-500">
         These values can be updated per-book from your collection view.
       </p>
 
@@ -852,15 +852,15 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           type="checkbox"
           checked={isForwarding}
           onChange={e => setIsForwarding(e.target.checked)}
-          className="rounded border-stone-600 bg-stone-800 text-brand-500"
+          className="rounded border-navy-600 bg-navy-800 text-brand-500"
         />
-        <span className="text-sm text-stone-300">📦 Forwarding packages</span>
+        <span className="text-sm text-navy-300">📦 Forwarding packages</span>
       </label>
 
       {/* Already cancelled */}
-      <div className="border-t border-stone-700/50 pt-4 space-y-3">
+      <div className="border-t border-navy-700/50 pt-4 space-y-3">
         {isDiscontinued ? (
-          <p className="text-sm text-stone-400">
+          <p className="text-sm text-navy-400">
             <span className="text-brand-500 font-medium">Discontinued subscription</span> — this entry will be saved as cancelled.
           </p>
         ) : (
@@ -869,16 +869,16 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               type="checkbox"
               checked={alreadyCancelled}
               onChange={e => setAlreadyCancelled(e.target.checked)}
-              className="rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
+              className="rounded border-navy-600 bg-navy-800 text-brand-600 focus:ring-brand-600/30"
             />
-            <span className="text-sm text-stone-300">Already cancelled (historical entry)</span>
+            <span className="text-sm text-navy-300">Already cancelled (historical entry)</span>
           </label>
         )}
 
         {alreadyCancelled && (
           <div className="space-y-3 pl-6">
             <div>
-              <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs text-navy-400 uppercase tracking-wider mb-1.5">
                 Cancellation date <span className="text-red-400">*</span>
               </label>
               <input
@@ -888,11 +888,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 min={firstOrderDate}
                 required
                 onChange={e => handleCancellationDateChange(e.target.value)}
-                className={`bg-stone-800 border rounded-lg px-3 py-2 text-stone-100 text-sm ${cancellationDateInvalid ? 'border-red-500/70' : 'border-stone-600'}`}
+                className={`bg-navy-800 border rounded-lg px-3 py-2 text-navy-100 text-sm ${cancellationDateInvalid ? 'border-red-500/70' : 'border-navy-600'}`}
               />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs text-navy-400 uppercase tracking-wider mb-1.5">
                 Cancellation reason
               </label>
               <input
@@ -900,10 +900,10 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                 value={cancellationReason}
                 onChange={e => setCancellationReason(e.target.value)}
                 placeholder="e.g. Too expensive, moved abroad…"
-                className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 text-stone-100 text-sm"
+                className="w-full bg-navy-800 border border-navy-600 rounded-lg px-3 py-2 text-navy-100 text-sm"
               />
             </div>
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-navy-500">
               Backfill will only show months up to the cancellation date. The entry will be saved as cancelled.
             </p>
           </div>
@@ -913,7 +913,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       {dateError && <p className="text-xs text-red-400">{dateError}</p>}
       <button
         type="submit"
-        className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
+        className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-navy-100 text-sm font-medium transition-colors"
       >
         Continue
       </button>
@@ -992,10 +992,10 @@ function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, joinWindowYear,
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-serif text-stone-100 font-semibold">Which was your first box?</h3>
-        <button onClick={onBack} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
+        <h3 className="text-lg font-serif text-navy-100 font-semibold">Which was your first box?</h3>
+        <button onClick={onBack} className="text-xs text-navy-500 hover:text-navy-300">← Back</button>
       </div>
-      <p className="text-sm text-stone-400">
+      <p className="text-sm text-navy-400">
         Pick the box you actually received first. The one marked Suggested is our best guess from your join date and renewal timing — but that can shift over time, so confirm it&apos;s right.
       </p>
       <div className="space-y-2">
@@ -1006,7 +1006,7 @@ function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, joinWindowYear,
           return (
             <label
               key={key}
-              className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${choice === key ? 'border-brand-500 bg-brand-500/5' : 'border-stone-700 hover:border-stone-500'}`}
+              className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${choice === key ? 'border-brand-500 bg-brand-500/5' : 'border-navy-700 hover:border-navy-500'}`}
             >
               <input
                 type="radio"
@@ -1017,15 +1017,15 @@ function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, joinWindowYear,
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-stone-100">{label}</span>
+                  <span className="text-sm font-medium text-navy-100">{label}</span>
                   {key === candidates.suggested && (
                     <span className="text-[10px] uppercase tracking-wide text-brand-500/80">Suggested</span>
                   )}
                 </div>
                 {titles.length > 0 ? (
-                  <p className="text-xs text-stone-400 mt-0.5">{titles.join(', ')}</p>
+                  <p className="text-xs text-navy-400 mt-0.5">{titles.join(', ')}</p>
                 ) : (
-                  <p className="text-xs text-stone-600 mt-0.5 italic">Not yet announced</p>
+                  <p className="text-xs text-navy-600 mt-0.5 italic">Not yet announced</p>
                 )}
               </div>
             </label>
@@ -1034,7 +1034,7 @@ function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, joinWindowYear,
       </div>
       <button
         onClick={submit}
-        className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
+        className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-navy-100 text-sm font-medium transition-colors"
       >
         Continue
       </button>
@@ -1199,35 +1199,35 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
   if (wantBackfill === null) {
     return (
       <div className="space-y-5">
-        <h3 className="text-lg font-serif text-stone-100 font-semibold">Past boxes</h3>
-        <p className="text-sm text-stone-300">
-          You started in <strong className="text-stone-100">
+        <h3 className="text-lg font-serif text-navy-100 font-semibold">Past boxes</h3>
+        <p className="text-sm text-navy-300">
+          You started in <strong className="text-navy-100">
             {entry.startDate ? formatYearMonth(
               parseInt(entry.startDate.slice(0, 4)),
               parseInt(entry.startDate.slice(5, 7)),
             ) : '?'}
           </strong>.
-          There are <strong className="text-stone-100">{eligibleMonths.length}</strong> past box
+          There are <strong className="text-navy-100">{eligibleMonths.length}</strong> past box
           {eligibleMonths.length !== 1 ? 'es' : ''} to add to your collection.
         </p>
         <div className="flex flex-col gap-3">
           <div className="flex gap-3">
             <button
               onClick={() => setWantBackfill(true)}
-              className="flex-1 py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
+              className="flex-1 py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-navy-100 text-sm font-medium transition-colors"
             >
               Yes, add past boxes
             </button>
             <button
               onClick={onSkip}
-              className="flex-1 py-2.5 px-4 rounded-lg border border-stone-600 text-stone-300 hover:text-stone-100 text-sm font-medium transition-colors"
+              className="flex-1 py-2.5 px-4 rounded-lg border border-navy-600 text-navy-300 hover:text-navy-100 text-sm font-medium transition-colors"
           >
             Skip
           </button>
           </div>
           <button
             onClick={onBack}
-            className="text-xs text-stone-500 hover:text-stone-300 transition-colors text-left"
+            className="text-xs text-navy-500 hover:text-navy-300 transition-colors text-left"
           >
             ← Back
           </button>
@@ -1239,7 +1239,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-serif text-stone-100 font-semibold">Select past boxes</h3>
+        <h3 className="text-lg font-serif text-navy-100 font-semibold">Select past boxes</h3>
         {!isBundleMode && (
           <button
             onClick={toggleAll}
@@ -1250,18 +1250,18 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
         )}
       </div>
 
-      <p className="text-xs text-stone-500">
+      <p className="text-xs text-navy-500">
         {isBundleMode
           ? 'Checked = received (added to collection). Unchecked = skipped. Bundles cannot be partially selected.'
           : 'Checked = received (added to collection). Unchecked = skipped.'}
       </p>
 
       <div className="flex items-center gap-3">
-        <label className="text-xs text-stone-400 whitespace-nowrap">Add as:</label>
+        <label className="text-xs text-navy-400 whitespace-nowrap">Add as:</label>
         <select
           value={backfillOwnershipStatus}
           onChange={e => setBackfillOwnershipStatus(e.target.value as 'OWNED' | 'PREORDER')}
-          className="bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+          className="bg-navy-800 border border-navy-600 rounded px-2 py-1 text-navy-100 text-xs"
         >
           <option value="OWNED">Owned</option>
           <option value="PREORDER">Pre-order</option>
@@ -1279,23 +1279,23 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
             const mainBook = uniqueBooks.find(b => b.isMainBook && b.edition) ?? uniqueBooks[0]
             const authorName = mainBook?.edition?.book?.authors?.[0]?.author?.name
             return (
-              <label key={bundle.key} className="flex items-start gap-3 border border-stone-700 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-stone-800/40">
+              <label key={bundle.key} className="flex items-start gap-3 border border-navy-700 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-navy-800/40">
                 <input
                   type="checkbox"
                   checked={allBundleSelected}
                   onChange={() => toggleBundle(bundleMonthIds)}
-                  className="mt-0.5 rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
+                  className="mt-0.5 rounded border-navy-600 bg-navy-800 text-brand-600 focus:ring-brand-600/30"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-stone-100">{bundle.label}</p>
-                  {authorName && <p className="text-xs text-stone-400 mt-0.5">{authorName}</p>}
+                  <p className="text-sm font-semibold text-navy-100">{bundle.label}</p>
+                  {authorName && <p className="text-xs text-navy-400 mt-0.5">{authorName}</p>}
                   {uniqueBooks.length > 1 && (
                     <div className="mt-1 space-y-0.5">
                       {uniqueBooks.map((b, i) => (
-                        <p key={i} className="text-xs text-stone-500">
+                        <p key={i} className="text-xs text-navy-500">
                           {editionDisplayTitle(b.edition) ?? '—'}
                           {b.edition?.book?.authors?.[0]?.author?.name
-                            ? <span className="text-stone-600"> · {b.edition.book.authors[0].author.name}</span>
+                            ? <span className="text-navy-600"> · {b.edition.book.authors[0].author.name}</span>
                             : null}
                         </p>
                       ))}
@@ -1317,8 +1317,8 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
           <>
             {/* Series groups */}
             {Array.from(seriesGroups.values()).map(({ series, months }) => (
-              <div key={series!.id} className="border border-stone-700 rounded-lg overflow-hidden">
-                <div className="bg-stone-800/60 px-3 py-1.5 text-xs font-medium text-brand-400 uppercase tracking-wider">
+              <div key={series!.id} className="border border-navy-700 rounded-lg overflow-hidden">
+                <div className="bg-navy-800/60 px-3 py-1.5 text-xs font-medium text-brand-400 uppercase tracking-wider">
                   {series!.name}
                 </div>
                 {months.map(m => (
@@ -1344,14 +1344,14 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
         <button
           onClick={submit}
           disabled={submitting || hasUnresolvedChoices}
-          className="flex-1 py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 disabled:opacity-60 text-stone-100 text-sm font-medium transition-colors"
+          className="flex-1 py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 disabled:opacity-60 text-navy-100 text-sm font-medium transition-colors"
         >
           {submitting ? 'Saving…' : 'Confirm'}
         </button>
         <button
           onClick={onSkip}
           disabled={submitting}
-          className="py-2.5 px-4 rounded-lg border border-stone-600 text-stone-300 hover:text-stone-100 text-sm transition-colors"
+          className="py-2.5 px-4 rounded-lg border border-navy-600 text-navy-300 hover:text-navy-100 text-sm transition-colors"
         >
           Skip
         </button>
@@ -1387,13 +1387,13 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
   const priceableBooks = allBooks.filter(b => !b.choiceGroupId || (choicePicks[b.choiceGroupId] ?? []).includes(b.id))
 
   return (
-    <div className="border-b border-stone-700/40 last:border-0">
-      <label className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-stone-800/40">
+    <div className="border-b border-navy-700/40 last:border-0">
+      <label className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-navy-800/40">
         <input
           type="checkbox"
           checked={checked}
           onChange={onToggle}
-          className="mt-0.5 rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
+          className="mt-0.5 rounded border-navy-600 bg-navy-800 text-brand-600 focus:ring-brand-600/30"
         />
         {mainBook?.edition?.additionalImages?.[0] && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -1409,15 +1409,15 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
           <p className="text-xs text-brand-400/80 font-medium mb-0.5">{monthLabel(month)}</p>
           {allBooks.length <= 1 ? (
             <>
-              <p className="text-sm text-stone-100 leading-snug truncate">
+              <p className="text-sm text-navy-100 leading-snug truncate">
                 {editionDisplayTitle(mainBook?.edition) ?? '—'}
               </p>
-              {authorName && <p className="text-xs text-stone-400 truncate">{authorName}</p>}
+              {authorName && <p className="text-xs text-navy-400 truncate">{authorName}</p>}
             </>
           ) : (
             <ul className="space-y-0.5">
               {allBooks.map(b => (
-                <li key={b.editionId ?? b.bookId} className="text-sm text-stone-100 leading-snug truncate">
+                <li key={b.editionId ?? b.bookId} className="text-sm text-navy-100 leading-snug truncate">
                   {editionDisplayTitle(b.edition) ?? '—'}
                 </li>
               ))}
@@ -1437,13 +1437,13 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
             const picked = choicePicks[groupId] ?? []
             const unresolved = picked.length === 0
             return (
-              <div key={groupId} className={`rounded-lg border p-2 space-y-1 ${unresolved ? 'border-brand-500/60 bg-brand-500/5' : 'border-stone-700 bg-stone-800/40'}`}>
+              <div key={groupId} className={`rounded-lg border p-2 space-y-1 ${unresolved ? 'border-brand-500/60 bg-brand-500/5' : 'border-navy-700 bg-navy-800/40'}`}>
                 <p className="text-[10px] uppercase tracking-wider text-brand-400">
                   {meta?.label || 'Which did you receive?'}
                   {unresolved && <span className="text-brand-300 normal-case"> — required</span>}
                 </p>
                 {books.map(b => (
-                  <label key={b.id} className="flex items-center gap-2 text-xs text-stone-200 cursor-pointer">
+                  <label key={b.id} className="flex items-center gap-2 text-xs text-navy-200 cursor-pointer">
                     <input
                       type={allowMultiple ? 'checkbox' : 'radio'}
                       name={`choice-${groupId}`}
@@ -1473,11 +1473,11 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
           allowGrowth mode in price-allocation.util.ts). */}
       {checked && priceableBooks.length > 1 && !hasUnresolvedChoiceGroups && (
         <div className="px-3 pb-3 space-y-1.5" onClick={e => e.stopPropagation()}>
-          <p className="text-[10px] uppercase tracking-wider text-stone-500">Per-book price (optional)</p>
+          <p className="text-[10px] uppercase tracking-wider text-navy-500">Per-book price (optional)</p>
           {priceableBooks.map(b => {
             const key = `${month.id}:${b.editionId}`
             return (
-              <label key={key} className="flex items-center gap-2 text-xs text-stone-300">
+              <label key={key} className="flex items-center gap-2 text-xs text-navy-300">
                 <span className="flex-1 truncate">{editionDisplayTitle(b.edition) ?? '—'}</span>
                 <input
                   type="text"
@@ -1485,12 +1485,12 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
                   placeholder="0.00"
                   value={bookPrices[key] ?? ''}
                   onChange={e => onPriceChange(key, e.target.value)}
-                  className="w-20 bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-right focus:outline-none focus:ring-1 focus:ring-brand-600/40"
+                  className="w-20 bg-navy-800 border border-navy-600 rounded px-1.5 py-0.5 text-navy-100 text-right focus:outline-none focus:ring-1 focus:ring-brand-600/40"
                 />
               </label>
             )
           })}
-          <p className="text-[11px] text-stone-500">
+          <p className="text-[11px] text-navy-500">
             Enter a price for any book that cost extra — the rest will get the box&apos;s price, split evenly if there&apos;s more than one.
           </p>
         </div>
@@ -1805,21 +1805,21 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
     return (
       <div className="space-y-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-serif text-stone-100 font-semibold">Billing periods</h3>
-          <button onClick={onBack} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
+          <h3 className="text-lg font-serif text-navy-100 font-semibold">Billing periods</h3>
+          <button onClick={onBack} className="text-xs text-navy-500 hover:text-navy-300">← Back</button>
         </div>
         {selectedPrepayOption && (
-          <div className="rounded-lg border border-stone-700/60 bg-stone-800/40 p-4 text-sm text-stone-300">
-            <p className="font-medium text-stone-100 mb-1">
+          <div className="rounded-lg border border-navy-700/60 bg-navy-800/40 p-4 text-sm text-navy-300">
+            <p className="font-medium text-navy-100 mb-1">
               {periodLabel}
             </p>
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-navy-500">
               {selectedMonthIds.length} received box{selectedMonthIds.length !== 1 ? 'es' : ''} →{' '}
               {autoBatches.length} billing period{autoBatches.length !== 1 ? 's' : ''}
             </p>
           </div>
         )}
-        <p className="text-sm text-stone-300">Did your billing periods ever change during your subscription?</p>
+        <p className="text-sm text-navy-300">Did your billing periods ever change during your subscription?</p>
         <div className="flex flex-col gap-2">
           <button
             onClick={() => {
@@ -1830,10 +1830,10 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                 setDidChange(false)
               }
             }}
-            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-brand-500 text-stone-200 text-sm text-left transition-colors hover:bg-brand-500/5"
+            className="w-full py-3 px-4 rounded-lg border border-navy-600 hover:border-brand-500 text-navy-200 text-sm text-left transition-colors hover:bg-brand-500/5"
           >
-            <span className="font-medium text-stone-100">No, all payments were {periodLabel}</span>
-            <span className="block text-xs text-stone-500 mt-0.5">
+            <span className="font-medium text-navy-100">No, all payments were {periodLabel}</span>
+            <span className="block text-xs text-navy-500 mt-0.5">
               {selectedPrepayOption
                 ? 'We\'ll auto-calculate billing dates from your start date and skips'
                 : 'Save subscription with your selected months'}
@@ -1841,14 +1841,14 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           </button>
           <button
             onClick={() => setDidChange(true)}
-            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-brand-500 text-stone-200 text-sm text-left transition-colors hover:bg-brand-500/5"
+            className="w-full py-3 px-4 rounded-lg border border-navy-600 hover:border-brand-500 text-navy-200 text-sm text-left transition-colors hover:bg-brand-500/5"
           >
-            <span className="font-medium text-stone-100">Yes, I used different billing periods</span>
-            <span className="block text-xs text-stone-500 mt-0.5">Enter actual payment dates; we&apos;ll look up amounts from price history</span>
+            <span className="font-medium text-navy-100">Yes, I used different billing periods</span>
+            <span className="block text-xs text-navy-500 mt-0.5">Enter actual payment dates; we&apos;ll look up amounts from price history</span>
           </button>
         </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
-        {submitting && <p className="text-sm text-stone-500">Saving…</p>}
+        {submitting && <p className="text-sm text-navy-500">Saving…</p>}
       </div>
     )
   }
@@ -1858,10 +1858,10 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
     return (
       <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-serif text-stone-100 font-semibold">Calculated billing</h3>
-          <button onClick={() => setDidChange(null)} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
+          <h3 className="text-lg font-serif text-navy-100 font-semibold">Calculated billing</h3>
+          <button onClick={() => setDidChange(null)} className="text-xs text-navy-500 hover:text-navy-300">← Back</button>
         </div>
-        <p className="text-xs text-stone-400">
+        <p className="text-xs text-navy-400">
           Based on your start date, prepay period, and skipped months, we calculated the following billing batches.
           Amounts are preset from your prepay option — adjust shipping and fees as needed.
         </p>
@@ -1870,61 +1870,61 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
             const months = b.monthIds.map(id => monthMap.get(id)).filter(Boolean) as SubscriptionMonth[]
             const override = autoBatchOverrides[i] ?? { amount: b.amount, shipping: '', fees: [] }
             return (
-              <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-2">
+              <div key={i} className="border border-navy-700 rounded-lg p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-brand-400">Billing period {i + 1}</span>
-                  <span className="text-xs text-stone-400">{b.billingDate}</span>
+                  <span className="text-xs text-navy-400">{b.billingDate}</span>
                 </div>
-                <p className="text-xs text-stone-400">{months.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
+                <p className="text-xs text-navy-400">{months.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
                   {months.length < (selectedPrepayOption?.months ?? Infinity) && (
-                    <span className="text-stone-500"> ({months.length}/{selectedPrepayOption?.months ?? '?'} boxes)</span>
+                    <span className="text-navy-500"> ({months.length}/{selectedPrepayOption?.months ?? '?'} boxes)</span>
                   )}
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] text-stone-500 w-14 shrink-0">Amount</span>
+                  <span className="text-[10px] text-navy-500 w-14 shrink-0">Amount</span>
                   <input
                     type="number" step="0.01"
                     value={override.amount}
                     onChange={e => updateAutoOverride(i, 'amount', e.target.value)}
-                    className="w-24 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                    className="w-24 bg-navy-800 border border-navy-600 rounded px-2 py-1 text-navy-100 text-xs"
                   />
-                  <span className="text-xs text-stone-500 w-14 shrink-0">Shipping</span>
+                  <span className="text-xs text-navy-500 w-14 shrink-0">Shipping</span>
                   <input
                     type="number" step="0.01"
                     value={override.shipping}
                     onChange={e => updateAutoOverride(i, 'shipping', e.target.value)}
                     placeholder="0.00"
-                    className="w-24 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                    className="w-24 bg-navy-800 border border-navy-600 rounded px-2 py-1 text-navy-100 text-xs"
                   />
-                  <span className="text-xs text-stone-500">{currency}</span>
+                  <span className="text-xs text-navy-500">{currency}</span>
                 </div>
                 {override.fees.length > 0 && (
                   <div className="space-y-1 pl-2">
                     {override.fees.map((fee, fi) => (
                       <div key={fi} className="flex items-center gap-1">
-                        <span className="text-[10px] text-stone-500 w-10 shrink-0">Fee</span>
+                        <span className="text-[10px] text-navy-500 w-10 shrink-0">Fee</span>
                         {fee.isCustom ? (
                           <input
                             type="text"
                             value={fee.name}
                             onChange={e => updateAutoOverrideFee(i, fi, 'name', e.target.value)}
                             placeholder="Fee name"
-                            className="flex-1 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                            className="flex-1 bg-navy-800 border border-navy-700 rounded px-2 py-0.5 text-navy-100 text-[10px]"
                           />
                         ) : (
-                          <span className="flex-1 text-stone-300 text-[10px] px-2">{fee.name || '—'}</span>
+                          <span className="flex-1 text-navy-300 text-[10px] px-2">{fee.name || '—'}</span>
                         )}
                         <input
                           type="number" step="0.01"
                           value={fee.amount}
                           onChange={e => updateAutoOverrideFee(i, fi, 'amount', e.target.value)}
                           placeholder="0.00"
-                          className="w-20 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                          className="w-20 bg-navy-800 border border-navy-700 rounded px-2 py-0.5 text-navy-100 text-[10px]"
                         />
                         <select
                           value={fee.currency}
                           onChange={e => updateAutoOverrideFee(i, fi, 'currency', e.target.value)}
-                          className="w-16 bg-stone-800 border border-stone-700 rounded px-1 py-0.5 text-stone-100 text-[10px]"
+                          className="w-16 bg-navy-800 border border-navy-700 rounded px-1 py-0.5 text-navy-100 text-[10px]"
                         >
                           {CURRENCY_LIST.map(c => <option key={c} value={c}>{c}</option>)}
                           {!CURRENCY_LIST.includes(fee.currency) && fee.currency && <option value={fee.currency}>{fee.currency}</option>}
@@ -1938,25 +1938,25 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                   <div className="space-y-1 pl-2">
                     {override.discounts.map((disc, di) => (
                       <div key={di} className="flex items-center gap-1">
-                        <span className="text-[10px] text-stone-500 w-10 shrink-0">Disc</span>
+                        <span className="text-[10px] text-navy-500 w-10 shrink-0">Disc</span>
                         <input
                           type="text"
                           value={disc.name}
                           onChange={e => updateAutoOverrideDiscount(i, di, 'name', e.target.value)}
                           placeholder="Discount name"
-                          className="flex-1 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                          className="flex-1 bg-navy-800 border border-navy-700 rounded px-2 py-0.5 text-navy-100 text-[10px]"
                         />
                         <input
                           type="number" step="0.01"
                           value={disc.amount}
                           onChange={e => updateAutoOverrideDiscount(i, di, 'amount', e.target.value)}
                           placeholder="0.00"
-                          className="w-20 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                          className="w-20 bg-navy-800 border border-navy-700 rounded px-2 py-0.5 text-navy-100 text-[10px]"
                         />
                         <select
                           value={disc.currency}
                           onChange={e => updateAutoOverrideDiscount(i, di, 'currency', e.target.value)}
-                          className="w-16 bg-stone-800 border border-stone-700 rounded px-1 py-0.5 text-stone-100 text-[10px]"
+                          className="w-16 bg-navy-800 border border-navy-700 rounded px-1 py-0.5 text-navy-100 text-[10px]"
                         >
                           {CURRENCY_LIST.map(c => <option key={c} value={c}>{c}</option>)}
                           {!CURRENCY_LIST.includes(disc.currency) && disc.currency && <option value={disc.currency}>{disc.currency}</option>}
@@ -1970,7 +1970,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                   {addFeePickerBatch === i ? (
                   <select
                     autoFocus
-                    className="text-[10px] bg-stone-800 border border-stone-600 rounded px-2 py-0.5 text-stone-200"
+                    className="text-[10px] bg-navy-800 border border-navy-600 rounded px-2 py-0.5 text-navy-200"
                     defaultValue=""
                     onChange={e => {
                       const val = e.target.value
@@ -1992,14 +1992,14 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
             )
           })}
           {autoBatches.length === 0 && (
-            <p className="text-xs text-stone-500">No billing batches to calculate.</p>
+            <p className="text-xs text-navy-500">No billing batches to calculate.</p>
           )}
         </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button
           onClick={submitAuto}
           disabled={submitting}
-          className="w-full py-2.5 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+          className="w-full py-2.5 rounded-lg bg-brand-700 hover:bg-brand-600 text-navy-100 text-sm font-medium transition-colors disabled:opacity-50"
         >
           {submitting ? 'Saving…' : 'Confirm'}
         </button>
@@ -2011,10 +2011,10 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
   return (
     <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-serif text-stone-100 font-semibold">Payment dates</h3>
-        <button onClick={() => setDidChange(null)} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
+        <h3 className="text-lg font-serif text-navy-100 font-semibold">Payment dates</h3>
+        <button onClick={() => setDidChange(null)} className="text-xs text-navy-500 hover:text-navy-300">← Back</button>
       </div>
-      <p className="text-xs text-stone-400">
+      <p className="text-xs text-navy-400">
         Enter your actual payment dates. We&apos;ll assign months based on the dates and look up amounts from price history if you leave them blank.
       </p>
       <div className="space-y-2">
@@ -2028,14 +2028,14 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
             ? parseFloat(prepayPriceStr).toFixed(2)
             : null
           return (
-            <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-2">
+            <div key={i} className="border border-navy-700 rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-stone-500 w-16 shrink-0">Payment {i + 1}</span>
+                <span className="text-xs text-navy-500 w-16 shrink-0">Payment {i + 1}</span>
                 <input
                   type="date"
                   value={row.date}
                   onChange={e => updateRow(i, 'date', e.target.value)}
-                  className="flex-1 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                  className="flex-1 bg-navy-800 border border-navy-600 rounded px-2 py-1 text-navy-100 text-xs"
                 />
                 <input
                   type="number"
@@ -2043,27 +2043,27 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                   value={row.amount}
                   onChange={e => updateRow(i, 'amount', e.target.value)}
                   placeholder={autoAmount ?? `e.g. ${parseFloat(prepayPriceStr).toFixed(2)}`}
-                  className="w-24 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                  className="w-24 bg-navy-800 border border-navy-600 rounded px-2 py-1 text-navy-100 text-xs"
                 />
-                <span className="text-xs text-stone-500">{currency}</span>
+                <span className="text-xs text-navy-500">{currency}</span>
                 {yesRows.length > 1 && (
                   <button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-300 text-xs px-1">✕</button>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-stone-500 w-16 shrink-0">Shipping</span>
+                <span className="text-xs text-navy-500 w-16 shrink-0">Shipping</span>
                 <input
                   type="number"
                   step="0.01"
                   value={row.shipping}
                   onChange={e => updateRow(i, 'shipping', e.target.value)}
                   placeholder="0.00"
-                  className="w-24 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-100 text-xs"
+                  className="w-24 bg-navy-800 border border-navy-600 rounded px-2 py-1 text-navy-100 text-xs"
                 />
-                <span className="text-xs text-stone-500">{currency}</span>
+                <span className="text-xs text-navy-500">{currency}</span>
               </div>
               {batchMonths.length > 0 && (
-                <p className="text-[10px] text-stone-500 pl-18">
+                <p className="text-[10px] text-navy-500 pl-18">
                   Boxes: {batchMonths.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
                 </p>
               )}
@@ -2071,17 +2071,17 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
               <div className="pl-2 space-y-1">
                 {row.fees.map((fee, fi) => (
                   <div key={fi} className="flex items-center gap-1">
-                    <span className="text-[10px] text-stone-500 w-10 shrink-0">Fee</span>
+                    <span className="text-[10px] text-navy-500 w-10 shrink-0">Fee</span>
                     {fee.isCustom ? (
                       <input
                         type="text"
                         value={fee.name}
                         onChange={e => updateRowFee(i, fi, 'name', e.target.value)}
                         placeholder="Fee name"
-                        className="flex-1 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                        className="flex-1 bg-navy-800 border border-navy-700 rounded px-2 py-0.5 text-navy-100 text-[10px]"
                       />
                     ) : (
-                      <span className="flex-1 text-stone-300 text-[10px] px-2">{fee.name || '—'}</span>
+                      <span className="flex-1 text-navy-300 text-[10px] px-2">{fee.name || '—'}</span>
                     )}
                     <input
                       type="number"
@@ -2089,12 +2089,12 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                       value={fee.amount}
                       onChange={e => updateRowFee(i, fi, 'amount', e.target.value)}
                       placeholder="0.00"
-                      className="w-20 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                      className="w-20 bg-navy-800 border border-navy-700 rounded px-2 py-0.5 text-navy-100 text-[10px]"
                     />
                     <select
                       value={fee.currency}
                       onChange={e => updateRowFee(i, fi, 'currency', e.target.value)}
-                      className="w-16 bg-stone-800 border border-stone-700 rounded px-1 py-0.5 text-stone-100 text-[10px]"
+                      className="w-16 bg-navy-800 border border-navy-700 rounded px-1 py-0.5 text-navy-100 text-[10px]"
                     >
                       {CURRENCY_LIST.map(c => <option key={c} value={c}>{c}</option>)}
                       {!CURRENCY_LIST.includes(fee.currency) && fee.currency && <option value={fee.currency}>{fee.currency}</option>}
@@ -2104,13 +2104,13 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                 ))}
                 {row.discounts.map((disc, di) => (
                   <div key={`d${di}`} className="flex items-center gap-1">
-                    <span className="text-[10px] text-stone-500 w-10 shrink-0">Disc</span>
+                    <span className="text-[10px] text-navy-500 w-10 shrink-0">Disc</span>
                     <input
                       type="text"
                       value={disc.name}
                       onChange={e => updateRowDiscount(i, di, 'name', e.target.value)}
                       placeholder="Discount name"
-                      className="flex-1 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                      className="flex-1 bg-navy-800 border border-navy-700 rounded px-2 py-0.5 text-navy-100 text-[10px]"
                     />
                     <input
                       type="number"
@@ -2118,12 +2118,12 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                       value={disc.amount}
                       onChange={e => updateRowDiscount(i, di, 'amount', e.target.value)}
                       placeholder="0.00"
-                      className="w-20 bg-stone-800 border border-stone-700 rounded px-2 py-0.5 text-stone-100 text-[10px]"
+                      className="w-20 bg-navy-800 border border-navy-700 rounded px-2 py-0.5 text-navy-100 text-[10px]"
                     />
                     <select
                       value={disc.currency}
                       onChange={e => updateRowDiscount(i, di, 'currency', e.target.value)}
-                      className="w-16 bg-stone-800 border border-stone-700 rounded px-1 py-0.5 text-stone-100 text-[10px]"
+                      className="w-16 bg-navy-800 border border-navy-700 rounded px-1 py-0.5 text-navy-100 text-[10px]"
                     >
                       {CURRENCY_LIST.map(c => <option key={c} value={c}>{c}</option>)}
                       {!CURRENCY_LIST.includes(disc.currency) && disc.currency && <option value={disc.currency}>{disc.currency}</option>}
@@ -2135,7 +2135,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                   {addFeePickerRow === i ? (
                     <select
                       autoFocus
-                      className="text-[10px] bg-stone-800 border border-stone-600 rounded px-2 py-0.5 text-stone-200"
+                      className="text-[10px] bg-navy-800 border border-navy-600 rounded px-2 py-0.5 text-navy-200"
                       defaultValue=""
                       onChange={e => {
                         const val = e.target.value
@@ -2165,7 +2165,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
       <button
         onClick={submitYes}
         disabled={submitting || yesRows.every(r => !r.date)}
-        className="w-full py-2.5 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+        className="w-full py-2.5 rounded-lg bg-brand-700 hover:bg-brand-600 text-navy-100 text-sm font-medium transition-colors disabled:opacity-50"
       >
         {submitting ? 'Saving…' : 'Save billing'}
       </button>
@@ -2296,11 +2296,11 @@ export default function JoinSubscriptionModal({
       {/* backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 bg-stone-900 border border-stone-700 rounded-xl shadow-2xl w-full max-w-md p-6">
+      <div className="relative z-10 bg-navy-900 border border-navy-700 rounded-xl shadow-2xl w-full max-w-md p-6">
         {/* Close */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-stone-500 hover:text-stone-300 transition-colors"
+          className="absolute top-4 right-4 text-navy-500 hover:text-navy-300 transition-colors"
           aria-label="Close"
         >
           ✕
@@ -2308,7 +2308,7 @@ export default function JoinSubscriptionModal({
 
         {joining && (
           <div className="flex items-center justify-center py-8">
-            <span className="text-stone-400 text-sm">Saving…</span>
+            <span className="text-navy-400 text-sm">Saving…</span>
           </div>
         )}
 
@@ -2426,9 +2426,9 @@ export default function JoinSubscriptionModal({
         {step === 'done' && (
           <div className="text-center py-8 space-y-3">
             <p className="text-2xl">🎉</p>
-            <p className="text-stone-100 font-medium">You&apos;re subscribed!</p>
+            <p className="text-navy-100 font-medium">You&apos;re subscribed!</p>
             {hasBookChoiceMonths && (
-              <p className="text-xs text-stone-400 max-w-xs mx-auto">
+              <p className="text-xs text-navy-400 max-w-xs mx-auto">
                 Some months let you pick between book options — reminders for that are off by default.{' '}
                 <Link href="/profile?tab=notifications" className="text-brand-400 hover:text-brand-300 underline">
                   Turn them on
@@ -2437,7 +2437,7 @@ export default function JoinSubscriptionModal({
             )}
             <button
               onClick={onClose}
-              className="mt-2 py-2 px-6 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
+              className="mt-2 py-2 px-6 rounded-lg bg-brand-700 hover:bg-brand-600 text-navy-100 text-sm font-medium transition-colors"
             >
               Close
             </button>

@@ -17,9 +17,9 @@ interface Props {
 }
 
 const INPUT =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-100 focus:outline-none focus:border-brand-400'
+  'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-400'
 const BUTTON =
-  'px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 disabled:hover:bg-stone-700 transition-colors'
+  'px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-700 text-navy-300 hover:bg-navy-600 disabled:opacity-50 disabled:hover:bg-navy-700 transition-colors'
 
 function assetName(asset: MediaAssetItem): string {
   return asset.publicId.split('/').pop() || asset.publicId
@@ -101,28 +101,28 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
       <div
         role="dialog"
         aria-modal="true"
-        className="relative mx-4 flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-stone-700 bg-stone-900 shadow-2xl"
+        className="relative mx-4 flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-navy-700 bg-navy-900 shadow-2xl"
       >
-        <div className="flex items-center justify-between border-b border-stone-800 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-navy-800 px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-stone-100">Media library</h2>
-            <p className="text-sm text-stone-400">
+            <h2 className="text-lg font-semibold text-navy-100">Media library</h2>
+            <p className="text-sm text-navy-400">
               {multi ? 'Select images, then click Confirm.' : 'Click an image to pick it.'}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-stone-400 transition-colors hover:text-stone-200"
+            className="text-navy-400 transition-colors hover:text-navy-200"
             aria-label="Close"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex flex-col gap-4 border-b border-stone-800 px-6 py-4 md:flex-row">
+        <div className="flex flex-col gap-4 border-b border-navy-800 px-6 py-4 md:flex-row">
           <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-stone-400">Search by filename</label>
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-navy-400">Search by filename</label>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -131,7 +131,7 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
             />
           </div>
           <div className="w-full md:w-64">
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-stone-400">Folder</label>
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-navy-400">Folder</label>
             <select
               value={folderFilter}
               onChange={e => setFolderFilter(e.target.value)}
@@ -149,9 +149,9 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           {isLoading ? (
-            <div className="flex h-64 items-center justify-center text-sm text-stone-400">Loading images…</div>
+            <div className="flex h-64 items-center justify-center text-sm text-navy-400">Loading images…</div>
           ) : items.length === 0 ? (
-            <div className="flex h-64 items-center justify-center text-sm text-stone-500">No images yet</div>
+            <div className="flex h-64 items-center justify-center text-sm text-navy-500">No images yet</div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
               {items.map(asset => {
@@ -165,30 +165,30 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
                     className="text-left"
                   >
                     <div
-                      className={`overflow-hidden rounded-xl border bg-stone-800 transition-all ${
+                      className={`overflow-hidden rounded-xl border bg-navy-800 transition-all ${
                         isSelected
                           ? 'border-brand-500 ring-2 ring-brand-500/40'
-                          : 'border-stone-700 hover:border-stone-500'
+                          : 'border-navy-700 hover:border-navy-500'
                       }`}
                     >
-                      <div className="relative aspect-[3/4] bg-stone-800">
+                      <div className="relative aspect-[3/4] bg-navy-800">
                         {thumb ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={thumb} alt={assetName(asset)} className="h-full w-full object-cover" />
                         ) : (
-                          <div className="flex h-full items-center justify-center text-xs text-stone-600">No image</div>
+                          <div className="flex h-full items-center justify-center text-xs text-navy-600">No image</div>
                         )}
                         {isSelected && (
                           <div className="absolute inset-0 bg-brand-500/20 flex items-center justify-center">
                             <div className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center shadow-lg">
-                              <Check size={16} className="text-stone-950" />
+                              <Check size={16} className="text-navy-950" />
                             </div>
                           </div>
                         )}
                       </div>
-                      <div className="border-t border-stone-700 px-2 py-2">
-                        <div className="truncate text-xs font-medium text-stone-200">{assetName(asset)}</div>
-                        <div className="truncate text-[11px] text-stone-500">{asset.folder ?? 'No folder'}</div>
+                      <div className="border-t border-navy-700 px-2 py-2">
+                        <div className="truncate text-xs font-medium text-navy-200">{assetName(asset)}</div>
+                        <div className="truncate text-[11px] text-navy-500">{asset.folder ?? 'No folder'}</div>
                       </div>
                     </div>
                   </button>
@@ -198,8 +198,8 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-stone-800 px-6 py-4">
-          <div className="text-xs text-stone-500">
+        <div className="flex items-center justify-between border-t border-navy-800 px-6 py-4">
+          <div className="text-xs text-navy-500">
             {data ? `Page ${data.page} of ${data.totalPages} · ${data.total} total` : 'Page 1 of 1'}
             {isFetching && !isLoading ? ' · Updating…' : ''}
             {multi && selected.size > 0 ? ` · ${selected.size} selected` : ''}
@@ -221,7 +221,7 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
                 type="button"
                 onClick={confirmSelection}
                 disabled={selected.size === 0}
-                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-stone-950 hover:bg-brand-500 disabled:opacity-40 disabled:hover:bg-brand-600 transition-colors"
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-navy-950 hover:bg-brand-500 disabled:opacity-40 disabled:hover:bg-brand-600 transition-colors"
               >
                 Add {selected.size > 0 ? `${selected.size} ` : ''}image{selected.size !== 1 ? 's' : ''}
               </button>

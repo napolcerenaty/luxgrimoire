@@ -63,14 +63,14 @@ function ManualColorEditor({
       <div className="flex items-end gap-3 flex-wrap">
         {colors.map((c, i) => (
           <div key={i} className="flex flex-col gap-1">
-            <span className="text-[10px] text-stone-500 uppercase tracking-widest">{labels[i]}</span>
+            <span className="text-[10px] text-navy-500 uppercase tracking-widest">{labels[i]}</span>
             <div className="flex items-center gap-1.5">
               {/* Native color picker */}
               <input
                 type="color"
                 value={c.startsWith('#') ? c : '#c8b48c'}
                 onChange={(e) => setColor(i, e.target.value)}
-                className="w-8 h-8 rounded cursor-pointer border border-stone-600 bg-transparent p-0.5"
+                className="w-8 h-8 rounded cursor-pointer border border-navy-600 bg-transparent p-0.5"
               />
               {/* Hex text input */}
               <input
@@ -78,7 +78,7 @@ function ManualColorEditor({
                 value={c}
                 maxLength={7}
                 onChange={(e) => setColor(i, e.target.value)}
-                className="w-24 px-2 py-1.5 rounded-lg bg-stone-800 border border-stone-700 text-stone-200 text-xs font-mono focus:outline-none focus:border-brand-500"
+                className="w-24 px-2 py-1.5 rounded-lg bg-navy-800 border border-navy-700 text-navy-200 text-xs font-mono focus:outline-none focus:border-brand-500"
                 placeholder="#rrggbb"
               />
             </div>
@@ -89,7 +89,7 @@ function ManualColorEditor({
           type="button"
           disabled={saving}
           onClick={handleSave}
-          className="mb-0.5 px-3 py-1.5 text-xs rounded-lg bg-brand-600 hover:bg-brand-500 text-stone-950 font-semibold transition-colors disabled:opacity-50"
+          className="mb-0.5 px-3 py-1.5 text-xs rounded-lg bg-brand-600 hover:bg-brand-500 text-navy-950 font-semibold transition-colors disabled:opacity-50"
         >
           {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Colors'}
         </button>
@@ -285,7 +285,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
         <div className="flex items-center gap-4">
           {previewUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt="Logo preview" className="w-16 h-16 rounded-lg object-cover border border-stone-700" />
+            <img src={previewUrl} alt="Logo preview" className="w-16 h-16 rounded-lg object-cover border border-navy-700" />
           )}
           <div className="flex-1">
             <div className="flex items-center gap-2">
@@ -293,7 +293,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-brand-500 hover:text-brand-400 text-sm transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-navy-700 text-navy-300 hover:border-brand-500 hover:text-brand-400 text-sm transition-colors disabled:opacity-50"
               >
                 {uploading ? 'Uploading…' : previewUrl ? 'Change image' : 'Upload image'}
               </button>
@@ -307,7 +307,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
                 </button>
               )}
             </div>
-            {form.logoUrl && <p className="text-xs text-stone-500 mt-1 truncate">{form.logoUrl}</p>}
+            {form.logoUrl && <p className="text-xs text-navy-500 mt-1 truncate">{form.logoUrl}</p>}
             {uploadError && <p className="text-xs text-red-400 mt-1">{uploadError}</p>}
           </div>
         </div>
@@ -316,7 +316,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
 
       {/* Social media */}
       <div>
-        <p className="text-sm text-stone-400 font-semibold mb-2">Social Media</p>
+        <p className="text-sm text-navy-400 font-semibold mb-2">Social Media</p>
         <div className="grid grid-cols-2 gap-3">
           {([
             { field: 'instagram', placeholder: 'https://instagram.com/...' },
@@ -335,7 +335,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
       </div>
 
       {/* IOSS */}
-      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
+      <label className="flex items-center gap-2 text-navy-300 text-sm cursor-pointer">
         <input
           type="checkbox"
           checked={form.iossImplemented}
@@ -346,7 +346,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
       </label>
 
       {/* Official image permission */}
-      <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
+      <label className="flex items-center gap-2 text-navy-300 text-sm cursor-pointer">
         <input
           type="checkbox"
           checked={form.hasOfficialImagePermission}
@@ -359,7 +359,7 @@ function CompanyForm({ initial, onSubmit, submitting, submitLabel }: CompanyForm
       <button
         type="submit"
         disabled={submitting || uploading}
-        className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
+        className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
       >
         {submitting ? 'Saving…' : submitLabel}
       </button>
@@ -417,9 +417,9 @@ export default function AdminCompaniesPage() {
       key: 'logo', label: '', render: (row: ApiBookBoxCompany) =>
         row.logoUrl
           ? <img src={cloudinaryUrl(row.logoUrl, 'w_40,h_40,c_fill') ?? ''} alt="" className="w-9 h-9 rounded object-cover" />
-          : <div className="w-9 h-9 rounded bg-stone-800 flex items-center justify-center text-stone-500 text-sm font-serif">{row.name.charAt(0)}</div>,
+          : <div className="w-9 h-9 rounded bg-navy-800 flex items-center justify-center text-navy-500 text-sm font-serif">{row.name.charAt(0)}</div>,
     },
-    { key: 'name', label: 'Name', render: (row: ApiBookBoxCompany) => <span className="font-semibold text-stone-200">{row.name}</span> },
+    { key: 'name', label: 'Name', render: (row: ApiBookBoxCompany) => <span className="font-semibold text-navy-200">{row.name}</span> },
     { key: 'country', label: 'Country', render: (row: ApiBookBoxCompany) => row.country ?? '—' },
     {
       key: 'website', label: 'Website', render: (row: ApiBookBoxCompany) =>
@@ -430,17 +430,17 @@ export default function AdminCompaniesPage() {
     {
       key: 'social', label: 'Social', render: (row: ApiBookBoxCompany) => {
         const links = [row.instagram, row.tiktok, row.x, row.bluesky, row.threads, row.facebook].filter(Boolean)
-        return <span className="text-stone-500 text-xs">{links.length ? `${links.length} link${links.length > 1 ? 's' : ''}` : '—'}</span>
+        return <span className="text-navy-500 text-xs">{links.length ? `${links.length} link${links.length > 1 ? 's' : ''}` : '—'}</span>
       },
     },
     {
       key: 'brandColors', label: 'Colors', render: (row: ApiBookBoxCompany) => {
         const colors = row.brandColors ?? []
-        if (!colors.length) return <span className="text-stone-600 text-xs">—</span>
+        if (!colors.length) return <span className="text-navy-600 text-xs">—</span>
         return (
           <div className="flex gap-1 items-center">
             {colors.map((c, i) => (
-              <div key={i} title={c} className="w-4 h-4 rounded-full border border-stone-700 flex-shrink-0" style={{ backgroundColor: c }} />
+              <div key={i} title={c} className="w-4 h-4 rounded-full border border-navy-700 flex-shrink-0" style={{ backgroundColor: c }} />
             ))}
           </div>
         )
@@ -452,20 +452,20 @@ export default function AdminCompaniesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h1 className="text-2xl font-bold text-stone-100">Book Boxes</h1>
+        <h1 className="text-2xl font-bold text-navy-100">Book Boxes</h1>
         <div className="flex items-center gap-3 flex-1 max-w-sm">
           <input
             type="search"
             placeholder="Search by name or country…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-400 text-sm"
+            className="flex-1 bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 placeholder-navy-500 focus:outline-none focus:border-brand-400 text-sm"
           />
         </div>
         {!isManager && !createModal.isOpen && !editCompany && (
           <button
             onClick={() => createModal.open()}
-            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
+            className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
           >
             + Add Book Box
           </button>
@@ -474,10 +474,10 @@ export default function AdminCompaniesPage() {
 
       {/* Inline Create form */}
       {createModal.isOpen && (
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+        <div className="bg-navy-900 border border-navy-800 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-stone-100">Add Book Box</h2>
-            <button onClick={() => createModal.close()} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+            <h2 className="text-lg font-semibold text-navy-100">Add Book Box</h2>
+            <button onClick={() => createModal.close()} className="text-navy-400 hover:text-navy-200 text-sm transition-colors">✕ Cancel</button>
           </div>
           <CompanyForm
             initial={EMPTY_FORM}
@@ -490,15 +490,15 @@ export default function AdminCompaniesPage() {
 
       {/* Inline Edit form */}
       {editCompany && (
-        <div className="bg-stone-900 border border-brand-500/30 rounded-2xl p-6 space-y-4">
+        <div className="bg-navy-900 border border-brand-500/30 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-stone-100">Edit — {editCompany.name}</h2>
-            <button onClick={() => setEditCompany(null)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+            <h2 className="text-lg font-semibold text-navy-100">Edit — {editCompany.name}</h2>
+            <button onClick={() => setEditCompany(null)} className="text-navy-400 hover:text-navy-200 text-sm transition-colors">✕ Cancel</button>
           </div>
 
           {/* Brand colors */}
-          <div className="py-2 border-b border-stone-800 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-stone-500">Brand Colors</p>
+          <div className="py-2 border-b border-navy-800 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-navy-500">Brand Colors</p>
 
             {/* Color picker row */}
             <ManualColorEditor
@@ -520,9 +520,9 @@ export default function AdminCompaniesPage() {
 
       {/* Company table */}
       {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-navy-400 py-8 text-center">Loading…</div>
       ) : companies.length === 0 && q ? (
-        <div className="text-stone-500 py-8 text-center">No companies match "{search}".</div>
+        <div className="text-navy-500 py-8 text-center">No companies match "{search}".</div>
       ) : (
         <DataTable
           columns={columns}

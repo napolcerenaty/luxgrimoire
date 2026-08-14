@@ -223,20 +223,20 @@ function PreviousBoxesList({
 
   return (
     <>
-      <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
+      <h2 className="text-2xl font-serif font-semibold text-navy-100 mb-6">
         Previous Boxes
         {allMonths.length > 0 && (
-          <span className="text-stone-500 text-lg ml-2 font-sans">({allMonths.length}{hasMore ? '+' : ''})</span>
+          <span className="text-navy-500 text-lg ml-2 font-sans">({allMonths.length}{hasMore ? '+' : ''})</span>
         )}
         {totalMonths != null && allMonths.length === 0 && (
-          <span className="text-stone-500 text-lg ml-2 font-sans">({totalMonths})</span>
+          <span className="text-navy-500 text-lg ml-2 font-sans">({totalMonths})</span>
         )}
       </h2>
 
       {isLoading && allMonths.length === 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-xl bg-stone-800 aspect-[3/4]" />
+            <div key={i} className="animate-pulse rounded-xl bg-navy-800 aspect-[3/4]" />
           ))}
         </div>
       ) : bundleGroups ? (
@@ -244,7 +244,7 @@ function PreviousBoxesList({
           <div className="space-y-8">
             {bundleGroups.map((group) => (
               <div key={group.key}>
-                <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-3">
+                <h3 className="text-sm font-semibold uppercase tracking-widest text-navy-400 mb-3">
                   {group.label}
                 </h3>
                 <MonthGrid months={group.months} />
@@ -256,7 +256,7 @@ function PreviousBoxesList({
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={isFetching}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-brand-700/60 hover:text-brand-400 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-navy-700 text-navy-300 hover:border-brand-700/60 hover:text-brand-400 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isFetching ? 'Loading…' : 'Load more'}
               </button>
@@ -271,7 +271,7 @@ function PreviousBoxesList({
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={isFetching}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-brand-700/60 hover:text-brand-400 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-navy-700 text-navy-300 hover:border-brand-700/60 hover:text-brand-400 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isFetching ? 'Loading…' : 'Load more'}
               </button>
@@ -296,11 +296,11 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
       <div className="mt-10 text-center">
         <button
           onClick={() => setVisible(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-brand-700/60 hover:text-brand-400 transition-colors text-sm font-medium"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-navy-700 text-navy-300 hover:border-brand-700/60 hover:text-brand-400 transition-colors text-sm font-medium"
         >
           View previous boxes
           {totalMonths != null && totalMonths > 0 && (
-            <span className="text-stone-500 text-xs">({totalMonths})</span>
+            <span className="text-navy-500 text-xs">({totalMonths})</span>
           )}
         </button>
       </div>
@@ -311,8 +311,8 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
   if (isCombo && comboComponents && comboComponents.length > 0) {
     return (
       <section className="mt-10">
-        <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-4">Previous Boxes</h2>
-        <p className="text-sm text-stone-400 mb-4">Select a subscription to view its previous boxes:</p>
+        <h2 className="text-2xl font-serif font-semibold text-navy-100 mb-4">Previous Boxes</h2>
+        <p className="text-sm text-navy-400 mb-4">Select a subscription to view its previous boxes:</p>
         <div className="flex flex-wrap gap-2 mb-8">
           {comboComponents.map((c) => (
             <button
@@ -321,7 +321,7 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
               className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
                 selectedSlug === c.slug
                   ? 'border-brand-600 bg-brand-600/10 text-brand-400'
-                  : 'border-stone-700 text-stone-300 hover:border-brand-700/50 hover:text-brand-400'
+                  : 'border-navy-700 text-navy-300 hover:border-brand-700/50 hover:text-brand-400'
               }`}
             >
               {c.name}

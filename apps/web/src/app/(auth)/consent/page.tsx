@@ -37,7 +37,7 @@ export default function ConsentPage() {
   return (
     <div className="max-w-md mx-auto mt-16 px-4">
       <h1 className="text-2xl font-bold mb-2">One last step</h1>
-      <p className="text-stone-400 text-sm mb-6">
+      <p className="text-navy-400 text-sm mb-6">
         Before continuing, please review and accept our policies.
       </p>
 
@@ -49,7 +49,7 @@ export default function ConsentPage() {
             onChange={e => setAccepted(e.target.checked)}
             className="mt-1 accent-brand-500"
           />
-          <span className="text-sm text-stone-300">
+          <span className="text-sm text-navy-300">
             I have read and agree to the{' '}
             <Link href="/terms" target="_blank" className="text-brand-400 underline hover:text-brand-300">
               Terms &amp; Conditions
@@ -66,7 +66,7 @@ export default function ConsentPage() {
         <button
           type="submit"
           disabled={!accepted || loading}
-          className="w-full py-2 rounded bg-brand-500 text-stone-900 font-semibold hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="w-full py-2 rounded bg-brand-500 text-navy-900 font-semibold hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Saving…' : 'Continue'}
         </button>

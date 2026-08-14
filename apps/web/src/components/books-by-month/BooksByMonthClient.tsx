@@ -83,7 +83,7 @@ function BookByMonthCard({ item }: { item: BookByMonthItem }) {
           tabIndex={0}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = `/companies/${item.companySlug}` }}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); window.location.href = `/companies/${item.companySlug}` } }}
-          className="text-xs text-stone-400 hover:text-brand-400 transition-colors cursor-pointer"
+          className="text-xs text-navy-400 hover:text-brand-400 transition-colors cursor-pointer"
         >
           {item.companyName}
         </span>
@@ -95,13 +95,13 @@ function BookByMonthCard({ item }: { item: BookByMonthItem }) {
 // Both the view-mode toggle and the highlight filter render as this same segmented-control
 // shape — one bordered pill-group container, plain buttons inside — instead of two visually
 // different toolbar styles bolted on next to each other.
-const SEGMENT_WRAP = 'inline-flex items-center gap-1 rounded-lg border border-stone-700 bg-stone-900/60 p-1'
+const SEGMENT_WRAP = 'inline-flex items-center gap-1 rounded-lg border border-navy-700 bg-navy-900/60 p-1'
 const SEGMENT_BTN = 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap'
-const SEGMENT_ACTIVE = 'bg-stone-700 text-stone-100'
-const SEGMENT_INACTIVE = 'text-stone-400 hover:text-stone-200'
+const SEGMENT_ACTIVE = 'bg-navy-700 text-navy-100'
+const SEGMENT_INACTIVE = 'text-navy-400 hover:text-navy-200'
 
 const CARD_GRID = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'
-const SEARCH_INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-brand-400 text-sm'
+const SEARCH_INPUT = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 placeholder:text-navy-500 focus:outline-none focus:border-brand-400 text-sm'
 
 function matchesSearch(item: BookByMonthItem, query: string): boolean {
   const q = query.trim().toLowerCase()
@@ -197,13 +197,13 @@ export function BooksByMonthClient() {
           aria-label="Search books by month"
         />
         {hasAnyUnannounced && (
-          <label className="flex items-center gap-2 shrink-0 text-xs text-stone-400 cursor-pointer select-none">
+          <label className="flex items-center gap-2 shrink-0 text-xs text-navy-400 cursor-pointer select-none">
             <button
               type="button"
               role="switch"
               aria-checked={hideUnannounced}
               onClick={() => setHideUnannounced((v) => !v)}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${hideUnannounced ? 'bg-brand-500' : 'bg-stone-700'}`}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${hideUnannounced ? 'bg-brand-500' : 'bg-navy-700'}`}
             >
               <span
                 className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${hideUnannounced ? 'translate-x-4' : 'translate-x-0'}`}
@@ -252,19 +252,19 @@ export function BooksByMonthClient() {
             aria-pressed={highlightFilters.has('other')}
             className={`${SEGMENT_BTN} ${highlightFilters.has('other') ? SEGMENT_ACTIVE : SEGMENT_INACTIVE}`}
           >
-            <span className="h-2 w-2 rounded-full bg-stone-600" /> Other
+            <span className="h-2 w-2 rounded-full bg-navy-600" /> Other
           </button>
         </div>
       )}
 
       {isLoading ? (
-        <div className="text-stone-400 py-12 text-center">Loading…</div>
+        <div className="text-navy-400 py-12 text-center">Loading…</div>
       ) : items.length === 0 ? (
-        <div className="text-stone-500 text-center py-12 bg-stone-900/50 rounded-2xl border border-stone-800">
+        <div className="text-navy-500 text-center py-12 bg-navy-900/50 rounded-2xl border border-navy-800">
           No entries for this month.
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="text-stone-500 text-center py-12 bg-stone-900/50 rounded-2xl border border-stone-800">
+        <div className="text-navy-500 text-center py-12 bg-navy-900/50 rounded-2xl border border-navy-800">
           No matches for your search{(highlightFilters.size > 0 || hideUnannounced) ? ' and filters' : ''}.
         </div>
       ) : viewMode === 'flat' ? (
@@ -274,7 +274,7 @@ export function BooksByMonthClient() {
       ) : (
         <div className="space-y-8">
           {multiGroups.length === 0 && (
-            <p className="text-sm text-stone-500">
+            <p className="text-sm text-navy-500">
               {viewMode === 'by-book'
                 ? 'No duplicates this month.'
                 : 'No company has more than one release this month.'}
@@ -283,8 +283,8 @@ export function BooksByMonthClient() {
           {multiGroups.map((group) => (
             <div key={group.key}>
               <div className="flex items-center gap-2 mb-3">
-                <h2 className="text-sm font-serif font-semibold text-stone-300">{group.label}</h2>
-                <span className="text-xs text-stone-500">
+                <h2 className="text-sm font-serif font-semibold text-navy-300">{group.label}</h2>
+                <span className="text-xs text-navy-500">
                   {viewMode === 'by-book' ? `Shared by ${group.items.length} subscriptions this month` : `${group.items.length} books`}
                 </span>
               </div>
@@ -296,7 +296,7 @@ export function BooksByMonthClient() {
           {singleItems.length > 0 && (
             <div>
               {multiGroups.length > 0 && (
-                <h2 className="text-sm font-serif font-semibold text-stone-300 mb-3">
+                <h2 className="text-sm font-serif font-semibold text-navy-300 mb-3">
                   {viewMode === 'by-book' ? 'Everything else this month' : 'Other releases'}
                 </h2>
               )}

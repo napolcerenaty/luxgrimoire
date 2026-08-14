@@ -22,12 +22,12 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-stone-900 border border-stone-700 rounded-2xl p-6 w-full max-w-md shadow-2xl mx-4">
+      <div className="bg-navy-900 border border-navy-700 rounded-2xl p-6 w-full max-w-md shadow-2xl mx-4">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-stone-100">{title}</h2>
+          <h2 className="text-lg font-semibold text-navy-100">{title}</h2>
           <button
             onClick={onClose}
-            className="text-stone-400 hover:text-stone-100 transition-colors"
+            className="text-navy-400 hover:text-navy-100 transition-colors"
             aria-label="Close"
           >
             ✕

@@ -15,10 +15,10 @@ import { Pagination } from '@/components/admin/Pagination'
 import { isValidCalendarDate } from '@/lib/dateValidation'
 
 const INPUT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400'
-const LABEL_CLASS = 'block text-sm text-stone-400 mb-1'
+  'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400'
+const LABEL_CLASS = 'block text-sm text-navy-400 mb-1'
 const SELECT_CLASS =
-  'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400'
+  'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400'
 
 const LANGUAGES = ['English', 'Polish', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Czech', 'Hungarian', 'Romanian', 'Ukrainian', 'Japanese', 'Korean', 'Chinese']
 
@@ -319,7 +319,7 @@ function SkipPolicyEditor({ draft, onChange, usedBillingTypes, onSave, onCancel,
   const availableForThis = allBillingTypes.filter(bt => !usedBillingTypes.includes(bt))
 
   return (
-    <div className="p-4 space-y-4 bg-stone-900/50">
+    <div className="p-4 space-y-4 bg-navy-900/50">
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
           <label className={LABEL_CLASS}>Applies to billing type</label>
@@ -364,7 +364,7 @@ function SkipPolicyEditor({ draft, onChange, usedBillingTypes, onSave, onCancel,
                   <label className={LABEL_CLASS}>Days before renewal</label>
                   <input type="number" min={0} max={60} className={INPUT_CLASS}
                     value={draft.skipDeadlineDaysBefore} onChange={set('skipDeadlineDaysBefore')} placeholder="0" />
-                  <p className="text-xs text-stone-500 mt-1">0 = day of renewal</p>
+                  <p className="text-xs text-navy-500 mt-1">0 = day of renewal</p>
                 </div>
               ) : (
                 <div>
@@ -388,7 +388,7 @@ function SkipPolicyEditor({ draft, onChange, usedBillingTypes, onSave, onCancel,
                   <input type="number" min={1} className={INPUT_CLASS}
                     value={draft.windowMonths} onChange={set('windowMonths')} placeholder="e.g. 6 or 12" />
                   {draft.type === 'FROM_FIRST_BOX' && (
-                    <p className="text-xs text-stone-500 mt-1">
+                    <p className="text-xs text-navy-500 mt-1">
                       Resets every {draft.windowMonths || 'N'} months from the user&apos;s first box month (e.g. 12 = anniversary reset).
                     </p>
                   )}
@@ -398,7 +398,7 @@ function SkipPolicyEditor({ draft, onChange, usedBillingTypes, onSave, onCancel,
                 <label className={LABEL_CLASS}>Max consecutive skips</label>
                 <input type="number" min={1} className={INPUT_CLASS}
                   value={draft.maxConsecutive} onChange={set('maxConsecutive')} placeholder="optional" />
-                <p className="text-xs text-stone-500 mt-1">Leave blank = no limit</p>
+                <p className="text-xs text-navy-500 mt-1">Leave blank = no limit</p>
               </div>
             </div>
           </div>
@@ -417,10 +417,10 @@ function SkipPolicyEditor({ draft, onChange, usedBillingTypes, onSave, onCancel,
           </div>
 
           {/* Unskip */}
-          <div className="border border-stone-700 rounded-lg p-3 space-y-3">
+          <div className="border border-navy-700 rounded-lg p-3 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={draft.allowUnskip} onChange={setChecked('allowUnskip')} />
-              <span className="text-sm text-stone-300 font-medium">Allow unskipping</span>
+              <span className="text-sm text-navy-300 font-medium">Allow unskipping</span>
             </label>
             {draft.allowUnskip && (
               <>
@@ -468,11 +468,11 @@ function SkipPolicyEditor({ draft, onChange, usedBillingTypes, onSave, onCancel,
 
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onSave}
-          className="px-4 py-1.5 rounded-lg bg-brand-500 text-stone-950 text-sm font-semibold hover:bg-brand-400 transition-colors">
+          className="px-4 py-1.5 rounded-lg bg-brand-500 text-navy-950 text-sm font-semibold hover:bg-brand-400 transition-colors">
           Save policy
         </button>
         <button type="button" onClick={onCancel}
-          className="px-4 py-1.5 rounded-lg border border-stone-700 text-stone-400 text-sm hover:text-stone-200 hover:border-stone-500 transition-colors">
+          className="px-4 py-1.5 rounded-lg border border-navy-700 text-navy-400 text-sm hover:text-navy-200 hover:border-navy-500 transition-colors">
           Cancel
         </button>
       </div>
@@ -656,7 +656,7 @@ function SubscriptionForm({
             <div>
               <label className={LABEL_CLASS}>Price</label>
               <input className={INPUT_CLASS} value={form.price} onChange={setStr('price')} placeholder="59.99" />
-              <p className="text-xs text-stone-500 mt-1">Sets the initial base price. Add price changes below for future changes.</p>
+              <p className="text-xs text-navy-500 mt-1">Sets the initial base price. Add price changes below for future changes.</p>
             </div>
             <div>
               <label className={LABEL_CLASS}>Currency</label>
@@ -713,9 +713,9 @@ function SubscriptionForm({
           </div>
 
           {/* Renewal settings */}
-          <div className="border border-stone-700 rounded-lg p-3 space-y-3">
-            <p className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Renewal</p>
-            <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
+          <div className="border border-navy-700 rounded-lg p-3 space-y-3">
+            <p className="text-xs text-navy-400 font-semibold uppercase tracking-wide">Renewal</p>
+            <label className="flex items-center gap-2 text-navy-300 text-sm cursor-pointer">
               <input type="checkbox" checked={form.renewalDayUserSet}
                 onChange={(e) => setField('renewalDayUserSet', e.target.checked)}
                 className="accent-brand-400 w-4 h-4" />
@@ -736,7 +736,7 @@ function SubscriptionForm({
             {(parseInt(form.intervalMonths, 10) > 1 || form.intervalMonths === 'custom') && (
               <div>
                 <label className={LABEL_CLASS}>Starting month of cycle</label>
-                <p className="text-xs text-stone-500 mb-1">
+                <p className="text-xs text-navy-500 mb-1">
                   The first <strong>box/content month</strong> of the cycle — NOT the payment month.
                   E.g. bi-monthly with offset=1: if boxes ship Jun/Aug/Oct/…, set this to <strong>June</strong>,
                   even though payment is charged in May/Jul/Sep/… . Use the offset field above to shift billing
@@ -773,8 +773,8 @@ function SubscriptionForm({
           )}
 
           {/* Flags */}
-          <div className="border border-stone-700 rounded-lg p-3 space-y-2">
-            <p className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Flags</p>
+          <div className="border border-navy-700 rounded-lg p-3 space-y-2">
+            <p className="text-xs text-navy-400 font-semibold uppercase tracking-wide">Flags</p>
             {([
               { field: 'bookishMerch', label: 'Bookish Merch included' },
               { field: 'paymentOnStartup', label: 'Payment on signup (charged immediately)' },
@@ -785,7 +785,7 @@ function SubscriptionForm({
               { field: 'isContentStream', label: 'Content stream (hidden parent, holds all months)' },
               { field: 'hasBookChoiceMonths', label: 'Has book-choice months (subscribers pick between book alternatives)' },
             ] as { field: keyof SubFormData; label: string }[]).map(({ field, label }) => (
-              <label key={field} className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer">
+              <label key={field} className="flex items-center gap-2 text-navy-300 text-sm cursor-pointer">
                 <input type="checkbox" checked={form[field] as boolean}
                   onChange={(e) => setField(field, e.target.checked)}
                   className="accent-brand-400 w-4 h-4" />
@@ -842,24 +842,24 @@ function SubscriptionForm({
 
       {/* Combo / Bundle */}
       <div>
-        <label className="flex items-center gap-2 text-stone-300 text-sm cursor-pointer mb-2">
+        <label className="flex items-center gap-2 text-navy-300 text-sm cursor-pointer mb-2">
           <input type="checkbox" checked={form.isCombo}
             onChange={(e) => setField('isCombo', e.target.checked)}
             className="accent-brand-400 w-4 h-4" />
           Combo / Bundle subscription
         </label>
         {form.isCombo && (
-          <div className="border border-stone-700 rounded-lg p-3 space-y-2">
+          <div className="border border-navy-700 rounded-lg p-3 space-y-2">
             <label className={LABEL_CLASS}>Component subscriptions</label>
             {form.componentIds.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {form.componentIds.map((id) => {
                   const sub = allSubs.find((s) => s.id === id)
                   return (
-                    <span key={id} className="flex items-center gap-1 bg-stone-700 text-stone-200 text-xs px-2 py-1 rounded-full">
+                    <span key={id} className="flex items-center gap-1 bg-navy-700 text-navy-200 text-xs px-2 py-1 rounded-full">
                       {sub ? sub.name : id}
                       <button type="button" onClick={() => removeComponent(id)}
-                        className="text-stone-400 hover:text-red-400 leading-none" aria-label="Remove">×</button>
+                        className="text-navy-400 hover:text-red-400 leading-none" aria-label="Remove">×</button>
                     </span>
                   )
                 })}
@@ -875,12 +875,12 @@ function SubscriptionForm({
       </div>
 
       {/* Skip Policies */}
-      <div className="border border-stone-700 rounded-lg p-4 space-y-3">
+      <div className="border border-navy-700 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-brand-400">Skip Policies</p>
           {availableBillingTypes.length > 0 && !addingPolicy && (
             <button type="button" onClick={startAddPolicy}
-              className="text-xs px-2.5 py-1 rounded-lg bg-stone-800 border border-stone-600 text-stone-300 hover:border-brand-500 hover:text-brand-400 transition-colors">
+              className="text-xs px-2.5 py-1 rounded-lg bg-navy-800 border border-navy-600 text-navy-300 hover:border-brand-500 hover:text-brand-400 transition-colors">
               + Add policy
             </button>
           )}
@@ -888,11 +888,11 @@ function SubscriptionForm({
 
         {/* Existing policies list */}
         {form.skipPoliciesDraft.length === 0 && !addingPolicy && (
-          <p className="text-xs text-stone-500 italic">No skip policies configured.</p>
+          <p className="text-xs text-navy-500 italic">No skip policies configured.</p>
         )}
 
         {form.skipPoliciesDraft.map(d => (
-          <div key={d._key} className="border border-stone-700 rounded-lg overflow-hidden">
+          <div key={d._key} className="border border-navy-700 rounded-lg overflow-hidden">
             {editingPolicyKey === d._key && policyDraft ? (
               <SkipPolicyEditor
                 draft={policyDraft}
@@ -907,12 +907,12 @@ function SubscriptionForm({
             ) : (
               <div className="flex items-center gap-3 px-3 py-2">
                 <span className="text-xs font-medium text-brand-400 shrink-0 w-28">{BILLING_TYPE_LABELS[d.billingType] ?? d.billingType}</span>
-                <span className="text-xs text-stone-300 flex-1">{SKIP_TYPE_LABELS[d.type] ?? d.type}</span>
+                <span className="text-xs text-navy-300 flex-1">{SKIP_TYPE_LABELS[d.type] ?? d.type}</span>
                 {d.allowUnskip && <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-900/50 border border-teal-700/50 text-teal-400">Unskip ✓</span>}
                 <button type="button" onClick={() => startEditPolicy(d)}
-                  className="text-xs text-stone-500 hover:text-brand-400 transition-colors px-1.5">Edit</button>
+                  className="text-xs text-navy-500 hover:text-brand-400 transition-colors px-1.5">Edit</button>
                 <button type="button" onClick={() => deletePolicy(d._key)}
-                  className="text-xs text-stone-500 hover:text-red-400 transition-colors px-1.5">✕</button>
+                  className="text-xs text-navy-500 hover:text-red-400 transition-colors px-1.5">✕</button>
               </div>
             )}
           </div>
@@ -936,7 +936,7 @@ function SubscriptionForm({
       </div>
 
       <button type="submit" disabled={submitting}
-        className="bg-brand-400 text-stone-950 font-semibold px-6 py-2.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors">
+        className="bg-brand-400 text-navy-950 font-semibold px-6 py-2.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors">
         {submitting ? 'Saving…' : submitLabel}
       </button>
     </form>
@@ -1005,9 +1005,9 @@ function SkipWindowRecomputePanel({ slug, policies }: { slug: string; policies: 
   }
 
   return (
-    <div className="border border-stone-700 rounded-lg p-4 space-y-3">
+    <div className="border border-navy-700 rounded-lg p-4 space-y-3">
       <p className="text-sm font-semibold text-brand-400">Recompute Skip Windows</p>
-      <p className="text-xs text-stone-500">
+      <p className="text-xs text-navy-500">
         Run this after changing a policy&apos;s type or reset period above (and saving) — it re-buckets
         every active user&apos;s skip history under the currently saved policy. Nothing recomputes
         automatically when you save a policy change.
@@ -1021,18 +1021,18 @@ function SkipWindowRecomputePanel({ slug, policies }: { slug: string; policies: 
           </select>
         </div>
         <button type="button" onClick={runPreview} disabled={previewing}
-          className="text-xs px-3 py-2 rounded-lg bg-stone-800 border border-stone-600 text-stone-300 hover:border-brand-500 hover:text-brand-400 transition-colors disabled:opacity-50">
+          className="text-xs px-3 py-2 rounded-lg bg-navy-800 border border-navy-600 text-navy-300 hover:border-brand-500 hover:text-brand-400 transition-colors disabled:opacity-50">
           {previewing ? 'Checking…' : 'Preview impact'}
         </button>
         {preview && (
           <button type="button" onClick={runApply} disabled={applying}
-            className="text-xs px-3 py-2 rounded-lg bg-brand-500 text-stone-950 font-semibold hover:bg-brand-400 transition-colors disabled:opacity-50">
+            className="text-xs px-3 py-2 rounded-lg bg-brand-500 text-navy-950 font-semibold hover:bg-brand-400 transition-colors disabled:opacity-50">
             {applying ? 'Recomputing…' : 'Recompute now'}
           </button>
         )}
       </div>
       {preview && (
-        <p className="text-xs text-stone-400">
+        <p className="text-xs text-navy-400">
           {preview.trackedUsers} active user(s) have tracked skip usage under this policy — an estimated{' '}
           {preview.windowWouldChange} would have their window recalculated.
         </p>
@@ -1135,32 +1135,32 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
     setEditState(s => s ? { ...s, [field]: value } : s)
 
   return (
-    <div className="border border-stone-700 rounded-lg">
+    <div className="border border-navy-700 rounded-lg">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-stone-300 hover:text-stone-100 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-navy-300 hover:text-navy-100 transition-colors"
       >
         <span>⚙️ Settings History ({records.length} records)</span>
-        <span className="text-stone-500">{open ? '▲' : '▼'}</span>
+        <span className="text-navy-500">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
         <div className="px-4 pb-4 space-y-2 text-xs">
           {isLoading ? (
-            <p className="text-stone-500">Loading…</p>
+            <p className="text-navy-500">Loading…</p>
           ) : records.length === 0 ? (
-            <p className="text-stone-500">No settings history records.</p>
+            <p className="text-navy-500">No settings history records.</p>
           ) : (
             <div className="overflow-x-auto space-y-1">
               {records.map(r => {
                 const sentinel = isInitialSentinel(r.effectiveFrom)
                 const isEditing = editingId === r.id
                 return (
-                  <div key={r.id} className={`border rounded p-2 ${sentinel ? 'border-brand-700/50 bg-brand-950/20' : 'border-stone-800'}`}>
+                  <div key={r.id} className={`border rounded p-2 ${sentinel ? 'border-brand-700/50 bg-brand-950/20' : 'border-navy-800'}`}>
                     {/* Header row */}
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-stone-300">
+                      <span className="font-medium text-navy-300">
                         {sentinel
                           ? '📌 Initial snapshot'
                           : new Date(r.effectiveFrom).toLocaleDateString()}
@@ -1179,7 +1179,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             <button
                               type="button"
                               onClick={() => { setEditingId(null); setEditState(null) }}
-                              className="text-stone-500 hover:text-stone-300 px-1"
+                              className="text-navy-500 hover:text-navy-300 px-1"
                             >
                               ✕
                             </button>
@@ -1189,7 +1189,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             <button
                               type="button"
                               onClick={() => startEdit(r)}
-                              className="text-stone-500 hover:text-brand-400 transition-colors px-1"
+                              className="text-navy-500 hover:text-brand-400 transition-colors px-1"
                               title="Edit"
                             >
                               ✏️
@@ -1199,7 +1199,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                                 type="button"
                                 disabled={deletingId === r.id}
                                 onClick={() => handleDelete(r.id)}
-                                className="text-stone-600 hover:text-red-400 transition-colors disabled:opacity-50 px-1"
+                                className="text-navy-600 hover:text-red-400 transition-colors disabled:opacity-50 px-1"
                                 title="Delete"
                               >
                                 🗑️
@@ -1215,17 +1215,17 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                       <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
                         {!sentinel && (
                           <label className="col-span-2 flex flex-col gap-0.5">
-                            <span className="text-stone-500">Effective From</span>
+                            <span className="text-navy-500">Effective From</span>
                             <input
                               type="date"
                               value={editState.effectiveFrom}
                               onChange={e => setField('effectiveFrom', e.target.value)}
-                              className="bg-stone-800 border border-brand-500 rounded px-1.5 py-0.5 text-stone-100 text-xs"
+                              className="bg-navy-800 border border-brand-500 rounded px-1.5 py-0.5 text-navy-100 text-xs"
                             />
                           </label>
                         )}
                         <label className="flex flex-col gap-0.5">
-                          <span className="text-stone-500">Renewal Day</span>
+                          <span className="text-navy-500">Renewal Day</span>
                           <input
                             type="number"
                             min={1}
@@ -1233,18 +1233,18 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             value={editState.renewalDay}
                             onChange={e => setField('renewalDay', e.target.value)}
                             placeholder="null"
-                            className="bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-xs w-20"
+                            className="bg-navy-800 border border-navy-600 rounded px-1.5 py-0.5 text-navy-100 text-xs w-20"
                           />
                         </label>
                         <label className="flex flex-col gap-0.5">
-                          <span className="text-stone-500">Offset (months)</span>
+                          <span className="text-navy-500">Offset (months)</span>
                           <input
                             type="number"
                             min={-11}
                             max={11}
                             value={editState.renewalMonthOffset}
                             onChange={e => setField('renewalMonthOffset', e.target.value)}
-                            className="bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-xs w-20"
+                            className="bg-navy-800 border border-navy-600 rounded px-1.5 py-0.5 text-navy-100 text-xs w-20"
                           />
                         </label>
                         <label className="flex items-center gap-1.5 cursor-pointer">
@@ -1254,7 +1254,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             onChange={e => setField('renewalDayUserSet', e.target.checked)}
                             className="accent-brand-500"
                           />
-                          <span className="text-stone-400">User-set day</span>
+                          <span className="text-navy-400">User-set day</span>
                         </label>
                         <label className="flex items-center gap-1.5 cursor-pointer">
                           <input
@@ -1263,7 +1263,7 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             onChange={e => setField('paymentOnStartup', e.target.checked)}
                             className="accent-brand-500"
                           />
-                          <span className="text-stone-400">Prepaid</span>
+                          <span className="text-navy-400">Prepaid</span>
                         </label>
                         <label className="flex items-center gap-1.5 cursor-pointer">
                           <input
@@ -1272,28 +1272,28 @@ function SettingsHistoryPanel({ slug }: { slug: string }) {
                             onChange={e => setField('signupIncludesCurrentMonth', e.target.checked)}
                             className="accent-brand-500"
                           />
-                          <span className="text-stone-400">Includes current month</span>
+                          <span className="text-navy-400">Includes current month</span>
                         </label>
                         <label className="col-span-2 flex flex-col gap-0.5">
-                          <span className="text-stone-500">Notes</span>
+                          <span className="text-navy-500">Notes</span>
                           <input
                             type="text"
                             value={editState.notes}
                             onChange={e => setField('notes', e.target.value)}
                             placeholder="Notes…"
-                            className="bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-xs"
+                            className="bg-navy-800 border border-navy-600 rounded px-1.5 py-0.5 text-navy-100 text-xs"
                           />
                         </label>
                       </div>
                     ) : (
                       /* Read-only row */
-                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-stone-500">
-                        <span>Day: <span className="text-stone-300">{r.renewalDay ?? '—'}</span></span>
-                        <span>Offset: <span className="text-stone-300">{r.renewalMonthOffset ?? 0}</span></span>
-                        <span>User-set: <span className="text-stone-300">{r.renewalDayUserSet ? '✓' : '—'}</span></span>
-                        <span>Prepaid: <span className="text-stone-300">{r.paymentOnStartup ? '✓' : '—'}</span></span>
-                        <span>Curr. month: <span className="text-stone-300">{r.signupIncludesCurrentMonth ? '✓' : '—'}</span></span>
-                        {r.notes && <span className="text-stone-500 italic">{r.notes}</span>}
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-navy-500">
+                        <span>Day: <span className="text-navy-300">{r.renewalDay ?? '—'}</span></span>
+                        <span>Offset: <span className="text-navy-300">{r.renewalMonthOffset ?? 0}</span></span>
+                        <span>User-set: <span className="text-navy-300">{r.renewalDayUserSet ? '✓' : '—'}</span></span>
+                        <span>Prepaid: <span className="text-navy-300">{r.paymentOnStartup ? '✓' : '—'}</span></span>
+                        <span>Curr. month: <span className="text-navy-300">{r.signupIncludesCurrentMonth ? '✓' : '—'}</span></span>
+                        {r.notes && <span className="text-navy-500 italic">{r.notes}</span>}
                       </div>
                     )}
                   </div>
@@ -1400,29 +1400,29 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
   }
 
   return (
-    <div className="border border-stone-700 rounded-lg p-4 space-y-3">
+    <div className="border border-navy-700 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-brand-400">Prepay Options</p>
         {!adding && (
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="text-xs bg-brand-400 text-stone-950 px-2 py-1 rounded hover:bg-brand-300 transition-colors"
+            className="text-xs bg-brand-400 text-navy-950 px-2 py-1 rounded hover:bg-brand-300 transition-colors"
           >
             + Add Option
           </button>
         )}
       </div>
 
-      {isLoading && <p className="text-xs text-stone-500">Loading…</p>}
+      {isLoading && <p className="text-xs text-navy-500">Loading…</p>}
 
       {options.length === 0 && !isLoading && !adding && (
-        <p className="text-xs text-stone-500 italic">No prepay options yet</p>
+        <p className="text-xs text-navy-500 italic">No prepay options yet</p>
       )}
 
       {options.map((o) =>
         editingId === o.id ? (
-          <div key={o.id} className="flex flex-wrap gap-2 items-end bg-stone-800 rounded p-2">
+          <div key={o.id} className="flex flex-wrap gap-2 items-end bg-navy-800 rounded p-2">
             <div>
               <label className={LABEL_CLASS}>Months</label>
               <input type="number" min={1} className={`${INPUT_CLASS} w-20`} value={editForm.months}
@@ -1461,20 +1461,20 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
             <div className="flex gap-2 mt-4">
               <button type="button" disabled={updateMutation.isPending}
                 onClick={() => { if (validDates(editForm.validFrom, editForm.validUntil)) updateMutation.mutate(o.id) }}
-                className="text-xs bg-brand-400 text-stone-950 px-3 py-1.5 rounded hover:bg-brand-300 disabled:opacity-50">
+                className="text-xs bg-brand-400 text-navy-950 px-3 py-1.5 rounded hover:bg-brand-300 disabled:opacity-50">
                 {updateMutation.isPending ? 'Saving…' : 'Save'}
               </button>
               <button type="button" onClick={() => setEditingId(null)}
-                className="text-xs text-stone-400 hover:text-stone-200">Cancel</button>
+                className="text-xs text-navy-400 hover:text-navy-200">Cancel</button>
             </div>
           </div>
         ) : (
-          <div key={o.id} className="flex items-center justify-between gap-2 text-sm text-stone-300 bg-stone-800/50 rounded px-3 py-2">
+          <div key={o.id} className="flex items-center justify-between gap-2 text-sm text-navy-300 bg-navy-800/50 rounded px-3 py-2">
             <span>
-              <span className="font-semibold text-stone-100">{o.label ?? `${o.months} months`}</span>
-              {' '}— {o.months} mo · {o.price} <span className="text-stone-400">{o.currency}</span>
+              <span className="font-semibold text-navy-100">{o.label ?? `${o.months} months`}</span>
+              {' '}— {o.months} mo · {o.price} <span className="text-navy-400">{o.currency}</span>
               {(o.validFrom || o.validUntil) && (
-                <span className="text-xs text-stone-500 ml-2">
+                <span className="text-xs text-navy-500 ml-2">
                   {o.validFrom ? `from ${o.validFrom.slice(0, 10)}` : ''}
                   {o.validFrom && o.validUntil ? ' · ' : ''}
                   {o.validUntil ? `until ${o.validUntil.slice(0, 10)}` : ''}
@@ -1493,7 +1493,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
       )}
 
       {adding && (
-        <div className="flex flex-wrap gap-2 items-end bg-stone-800 rounded p-2">
+        <div className="flex flex-wrap gap-2 items-end bg-navy-800 rounded p-2">
           <div>
             <label className={LABEL_CLASS}>Months *</label>
             <input type="number" min={1} required className={`${INPUT_CLASS} w-20`} value={newForm.months}
@@ -1532,11 +1532,11 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
           <div className="flex gap-2 mt-4">
             <button type="button" disabled={createMutation.isPending || !newForm.months || !newForm.price}
               onClick={() => { if (validDates(newForm.validFrom, newForm.validUntil)) createMutation.mutate() }}
-              className="text-xs bg-brand-400 text-stone-950 px-3 py-1.5 rounded hover:bg-brand-300 disabled:opacity-50">
+              className="text-xs bg-brand-400 text-navy-950 px-3 py-1.5 rounded hover:bg-brand-300 disabled:opacity-50">
               {createMutation.isPending ? 'Adding…' : 'Add'}
             </button>
             <button type="button" onClick={() => setAdding(false)}
-              className="text-xs text-stone-400 hover:text-stone-200">Cancel</button>
+              className="text-xs text-navy-400 hover:text-navy-200">Cancel</button>
           </div>
         </div>
       )}
@@ -1713,7 +1713,7 @@ export default function AdminSubscriptionsPage() {
           {row.isContentStream ? (
             <span className="text-purple-400 text-xs font-medium">Content Stream</span>
           ) : row.isHidden ? (
-            <span className="text-stone-500 text-xs font-medium">Hidden</span>
+            <span className="text-navy-500 text-xs font-medium">Hidden</span>
           ) : row.isDiscontinued ? (
             <span className="text-red-400 text-xs font-medium">Discontinued</span>
           ) : row.isUpcoming ? (
@@ -1775,11 +1775,11 @@ export default function AdminSubscriptionsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-stone-100">Subscriptions</h1>
+        <h1 className="text-2xl font-bold text-navy-100">Subscriptions</h1>
         {!createModal.isOpen && !editSub && (
           <button
             onClick={() => createModal.open()}
-            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
+            className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
           >
             + Add Subscription
           </button>
@@ -1788,10 +1788,10 @@ export default function AdminSubscriptionsPage() {
 
       {/* Inline Create panel */}
       {createModal.isOpen && (
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
+        <div className="bg-navy-900 border border-navy-800 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-stone-100">Add Subscription</h2>
-            <button onClick={() => createModal.close()} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+            <h2 className="text-lg font-semibold text-navy-100">Add Subscription</h2>
+            <button onClick={() => createModal.close()} className="text-navy-400 hover:text-navy-200 text-sm transition-colors">✕ Cancel</button>
           </div>
           <SubscriptionForm
             {...commonFormProps}
@@ -1805,15 +1805,15 @@ export default function AdminSubscriptionsPage() {
 
       {/* Inline Edit panel */}
       {editSubLoading && (
-        <div className="bg-stone-900 border border-brand-500/30 rounded-2xl p-6 text-center text-stone-400 text-sm">
+        <div className="bg-navy-900 border border-brand-500/30 rounded-2xl p-6 text-center text-navy-400 text-sm">
           Loading subscription…
         </div>
       )}
       {editSub && (
-        <div className="bg-stone-900 border border-brand-500/30 rounded-2xl p-6 space-y-4">
+        <div className="bg-navy-900 border border-brand-500/30 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-stone-100">Edit — {editSub.name}</h2>
-            <button onClick={() => setEditSub(null)} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">✕ Cancel</button>
+            <h2 className="text-lg font-semibold text-navy-100">Edit — {editSub.name}</h2>
+            <button onClick={() => setEditSub(null)} className="text-navy-400 hover:text-navy-200 text-sm transition-colors">✕ Cancel</button>
           </div>
           <SubscriptionForm
             key={editSub.id}
@@ -1830,7 +1830,7 @@ export default function AdminSubscriptionsPage() {
       )}
 
       {subsLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-navy-400 py-8 text-center">Loading…</div>
       ) : (
         <>
           {/* Search & filter bar */}
@@ -1840,13 +1840,13 @@ export default function AdminSubscriptionsPage() {
               placeholder="Search by name…"
               value={search}
               onChange={(e) => { setSearch(e.target.value) }}
-              className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-400 w-64"
+              className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 text-sm focus:outline-none focus:border-brand-400 w-64"
             />
             {!isManager && companies.length > 0 && (
               <select
                 value={filterCompanyId}
                 onChange={(e) => { setFilterCompanyId(e.target.value) }}
-                className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-400"
+                className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 text-sm focus:outline-none focus:border-brand-400"
               >
                 <option value="">All companies</option>
                 {companies.map((c) => (
@@ -1857,7 +1857,7 @@ export default function AdminSubscriptionsPage() {
             {(search || filterCompanyId) && (
               <button
                 onClick={() => { setSearchState(''); setFilterCompanyIdState(''); setPageState(1) }}
-                className="text-xs text-stone-400 hover:text-stone-200"
+                className="text-xs text-navy-400 hover:text-navy-200"
               >
                 ✕ Clear
               </button>

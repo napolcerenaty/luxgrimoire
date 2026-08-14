@@ -8,8 +8,8 @@ import ImageUpload from '@/components/admin/ImageUpload'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
-const LABEL = 'block text-xs text-stone-400 mb-1'
+const INPUT = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
+const LABEL = 'block text-xs text-navy-400 mb-1'
 const BTN_SM = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors'
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -119,20 +119,20 @@ function SeriesForm({
           <option value="SERIES_ONLY">SERIES_ONLY — (legacy, same as SERIES_AS_ONE)</option>
         </select>
       </div>
-      <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
+      <label className="flex items-center gap-2 text-xs text-navy-300 cursor-pointer">
         <input type="checkbox" checked={f.canCancelDuring} onChange={e => set('canCancelDuring', e.target.checked)} className="accent-brand-400" />
         Allow subscription cancellation during this series
       </label>
-      <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
+      <label className="flex items-center gap-2 text-xs text-navy-300 cursor-pointer">
         <input type="checkbox" checked={f.isActive} onChange={e => set('isActive', e.target.checked)} className="accent-brand-400" />
         Active (visible on public pages)
       </label>
       <div className="flex gap-2 pt-1">
         <button type="submit" disabled={submitting}
-          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
+          className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
           {submitting ? 'Saving…' : submitLabel}
         </button>
-        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600 text-sm">
+        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-lg bg-navy-700 text-navy-300 hover:bg-navy-600 text-sm">
           Cancel
         </button>
       </div>
@@ -186,17 +186,17 @@ function AssignMonthsPanel({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-stone-400">Check months to assign. Uncheck assigned months and use Remove to detach them.</p>
-      <div className="max-h-60 overflow-y-auto space-y-1 bg-stone-900 rounded-xl p-2">
-        {allMonths.length === 0 && <p className="text-stone-500 text-xs px-2">No months found for this subscription.</p>}
+      <p className="text-xs text-navy-400">Check months to assign. Uncheck assigned months and use Remove to detach them.</p>
+      <div className="max-h-60 overflow-y-auto space-y-1 bg-navy-900 rounded-xl p-2">
+        {allMonths.length === 0 && <p className="text-navy-500 text-xs px-2">No months found for this subscription.</p>}
         {allMonths.map(m => {
           const isAssigned = assignedIds.has(m.id)
           return (
-            <label key={m.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-800 cursor-pointer">
+            <label key={m.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-navy-800 cursor-pointer">
               <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)} className="accent-brand-400" />
-              <span className={`text-xs ${isAssigned ? 'text-brand-400 font-medium' : 'text-stone-300'}`}>
+              <span className={`text-xs ${isAssigned ? 'text-brand-400 font-medium' : 'text-navy-300'}`}>
                 {MONTH_NAMES[m.month - 1]} {m.year}
-                {m.theme && <span className="text-stone-500 ml-1">— {m.theme}</span>}
+                {m.theme && <span className="text-navy-500 ml-1">— {m.theme}</span>}
                 {isAssigned && <span className="ml-1 text-xs text-brand-500/70">(assigned)</span>}
               </span>
             </label>
@@ -207,7 +207,7 @@ function AssignMonthsPanel({
         <button
           onClick={() => assignMutation.mutate([...selected])}
           disabled={selected.size === 0 || assignMutation.isPending}
-          className={`${BTN_SM} bg-brand-400 text-stone-950 disabled:opacity-50`}
+          className={`${BTN_SM} bg-brand-400 text-navy-950 disabled:opacity-50`}
         >
           {assignMutation.isPending ? '…' : `Assign (${selected.size})`}
         </button>
@@ -256,38 +256,38 @@ function SeriesCard({
   const dateRange = `${MONTH_NAMES[series.startMonth - 1]} ${series.startYear} – ${MONTH_NAMES[series.endMonth - 1]} ${series.endYear}`
 
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden">
+    <div className="bg-navy-900 border border-navy-800 rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-start gap-4 p-4">
         {coverUrl ? (
           <img src={coverUrl} alt="" className="w-20 h-12 object-cover rounded-lg shrink-0" />
         ) : (
-          <div className="w-20 h-12 bg-stone-800 rounded-lg shrink-0 flex items-center justify-center text-stone-600 text-xs">No img</div>
+          <div className="w-20 h-12 bg-navy-800 rounded-lg shrink-0 flex items-center justify-center text-navy-600 text-xs">No img</div>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-stone-100 font-semibold">{series.name}</span>
+            <span className="text-navy-100 font-semibold">{series.name}</span>
             <span className={`text-xs px-1.5 py-0.5 rounded ${
               series.skipMode === 'NO_SKIP' ? 'bg-red-500/20 text-red-400' :
               series.skipMode === 'SERIES_AS_ONE' || series.skipMode === 'SERIES_ONLY' ? 'bg-purple-500/20 text-purple-300' :
               series.skipMode === 'SERIES_AS_MANY' ? 'bg-blue-500/20 text-blue-300' :
-              'bg-stone-700 text-stone-400'
+              'bg-navy-700 text-navy-400'
             }`}>
               {series.skipMode}
             </span>
-            {!series.isActive && <span className="text-xs text-stone-600">Inactive</span>}
+            {!series.isActive && <span className="text-xs text-navy-600">Inactive</span>}
             {!series.canCancelDuring && <span className="text-xs text-brand-600/70">No cancel during</span>}
           </div>
-          <p className="text-stone-400 text-xs mt-0.5">{dateRange} · {series._count?.months ?? series.months?.length ?? 0} months assigned</p>
-          {series.description && <p className="text-stone-500 text-xs mt-0.5 line-clamp-1">{series.description}</p>}
+          <p className="text-navy-400 text-xs mt-0.5">{dateRange} · {series._count?.months ?? series.months?.length ?? 0} months assigned</p>
+          {series.description && <p className="text-navy-500 text-xs mt-0.5 line-clamp-1">{series.description}</p>}
         </div>
         <div className="flex gap-2 shrink-0">
           <button onClick={() => { setEditing(!editing); setAssignOpen(false) }}
-            className={`${BTN_SM} ${editing ? 'bg-stone-600 text-stone-200' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+            className={`${BTN_SM} ${editing ? 'bg-navy-600 text-navy-200' : 'bg-navy-700 text-navy-300 hover:bg-navy-600'}`}>
             {editing ? 'Cancel' : 'Edit'}
           </button>
           <button onClick={() => { setAssignOpen(!assignOpen); setEditing(false) }}
-            className={`${BTN_SM} ${assignOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+            className={`${BTN_SM} ${assignOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-navy-700 text-navy-300 hover:bg-navy-600'}`}>
             Months {assignOpen ? '▲' : '▼'}
           </button>
           <button
@@ -311,7 +311,7 @@ function SeriesCard({
 
       {/* Edit form */}
       {editing && (
-        <div className="border-t border-stone-800 p-4 bg-stone-800/30">
+        <div className="border-t border-navy-800 p-4 bg-navy-800/30">
           <SeriesForm
             initial={seriesToForm(series)}
             onSubmit={f => updateMutation.mutate(f)}
@@ -324,7 +324,7 @@ function SeriesCard({
 
       {/* Assign months */}
       {assignOpen && (
-        <div className="border-t border-stone-800 p-4 bg-stone-800/20">
+        <div className="border-t border-navy-800 p-4 bg-navy-800/20">
           <AssignMonthsPanel
             series={series}
             allMonths={allMonths}
@@ -373,22 +373,22 @@ export default function AdminSubscriptionSeriesPage({ params }: { params: Promis
   return (
     <div>
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-stone-500 mb-4">
-        <Link href="/admin/subscriptions" className="hover:text-stone-300">Subscriptions</Link>
+      <div className="flex items-center gap-2 text-sm text-navy-500 mb-4">
+        <Link href="/admin/subscriptions" className="hover:text-navy-300">Subscriptions</Link>
         <span>/</span>
-        <Link href={`/admin/subscriptions/${slug}/months`} className="hover:text-stone-300">{subData?.name ?? slug}</Link>
+        <Link href={`/admin/subscriptions/${slug}/months`} className="hover:text-navy-300">{subData?.name ?? slug}</Link>
         <span>/</span>
-        <span className="text-stone-300">Series</span>
+        <span className="text-navy-300">Series</span>
       </div>
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-stone-100">Subscription Series</h1>
-          <p className="text-stone-400 text-sm mt-0.5">Group months into named series with custom skip behaviour</p>
+          <h1 className="text-2xl font-bold text-navy-100">Subscription Series</h1>
+          <p className="text-navy-400 text-sm mt-0.5">Group months into named series with custom skip behaviour</p>
         </div>
         <button
           onClick={() => setCreating(!creating)}
-          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors text-sm"
+          className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors text-sm"
         >
           {creating ? '✕ Cancel' : '+ New Series'}
         </button>
@@ -396,8 +396,8 @@ export default function AdminSubscriptionSeriesPage({ params }: { params: Promis
 
       {/* Create form */}
       {creating && (
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-6">
-          <h2 className="text-stone-100 font-semibold mb-4">Create Series</h2>
+        <div className="bg-navy-900 border border-navy-800 rounded-2xl p-5 mb-6">
+          <h2 className="text-navy-100 font-semibold mb-4">Create Series</h2>
           <SeriesForm
             initial={EMPTY_FORM}
             onSubmit={f => createMutation.mutate({ ...f, subscriptionId: subData?.id ?? '' })}
@@ -409,9 +409,9 @@ export default function AdminSubscriptionSeriesPage({ params }: { params: Promis
       )}
 
       {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-navy-400 py-8 text-center">Loading…</div>
       ) : seriesList.length === 0 ? (
-        <div className="text-stone-500 py-8 text-center">No series defined yet. Create one to group subscription months.</div>
+        <div className="text-navy-500 py-8 text-center">No series defined yet. Create one to group subscription months.</div>
       ) : (
         <div className="space-y-4">
           {seriesList.map(s => (

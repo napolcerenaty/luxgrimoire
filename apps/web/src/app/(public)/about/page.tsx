@@ -11,7 +11,7 @@ export default function AboutPage() {
     <div className="container mx-auto max-w-2xl px-4 py-16">
       <h1 className="text-4xl font-serif font-bold text-brand-400 mb-8 tracking-wide">About LuxGrimoire</h1>
 
-      <div className="prose prose-invert prose-stone max-w-none space-y-6 text-stone-300 text-sm leading-relaxed">
+      <div className="prose prose-invert prose-stone max-w-none space-y-6 text-navy-300 text-sm leading-relaxed">
         <p>
           LuxGrimoire is an independent, community-driven database for luxury special edition books and
           book subscription boxes. Our goal is to make it easy to discover, track, and compare the beautiful
@@ -23,8 +23,8 @@ export default function AboutPage() {
           box, or just here to admire gorgeous book art — LuxGrimoire is built for you.
         </p>
 
-        <h2 className="text-xl font-serif font-semibold text-stone-100 mt-8 mb-2">What we offer</h2>
-        <ul className="list-disc list-inside space-y-1 text-stone-400">
+        <h2 className="text-xl font-serif font-semibold text-navy-100 mt-8 mb-2">What we offer</h2>
+        <ul className="list-disc list-inside space-y-1 text-navy-400">
           <li>Searchable database of luxury editions and subscription boxes</li>
           <li>Monthly theme and edition history for every subscription</li>
           <li>Personal collection & wishlist tracking</li>
@@ -33,7 +33,7 @@ export default function AboutPage() {
           <li>Community-submitted data and corrections</li>
         </ul>
 
-        <h2 className="text-xl font-serif font-semibold text-stone-100 mt-8 mb-2">Disclaimer</h2>
+        <h2 className="text-xl font-serif font-semibold text-navy-100 mt-8 mb-2">Disclaimer</h2>
         <p>
           LuxGrimoire is an independent, fan-made reference database dedicated to book subscription boxes, special editions, and related publishing content.
         </p>
@@ -50,7 +50,7 @@ export default function AboutPage() {
           Our goal is to provide a structured, community-driven reference for readers and collectors.
         </p>
 
-        <h2 className="text-xl font-serif font-semibold text-stone-100 mt-8 mb-2">Get involved</h2>
+        <h2 className="text-xl font-serif font-semibold text-navy-100 mt-8 mb-2">Get involved</h2>
         <p>
           Found missing data? Want to help moderate?{' '}
           <Link href="/data-requests" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">

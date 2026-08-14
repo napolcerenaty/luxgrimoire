@@ -16,7 +16,7 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
       href={href}
       target="_blank"
       rel="noreferrer noopener"
-      className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-brand-400 transition-colors border border-stone-700 hover:border-brand-700/60 rounded-full px-3 py-1"
+      className="flex items-center gap-1.5 text-sm text-navy-400 hover:text-brand-400 transition-colors border border-navy-700 hover:border-brand-700/60 rounded-full px-3 py-1"
     >
       {icon}
       <span>{label}</span>
@@ -106,7 +106,7 @@ export default async function ArtistPage({ params }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* ── Hero ─────────────────────────────────────────── */}
-      <div className="relative overflow-hidden border-b border-stone-800 bg-gradient-to-b from-stone-950 to-stone-900">
+      <div className="relative overflow-hidden border-b border-navy-800 bg-gradient-to-b from-navy-950 to-navy-900">
         <div className="container mx-auto px-4 py-12 max-w-5xl">
           <div className="flex flex-col sm:flex-row gap-8 items-start">
             {/* Photo */}
@@ -118,7 +118,7 @@ export default async function ArtistPage({ params }: Props) {
                 className="w-36 h-36 sm:w-48 sm:h-48 rounded-2xl object-cover shadow-2xl ring-2 ring-brand-700/40 shrink-0"
               />
             ) : (
-              <div className="w-36 h-36 sm:w-48 sm:h-48 rounded-2xl bg-stone-800 flex items-center justify-center shrink-0 text-5xl font-serif text-stone-600">
+              <div className="w-36 h-36 sm:w-48 sm:h-48 rounded-2xl bg-navy-800 flex items-center justify-center shrink-0 text-5xl font-serif text-navy-600">
                 {artist.name[0]}
               </div>
             )}
@@ -126,7 +126,7 @@ export default async function ArtistPage({ params }: Props) {
             {/* Info */}
             <div className="flex-1">
               <p className="text-xs text-brand-600 uppercase tracking-widest mb-2 font-medium">Artist</p>
-              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-stone-100 leading-tight mb-1">
+              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-navy-100 leading-tight mb-1">
                 {artist.name}
               </h1>
 
@@ -135,7 +135,7 @@ export default async function ArtistPage({ params }: Props) {
               )}
 
               {artist.bio && (
-                <p className="text-stone-300 leading-relaxed max-w-2xl mb-5">{artist.bio}</p>
+                <p className="text-navy-300 leading-relaxed max-w-2xl mb-5">{artist.bio}</p>
               )}
 
               {/* Social links */}
@@ -154,7 +154,7 @@ export default async function ArtistPage({ params }: Props) {
       {/* ── Artwork & Contributions ──────────────────────── */}
       <div className="container mx-auto px-4 py-10 max-w-5xl">
         <div className="flex items-center gap-3 mb-6">
-          <h2 className="text-2xl font-serif font-semibold text-stone-100">Artwork &amp; Contributions</h2>
+          <h2 className="text-2xl font-serif font-semibold text-navy-100">Artwork &amp; Contributions</h2>
         </div>
         <ArtistContributionsSection artistSlug={artist.slug} />
       </div>

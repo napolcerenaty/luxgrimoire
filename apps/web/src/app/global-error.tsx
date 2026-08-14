@@ -10,7 +10,7 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
 
   return (
     <html lang="en">
-      <body style={{ background: '#0c0a09', color: '#e7e5e4', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', margin: 0, fontFamily: 'serif', padding: '2rem' }}>
+      <body style={{ background: '#050810', color: '#e8f4ff', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', margin: 0, fontFamily: 'serif', padding: '2rem' }}>
         <div style={{ textAlign: 'center', maxWidth: '28rem' }}>
           <div
             style={{
@@ -23,17 +23,20 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
               justifyContent: 'center',
               background: 'rgba(42,158,196,0.1)',
               border: '1px solid rgba(42,158,196,0.3)',
-              fontSize: '1.5rem',
             }}
           >
-            ⚠️
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2a9ec4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
+            </svg>
           </div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Something went wrong</h1>
-          <p style={{ color: '#a8a29e', fontSize: '0.875rem', margin: 0 }}>
+          <p style={{ color: '#7ab0cc', fontSize: '0.875rem', margin: 0 }}>
             An unexpected error occurred and has already been logged on our end.
           </p>
           {error.digest && (
-            <p style={{ color: '#57534e', fontSize: '0.75rem', marginTop: '0.5rem' }}>Reference: {error.digest}</p>
+            <p style={{ color: '#4a88a8', fontSize: '0.75rem', marginTop: '0.5rem' }}>Reference: {error.digest}</p>
           )}
           <button
             onClick={() => window.location.reload()}

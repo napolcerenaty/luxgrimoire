@@ -69,15 +69,15 @@ export default async function CollectionPage({ params }: Props) {
         />
 
         <div className="flex items-center gap-3 flex-wrap mb-2">
-          <span className="text-stone-500 text-xs">{editions.length} edition{editions.length !== 1 ? 's' : ''}</span>
+          <span className="text-navy-500 text-xs">{editions.length} edition{editions.length !== 1 ? 's' : ''}</span>
         </div>
 
-        <h1 className="text-4xl font-serif font-bold text-stone-100 mt-1">{collection.name}</h1>
+        <h1 className="text-4xl font-serif font-bold text-navy-100 mt-1">{collection.name}</h1>
       </div>
 
       {/* Editions grid */}
       {editions.length === 0 ? (
-        <p className="text-stone-500">No editions in this collection yet.</p>
+        <p className="text-navy-500">No editions in this collection yet.</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
           {editions.map((edition) => {
@@ -92,7 +92,7 @@ export default async function CollectionPage({ params }: Props) {
               <Link
                 key={edition.id}
                 href={href}
-                className="group flex flex-col rounded-lg overflow-hidden border border-stone-700 hover:border-brand-600/60 transition-all"
+                className="group flex flex-col rounded-lg overflow-hidden border border-navy-700 hover:border-brand-600/60 transition-all"
                 style={{ background: 'var(--bg-raised)' }}
               >
                 {/* Cover */}
@@ -107,7 +107,7 @@ export default async function CollectionPage({ params }: Props) {
                   ) : (
                     <div className="relative w-full h-full flex items-center justify-center">
                       <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(collection.company?.brandColors)} />
-                      <span className="relative z-10 text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4 px-2">{displayTitle || '?'}</span>
+                      <span className="relative z-10 text-xs font-serif text-navy-300/80 text-center leading-snug line-clamp-4 px-2">{displayTitle || '?'}</span>
                     </div>
                   )}
                 </div>
@@ -115,19 +115,19 @@ export default async function CollectionPage({ params }: Props) {
                 {/* Info */}
                 <div className="px-2.5 pt-2 pb-2">
                   <div className="h-[2.25rem] overflow-hidden mb-1">
-                    <p className="text-xs font-serif font-semibold text-stone-200 group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
+                    <p className="text-xs font-serif font-semibold text-navy-200 group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
                       {displayTitle || 'Unknown'}
                     </p>
                   </div>
                   {customName && (
                     <p className="text-[10px] text-brand-500/70 font-medium line-clamp-1 leading-tight mb-0.5">{customName}</p>
                   )}
-                  <p className="text-[10px] text-stone-500 line-clamp-1 font-sans leading-tight">
+                  <p className="text-[10px] text-navy-500 line-clamp-1 font-sans leading-tight">
                     {book?.seriesName
                       ? `${book.seriesName}${book.volumeNumbers?.length ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}`
                       : '\u00A0'}
                   </p>
-                  <p className="text-[10px] text-stone-400 line-clamp-1 font-sans leading-tight mt-0.5">
+                  <p className="text-[10px] text-navy-400 line-clamp-1 font-sans leading-tight mt-0.5">
                     {authors || '\u00A0'}
                   </p>
                 </div>

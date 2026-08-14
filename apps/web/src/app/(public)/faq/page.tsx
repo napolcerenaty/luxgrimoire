@@ -39,7 +39,7 @@ export default async function FaqPage() {
         <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">
           {ghostPage.title}
         </h1>
-        <p className="text-stone-400 mb-12 text-sm">
+        <p className="text-navy-400 mb-12 text-sm">
           Can&apos;t find your answer? Visit our <Link href="/blog" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">Blog</Link> for guides and tips, or <Link href="/contact" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">contact us</Link> directly.
         </p>
         <BlogPostContent html={ghostPage.html} />
@@ -52,17 +52,17 @@ export default async function FaqPage() {
       <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">
         Frequently Asked Questions
       </h1>
-      <p className="text-stone-400 mb-12 text-sm">
+      <p className="text-navy-400 mb-12 text-sm">
         Can&apos;t find your answer? Visit our <Link href="/blog" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">Blog</Link> for guides and tips, or <Link href="/contact" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">contact us</Link> directly.
       </p>
-      <div className="divide-y divide-stone-800">
+      <div className="divide-y divide-navy-800">
         {FAQ_FALLBACK.map(({ q, a }) => (
           <details key={q} className="group py-5">
             <summary className="flex items-center justify-between cursor-pointer list-none gap-4">
-              <span className="font-serif text-base text-stone-200 group-open:text-brand-400 transition-colors">{q}</span>
-              <ChevronDown size={16} className="text-stone-500 shrink-0 transition-transform group-open:rotate-180" />
+              <span className="font-serif text-base text-navy-200 group-open:text-brand-400 transition-colors">{q}</span>
+              <ChevronDown size={16} className="text-navy-500 shrink-0 transition-transform group-open:rotate-180" />
             </summary>
-            <div className="mt-3 text-sm text-stone-400 leading-relaxed">{a}</div>
+            <div className="mt-3 text-sm text-navy-400 leading-relaxed">{a}</div>
           </details>
         ))}
       </div>

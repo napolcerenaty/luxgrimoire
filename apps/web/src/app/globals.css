@@ -2,18 +2,33 @@
 @import "tailwindcss";
 
 @theme {
-  /* Remap stone palette → deep navy (matches old-approach) */
-  --color-stone-950: #050810;
-  --color-stone-900: #070f1c;
-  --color-stone-800: #0a1828;
-  --color-stone-700: #0d1f35;
-  --color-stone-600: #2e6080;
-  --color-stone-500: #4a88a8;
-  --color-stone-400: #7ab0cc;
-  --color-stone-300: #b0cce0;
-  --color-stone-200: #c0e4f4;
-  --color-stone-100: #e8f4ff;
-  --color-stone-50:  #f0f7fc;
+  /* Site surface/neutral palette (deep navy) — previously implemented by remapping Tailwind's
+     `stone` palette, which made `stone-*` classes render navy and collided with any genuine
+     warm-gray usage. Use `navy-*` for the site's surface/neutral color; `stone-*` is native Tailwind. */
+  --color-navy-950: #050810;
+  --color-navy-900: #070f1c;
+  --color-navy-800: #0a1828;
+  --color-navy-700: #0d1f35;
+  --color-navy-600: #2e6080;
+  --color-navy-500: #4a88a8;
+  --color-navy-400: #7ab0cc;
+  --color-navy-300: #b0cce0;
+  --color-navy-200: #c0e4f4;
+  --color-navy-100: #e8f4ff;
+  --color-navy-50:  #f0f7fc;
+
+  /* Native Tailwind stone — no longer remapped, see navy-* above for the site's surface color */
+  --color-stone-950: #0c0a09;
+  --color-stone-900: #1c1917;
+  --color-stone-800: #292524;
+  --color-stone-700: #44403c;
+  --color-stone-600: #57534e;
+  --color-stone-500: #78716c;
+  --color-stone-400: #a8a29e;
+  --color-stone-300: #d6d3d1;
+  --color-stone-200: #e7e5e4;
+  --color-stone-100: #f5f5f4;
+  --color-stone-50:  #fafaf9;
 
   /* Brand accent palette (cyan-blue) — previously implemented by remapping Tailwind's `amber`
      palette, which made `amber-*` classes render blue and collided with genuine amber/warning
@@ -115,18 +130,18 @@ html {
 
 /* ── Light theme ───────────────────────────────────────────────────────────── */
 [data-theme="light"] {
-  /* Remap stone palette → light blue-slate */
-  --color-stone-950: #e4edf8;
-  --color-stone-900: #d8e6f4;
-  --color-stone-800: #ccdaf0;
-  --color-stone-700: #b0c8e4;
-  --color-stone-600: #7a9ec0;
-  --color-stone-500: #456a90;
-  --color-stone-400: #1a3a5a;
-  --color-stone-300: #0d2038;
-  --color-stone-200: #0a1c36;
-  --color-stone-100: #0d2448;  /* rich navy — not black */
-  --color-stone-50:  #0a1c38;  /* deep navy */
+  /* Remap navy palette → light blue-slate */
+  --color-navy-950: #e4edf8;
+  --color-navy-900: #d8e6f4;
+  --color-navy-800: #ccdaf0;
+  --color-navy-700: #b0c8e4;
+  --color-navy-600: #7a9ec0;
+  --color-navy-500: #456a90;
+  --color-navy-400: #1a3a5a;
+  --color-navy-300: #0d2038;
+  --color-navy-200: #0a1c36;
+  --color-navy-100: #0d2448;  /* rich navy — not black */
+  --color-navy-50:  #0a1c38;  /* deep navy */
 
   /* Brand accent palette → deep navy family (all consistent with logo navy) */
   --color-brand-50:  #dce8f8;
@@ -236,16 +251,16 @@ input[type=number] {
 
 /* Force dark-theme palette inside overlays that must always appear dark */
 [data-theme="light"] .modal-dark {
-  --color-stone-950: #050810;
-  --color-stone-900: #070f1c;
-  --color-stone-800: #0a1828;
-  --color-stone-700: #0d1f35;
-  --color-stone-600: #2e6080;
-  --color-stone-500: #4a88a8;
-  --color-stone-400: #7ab0cc;
-  --color-stone-300: #b0cce0;
-  --color-stone-200: #c0e4f4;
-  --color-stone-100: #e8f4ff;
+  --color-navy-950: #050810;
+  --color-navy-900: #070f1c;
+  --color-navy-800: #0a1828;
+  --color-navy-700: #0d1f35;
+  --color-navy-600: #2e6080;
+  --color-navy-500: #4a88a8;
+  --color-navy-400: #7ab0cc;
+  --color-navy-300: #b0cce0;
+  --color-navy-200: #c0e4f4;
+  --color-navy-100: #e8f4ff;
   --color-brand-400: #4ab8d8;
   --color-brand-500: #2a9ec4;
 }
@@ -340,9 +355,8 @@ input[type=number] {
 
 /* Filter-chip status dots for the 4 ownership buckets above — hardcoded to the exact same RGB
    as the matching "edition-glow" box-shadow classes, deliberately NOT using Tailwind's stone
-   background utilities (still remapped to this site's blue/navy brand accent — see @theme block
-   at the top of this file, and use `brand-*` classes for that color, not `stone-*`/`amber-*`).
-   `amber-*` itself is native Tailwind again (no longer remapped) — see brand cleanup history.
+   background utilities (use `navy-*` classes for this site's surface/neutral color, and `brand-*`
+   for its blue accent — `stone-*`/`amber-*` are native Tailwind again, no longer remapped).
    Keeping dot and glow colors defined once, in the same place, means they can't drift apart again. */
 .status-dot-gold {
   background-color: rgb(212,175,55);

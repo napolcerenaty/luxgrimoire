@@ -167,15 +167,15 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
                 </span>
                 {handles.length > 0 ? (
                   <>
-                    <span className="text-[10px] text-stone-500 shrink-0">community photo by</span>
+                    <span className="text-[10px] text-navy-500 shrink-0">community photo by</span>
                     {handles.map((handle, i) => (
                       <span key={handle} className="flex items-center gap-0.5">
-                        {i > 0 && <span className="text-[10px] text-stone-600">·</span>}
+                        {i > 0 && <span className="text-[10px] text-navy-600">·</span>}
                         <a
                           href={`https://instagram.com/${handle}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-[10px] text-stone-400 hover:text-brand-400 transition-colors"
+                          className="text-[10px] text-navy-400 hover:text-brand-400 transition-colors"
                         >
                           @{handle}
                         </a>
@@ -183,10 +183,10 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
                     ))}
                   </>
                 ) : (
-                  <span className="text-[10px] text-stone-500">community photo</span>
+                  <span className="text-[10px] text-navy-500">community photo</span>
                 )}
                 {images.some(img => user?.username && img.user?.username === user.username) && (
-                  <span className="text-[10px] text-stone-600 ml-auto shrink-0">
+                  <span className="text-[10px] text-navy-600 ml-auto shrink-0">
                     manage in{' '}
                     <a href="/profile" className="text-brand-600 hover:text-brand-400 underline underline-offset-2">profile</a>
                   </span>
@@ -201,25 +201,25 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
       {images.length === 0 && !showUpload && (
         <>
           {authLoading ? (
-            <div className="w-full aspect-[2/3] rounded-xl bg-stone-900 ring-1 ring-stone-800 animate-pulse" />
+            <div className="w-full aspect-[2/3] rounded-xl bg-navy-900 ring-1 ring-navy-800 animate-pulse" />
           ) : isAuthenticated ? (
             <button
               type="button"
               onClick={() => { setShowUpload(true); setSuccess(false) }}
-              className="w-full aspect-[2/3] rounded-xl bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 flex flex-col items-center justify-center text-stone-500 ring-1 ring-stone-700/50 hover:ring-brand-600/60 hover:text-stone-300 hover:bg-gradient-to-br hover:from-stone-700 hover:via-stone-800 hover:to-brand-900/20 transition-all group cursor-pointer"
+              className="w-full aspect-[2/3] rounded-xl bg-gradient-to-br from-navy-700 via-navy-800 to-navy-900 flex flex-col items-center justify-center text-navy-500 ring-1 ring-navy-700/50 hover:ring-brand-600/60 hover:text-navy-300 hover:bg-gradient-to-br hover:from-navy-700 hover:via-navy-800 hover:to-brand-900/20 transition-all group cursor-pointer"
             >
               <svg className="w-10 h-10 mb-3 group-hover:text-brand-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span className="text-sm font-semibold text-stone-300 group-hover:text-brand-400 transition-colors">Upload community photo</span>
-              <span className="text-xs text-stone-600 mt-1">Be the first to contribute</span>
+              <span className="text-sm font-semibold text-navy-300 group-hover:text-brand-400 transition-colors">Upload community photo</span>
+              <span className="text-xs text-navy-600 mt-1">Be the first to contribute</span>
             </button>
           ) : (
-            <div className="w-full aspect-[2/3] rounded-xl bg-gradient-to-br from-stone-800 via-stone-900 to-stone-950 flex flex-col items-center justify-center text-stone-500 ring-1 ring-stone-700/50 gap-2 px-4 text-center">
+            <div className="w-full aspect-[2/3] rounded-xl bg-gradient-to-br from-navy-800 via-navy-900 to-navy-950 flex flex-col items-center justify-center text-navy-500 ring-1 ring-navy-700/50 gap-2 px-4 text-center">
               <svg className="w-10 h-10 mb-1 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span className="text-xs text-stone-500">No official image yet</span>
+              <span className="text-xs text-navy-500">No official image yet</span>
               <a
                 href="/login"
                 className="text-xs text-brand-600 hover:text-brand-400 underline underline-offset-2 transition-colors"
@@ -240,10 +240,10 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
 
       {/* Upload form */}
       {showUpload && (
-        <div className="mt-3 rounded-xl border border-stone-700 bg-stone-900/70 p-4 space-y-4">
+        <div className="mt-3 rounded-xl border border-navy-700 bg-navy-900/70 p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-stone-200">Add community photos</h4>
-            <button type="button" onClick={handleCancel} className="text-stone-500 hover:text-stone-300 text-base">✕</button>
+            <h4 className="text-sm font-semibold text-navy-200">Add community photos</h4>
+            <button type="button" onClick={handleCancel} className="text-navy-500 hover:text-navy-300 text-base">✕</button>
           </div>
 
           {/* Upload area */}
@@ -253,11 +253,11 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
                 type="button"
                 disabled={uploading || !canAddMore}
                 onClick={() => inputRef.current?.click()}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 disabled:opacity-50 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-700 text-navy-300 hover:bg-navy-600 disabled:opacity-50 transition-colors"
               >
                 {uploading ? uploadProgress : '+ Add photos'}
               </button>
-              <span className="text-stone-600 text-xs">
+              <span className="text-navy-600 text-xs">
                 {pending.length === 0
                   ? `up to ${MAX_IMAGES} photos · first = main`
                   : `${pending.length}/${MAX_IMAGES} · drag to reorder`}
@@ -281,16 +281,16 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
                       onDragEnd={() => { setDragIndex(null); setDragOver(null) }}
                       className={`relative group cursor-grab active:cursor-grabbing transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`}
                     >
-                      <div className={`w-16 h-20 rounded-lg overflow-hidden bg-stone-800 border transition-all ${
+                      <div className={`w-16 h-20 rounded-lg overflow-hidden bg-navy-800 border transition-all ${
                         isOver ? 'border-brand-400 ring-2 ring-brand-400/40 scale-105'
                           : isMain ? 'border-brand-500 ring-1 ring-brand-500/40'
-                          : 'border-stone-700'
+                          : 'border-navy-700'
                       }`}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={img.previewUrl} alt="" className="w-full h-full object-cover pointer-events-none" />
                       </div>
                       {isMain && (
-                        <span className="absolute bottom-1 left-0 right-0 text-center text-[9px] font-semibold uppercase text-brand-400 bg-stone-950/70 px-0.5 py-px leading-tight">
+                        <span className="absolute bottom-1 left-0 right-0 text-center text-[9px] font-semibold uppercase text-brand-400 bg-navy-950/70 px-0.5 py-px leading-tight">
                           main
                         </span>
                       )}
@@ -310,17 +310,17 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
 
           {/* Instagram handle */}
           <div>
-            <label className="block text-xs text-stone-400 mb-1">
-              Instagram handle <span className="text-stone-600">(optional — tag yourself as the photographer)</span>
+            <label className="block text-xs text-navy-400 mb-1">
+              Instagram handle <span className="text-navy-600">(optional — tag yourself as the photographer)</span>
             </label>
             <div className="flex items-center gap-1">
-              <span className="text-stone-500 text-sm">@</span>
+              <span className="text-navy-500 text-sm">@</span>
               <input
                 type="text"
                 value={instagramHandle.replace(/^@/, '')}
                 onChange={e => setInstagramHandle(e.target.value.replace(/^@/, ''))}
                 placeholder="yourhandle"
-                className="flex-1 bg-stone-800 border border-stone-700 rounded px-2 py-1.5 text-sm text-stone-200 placeholder-stone-600 focus:outline-none focus:border-brand-600"
+                className="flex-1 bg-navy-800 border border-navy-700 rounded px-2 py-1.5 text-sm text-navy-200 placeholder-navy-600 focus:outline-none focus:border-brand-600"
               />
             </div>
           </div>
@@ -335,7 +335,7 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
                 className="w-4 h-4 rounded accent-brand-500"
               />
             </div>
-            <span className="text-xs text-stone-400 group-hover:text-stone-300 transition-colors leading-relaxed">
+            <span className="text-xs text-navy-400 group-hover:text-navy-300 transition-colors leading-relaxed">
               I confirm this photo is mine, I grant LuxGrimoire permission to display it in the application,
               and I acknowledge that my photos may be removed from the application at any time without notice or reason.
             </span>
@@ -344,14 +344,14 @@ export function CommunityImageSection({ editionSlug, initialImages }: Props) {
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={handleCancel} className="px-3 py-1.5 text-xs text-stone-400 hover:text-stone-200">
+            <button type="button" onClick={handleCancel} className="px-3 py-1.5 text-xs text-navy-400 hover:text-navy-200">
               Cancel
             </button>
             <button
               type="button"
               disabled={submitting || uploading || !consentGiven || pending.length === 0}
               onClick={handleSubmit}
-              className="px-4 py-1.5 text-xs bg-brand-700 hover:bg-brand-600 disabled:opacity-50 text-stone-100 rounded-lg transition-colors"
+              className="px-4 py-1.5 text-xs bg-brand-700 hover:bg-brand-600 disabled:opacity-50 text-navy-100 rounded-lg transition-colors"
             >
               {submitting ? 'Submitting…' : 'Submit photos'}
             </button>

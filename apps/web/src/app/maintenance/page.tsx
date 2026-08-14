@@ -4,7 +4,7 @@ export const metadata: Metadata = { title: 'LuxGrimoire — Back Soon', robots: 
 
 export default function MaintenancePage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-stone-950 text-stone-100">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-navy-950 text-navy-100">
       {/* Logo mark */}
       <div className="mb-8 text-brand-500 opacity-80">
         <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -16,8 +16,8 @@ export default function MaintenancePage() {
       <h1 className="text-3xl sm:text-4xl font-serif font-bold mb-3 text-center">
         LuxGrimoire
       </h1>
-      <p className="text-stone-400 text-lg mb-2 text-center">We&apos;re currently performing maintenance.</p>
-      <p className="text-stone-500 text-sm text-center">We&apos;ll be back shortly. Thank you for your patience.</p>
+      <p className="text-navy-400 text-lg mb-2 text-center">We&apos;re currently performing maintenance.</p>
+      <p className="text-navy-500 text-sm text-center">We&apos;ll be back shortly. Thank you for your patience.</p>
 
       <div className="mt-10 flex gap-1.5">
         {[0, 150, 300].map(delay => (

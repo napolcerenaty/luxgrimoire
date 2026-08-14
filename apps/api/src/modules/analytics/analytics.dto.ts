@@ -27,6 +27,10 @@ export const SUPPORTED_EVENT_TYPES = [
   { id: 'tracking_click',        label: 'Package Tracking Clicks',        defaultGroupBy: 'entity' },
   { id: 'blog_view',             label: 'Blog Page Views',                defaultGroupBy: 'day'    },
   { id: 'blog_post_view',        label: 'Blog Post Views',                defaultGroupBy: 'entity' },
+  { id: 'sales_calendar_view',           label: 'Sales Calendar Views',            defaultGroupBy: 'day'    },
+  { id: 'company_calendar_view',         label: 'Company Calendar Views',          defaultGroupBy: 'entity' },
+  { id: 'calendar_ics_download',         label: 'Personal Calendar Downloads',     defaultGroupBy: 'user'   },
+  { id: 'sales_calendar_ics_download',   label: 'Sales Calendar Downloads',        defaultGroupBy: 'entity' },
 ] as const;
 
 export type SupportedGroupBy = 'entity' | 'value' | 'user' | 'day' | 'month';

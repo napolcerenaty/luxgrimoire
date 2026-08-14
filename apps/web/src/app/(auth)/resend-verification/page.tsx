@@ -39,11 +39,11 @@ function ResendVerificationContent() {
 
   if (status === 'sent') {
     return (
-      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full text-center">
+      <div className="bg-navy-900 border border-navy-800 rounded-2xl p-8 shadow-2xl max-w-md w-full text-center">
         <h1 className="font-serif text-3xl text-brand-400 mb-4">LuxGrimoire</h1>
         <div className="text-4xl mb-4">✉</div>
-        <h2 className="text-xl font-semibold text-stone-100 mb-2">Email sent!</h2>
-        <p className="text-stone-400 text-sm mb-6">
+        <h2 className="text-xl font-semibold text-navy-100 mb-2">Email sent!</h2>
+        <p className="text-navy-400 text-sm mb-6">
           If that address is registered and unverified, a new verification link has been sent.
           Check your inbox (and spam folder).
         </p>
@@ -58,15 +58,15 @@ function ResendVerificationContent() {
   }
 
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full">
+    <div className="bg-navy-900 border border-navy-800 rounded-2xl p-8 shadow-2xl max-w-md w-full">
       <div className="text-center mb-8">
         <h1 className="font-serif text-3xl text-brand-400 mb-1">LuxGrimoire</h1>
-        <p className="text-stone-400 text-sm">Resend verification email</p>
+        <p className="text-navy-400 text-sm">Resend verification email</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-stone-300 mb-1.5">
+          <label htmlFor="email" className="block text-sm font-medium text-navy-300 mb-1.5">
             Email address
           </label>
           <input
@@ -76,7 +76,7 @@ function ResendVerificationContent() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-lg px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
+            className="w-full bg-navy-900 border border-navy-700 text-navy-100 rounded-lg px-4 py-2.5 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors"
           />
         </div>
 
@@ -89,13 +89,13 @@ function ResendVerificationContent() {
         <button
           type="submit"
           disabled={status === 'loading'}
-          className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-60 disabled:cursor-not-allowed text-stone-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
+          className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-60 disabled:cursor-not-allowed text-navy-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
         >
           {status === 'loading' ? 'Sending…' : 'Resend verification email'}
         </button>
       </form>
 
-      <p className="text-center text-sm text-stone-400 mt-6">
+      <p className="text-center text-sm text-navy-400 mt-6">
         Already verified?{' '}
         <Link href="/login" className="text-brand-400 hover:text-brand-300 transition-colors">
           Sign in
@@ -109,7 +109,7 @@ export default function ResendVerificationPage() {
   return (
     <Suspense
       fallback={
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full text-center">
+        <div className="bg-navy-900 border border-navy-800 rounded-2xl p-8 shadow-2xl max-w-md w-full text-center">
           <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
       }
