@@ -51,6 +51,15 @@ export function MultiSelect({ label, options, selected, onChange, className = ''
       </button>
       {open && (
         <div className="absolute z-20 mt-1 w-full min-w-[12rem] max-h-64 overflow-y-auto bg-navy-800 border border-navy-700 rounded-lg shadow-xl p-1.5">
+          {selected.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="w-full text-left text-xs text-brand-500 hover:text-brand-400 px-2 py-1.5 mb-1 border-b border-navy-700 transition-colors"
+            >
+              Clear selection ({selected.length})
+            </button>
+          )}
           {options.length === 0 ? (
             <p className="text-xs text-navy-500 px-2 py-1.5">No options</p>
           ) : (

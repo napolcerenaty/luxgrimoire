@@ -344,7 +344,10 @@ export default function CalendarGrid({
 
       {/* Day agenda — shown below the grid on every screen size. On desktop, clicking a pill
           opens this instead of navigating straight away, so the interest bell stays reachable. */}
-      <div ref={agendaRef} className="overflow-hidden min-w-0">
+      {/* scroll-mt accounts for the sticky navbar (md:126px matches its measured height, per
+          the company page's sticky-rail comment) so scrollIntoView doesn't tuck the agenda's
+          top edge underneath it. */}
+      <div ref={agendaRef} className="overflow-hidden min-w-0 scroll-mt-20 md:scroll-mt-[126px]">
         {selectedDay ? (
           <div className="bg-navy-900 border border-navy-800 rounded-xl p-4 overflow-hidden">
             <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
