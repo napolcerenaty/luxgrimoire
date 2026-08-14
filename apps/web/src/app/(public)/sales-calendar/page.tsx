@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
@@ -13,6 +14,7 @@ import { downloadIcsCalendar, type CalendarExportEvent } from '@/lib/ics'
 import { trackEvent } from '@/lib/trackEvent'
 import { renewalDayInMonth, type CalEntry } from '@/lib/renewalDayInMonth'
 import CalendarGrid, { CalendarRenewalItem, CalendarSaleItem } from '@/components/calendar/CalendarGrid'
+import { MultiSelect } from '@/components/ui/MultiSelect'
 
 interface CalendarTier {
   tierId: string
@@ -48,16 +50,23 @@ interface SaleInterest {
 
 type TypeFilter = 'all' | 'renewals' | 'sales'
 
-export default function SalesCalendarPage() {
+function SalesCalendarContent() {
   const { theme } = useTheme()
   const { user } = useAuth()
   const getBrandColors = useBrandColors()
   const lightMode = theme === 'light'
+  const searchParams = useSearchParams()
 
   const today = new Date()
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
-  const [companyId, setCompanyId] = useState('')
+  // Keyed by company NAME (not id) — matches the shared MultiSelect component's flat-string-list
+  // design (same as the genre filter elsewhere), so no separate id/label mapping is needed.
+  // Seeded from ?company= when arriving via the "View as Calendar" CTA on /sale-announcements.
+  const [companyNames, setCompanyNames] = useState<string[]>(() => {
+    const seed = searchParams.get('company')
+    return seed ? [seed] : []
+  })
 
   useEffect(() => {
     trackEvent('/analytics/public/sales-calendar-view')
@@ -123,12 +132,12 @@ export default function SalesCalendarPage() {
   }
 
   const filteredTiers = useMemo(
-    () => tiers.filter(t => !companyId || t.announcement.company?.id === companyId),
-    [tiers, companyId],
+    () => tiers.filter(t => companyNames.length === 0 || (t.announcement.company && companyNames.includes(t.announcement.company.name))),
+    [tiers, companyNames],
   )
   const filteredRenewals = useMemo(
-    () => renewals.filter(r => !companyId || r.company.id === companyId),
-    [renewals, companyId],
+    () => renewals.filter(r => companyNames.length === 0 || companyNames.includes(r.company.name)),
+    [renewals, companyNames],
   )
 
   const renewalsForDay = (day: number): CalendarRenewalItem[] => {
@@ -220,7 +229,7 @@ export default function SalesCalendarPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-10 max-w-3xl">
+    <div className="container mx-auto px-4 py-10 max-w-5xl">
       <div className="flex items-center justify-between gap-3 mb-2">
         <div className="flex items-center gap-3">
           <CalendarDays size={24} className="text-brand-400" />
@@ -257,16 +266,13 @@ export default function SalesCalendarPage() {
           ))}
         </div>
 
-        <select
-          value={companyId}
-          onChange={e => setCompanyId(e.target.value)}
-          className="bg-navy-800 border border-navy-700 rounded-xl px-3 py-2 text-sm text-navy-300 focus:outline-none focus:border-brand-500 min-w-[160px]"
-        >
-          <option value="">All companies</option>
-          {companies.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+        <MultiSelect
+          label="companies"
+          options={companies.map(c => c.name)}
+          selected={companyNames}
+          onChange={setCompanyNames}
+          className="min-w-[180px]"
+        />
       </div>
 
       <CalendarGrid
@@ -285,9 +291,28 @@ export default function SalesCalendarPage() {
       {!isLoading && !hasAnyEvents && (
         <p className="text-center text-navy-500 py-8 text-sm">
           No {typeFilter === 'all' ? 'events' : typeFilter} found for {monthLabel}
-          {companyId ? ` from ${companies.find(c => c.id === companyId)?.name ?? 'this company'}` : ''}.
+          {companyNames.length === 1
+            ? ` from ${companyNames[0]}`
+            : companyNames.length > 1
+              ? ` from ${companyNames.length} selected companies`
+              : ''}.
         </p>
       )}
     </div>
+  )
+}
+
+export default function SalesCalendarPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto px-4 py-10 max-w-5xl">
+          <div className="h-9 w-64 bg-navy-800 rounded animate-pulse mb-8" />
+          <div className="h-96 rounded-xl bg-navy-900 animate-pulse" />
+        </div>
+      }
+    >
+      <SalesCalendarContent />
+    </Suspense>
   )
 }

@@ -76,7 +76,10 @@ export default function SaleAnnouncementsPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Link
-            href="/sales-calendar"
+            href={(() => {
+              const selectedCompanyName = companyId ? companies.find(c => c.id === companyId)?.name : undefined
+              return selectedCompanyName ? `/sales-calendar?company=${encodeURIComponent(selectedCompanyName)}` : '/sales-calendar'
+            })()}
             className="flex items-center gap-1.5 text-xs text-navy-200 bg-navy-800 hover:bg-navy-700 border border-navy-700 hover:border-brand-600/50 px-3 py-1.5 rounded-full transition-colors font-serif"
           >
             <CalendarDays size={13} />
