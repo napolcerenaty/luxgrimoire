@@ -252,13 +252,15 @@ function SalesCalendarContent() {
           mobile (filters, then a full-width button below) since the download already respects
           whatever's filtered here. */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1 bg-navy-800 border border-navy-700 rounded-xl px-1 py-1">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
+          {/* w-full/flex-1 on mobile so this matches the width of the company select and download
+              button below it instead of shrinking to content width — the mismatch looked uneven. */}
+          <div className="flex items-center gap-1 bg-navy-800 border border-navy-700 rounded-xl px-1 py-1 w-full sm:w-auto">
             {(['all', 'renewals', 'sales'] as TypeFilter[]).map(t => (
               <button
                 key={t}
                 onClick={() => setTypeFilter(t)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
                   typeFilter === t ? 'bg-navy-700 text-brand-400' : 'text-navy-400 hover:text-navy-200'
                 }`}
               >
@@ -272,7 +274,7 @@ function SalesCalendarContent() {
             options={companies.map(c => c.name)}
             selected={companyNames}
             onChange={setCompanyNames}
-            className="min-w-[180px]"
+            className="w-full sm:w-auto sm:min-w-[180px]"
           />
         </div>
 
