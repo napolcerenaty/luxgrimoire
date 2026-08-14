@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
@@ -100,10 +100,22 @@ export default function SalesCalendarPage() {
     for (const e of myEntries) if (e.active) map.set(e.subscription.id, e)
     return map
   }, [myEntries])
-  const myInterestedTierIds = useMemo(
-    () => new Set(myInterests.map(i => i.saleTier?.id).filter((id): id is string => !!id)),
-    [myInterests],
-  )
+  // Local, instantly-mutable copy of the interest set — reseeded whenever the query refetches,
+  // but also updated synchronously on bell toggle (see onSaleInterestToggle) so the "mine" glow
+  // doesn't wait on a round-trip refetch to catch up with what the bell itself already shows.
+  const [myInterestedTierIds, setMyInterestedTierIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    setMyInterestedTierIds(new Set(myInterests.map(i => i.saleTier?.id).filter((id): id is string => !!id)))
+  }, [myInterests])
+
+  function handleSaleInterestToggle(tierId: string, isInterested: boolean) {
+    setMyInterestedTierIds(prev => {
+      const next = new Set(prev)
+      if (isInterested) next.add(tierId)
+      else next.delete(tierId)
+      return next
+    })
+  }
 
   const filteredTiers = useMemo(
     () => tiers.filter(t => !companyId || t.announcement.company?.id === companyId),
@@ -261,6 +273,7 @@ export default function SalesCalendarPage() {
         renewalsForDay={renewalsForDay}
         salesForDay={salesForDay}
         interestEnabled
+        onSaleInterestToggle={handleSaleInterestToggle}
       />
 
       {!isLoading && !hasAnyEvents && (

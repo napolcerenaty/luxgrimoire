@@ -11,12 +11,16 @@ interface Props {
   tierName: string
   tierRegionId: string | null
   size?: number
+  /** Fired synchronously right after the optimistic toggle, before the network call resolves —
+   *  lets the producer (e.g. a calendar page's "mine" highlight) update instantly instead of
+   *  waiting on a separate query to invalidate and refetch. */
+  onToggled?: (isInterested: boolean) => void
 }
 
 /** Inline "interested" toggle for a calendar sale pill — the pill already represents one
  *  concrete tier, so this registers/removes interest directly against it (same shortcut
  *  SaleInterestButton takes for a `directTier`), no region/tier picker needed. */
-export function SalePillBell({ announcementId, tierId, tierName, tierRegionId, size = 9 }: Props) {
+export function SalePillBell({ announcementId, tierId, tierName, tierRegionId, size = 9, onToggled }: Props) {
   const { user } = useAuth()
   const router = useRouter()
   const { isInterested, tierId: savedTierId, setInterest, removeInterest } = useSaleInterest(announcementId)
@@ -30,8 +34,13 @@ export function SalePillBell({ announcementId, tierId, tierName, tierRegionId, s
       router.push(`/login?returnTo=${returnTo}`)
       return
     }
-    if (activeForThisTier) removeInterest()
-    else setInterest(tierId, tierName, tierRegionId)
+    if (activeForThisTier) {
+      removeInterest()
+      onToggled?.(false)
+    } else {
+      setInterest(tierId, tierName, tierRegionId)
+      onToggled?.(true)
+    }
   }
 
   return (

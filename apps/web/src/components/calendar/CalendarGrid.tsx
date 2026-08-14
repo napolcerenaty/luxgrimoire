@@ -53,6 +53,10 @@ interface CalendarGridProps {
    *  CalendarSaleItems. Off by default so existing embeds (private calendar, single-sale mini
    *  calendar) are unaffected. */
   interestEnabled?: boolean
+  /** Fired the instant a pill's interest bell is toggled (before the network call resolves) so
+   *  the producer can update its own "mine" highlight state immediately, instead of waiting on
+   *  a query refetch that may lag behind (or never visibly land, if the click also navigates). */
+  onSaleInterestToggle?: (tierId: string, isInterested: boolean) => void
 }
 
 /** Shared month-nav + 7x6 day grid + mobile tap-agenda, reused by the private per-user
@@ -69,6 +73,7 @@ export default function CalendarGrid({
   renewalsForDay,
   salesForDay,
   interestEnabled = false,
+  onSaleInterestToggle,
 }: CalendarGridProps) {
   const today = new Date()
 
@@ -170,13 +175,13 @@ export default function CalendarGrid({
                 key={idx}
                 className={[
                   'min-h-[48px] sm:min-h-[80px] p-0.5 sm:p-1.5 flex flex-col gap-0.5',
-                  cell.current ? 'cursor-pointer sm:cursor-default' : '',
+                  cell.current ? 'cursor-pointer' : '',
                   !cell.current ? 'bg-navy-950/40' : '',
                   cell.current && isToday(cell.day)
                     ? 'bg-brand-900/30 ring-1 ring-inset ring-brand-600/60'
                     : '',
                   isSelected
-                    ? 'sm:bg-transparent sm:ring-0 bg-navy-700/40 ring-1 ring-inset ring-navy-500/50'
+                    ? 'bg-navy-700/40 ring-1 ring-inset ring-navy-500/50'
                     : '',
                 ].filter(Boolean).join(' ')}
                 onClick={() => cell.current && setSelectedDay(prev => prev === cell.day ? null : cell.day)}
@@ -194,18 +199,23 @@ export default function CalendarGrid({
                   {cell.day}
                 </span>
 
-                {/* Desktop pills */}
+                {/* Desktop pills — click opens this day's agenda (below) instead of navigating
+                    straight to the sale/subscription, so the interest bell stays reachable
+                    without leaving the calendar. Hover still shows a quick preview tooltip. */}
                 {renewals.map(r => {
                   const ps = withHighlightGlow(pillStyle(r.brandColors, r.hue, 'renewal', lightMode), r.highlight)
                   return (
                     <span key={r.id} className="hidden sm:block">
-                      <Link
-                        href={r.href}
-                        className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
+                      <button
+                        type="button"
+                        className="w-full flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90 text-left"
                         style={ps}
                         onMouseEnter={e => openTooltip(e, r.label, r.hue, 'renewal', r.companyName ?? undefined)}
                         onMouseLeave={scheduleClose}
-                        onClick={e => e.stopPropagation()}
+                        onClick={e => {
+                          e.stopPropagation()
+                          setSelectedDay(cell.day)
+                        }}
                       >
                         <span className="flex items-center gap-1 truncate">
                           <RefreshCw size={9} className="shrink-0" />
@@ -214,7 +224,7 @@ export default function CalendarGrid({
                         {r.companyName && totalEvents <= 3 && (
                           <span className="truncate opacity-60 pl-3">{r.companyName}</span>
                         )}
-                      </Link>
+                      </button>
                     </span>
                   )
                 })}
@@ -223,9 +233,9 @@ export default function CalendarGrid({
                   const ps = withHighlightGlow(pillStyle(s.brandColors, s.hue, 'sale', lightMode), s.highlight)
                   return (
                     <span key={s.id} className="hidden sm:block">
-                      <Link
-                        href={s.href}
-                        className="flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90"
+                      <button
+                        type="button"
+                        className="w-full flex flex-col rounded px-1 py-0.5 text-[10px] leading-tight truncate transition-opacity hover:opacity-90 text-left"
                         style={ps}
                         onMouseEnter={e => openTooltip(
                           e,
@@ -235,11 +245,21 @@ export default function CalendarGrid({
                           `${s.tierName}${s.stageBadge ? ` (${s.stageBadge})` : ''}${s.time ? ` · ${s.time}` : ''}${s.companyName ? ` · ${s.companyName}` : ''}`,
                         )}
                         onMouseLeave={scheduleClose}
-                        onClick={e => e.stopPropagation()}
+                        onClick={e => {
+                          e.stopPropagation()
+                          setSelectedDay(cell.day)
+                        }}
                       >
                         <span className="flex items-center gap-1 truncate">
                           {interestEnabled && s.announcementId ? (
-                            <SalePillBell announcementId={s.announcementId} tierId={s.id} tierName={s.tierName} tierRegionId={s.regionId ?? null} size={9} />
+                            <SalePillBell
+                              announcementId={s.announcementId}
+                              tierId={s.id}
+                              tierName={s.tierName}
+                              tierRegionId={s.regionId ?? null}
+                              size={9}
+                              onToggled={isInterested => onSaleInterestToggle?.(s.id, isInterested)}
+                            />
                           ) : (
                             <Bell size={9} className="shrink-0" />
                           )}
@@ -249,7 +269,7 @@ export default function CalendarGrid({
                         {s.companyName && totalEvents <= 3 && (
                           <span className="truncate opacity-60 pl-3">{s.companyName}</span>
                         )}
-                      </Link>
+                      </button>
                     </span>
                   )
                 })}
@@ -286,8 +306,9 @@ export default function CalendarGrid({
         </div>
       </div>
 
-      {/* Mobile agenda — shown below calendar grid on small screens */}
-      <div className="sm:hidden overflow-hidden min-w-0">
+      {/* Day agenda — shown below the grid on every screen size. On desktop, clicking a pill
+          opens this instead of navigating straight away, so the interest bell stays reachable. */}
+      <div className="overflow-hidden min-w-0">
         {selectedDay ? (
           <div className="bg-navy-900 border border-navy-800 rounded-xl p-4 overflow-hidden">
             <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
@@ -335,7 +356,14 @@ export default function CalendarGrid({
                       style={ps}
                     >
                       {interestEnabled && s.announcementId ? (
-                        <SalePillBell announcementId={s.announcementId} tierId={s.id} tierName={s.tierName} tierRegionId={s.regionId ?? null} size={15} />
+                        <SalePillBell
+                          announcementId={s.announcementId}
+                          tierId={s.id}
+                          tierName={s.tierName}
+                          tierRegionId={s.regionId ?? null}
+                          size={15}
+                          onToggled={isInterested => onSaleInterestToggle?.(s.id, isInterested)}
+                        />
                       ) : (
                         <Bell size={15} className="shrink-0" />
                       )}
@@ -354,7 +382,7 @@ export default function CalendarGrid({
             )}
           </div>
         ) : (
-          <p className="text-xs text-navy-500 text-center py-2">Tap a date to see events</p>
+          <p className="text-xs text-navy-500 text-center py-2">Select a date to see events</p>
         )}
       </div>
 
