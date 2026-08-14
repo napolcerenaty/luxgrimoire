@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { useRef, memo } from 'react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
@@ -169,14 +169,23 @@ export function HomeAnnouncementsSection({ announcements, viewAllHref }: Props) 
             </h2>
             <span className="flex-1 h-px bg-navy-700" />
           </div>
-          {viewAllHref && (
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            {viewAllHref && (
+              <Link
+                href={viewAllHref}
+                className="text-xs text-brand-500 hover:text-brand-400 transition-colors font-serif tracking-wide border border-navy-700 hover:border-brand-700 px-3 py-1 rounded-full"
+              >
+                View all →
+              </Link>
+            )}
             <Link
-              href={viewAllHref}
-              className="text-xs text-brand-500 hover:text-brand-400 transition-colors font-serif tracking-wide border border-navy-700 hover:border-brand-700 px-3 py-1 rounded-full"
+              href="/sales-calendar"
+              className="flex items-center gap-1.5 text-xs text-brand-500 hover:text-brand-400 transition-colors font-serif tracking-wide border border-navy-700 hover:border-brand-700 px-3 py-1 rounded-full"
             >
-              View all →
+              <CalendarDays size={12} />
+              View Calendar
             </Link>
-          )}
+          </div>
         </div>
 
         {/* Scroll area */}
