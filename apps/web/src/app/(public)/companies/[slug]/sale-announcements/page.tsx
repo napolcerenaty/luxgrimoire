@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import type { ApiBookBoxCompany } from '@luxgrimoire/shared-types'
@@ -38,7 +39,9 @@ export default async function CompanySaleAnnouncementsPage({ params }: Props) {
         ← {company.name}
       </Link>
       <h1 className="text-3xl font-serif font-bold text-navy-100 mb-6">Sale Announcements</h1>
-      <CompanySaleAnnouncementsList companyId={company.id} />
+      <Suspense fallback={<div className="h-40 rounded-2xl bg-navy-900 animate-pulse" />}>
+        <CompanySaleAnnouncementsList companyId={company.id} />
+      </Suspense>
     </div>
   )
 }

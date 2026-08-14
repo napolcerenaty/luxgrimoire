@@ -362,6 +362,7 @@ export default function CalendarGrid({
                           tierName={s.tierName}
                           tierRegionId={s.regionId ?? null}
                           size={15}
+                          hitAreaClassName="p-2.5 -m-2.5"
                           onToggled={isInterested => onSaleInterestToggle?.(s.id, isInterested)}
                         />
                       ) : (

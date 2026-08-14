@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { authFetch } from '@/lib/authFetch'
@@ -45,17 +46,40 @@ interface Props {
 export function CompanySaleAnnouncementsList({ companyId }: Props) {
   const { theme } = useTheme()
   const { user } = useAuth()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'live' | 'past'>('live')
-  const [view, setView] = useState<'grid' | 'list' | 'calendar'>('grid')
   const debouncedSearch = useDebounce(search, 300)
 
+  // view + which month is showing live in the URL (not local state) so browser back/forward
+  // after clicking through to a sale announcement restores exactly where you left off, instead
+  // of resetting to the default grid view — see project memory for the bug this fixes.
+  const rawView = searchParams.get('view')
+  const view: 'grid' | 'list' | 'calendar' = rawView === 'list' || rawView === 'calendar' ? rawView : 'grid'
+
   const today = new Date()
-  const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
-  const year = viewDate.getFullYear()
-  const month0 = viewDate.getMonth()
+  const yearParam = parseInt(searchParams.get('year') ?? '', 10)
+  const monthParam = parseInt(searchParams.get('month') ?? '', 10)
+  const year = Number.isFinite(yearParam) ? yearParam : today.getFullYear()
+  const month0 = Number.isFinite(monthParam) ? monthParam - 1 : today.getMonth()
   const month = month0 + 1
-  const monthLabel = viewDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  const monthLabel = new Date(year, month0, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+
+  function updateParams(updates: Record<string, string>) {
+    const params = new URLSearchParams(searchParams.toString())
+    for (const [key, value] of Object.entries(updates)) params.set(key, value)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
+  function setView(newView: 'grid' | 'list' | 'calendar') {
+    updateParams({ view: newView })
+  }
+
+  function setViewDate(newDate: Date) {
+    updateParams({ year: String(newDate.getFullYear()), month: String(newDate.getMonth() + 1) })
+  }
 
   const { data: tiers = [] } = useQuery<CalendarTier[]>({
     queryKey: ['company-sales-calendar', companyId, year, month],
