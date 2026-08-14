@@ -18,7 +18,7 @@ const TYPE_COLORS: Record<string, string> = {
   LIMITED_PREORDER: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
   OPEN_PREORDER: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
   OVERSTOCK: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  SALE: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+  SALE: 'bg-brand-500/15 text-brand-300 border-brand-500/30',
 }
 
 interface Props {
@@ -48,7 +48,7 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
       {/* Badges */}
       <div className={`flex flex-wrap gap-1.5 ${compact ? 'mb-2' : 'mb-3'}`}>
         {sale.isBundle && (
-          <span className={`font-semibold px-2 py-0.5 rounded-full border bg-amber-900/40 border-amber-700 text-amber-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+          <span className={`font-semibold px-2 py-0.5 rounded-full border bg-brand-900/40 border-brand-700 text-brand-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>
             Bundle
           </span>
         )}
@@ -78,7 +78,7 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
             <Link
               href={`/sale-announcements/${sale.id}`}
               onClick={onLinkClick}
-              className="inline-flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400 transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-brand-500 hover:text-brand-400 transition-colors"
             >
               View full page <ExternalLink size={11} />
             </Link>
@@ -118,7 +118,7 @@ export function SaleAnnouncementContent({ sale, compact = false, showPageLink = 
       {sale.notes && (
         <div
           className={`text-stone-300 prose prose-invert prose-sm max-w-none
-            [&_a]:text-amber-400 [&_a:hover]:text-amber-300 [&_a]:underline [&_a]:underline-offset-2
+            [&_a]:text-brand-400 [&_a:hover]:text-brand-300 [&_a]:underline [&_a]:underline-offset-2
             [&_p]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4
             ${compact ? 'text-xs mb-3' : 'text-sm mb-6'}`}
           dangerouslySetInnerHTML={{ __html: sale.notes }}

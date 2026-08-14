@@ -142,7 +142,7 @@ export default function AdminBooksPage() {
     {
       key: 'title', label: 'Title',
       render: (row: RawBook) => (
-        <a href={`/books/${row.slug}`} target="_blank" rel="noreferrer" className="text-amber-400 hover:text-amber-300 font-medium">
+        <a href={`/books/${row.slug}`} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 font-medium">
           {row.title}
         </a>
       ),
@@ -170,7 +170,7 @@ export default function AdminBooksPage() {
         ? (
           <div className="flex flex-wrap gap-1">
             {(row.genres ?? []).map(g => (
-              <span key={g} className="bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs px-2 py-0.5 rounded-full">{g}</span>
+              <span key={g} className="bg-brand-500/15 text-brand-300 border border-brand-500/30 text-xs px-2 py-0.5 rounded-full">{g}</span>
             ))}
           </div>
         ) : '—',
@@ -182,7 +182,7 @@ export default function AdminBooksPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-stone-100">Books</h1>
         <button onClick={() => createModal.open()}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors">
+          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors">
           Add Book
         </button>
       </div>
@@ -194,18 +194,18 @@ export default function AdminBooksPage() {
           placeholder="Search by title or author…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 w-72"
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 w-72"
         />
         <input
           type="text"
           placeholder="Filter by series…"
           value={seriesFilter}
           onChange={(e) => setSeriesFilter(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 w-48"
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 w-48"
         />
         <label className="flex items-center gap-2 px-3 py-2 text-sm text-stone-300 whitespace-nowrap">
           <input type="checkbox" checked={omnibusOnly} onChange={e => setOmnibusOnly(e.target.checked)}
-            className="accent-amber-400" />
+            className="accent-brand-400" />
           Omnibuses only
         </label>
         {(search || seriesFilter || omnibusOnly) && (

@@ -51,14 +51,14 @@ export function PushEnableBanner() {
   if (!shouldShow) return null
 
   return (
-    <div className="flex items-center gap-3 bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 text-sm">
-      <Bell size={15} className="text-amber-400 shrink-0" />
+    <div className="flex items-center gap-3 bg-brand-500/10 border-b border-brand-500/20 px-4 py-2.5 text-sm">
+      <Bell size={15} className="text-brand-400 shrink-0" />
       <p className="flex-1 text-stone-200">
         You have push notifications enabled — 
         <button
           onClick={handleEnable}
           disabled={isLoading}
-          className="ml-1 text-amber-400 hover:text-amber-300 underline underline-offset-2 disabled:opacity-50"
+          className="ml-1 text-brand-400 hover:text-brand-300 underline underline-offset-2 disabled:opacity-50"
         >
           {isLoading ? 'Enabling…' : 'enable on this device'}
         </button>

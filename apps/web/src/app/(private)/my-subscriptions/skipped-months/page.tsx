@@ -93,7 +93,7 @@ export default function SkippedMonthsPage() {
           {subName ? (
             <>
               <p className="text-xs text-stone-500 mb-0.5">
-                <Link href={`/subscriptions/${subSlug}`} className="hover:text-amber-400 transition-colors">{subName}</Link>
+                <Link href={`/subscriptions/${subSlug}`} className="hover:text-brand-400 transition-colors">{subName}</Link>
               </p>
               <h1 className="text-2xl font-bold text-stone-100">Skipped Months</h1>
             </>

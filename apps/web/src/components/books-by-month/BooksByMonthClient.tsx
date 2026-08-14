@@ -83,7 +83,7 @@ function BookByMonthCard({ item }: { item: BookByMonthItem }) {
           tabIndex={0}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = `/companies/${item.companySlug}` }}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); window.location.href = `/companies/${item.companySlug}` } }}
-          className="text-xs text-stone-400 hover:text-amber-400 transition-colors cursor-pointer"
+          className="text-xs text-stone-400 hover:text-brand-400 transition-colors cursor-pointer"
         >
           {item.companyName}
         </span>
@@ -101,7 +101,7 @@ const SEGMENT_ACTIVE = 'bg-stone-700 text-stone-100'
 const SEGMENT_INACTIVE = 'text-stone-400 hover:text-stone-200'
 
 const CARD_GRID = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'
-const SEARCH_INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-400 text-sm'
+const SEARCH_INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-brand-400 text-sm'
 
 function matchesSearch(item: BookByMonthItem, query: string): boolean {
   const q = query.trim().toLowerCase()
@@ -203,7 +203,7 @@ export function BooksByMonthClient() {
               role="switch"
               aria-checked={hideUnannounced}
               onClick={() => setHideUnannounced((v) => !v)}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${hideUnannounced ? 'bg-amber-500' : 'bg-stone-700'}`}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${hideUnannounced ? 'bg-brand-500' : 'bg-stone-700'}`}
             >
               <span
                 className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${hideUnannounced ? 'translate-x-4' : 'translate-x-0'}`}

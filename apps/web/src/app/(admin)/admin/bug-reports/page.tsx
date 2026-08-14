@@ -12,7 +12,7 @@ const STATUS_OPTIONS = ['open', 'in_progress', 'resolved', 'wontfix']
 
 const STATUS_STYLES: Record<string, string> = {
   open: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
-  in_progress: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+  in_progress: 'text-brand-400 bg-brand-500/10 border-brand-500/30',
   resolved: 'text-green-400 bg-green-500/10 border-green-500/30',
   wontfix: 'text-stone-500 bg-stone-700/30 border-stone-600/30',
 }
@@ -69,7 +69,7 @@ export default function AdminBugReportsPage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Bug size={22} className="text-amber-400" />
+          <Bug size={22} className="text-brand-400" />
           <div>
             <h1 className="font-serif text-2xl font-bold text-stone-100">Bug Reports</h1>
             <p className="text-sm text-stone-500">{data?.total ?? 0} total reports</p>
@@ -77,7 +77,7 @@ export default function AdminBugReportsPage() {
         </div>
         <button
           onClick={() => queryClient.invalidateQueries({ queryKey: ['admin', 'bug-reports'] })}
-          className="p-2 rounded-lg text-stone-400 hover:text-amber-400 hover:bg-stone-800 transition-colors"
+          className="p-2 rounded-lg text-stone-400 hover:text-brand-400 hover:bg-stone-800 transition-colors"
           title="Refresh"
         >
           <RefreshCw size={16} />
@@ -92,7 +92,7 @@ export default function AdminBugReportsPage() {
             onClick={() => { setStatusFilter(s); setPage(1) }}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               statusFilter === s
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                ? 'bg-brand-500/10 text-brand-400 border-brand-500/30'
                 : 'text-stone-400 border-stone-700 hover:border-stone-500'
             }`}
           >
@@ -141,7 +141,7 @@ export default function AdminBugReportsPage() {
                   <select
                     value={report.status}
                     onChange={e => updateStatus.mutate({ id: report.id, status: e.target.value })}
-                    className="text-xs bg-stone-800 border border-stone-700 rounded-lg px-2 py-1 text-stone-300 focus:outline-none focus:border-amber-500"
+                    className="text-xs bg-stone-800 border border-stone-700 rounded-lg px-2 py-1 text-stone-300 focus:outline-none focus:border-brand-500"
                   >
                     {STATUS_OPTIONS.map(s => (
                       <option key={s} value={s}>{s.replace('_', ' ')}</option>

@@ -33,7 +33,7 @@ export default async function CompanySaleAnnouncementsPage({ params }: Props) {
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       <Link
         href={`/companies/${slug}`}
-        className="text-xs text-stone-500 hover:text-amber-400 transition-colors mb-4 inline-block"
+        className="text-xs text-stone-500 hover:text-brand-400 transition-colors mb-4 inline-block"
       >
         ← {company.name}
       </Link>

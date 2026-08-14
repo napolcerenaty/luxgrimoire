@@ -49,7 +49,7 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
               className={clsx(
                 'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
                 pathname === href
-                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
                   : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800',
               )}
             >
@@ -74,7 +74,7 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
             href={href}
             className={clsx(
               'flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-xs transition-colors',
-              pathname === href ? 'text-amber-400' : 'text-stone-500 hover:text-stone-300',
+              pathname === href ? 'text-brand-400' : 'text-stone-500 hover:text-stone-300',
             )}
           >
             <Icon size={20} />

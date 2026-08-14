@@ -105,7 +105,8 @@ export class CollectionStatsComputer extends StatsComputer {
 
         const date = new Date(group.purchasedAt);
         const entryCount = group.bookEntries.length || 1;
-        const basePerEntry = toNum(group.totalAmount) / entryCount;
+        // Real per-book allocation when present, else fall back to an equal split (legacy data).
+        const basePerEntry = entry.basePrice != null ? toNum(entry.basePrice) : toNum(group.totalAmount) / entryCount;
         const shippingPerEntry = group.shippingAmount ? toNum(group.shippingAmount) / entryCount : 0;
         const entryValue = await convert(basePerEntry + shippingPerEntry, group.currency, date);
 

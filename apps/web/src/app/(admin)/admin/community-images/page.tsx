@@ -23,7 +23,7 @@ interface EditionSummary {
 
 const STATUS_OPTIONS = ['PENDING', 'APPROVED', 'REMOVED']
 const STATUS_STYLES: Record<string, string> = {
-  PENDING: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+  PENDING: 'text-brand-400 bg-brand-500/10 border-brand-500/30',
   APPROVED: 'text-green-400 bg-green-500/10 border-green-500/30',
   REMOVED: 'text-stone-500 bg-stone-700/30 border-stone-600/30',
 }
@@ -112,7 +112,7 @@ function EditionPanel({
           <button
             onClick={() => saveOrder.mutate()}
             disabled={saveOrder.isPending}
-            className="px-3 py-1 text-xs rounded bg-amber-700/60 hover:bg-amber-600/70 text-amber-200 border border-amber-600/40 disabled:opacity-50 transition-colors"
+            className="px-3 py-1 text-xs rounded bg-brand-700/60 hover:bg-brand-600/70 text-brand-200 border border-brand-600/40 disabled:opacity-50 transition-colors"
           >
             {saveOrder.isPending ? 'Saving…' : '↕ Save order'}
           </button>
@@ -124,7 +124,7 @@ function EditionPanel({
           <button
             type="button"
             onClick={() => setLightboxUrl(img.url)}
-            className="flex-shrink-0 w-[54px] h-[80px] rounded overflow-hidden bg-stone-800 ring-1 ring-stone-700 hover:ring-amber-500/60 transition-all"
+            className="flex-shrink-0 w-[54px] h-[80px] rounded overflow-hidden bg-stone-800 ring-1 ring-stone-700 hover:ring-brand-500/60 transition-all"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -145,7 +145,7 @@ function EditionPanel({
                   href={`https://instagram.com/${img.instagramHandle}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[11px] text-stone-500 hover:text-amber-400 transition-colors"
+                  className="text-[11px] text-stone-500 hover:text-brand-400 transition-colors"
                 >
                   @{img.instagramHandle}
                 </a>
@@ -242,7 +242,7 @@ function CollapsibleEditionGroup({
           target="_blank"
           rel="noreferrer"
           onClick={e => e.stopPropagation()}
-          className="text-sm font-semibold text-amber-400 hover:text-amber-300 transition-colors truncate"
+          className="text-sm font-semibold text-brand-400 hover:text-brand-300 transition-colors truncate"
         >
           {summary.name}
         </a>

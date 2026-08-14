@@ -30,6 +30,7 @@ describe('AuthService', () => {
     jwtService = mockDeep<JwtService>();
     mailService = mockDeep<MailService>();
     mailService.sendVerificationEmail.mockResolvedValue(undefined);
+    (prisma.$transaction as unknown as jest.Mock).mockImplementation((ops: unknown[]) => Promise.all(ops));
 
     // Redis cache mock backed by a local Map so rate-limit state persists within a test
     cacheStore = new Map();
@@ -84,20 +85,21 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('should throw UnauthorizedException if user not found', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
       await expect(service.login({ email: 'x@x.com', password: 'wrong' })).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException if password invalid', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: '1', passwordHash: 'hash', email: 'x@x.com', role: 'USER', username: 'u', managedCompanyId: null, emailVerified: true } as any);
+      prisma.user.findFirst.mockResolvedValue({ id: '1', passwordHash: 'hash', email: 'x@x.com', role: 'USER', username: 'u', managedCompanyId: null, emailVerified: true } as any);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
       await expect(service.login({ email: 'x@x.com', password: 'wrong' })).rejects.toThrow(UnauthorizedException);
     });
 
     it('should return accessToken on valid credentials', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: '1', passwordHash: 'hash', email: 'x@x.com', role: 'USER', username: 'u', managedCompanyId: null, emailVerified: true } as any);
+      prisma.user.findFirst.mockResolvedValue({ id: '1', passwordHash: 'hash', email: 'x@x.com', role: 'USER', username: 'u', managedCompanyId: null, emailVerified: true } as any);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       prisma.session.create.mockResolvedValue({ id: 'sess1' } as any);
+      prisma.user.update.mockResolvedValue({} as any);
       jwtService.sign.mockReturnValue('jwt-token');
 
       const result = await service.login({ email: 'x@x.com', password: 'correct' });
@@ -109,13 +111,13 @@ describe('AuthService', () => {
 
   describe('forgotPassword', () => {
     it('should always return generic message (no user found)', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
       const result = await service.forgotPassword({ email: 'noone@test.com' });
       expect(result.message).toContain('If that email exists');
     });
 
     it('should always return generic message (user found)', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'u1' } as any);
+      prisma.user.findFirst.mockResolvedValue({ id: 'u1' } as any);
       prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });
       prisma.passwordResetToken.create.mockResolvedValue({} as any);
       const result = await service.forgotPassword({ email: 'user@test.com' });
@@ -123,7 +125,7 @@ describe('AuthService', () => {
     });
 
     it('should store tokenHash (not plaintext token) in DB', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'u1' } as any);
+      prisma.user.findFirst.mockResolvedValue({ id: 'u1' } as any);
       prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });
       prisma.passwordResetToken.create.mockResolvedValue({} as any);
 
@@ -137,7 +139,7 @@ describe('AuthService', () => {
     });
 
     it('should NOT create token if per-email rate limit hit (called twice within 5 min)', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'u1' } as any);
+      prisma.user.findFirst.mockResolvedValue({ id: 'u1' } as any);
       prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });
       prisma.passwordResetToken.create.mockResolvedValue({} as any);
 
@@ -149,12 +151,12 @@ describe('AuthService', () => {
     });
 
     it('should treat emails case-insensitively for rate limiting', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'u1' } as any);
+      prisma.user.findFirst.mockResolvedValue({ id: 'u1' } as any);
       prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });
       prisma.passwordResetToken.create.mockResolvedValue({} as any);
 
       await service.forgotPassword({ email: 'User@Test.COM' });
-      prisma.user.findUnique.mockResolvedValue({ id: 'u1' } as any);
+      prisma.user.findFirst.mockResolvedValue({ id: 'u1' } as any);
       await service.forgotPassword({ email: 'user@test.com' }); // same normalized email
 
       expect(prisma.passwordResetToken.create).toHaveBeenCalledTimes(1);

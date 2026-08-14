@@ -143,7 +143,7 @@ export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '
       )}
 
       {status.warnings.map((w, i) => (
-        <div key={i} className="text-xs text-amber-400 bg-amber-950/30 rounded px-2 py-1">
+        <div key={i} className="text-xs text-brand-400 bg-brand-950/30 rounded px-2 py-1">
           ⚠ {w}
         </div>
       ))}
@@ -281,7 +281,7 @@ export default function SkipStatusPanel({ subscriptionSlug, subscriptionName = '
                 type="button"
                 onClick={() => skipMutation.mutate(skipTarget)}
                 disabled={skipMutation.isPending}
-                className="bg-amber-400 text-stone-950 font-semibold px-4 py-1.5 rounded text-sm hover:bg-amber-300 disabled:opacity-50 transition-colors"
+                className="bg-brand-400 text-stone-950 font-semibold px-4 py-1.5 rounded text-sm hover:bg-brand-300 disabled:opacity-50 transition-colors"
               >
                 {skipMutation.isPending ? 'Skipping…' : 'Confirm Skip'}
               </button>

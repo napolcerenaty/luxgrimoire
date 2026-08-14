@@ -48,9 +48,10 @@ export class AnnouncementsController {
 
   // Countdown target for a company page's "next sale" hero: soonest upcoming tier across all of
   // the company's live/upcoming sales, or the user's own tier if they've marked an interest in one.
+  // companyId omitted => global next sale across every company (homepage banner).
   @OptionalAuth()
   @Get('next-sale')
-  getNextSale(@Query('companyId') companyId: string, @Request() req: any) {
+  getNextSale(@Query('companyId') companyId: string | undefined, @Request() req: any) {
     return this.announcementsService.getNextSale(companyId, req.user?.id ?? null);
   }
 

@@ -8,7 +8,7 @@ import ImageUpload from '@/components/admin/ImageUpload'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSubscriptionSeries } from '@luxgrimoire/shared-types'
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 const LABEL = 'block text-xs text-stone-400 mb-1'
 const BTN_SM = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors'
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -120,16 +120,16 @@ function SeriesForm({
         </select>
       </div>
       <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
-        <input type="checkbox" checked={f.canCancelDuring} onChange={e => set('canCancelDuring', e.target.checked)} className="accent-amber-400" />
+        <input type="checkbox" checked={f.canCancelDuring} onChange={e => set('canCancelDuring', e.target.checked)} className="accent-brand-400" />
         Allow subscription cancellation during this series
       </label>
       <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
-        <input type="checkbox" checked={f.isActive} onChange={e => set('isActive', e.target.checked)} className="accent-amber-400" />
+        <input type="checkbox" checked={f.isActive} onChange={e => set('isActive', e.target.checked)} className="accent-brand-400" />
         Active (visible on public pages)
       </label>
       <div className="flex gap-2 pt-1">
         <button type="submit" disabled={submitting}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 disabled:opacity-50 text-sm">
+          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm">
           {submitting ? 'Saving…' : submitLabel}
         </button>
         <button type="button" onClick={onCancel} className="px-4 py-2 rounded-lg bg-stone-700 text-stone-300 hover:bg-stone-600 text-sm">
@@ -193,11 +193,11 @@ function AssignMonthsPanel({
           const isAssigned = assignedIds.has(m.id)
           return (
             <label key={m.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-800 cursor-pointer">
-              <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)} className="accent-amber-400" />
-              <span className={`text-xs ${isAssigned ? 'text-amber-400 font-medium' : 'text-stone-300'}`}>
+              <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)} className="accent-brand-400" />
+              <span className={`text-xs ${isAssigned ? 'text-brand-400 font-medium' : 'text-stone-300'}`}>
                 {MONTH_NAMES[m.month - 1]} {m.year}
                 {m.theme && <span className="text-stone-500 ml-1">— {m.theme}</span>}
-                {isAssigned && <span className="ml-1 text-xs text-amber-500/70">(assigned)</span>}
+                {isAssigned && <span className="ml-1 text-xs text-brand-500/70">(assigned)</span>}
               </span>
             </label>
           )
@@ -207,7 +207,7 @@ function AssignMonthsPanel({
         <button
           onClick={() => assignMutation.mutate([...selected])}
           disabled={selected.size === 0 || assignMutation.isPending}
-          className={`${BTN_SM} bg-amber-400 text-stone-950 disabled:opacity-50`}
+          className={`${BTN_SM} bg-brand-400 text-stone-950 disabled:opacity-50`}
         >
           {assignMutation.isPending ? '…' : `Assign (${selected.size})`}
         </button>
@@ -276,7 +276,7 @@ function SeriesCard({
               {series.skipMode}
             </span>
             {!series.isActive && <span className="text-xs text-stone-600">Inactive</span>}
-            {!series.canCancelDuring && <span className="text-xs text-amber-600/70">No cancel during</span>}
+            {!series.canCancelDuring && <span className="text-xs text-brand-600/70">No cancel during</span>}
           </div>
           <p className="text-stone-400 text-xs mt-0.5">{dateRange} · {series._count?.months ?? series.months?.length ?? 0} months assigned</p>
           {series.description && <p className="text-stone-500 text-xs mt-0.5 line-clamp-1">{series.description}</p>}
@@ -287,7 +287,7 @@ function SeriesCard({
             {editing ? 'Cancel' : 'Edit'}
           </button>
           <button onClick={() => { setAssignOpen(!assignOpen); setEditing(false) }}
-            className={`${BTN_SM} ${assignOpen ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+            className={`${BTN_SM} ${assignOpen ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
             Months {assignOpen ? '▲' : '▼'}
           </button>
           <button
@@ -302,7 +302,7 @@ function SeriesCard({
       {!assignOpen && (series.months ?? []).length > 0 && (
         <div className="px-4 pb-3 flex flex-wrap gap-1.5">
           {(series.months ?? []).map(m => (
-            <span key={m.id} className="text-xs bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full">
+            <span key={m.id} className="text-xs bg-brand-500/15 text-brand-400 px-2 py-0.5 rounded-full">
               {MONTH_NAMES[m.month - 1]} {m.year}
             </span>
           ))}
@@ -388,7 +388,7 @@ export default function AdminSubscriptionSeriesPage({ params }: { params: Promis
         </div>
         <button
           onClick={() => setCreating(!creating)}
-          className="bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-amber-300 transition-colors text-sm"
+          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors text-sm"
         >
           {creating ? '✕ Cancel' : '+ New Series'}
         </button>

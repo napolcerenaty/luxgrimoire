@@ -191,11 +191,11 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
   if (!user) {
     return (
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-700/60 bg-stone-800/40">
-        <LogIn size={16} className="text-amber-400 shrink-0" />
+        <LogIn size={16} className="text-brand-400 shrink-0" />
         <p className="text-sm text-stone-400 flex-1">Sign in to add this edition to your collection or wishlist.</p>
         <Link
           href="/login"
-          className="shrink-0 text-xs font-medium text-amber-400 hover:text-amber-300 underline-offset-2 hover:underline transition-colors"
+          className="shrink-0 text-xs font-medium text-brand-400 hover:text-brand-300 underline-offset-2 hover:underline transition-colors"
         >
           Sign in
         </Link>
@@ -212,7 +212,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
         {isFutureSale && saleAnnouncementId ? (
           <Link
             href={`/sale-announcements/${saleAnnouncementId}`}
-            className="inline-flex items-center gap-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 border border-brand-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             <Megaphone size={16} />View Sale Announcement
           </Link>
@@ -221,7 +221,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
           !isInCollection && (
             status === 'wishlist' ? (
               <button onClick={handleRemoveWishlist} disabled={isPending}
-                className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-amber-400 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-stone-700">
+                className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-brand-400 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-stone-700">
                 <BookmarkCheck size={16} />On Wishlist
               </button>
             ) : (
@@ -237,7 +237,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
         {!isFutureSale && (isInCollection ? (
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5 text-sm text-stone-400">
-              <CheckCircle size={15} className="text-amber-400" />
+              <CheckCircle size={15} className="text-brand-400" />
               {addedOnce ? 'Added to collection' : 'In your collection'}
             </span>
             <button onClick={openModal}
@@ -247,7 +247,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
           </div>
         ) : (
           <button onClick={openModal}
-            className="inline-flex items-center gap-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            className="inline-flex items-center gap-2 bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 border border-brand-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
             <BookPlus size={16} />Add to Collection
           </button>
         ))}
@@ -282,7 +282,7 @@ export function EditionActionButtons({ editionId, bookTitle, basePrice, currency
                 {error && <p className="text-xs text-red-400">{error}</p>}
                 <div className="flex flex-col gap-2 pt-2">
                   <button onClick={() => { setSelectedBundle(null); setStep('form') }}
-                    className="w-full bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+                    className="w-full bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
                     Add just this book
                   </button>
                   <button

@@ -617,7 +617,9 @@ export interface ApiPurchaseGroup {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
-  bookEntries?: { id: string; bookId: string; editionId: string | null }[];
+  /** How basePrice is allocated across bookEntries: 'EQUAL' (even split) or 'CUSTOM' (per-book, sums to totalAmount). */
+  priceDistribution?: string;
+  bookEntries?: { id: string; bookId: string; editionId: string | null; basePrice?: number | null; entryCost?: number }[];
   saleAnnouncement?: { id: string; title: string } | null;
   bookCount?: number;
   perBookCost?: number;
@@ -708,7 +710,7 @@ export interface ApiSaleAnnouncement {
   sourceUrl: string | null;
   createdAt: string;
   updatedAt: string;
-  company?: { name: string; slug?: string | null; brandColors?: string[] } | null;
+  company?: { name: string; slug?: string | null; brandColors?: string[]; website?: string | null } | null;
   editions?: Array<{
     id: string;
     edition: (ApiBookEdition & { book: ApiBook }) | null;

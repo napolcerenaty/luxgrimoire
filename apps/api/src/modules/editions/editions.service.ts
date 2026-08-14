@@ -859,7 +859,7 @@ export class EditionsService {
             artist: { select: { id: true, name: true, slug: true, photoUrl: true } },
           },
         },
-        bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true } },
+        bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true, website: true } },
         collection: { select: { id: true, slug: true, name: true } },
         monthBooks: {
           select: {

@@ -686,6 +686,23 @@ export class JoinSubscriptionDto {
   @IsOptional()
   @IsBoolean()
   dryRun?: boolean;
+
+  /**
+   * User-confirmed first box month, from the join flow's mandatory "choose your first box" step.
+   * Required on the real (non-dry-run) join call — persisted on the entry and used as the fixed
+   * start boundary for eligible-months calculations from then on, instead of recomputing it.
+   */
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  firstBoxYear?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  @Type(() => Number)
+  firstBoxMonth?: number;
 }
 
 export class BookPriceOverrideDto {

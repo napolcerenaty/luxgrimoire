@@ -1,4 +1,5 @@
 import { CollectionEntryPanel } from '@/components/books/CollectionEntryPanel'
+import { ExternalLink } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Fragment, cache } from 'react'
@@ -105,7 +106,7 @@ interface EditionDetail {
   artists?: EditionArtist[]
   monthBooks?: EditionMonthBook[]
   saleEditions?: EditionSaleEdition[]
-  bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null } | null
+  bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null; website: string | null } | null
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
   previousEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   nextEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
@@ -255,7 +256,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {edition.bookBoxCompany && (
                 <Link
                   href={`/companies/${edition.bookBoxCompany.slug}`}
-                  className="text-center md:text-left w-full font-serif font-semibold uppercase tracking-widest text-stone-300 hover:text-amber-400 transition-colors text-base leading-snug"
+                  className="text-center md:text-left w-full font-serif font-semibold uppercase tracking-widest text-stone-300 hover:text-brand-400 transition-colors text-base leading-snug"
                 >
                   {edition.bookBoxCompany.name}
                 </Link>
@@ -281,15 +282,30 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   credits.push({ handle: m[1], role: m[2] ?? null })
                 }
                 if (credits.length === 0) return null
+                const company = edition.bookBoxCompany
+                // Only credit the company when we're showing its own official images —
+                // hasOfficialImagePermission is company-wide and can be true even for
+                // editions (e.g. subscriptions) where we only have community photos.
+                const showCompanyCredit = allImages.length > 0 && !!company?.website
                 return (
                   <div className="text-xs text-stone-400 mt-1 text-center leading-5 w-full">
                     <span>📷 photo by</span>
                     {credits.map(({ handle, role }) => (
                       <div key={handle}>
-                        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="hover:text-amber-400 transition-colors">@{handle}</a>
+                        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
+                          @{handle}<ExternalLink size={10} className="shrink-0" />
+                        </a>
                         {role && <span className="text-stone-500"> ({role})</span>}
                       </div>
                     ))}
+                    {showCompanyCredit && (
+                      <div>
+                        courtesy of{' '}
+                        <a href={company!.website!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
+                          {company!.name}<ExternalLink size={10} className="shrink-0" />
+                        </a>
+                      </div>
+                    )}
                   </div>
                 )
               })()}
@@ -303,7 +319,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 <span>›</span>
                 {book && (
                   <>
-                    <Link href={`/books/${book.slug}`} className="hover:text-amber-400 transition-colors">
+                    <Link href={`/books/${book.slug}`} className="hover:text-brand-400 transition-colors">
                       {book.title}
                     </Link>
                     <span>›</span>
@@ -316,14 +332,14 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {book?.series ? (
                 <Link
                   href={`/series/${book.series.slug}`}
-                  className="inline-block text-sm text-amber-500 hover:text-amber-400 mb-2 font-medium transition-colors hover:underline"
+                  className="inline-block text-sm text-brand-500 hover:text-brand-400 mb-2 font-medium transition-colors hover:underline"
                 >
                   {book.seriesName}{book.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
                 </Link>
               ) : book?.seriesName ? (
                 // Legacy plain-text series name with no linked BookSeries record — no series
                 // page exists to link to (see /series/[slug] 404s from books like this).
-                <p className="inline-block text-sm text-amber-500 mb-2 font-medium">
+                <p className="inline-block text-sm text-brand-500 mb-2 font-medium">
                   {book.seriesName}{book.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}
                 </p>
               ) : null}
@@ -332,7 +348,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   Also in{' '}
                   {book.seriesEntries.filter(e => !e.isPrimary).map((entry, i, arr) => (
                     <span key={entry.seriesId}>
-                      <Link href={`/series/${entry.series.slug}`} className="text-stone-400 hover:text-amber-400 transition-colors hover:underline">
+                      <Link href={`/series/${entry.series.slug}`} className="text-stone-400 hover:text-brand-400 transition-colors hover:underline">
                         {entry.series.name}{entry.volumeNumbers.length > 0 ? ` #${formatVolumeNumbers(entry.volumeNumbers)}` : ''}
                       </Link>
                       {i < arr.length - 1 && ', '}
@@ -344,7 +360,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {/* Title */}
               {book && (
                 <Link href={`/books/${book.slug}`} className="group">
-                  <h1 className="text-4xl font-serif font-bold text-stone-100 mb-1 leading-tight group-hover:text-amber-400 transition-colors">
+                  <h1 className="text-4xl font-serif font-bold text-stone-100 mb-1 leading-tight group-hover:text-brand-400 transition-colors">
                     {formatEditionDisplayTitle(book, edition)}
                   </h1>
                 </Link>
@@ -357,7 +373,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   {book.authors.map((author, i) => (
                     <span key={author.id}>
                       {i > 0 && ', '}
-                      <Link href={`/authors/${author.slug}`} className="text-stone-300 hover:text-amber-400 hover:underline transition-colors">
+                      <Link href={`/authors/${author.slug}`} className="text-stone-300 hover:text-brand-400 hover:underline transition-colors">
                         {author.name}
                       </Link>
                     </span>
@@ -367,7 +383,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
 
               {/* Edition label — only if it's a custom name (not just company name) */}
               {editionLabel && editionLabel !== edition.bookBoxCompany?.name && (
-                <p className="text-lg text-amber-500/90 font-medium mb-2">{editionLabel}</p>
+                <p className="text-lg text-brand-500/90 font-medium mb-2">{editionLabel}</p>
               )}
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mb-4">
@@ -435,7 +451,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                     <dd>
                       <Link
                           href={`/companies/${edition.bookBoxCompany?.slug}/collections/${edition.collection.slug}`}
-                          className="text-amber-400 hover:underline"
+                          className="text-brand-400 hover:underline"
                         >
                         {edition.collection.name}
                       </Link>
@@ -491,7 +507,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                             {i > 0 && <span className="text-stone-600 mx-1">/</span>}
                             <Link
                               href={`/subscriptions/${s.slug}`}
-                              className="text-amber-400 hover:underline"
+                              className="text-brand-400 hover:underline"
                             >
                               {s.name}
                             </Link>
@@ -513,14 +529,14 @@ export default async function EditionPage({ params, searchParams }: Props) {
                                 {s.edition?.slug ? (
                                   <Link
                                     href={`/editions/${s.edition.slug}`}
-                                    className="text-amber-400/80 hover:text-amber-400 hover:underline transition-colors"
+                                    className="text-brand-400/80 hover:text-brand-400 hover:underline transition-colors"
                                   >
                                     {s.book.title}
                                   </Link>
                                 ) : (
                                   <Link
                                     href={`/books/${s.book.slug}`}
-                                    className="text-amber-400/80 hover:text-amber-400 hover:underline transition-colors"
+                                    className="text-brand-400/80 hover:text-brand-400 hover:underline transition-colors"
                                   >
                                     {s.book.title}
                                   </Link>
@@ -538,14 +554,14 @@ export default async function EditionPage({ params, searchParams }: Props) {
                                 {s.edition?.slug ? (
                                   <Link
                                     href={`/editions/${s.edition.slug}`}
-                                    className="text-amber-400/80 hover:text-amber-400 hover:underline transition-colors"
+                                    className="text-brand-400/80 hover:text-brand-400 hover:underline transition-colors"
                                   >
                                     {s.book.title}
                                   </Link>
                                 ) : (
                                   <Link
                                     href={`/books/${s.book.slug}`}
-                                    className="text-amber-400/80 hover:text-amber-400 hover:underline transition-colors"
+                                    className="text-brand-400/80 hover:text-brand-400 hover:underline transition-colors"
                                   >
                                     {s.book.title}
                                   </Link>
@@ -565,7 +581,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                     <dd>
                       <Link
                         href={`/sale-announcements/${se.announcement.id}`}
-                        className="text-amber-400 hover:underline"
+                        className="text-brand-400 hover:underline"
                       >
                         {se.announcement.title}
                       </Link>
@@ -588,7 +604,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {features.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-sm text-stone-300">
-                  <span className="text-amber-500 mt-0.5 shrink-0">✦</span>
+                  <span className="text-brand-500 mt-0.5 shrink-0">✦</span>
                   <span>{normDisplay(f)}</span>
                 </li>
               ))}
@@ -616,17 +632,17 @@ export default async function EditionPage({ params, searchParams }: Props) {
                       <img
                         src={photoUrl}
                         alt={cleanName}
-                        className="w-10 h-10 rounded-full object-cover ring-1 ring-stone-700 group-hover:ring-amber-500/50 transition-all shrink-0"
+                        className="w-10 h-10 rounded-full object-cover ring-1 ring-stone-700 group-hover:ring-brand-500/50 transition-all shrink-0"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-stone-800 flex items-center justify-center text-stone-400 font-serif text-base shrink-0 ring-1 ring-stone-700 group-hover:ring-amber-500/50 transition-all">
+                      <div className="w-10 h-10 rounded-full bg-stone-800 flex items-center justify-center text-stone-400 font-serif text-base shrink-0 ring-1 ring-stone-700 group-hover:ring-brand-500/50 transition-all">
                         {cleanName[0]?.toUpperCase()}
                       </div>
                     )}
 
                     {/* Name + roles */}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-stone-200 group-hover:text-amber-400 transition-colors leading-tight truncate max-w-[160px]">
+                      <p className="text-sm font-medium text-stone-200 group-hover:text-brand-400 transition-colors leading-tight truncate max-w-[160px]">
                         {cleanName}
                       </p>
                       {roles.map((role) => (
@@ -648,9 +664,9 @@ export default async function EditionPage({ params, searchParams }: Props) {
               {book.omnibusComponents.map(c => (
                 <div key={c.id} className="flex items-center gap-2 text-sm text-stone-300">
                   {c.volumeNumber != null && (
-                    <span className="text-xs text-amber-600/80 font-semibold w-12 shrink-0">Vol. {c.volumeNumber}</span>
+                    <span className="text-xs text-brand-600/80 font-semibold w-12 shrink-0">Vol. {c.volumeNumber}</span>
                   )}
-                  <Link href={`/books/${c.book.slug}`} className="hover:text-amber-400 transition-colors">
+                  <Link href={`/books/${c.book.slug}`} className="hover:text-brand-400 transition-colors">
                     {c.book.title}
                   </Link>
                 </div>
@@ -666,7 +682,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
             <div className="space-y-2">
               {edition.previousEdition && (
                 <Link href={`/editions/${edition.previousEdition.slug}`}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm">
+                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-brand-600/40 transition-colors text-sm">
                   <span className="text-stone-500">←</span>
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs text-stone-500 uppercase tracking-wide">Older edition</span>
@@ -679,7 +695,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
               )}
               {edition.nextEdition && (
                 <Link href={`/editions/${edition.nextEdition.slug}`}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm">
+                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-brand-600/40 transition-colors text-sm">
                   <div className="flex flex-col min-w-0 flex-1">
                     <span className="text-xs text-stone-500 uppercase tracking-wide">Newer edition available</span>
                     <span className="text-stone-300 truncate">
@@ -701,7 +717,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
             <div className="space-y-2">
               {edition.variants.map((v) => (
                 <Link key={v.id} href={`/editions/${v.slug}`}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm">
+                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-brand-600/40 transition-colors text-sm">
                   <div className="flex flex-col min-w-0">
                     <span className="text-stone-300 truncate">
                       {v.variantLabel ?? v.bookBoxCompany?.name ?? v.slug}
@@ -731,14 +747,14 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   <Link
                     key={sa.id}
                     href={`/sale-announcements/${sa.id}`}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-amber-600/40 transition-colors text-sm"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-stone-800/50 border border-stone-700/40 hover:border-brand-600/40 transition-colors text-sm"
                   >
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="text-stone-300 truncate">{sa.title}</span>
                       {dateStr && <span className="text-xs text-stone-500 mt-0.5">{dateStr}</span>}
                     </div>
                     {se.isReprint ? (
-                      <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full shrink-0">🔁 Reprint</span>
+                      <span className="text-xs bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded-full shrink-0">🔁 Reprint</span>
                     ) : (
                       <span className="text-xs bg-stone-700 text-stone-400 px-2 py-0.5 rounded-full shrink-0">Original</span>
                     )}

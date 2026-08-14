@@ -10,8 +10,10 @@ import { createSaleGroup, updateSaleGroup } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { CURRENCIES, SALE_PLATFORMS } from '@/components/sale/SaleFormFields'
 import { useModalState } from '@/hooks/useModalState'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { isValidCalendarDate } from '@/lib/dateValidation'
+import { parseDecimalInput } from '@/lib/parseDecimalInput'
+import { TagEditor } from '@/components/collection/TagEditor'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +51,13 @@ interface FeeTemplate {
   isActive: boolean
 }
 
+interface PurchaseGroupBookEntry {
+  id: string
+  editionId: string | null
+  basePrice: string | null
+  edition: { book: { title: string } | null } | null
+}
+
 interface PurchaseGroup {
   id: string
   title: string | null
@@ -61,9 +70,11 @@ interface PurchaseGroup {
   fromSubscription: boolean
   isSecondHand: boolean
   sourcePlatform: string | null
+  priceDistribution?: string
   fees: PurchaseFee[]
   discounts: PurchaseDiscount[]
   refunds: PurchaseRefund[]
+  bookEntries?: PurchaseGroupBookEntry[]
   _count?: { bookEntries: number }
 }
 
@@ -82,6 +93,7 @@ interface CollectionEntry {
   saleNotes: string | null
   signatureType: string | null
   subscriptionEntryId: string | null
+  basePrice: string | null
   saleGroupId: string | null
   saleGroupTitle: string | null
   saleGroupEntryCount: number | null
@@ -197,7 +209,7 @@ function fmtDate(dateStr: string | null | undefined): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const INP_BASE = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP_BASE = 'bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 const INP = INP_BASE + ' w-full'
 const INP_FLEX = INP_BASE + ' flex-1 min-w-0'
 /** Swaps the border color of an INP_* class string to flag an invalid field. */
@@ -216,7 +228,7 @@ function EditBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="ml-2 text-stone-500 hover:text-amber-400 transition-colors"
+      className="ml-2 text-stone-500 hover:text-brand-400 transition-colors"
       title="Edit"
     >
       <Pencil size={13} />
@@ -230,7 +242,7 @@ function SaveCancelBtns({ onSave, onCancel, saving }: { onSave: () => void; onCa
       <button
         onClick={onSave}
         disabled={saving}
-        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs hover:bg-brand-500/20 transition-colors disabled:opacity-50"
       >
         <Check size={12} /> Save
       </button>
@@ -258,7 +270,7 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
       <select
         value={status}
         onChange={e => setStatus(e.target.value)}
-        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
       >
         {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD', 'GIFTED_AWAY'] as const).map(s => (
           <option key={s} value={s}>{s}</option>
@@ -268,12 +280,12 @@ function AddHistoryEntryForm({ onSave, onCancel, saving }: {
         type="date"
         value={date}
         onChange={e => setDate(e.target.value)}
-        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+        className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
       />
       <button
         onClick={() => onSave(status, date)}
         disabled={saving}
-        className="text-xs text-amber-400 hover:text-amber-300 disabled:opacity-50"
+        className="text-xs text-brand-400 hover:text-brand-300 disabled:opacity-50"
       ><Check size={11} /></button>
       <button onClick={onCancel} className="text-xs text-stone-500 hover:text-stone-300"><X size={11} /></button>
     </div>
@@ -299,18 +311,18 @@ function AddReadingHistoryForm({ onSave, onCancel, saving }: {
           type="date"
           value={startedAt}
           onChange={e => setStartedAt(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 w-full"
+          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 w-full"
         />
         <label className="text-stone-500 shrink-0">Finished</label>
         <input
           type="date"
           value={finishedAt}
           onChange={e => setFinishedAt(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 w-full"
+          className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 w-full"
         />
       </div>
       <label className="flex items-center gap-1.5 text-stone-400 cursor-pointer w-fit">
-        <input type="checkbox" checked={isDnf} onChange={e => setIsDnf(e.target.checked)} className="accent-amber-400" />
+        <input type="checkbox" checked={isDnf} onChange={e => setIsDnf(e.target.checked)} className="accent-brand-400" />
         DNF
       </label>
       <input
@@ -318,10 +330,10 @@ function AddReadingHistoryForm({ onSave, onCancel, saving }: {
         placeholder="Notes (optional)"
         value={notes}
         onChange={e => setNotes(e.target.value)}
-        className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 w-full"
+        className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 w-full"
       />
       <div className="flex gap-2">
-        <button onClick={() => onSave({ startedAt, finishedAt, isDnf, notes })} disabled={saving} className="text-amber-400 hover:text-amber-300 disabled:opacity-50"><Check size={11} /></button>
+        <button onClick={() => onSave({ startedAt, finishedAt, isDnf, notes })} disabled={saving} className="text-brand-400 hover:text-brand-300 disabled:opacity-50"><Check size={11} /></button>
         <button onClick={onCancel} className="text-stone-500 hover:text-stone-300"><X size={11} /></button>
       </div>
     </div>
@@ -357,6 +369,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [editDiscounts, setEditDiscounts] = useState<{ id?: string; name: string; amount: string }[]>([])
   const [editPurchasedAt, setEditPurchasedAt] = useState('')
   const [editPurchaseNotes, setEditPurchaseNotes] = useState('')
+  const [editEntryPrices, setEditEntryPrices] = useState<Record<string, string>>({})
+  const [invalidPriceEntryIds, setInvalidPriceEntryIds] = useState<Set<string>>(new Set())
   const [savingPurchase, setSavingPurchase] = useState(false)
 
   // Error state
@@ -423,11 +437,11 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [savingOrderNumber, setSavingOrderNumber] = useState(false)
   const [deletingOrderNumber, setDeletingOrderNumber] = useState(false)
 
-  // Edit state — tags
-  const [editingTags, setEditingTags] = useState(false)
-  const [editTagInput, setEditTagInput] = useState('')
-  const [editTagList, setEditTagList] = useState<string[]>([])
-  const [savingTags, setSavingTags] = useState(false)
+  // Tags — all tags across the user's collection, for autocomplete suggestions
+  const { data: allUserTags = [] } = useQuery({
+    queryKey: ['collection-tags'],
+    queryFn: () => authFetch<string[]>('/collection/tags'),
+  })
 
   // History
   const { isOpen: showHistory, toggle: _toggleHistory } = useModalState()
@@ -564,6 +578,21 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
     return () => window.removeEventListener('collection:updated', handler)
   }, [editionId])
 
+  // While editing purchase costs for a multi-book group, once any book has a price the total
+  // becomes a calculated, read-only sum — same all-or-nothing rule as Add to Collection.
+  useEffect(() => {
+    const bookEntries = entry?.purchaseGroup?.bookEntries ?? []
+    if (bookEntries.length <= 1) return
+    const anyFilled = bookEntries.some(be => (editEntryPrices[be.id] ?? '').trim() !== '')
+    if (!anyFilled) return
+    const sum = bookEntries.reduce((s, be) => {
+      const raw = (editEntryPrices[be.id] ?? '').trim()
+      return s + (raw === '' ? 0 : parseDecimalInput(raw))
+    }, 0)
+    setEditTotalAmount(sum.toFixed(2))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.purchaseGroup?.bookEntries, editEntryPrices])
+
   if (loading || !entry) return null
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -626,6 +655,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       setEditDiscounts((pg.discounts ?? []).map(d => ({ id: d.id, name: d.name, amount: String(d.amount) })))
       setEditPurchasedAt(pg.purchasedAt ? pg.purchasedAt.slice(0, 10) : '')
       setEditPurchaseNotes(pg.notes ?? '')
+      // Pre-fill from the real per-book allocation when this group already has one — otherwise
+      // leave blank (equal split so far), same "all filled or none" rule as Add to Collection.
+      const prices: Record<string, string> = {}
+      for (const be of pg.bookEntries ?? []) {
+        if (be.basePrice != null) prices[be.id] = String(be.basePrice)
+      }
+      setEditEntryPrices(prices)
+      setInvalidPriceEntryIds(new Set())
     } else {
       setEditTotalAmount('')
       setEditCurrency('EUR')
@@ -633,6 +670,8 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       setEditDiscounts([])
       setEditPurchasedAt('')
       setEditPurchaseNotes('')
+      setEditEntryPrices({})
+      setInvalidPriceEntryIds(new Set())
     }
     setSaveError(null)
     setPurchaseErrorField(null)
@@ -653,6 +692,22 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
         setSaveError('Shipping must be 0 or greater.'); setPurchaseErrorField('shipping'); return
       }
     }
+    // Per-book pricing is all-or-nothing: once any book has a price, every book in the group needs one.
+    const pgBookEntriesForSave = entry!.purchaseGroup?.bookEntries ?? []
+    const perBookModeForSave = pgBookEntriesForSave.length > 1 && pgBookEntriesForSave.some(be => (editEntryPrices[be.id] ?? '').trim() !== '')
+    const nextInvalidPriceEntryIds = new Set<string>()
+    if (perBookModeForSave) {
+      for (const be of pgBookEntriesForSave) {
+        const raw = (editEntryPrices[be.id] ?? '').trim()
+        const n = parseFloat(raw.replace(',', '.'))
+        if (raw === '' || isNaN(n) || n < 0) nextInvalidPriceEntryIds.add(be.id)
+      }
+    }
+    setInvalidPriceEntryIds(nextInvalidPriceEntryIds)
+    if (nextInvalidPriceEntryIds.size > 0) {
+      setSaveError('Enter a price for every book below, or clear all of them to set one total price instead.')
+      return
+    }
     setPurchaseErrorField(null)
     setSavingPurchase(true)
     setSaveError(null)
@@ -665,6 +720,16 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
       }
       if (editShippingAmount) payload.shippingAmount = parseFloat(editShippingAmount)
       if (editPurchaseNotes) payload.notes = editPurchaseNotes
+      if (pgBookEntriesForSave.length > 1) {
+        if (perBookModeForSave) {
+          payload.priceDistribution = 'CUSTOM'
+          payload.entryPrices = Object.fromEntries(
+            pgBookEntriesForSave.map(be => [be.id, parseDecimalInput(editEntryPrices[be.id])]),
+          )
+        } else {
+          payload.priceDistribution = 'EQUAL'
+        }
+      }
       let groupId: string
       if (pg) {
         await authFetch(`/collection/bundles/${pg.id}`, {
@@ -964,39 +1029,9 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
 
   // ── Tags section ──────────────────────────────────────────────────────────
 
-  function openTagsEdit() {
-    setEditTagList([...entry!.tags])
-    setEditTagInput('')
-    setEditingTags(true)
-  }
-
-  async function saveTagsList(tags: string[]) {
-    setSavingTags(true)
-    try {
-      const saved = await authFetch<string[]>(`/collection/entry/${entry!.id}/tags`, {
-        method: 'PUT',
-        body: JSON.stringify({ tags }),
-      })
-      setEntry(prev => prev ? { ...prev, tags: saved } : prev)
-      setEditTagList(saved)
-    } finally {
-      setSavingTags(false)
-    }
-  }
-
-  async function addTagFromInput() {
-    const newTags = editTagInput.split(',').map(t => t.trim()).filter(Boolean)
-    if (!newTags.length) return
-    const merged = [...new Set([...editTagList, ...newTags])]
-    setEditTagList(merged)
-    setEditTagInput('')
-    await saveTagsList(merged)
-  }
-
-  async function removeTag(tag: string) {
-    const updated = editTagList.filter(t => t !== tag)
-    setEditTagList(updated)
-    await saveTagsList(updated)
+  function handleTagsSaved(_entryId: string, tags: string[]) {
+    setEntry(prev => prev ? { ...prev, tags } : prev)
+    void queryClient.invalidateQueries({ queryKey: ['collection-tags'] })
   }
 
   // ── History section ───────────────────────────────────────────────────────
@@ -1121,6 +1156,16 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const pg = entry.purchaseGroup
   const isFromSubscription = !!entry.subscriptionEntryId
 
+  // Per-book price editing (only meaningful for a multi-book purchase group) — same
+  // all-or-nothing rule as Add to Collection: fill in any book price and every book needs one,
+  // with the total below calculated automatically from them.
+  const pgBookEntries = pg?.bookEntries ?? []
+  const perBookPriceMode = pgBookEntries.length > 1 && pgBookEntries.some(be => (editEntryPrices[be.id] ?? '').trim() !== '')
+  const editEntryPriceSum = pgBookEntries.reduce((sum, be) => {
+    const raw = (editEntryPrices[be.id] ?? '').trim()
+    return sum + (raw === '' ? 0 : parseDecimalInput(raw))
+  }, 0)
+
   // Cost calculations from purchase group
   const pgTotal = pg ? parseFloat(String(pg.totalAmount)) : null
   const pgShipping = pg?.shippingAmount ? parseFloat(String(pg.shippingAmount)) : null
@@ -1207,7 +1252,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               onClick={() => { setSelectedCopyIdx(i); setEntry(allEntries[i]) }}
               className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
                 i === selectedCopyIdx
-                  ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
+                  ? 'border-brand-500/50 bg-brand-500/10 text-brand-400'
                   : 'border-stone-700 text-stone-400 hover:border-stone-500'
               }`}
             >
@@ -1252,7 +1297,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Price</label>
-                  <input type="number" step="0.01" min="0" value={editTotalAmount} onChange={e => { setEditTotalAmount(e.target.value); if (purchaseErrorField === 'amount') { setSaveError(null); setPurchaseErrorField(null) } }} placeholder="0.00" className={inpErr(INP_FLEX, purchaseErrorField === 'amount') + ' w-20'} />
+                  <input
+                    type="number" step="0.01" min="0"
+                    value={editTotalAmount}
+                    disabled={perBookPriceMode}
+                    onChange={e => { setEditTotalAmount(e.target.value); if (purchaseErrorField === 'amount') { setSaveError(null); setPurchaseErrorField(null) } }}
+                    placeholder="0.00"
+                    className={inpErr(INP_FLEX, purchaseErrorField === 'amount') + ' w-20' + (perBookPriceMode ? ' opacity-60 cursor-not-allowed' : '')}
+                  />
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Shipping</label>
@@ -1265,6 +1317,42 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                   </select>
                 </div>
               </div>
+
+              {/* Per-book price — only for a multi-book purchase group. Same all-or-nothing
+                  rule as Add to Collection: fill in any book and every book needs a price. */}
+              {pgBookEntries.length > 1 && (
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Per-book price</label>
+                  <div className="flex flex-col gap-1.5">
+                    {pgBookEntries.map(be => (
+                      <div key={be.id} className="flex items-center gap-2">
+                        <span className="flex-1 min-w-0 truncate text-xs" style={{ color: 'var(--text-dim)' }}>
+                          {be.edition?.book?.title ?? 'Book'}
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          value={editEntryPrices[be.id] ?? ''}
+                          onChange={e => {
+                            setEditEntryPrices(prev => ({ ...prev, [be.id]: e.target.value }))
+                            if (invalidPriceEntryIds.has(be.id)) {
+                              setInvalidPriceEntryIds(prev => { const next = new Set(prev); next.delete(be.id); return next })
+                              setSaveError(null)
+                            }
+                          }}
+                          className={inpErr(INP_BASE, invalidPriceEntryIds.has(be.id)) + ' w-20 text-right shrink-0'}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                    {perBookPriceMode
+                      ? `Pricing books individually — fill in all ${pgBookEntries.length}, price above is calculated automatically.`
+                      : 'Leave every book price blank to split the total price evenly — or price each book individually here instead.'}
+                  </p>
+                </div>
+              )}
 
               {/* Discounts list */}
               <div>
@@ -1339,7 +1427,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <input type="date" value={editFeeDate} onChange={e => { setEditFeeDate(e.target.value); if (editFeeErrorField === 'date') { setEditFeeError(null); setEditFeeErrorField(null) } }} className={inpErr(INP, editFeeErrorField === 'date')} />
                           {editFeeError && <p className="text-xs text-red-400">{editFeeError}</p>}
                           <div className="flex gap-1.5">
-                            <button onClick={saveEditFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                            <button onClick={saveEditFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-brand-500/10 border border-brand-500/30 text-brand-400 hover:bg-brand-500/20 transition-colors disabled:opacity-50">
                               <Check size={11} /> Save
                             </button>
                             <button onClick={() => { setEditingFeeId(null); setEditFeeError(null); setEditFeeErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
@@ -1353,7 +1441,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <span className="text-stone-500">{FEE_CATEGORIES.find(c => c.value === fee.category)?.label ?? fee.category}</span>
                           <span style={{ color: 'var(--text-dim)' }}>{parseFloat(fee.amount).toFixed(2)} {fee.currency}</span>
                           <span className="text-stone-500">{fee.date ? fee.date.slice(0, 10) : ''}</span>
-                          <button onClick={() => openEditFee(fee)} className="text-stone-600 hover:text-amber-400 transition-colors shrink-0">
+                          <button onClick={() => openEditFee(fee)} className="text-stone-600 hover:text-brand-400 transition-colors shrink-0">
                             <Pencil size={11} />
                           </button>
                           <button onClick={() => deleteFee(fee.id)} className="text-stone-600 hover:text-red-400 transition-colors shrink-0">
@@ -1377,7 +1465,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                                   if (t.defaultCurrency) setNewFeeCurrency(t.defaultCurrency)
                                   if (t.category) setNewFeeCategory(t.category)
                                 }}
-                                className={`px-2 py-0.5 rounded text-xs border transition-colors ${newFeeTemplateId === t.id ? 'border-amber-500/60 text-amber-400' : 'border-stone-600 text-stone-400 hover:border-amber-500/40 hover:text-amber-400'}`}
+                                className={`px-2 py-0.5 rounded text-xs border transition-colors ${newFeeTemplateId === t.id ? 'border-brand-500/60 text-brand-400' : 'border-stone-600 text-stone-400 hover:border-brand-500/40 hover:text-brand-400'}`}
                               >
                                 {t.name}
                               </button>
@@ -1409,7 +1497,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                         <input type="date" value={newFeeDate} onChange={e => { setNewFeeDate(e.target.value); if (newFeeErrorField === 'date') { setNewFeeError(null); setNewFeeErrorField(null) } }} className={inpErr(INP, newFeeErrorField === 'date')} />
                         {newFeeError && <p className="text-xs text-red-400">{newFeeError}</p>}
                         <div className="flex gap-1.5">
-                          <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                          <button onClick={saveNewFee} disabled={savingFee} className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-brand-500/10 border border-brand-500/30 text-brand-400 hover:bg-brand-500/20 transition-colors disabled:opacity-50">
                             <Check size={11} /> Add
                           </button>
                           <button onClick={() => { setAddingFee(false); setNewFeeError(null); setNewFeeErrorField(null) }} className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-stone-700 text-stone-400 hover:border-stone-500 transition-colors">
@@ -1588,19 +1676,22 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                     </div>
                   )}
 
-                  {/* Per-book price for bundles */}
+                  {/* Per-book price for bundles — real base price allocation when set (falls
+                      back to an equal split), plus this book's equal share of shipping/fees
+                      (those are still split evenly across the set, by design). */}
                   {(() => {
                     const bookCount = pg._count?.bookEntries ?? 1
                     if (bookCount <= 1) return null
-                    const total = grandTotal ?? (pgTotal ?? 0) + (pgShipping ?? 0) + pgFeesTotal - pgDiscountsTotal - pgRefundsTotal
-                    const perBook = total / bookCount
+                    const equalExtrasShare = ((pgShipping ?? 0) + pgFeesTotal - pgDiscountsTotal - pgRefundsTotal) / bookCount
+                    const base = entry.basePrice != null ? parseFloat(entry.basePrice) : (pgTotal ?? 0) / bookCount
+                    const perBook = base + equalExtrasShare
                     return (
                       <div className="flex justify-between items-baseline gap-2 pt-1.5" style={{ borderTop: '1px solid var(--border)' }}>
                         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                           Per book <span className="opacity-60">({bookCount} in set)</span>
                         </span>
                         <span className="text-right">
-                          <span className="text-xs font-semibold text-amber-400">
+                          <span className="text-xs font-semibold text-brand-400">
                             {perBook.toFixed(2)} {pg.currency}
                           </span>
                           {converted(perBook, pg.currency, pg.purchasedAt) && (
@@ -1808,7 +1899,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               <button
                 onClick={() => setActiveDropdown(prev => prev === 'signature' ? null : 'signature')}
                 disabled={savingStatus}
-                className="badge-signed px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50"
+                className="badge-signed px-2 py-0.5 rounded-full text-xs uppercase flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50"
               >
                 {SIGNATURE_LABELS[entry.signatureType ?? 'unsigned'] ?? 'Unsigned'}
                 <ChevronDown size={10} />
@@ -1817,7 +1908,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                 <div className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-xl border flex flex-col py-1 min-w-[150px]" style={{ background: 'var(--bg-raised)', borderColor: 'var(--border)' }}>
                   <button
                     onClick={() => quickSaveStatus('signatureType', '')}
-                    className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${!entry.signatureType ? 'font-semibold' : ''}`}
+                    className={`text-left px-3 py-1.5 text-xs uppercase hover:bg-white/5 transition-colors ${!entry.signatureType ? 'font-semibold' : ''}`}
                     style={{ color: !entry.signatureType ? 'var(--text-bright)' : 'var(--text-dim)' }}
                   >
                     Unsigned
@@ -1826,7 +1917,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                     <button
                       key={s}
                       onClick={() => quickSaveStatus('signatureType', s)}
-                      className={`text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${s === entry.signatureType ? 'font-semibold' : ''}`}
+                      className={`text-left px-3 py-1.5 text-xs uppercase hover:bg-white/5 transition-colors ${s === entry.signatureType ? 'font-semibold' : ''}`}
                       style={{ color: s === entry.signatureType ? 'var(--text-bright)' : 'var(--text-dim)' }}
                     >
                       {SIGNATURE_LABELS[s]}
@@ -1937,7 +2028,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           }
                         }}
                         disabled={savingEditTracking || !editTrackingNumber.trim()}
-                        className="flex-1 text-xs py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
+                        className="flex-1 text-xs py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
                       >
                         {savingEditTracking ? '…' : 'Save'}
                       </button>
@@ -1957,7 +2048,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                         href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(tn.trackingNumber)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 break-all"
+                        className="text-sm hover:text-brand-400 transition-colors flex items-center gap-1 break-all"
                         style={{ color: 'var(--text-secondary)' }}
                       >
                         {tn.trackingNumber}
@@ -2020,7 +2111,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                       }
                     }}
                     disabled={savingTracking || !newTrackingNumber.trim()}
-                    className="flex-1 text-xs py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
+                    className="flex-1 text-xs py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold transition-colors"
                   >
                     {savingTracking ? '…' : 'Save'}
                   </button>
@@ -2033,7 +2124,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                 </div>
               </div>
             ) : (
-              <button onClick={() => setAddingTracking(true)} className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 text-left mt-1" style={{ color: 'var(--text-muted)' }}>
+              <button onClick={() => setAddingTracking(true)} className="text-sm hover:text-brand-400 transition-colors flex items-center gap-1 text-left mt-1" style={{ color: 'var(--text-muted)' }}>
                 + Add tracking number
               </button>
             )}
@@ -2062,63 +2153,21 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
               </button>
             </div>
           ) : (
-            <button onClick={openOrderNumberEdit} className="text-sm hover:text-amber-400 transition-colors flex items-center gap-1 text-left" style={{ color: 'var(--text-muted)' }}>
+            <button onClick={openOrderNumberEdit} className="text-sm hover:text-brand-400 transition-colors flex items-center gap-1 text-left" style={{ color: 'var(--text-muted)' }}>
               + Add order number
             </button>
           )}
         </div>
 
           {/* Tags — below Tracking */}
-          <div className="rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-        <span className="flex items-center gap-1 text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
-          <Tag size={10} /> Tags
-        </span>
-        {editingTags ? (
-          <div className="flex flex-col gap-2 w-full mt-1">
-            {editTagList.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {editTagList.map(tag => (
-                  <span key={tag} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
-                    {tag}
-                    <button onClick={() => removeTag(tag)} className="text-stone-500 hover:text-red-400 transition-colors">
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                value={editTagInput}
-                onChange={e => setEditTagInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTagFromInput() } }}
-                placeholder="Add tags (Enter or comma)…"
-                className={INP}
-                disabled={savingTags}
-              />
-            </div>
-            <div className="flex justify-end">
-              <button onClick={() => setEditingTags(false)} className="text-xs px-3 py-1 rounded-lg transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                Done
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center flex-1 min-w-0">
-            <div className="flex items-center gap-1 flex-wrap flex-1">
-              {entry.tags.length > 0 ? (
-                entry.tags.map(tag => (
-                  <span key={tag} className="px-2 py-0.5 rounded-full text-xs" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
-                    {tag}
-                  </span>
-                ))
-              ) : (
-                <span className="text-xs italic" style={{ color: 'var(--text-muted)' }}>no tags</span>
-              )}
-            </div>
-            <EditBtn onClick={openTagsEdit} />
-          </div>
-        )}
+          <div className="rounded-xl border p-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <p className={SEC_HDR}><span className="flex items-center gap-1.5"><Tag size={11} /> Tags</span></p>
+            <TagEditor
+              entryId={entry.id}
+              tags={entry.tags}
+              allTags={allUserTags}
+              onSaved={handleTagsSaved}
+            />
           </div>
 
           {/* Ownership history — always directly under tags */}
@@ -2145,7 +2194,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <select
                             value={historyEditStatus}
                             onChange={e => setHistoryEditStatus(e.target.value)}
-                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
                           >
                             {OWNERSHIP_STATUSES.map(s => <option key={s} value={s}>{fmtOwnership(s)}</option>)}
                           </select>
@@ -2153,12 +2202,12 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             type="date"
                             value={historyEditDate}
                             onChange={e => setHistoryEditDate(e.target.value)}
-                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400"
+                            className="text-xs bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400"
                           />
                           <button
                             onClick={() => saveHistoryEdit(h.id)}
                             disabled={historySaving}
-                            className="text-xs text-amber-400 hover:text-amber-300 disabled:opacity-50"
+                            className="text-xs text-brand-400 hover:text-brand-300 disabled:opacity-50"
                           ><Check size={11} /></button>
                           <button onClick={() => setHistoryEditId(null)} className="text-xs text-stone-500 hover:text-stone-300"><X size={11} /></button>
                         </div>
@@ -2172,7 +2221,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                           <span className="ml-auto flex items-center gap-2">
                             <button
                               onClick={() => { setHistoryEditId(h.id); setHistoryEditStatus(h.status); setHistoryEditDate(h.changedAt.slice(0, 10)) }}
-                              className="text-stone-500 hover:text-amber-400 transition-colors p-1.5 -m-1.5"
+                              className="text-stone-500 hover:text-brand-400 transition-colors p-1.5 -m-1.5"
                             ><Pencil size={12} /></button>
                             <button
                               onClick={() => deleteHistoryEntry(h.id)}
@@ -2232,14 +2281,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                               type="date"
                               value={readingHistoryEditStartedAt}
                               onChange={e => setReadingHistoryEditStartedAt(e.target.value)}
-                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs w-full"
+                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 text-xs w-full"
                             />
                             <label className="text-stone-500 shrink-0">Finished</label>
                             <input
                               type="date"
                               value={readingHistoryEditFinishedAt}
                               onChange={e => setReadingHistoryEditFinishedAt(e.target.value)}
-                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs w-full"
+                              className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 text-xs w-full"
                             />
                           </div>
                           <label className="flex items-center gap-1.5 text-stone-400 cursor-pointer w-fit">
@@ -2247,7 +2296,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                               type="checkbox"
                               checked={readingHistoryEditIsDnf}
                               onChange={e => setReadingHistoryEditIsDnf(e.target.checked)}
-                              className="accent-amber-400"
+                              className="accent-brand-400"
                             />
                             DNF
                           </label>
@@ -2256,10 +2305,10 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                             placeholder="Notes (optional)"
                             value={readingHistoryEditNotes}
                             onChange={e => setReadingHistoryEditNotes(e.target.value)}
-                            className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-amber-400 text-xs w-full"
+                            className="bg-stone-800 border border-stone-700 rounded px-1.5 py-0.5 text-stone-200 focus:outline-none focus:border-brand-400 text-xs w-full"
                           />
                           <div className="flex gap-2">
-                            <button onClick={() => saveReadingHistoryEdit(rh.id)} disabled={readingHistorySaving} className="text-amber-400 hover:text-amber-300 disabled:opacity-50"><Check size={11} /></button>
+                            <button onClick={() => saveReadingHistoryEdit(rh.id)} disabled={readingHistorySaving} className="text-brand-400 hover:text-brand-300 disabled:opacity-50"><Check size={11} /></button>
                             <button onClick={() => setReadingHistoryEditId(null)} className="text-stone-500 hover:text-stone-300"><X size={11} /></button>
                           </div>
                         </div>
@@ -2294,7 +2343,7 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
                                   setReadingHistoryEditIsDnf(rh.isDnf)
                                   setReadingHistoryEditNotes(rh.notes ?? '')
                                 }}
-                                className="text-stone-500 hover:text-amber-400 transition-colors p-1.5 -m-1.5"
+                                className="text-stone-500 hover:text-brand-400 transition-colors p-1.5 -m-1.5"
                               ><Pencil size={12} /></button>
                               <button onClick={() => deleteReadingHistoryEntry(rh.id)} className="text-stone-500 hover:text-red-400 transition-colors p-1.5 -m-1.5"><Trash2 size={12} /></button>
                             </span>

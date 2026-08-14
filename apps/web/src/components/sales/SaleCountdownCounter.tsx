@@ -14,7 +14,7 @@ function getCountdown(target: Date) {
 function Segment({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center">
-      <span className="text-2xl sm:text-3xl font-serif font-bold text-amber-400 tabular-nums">
+      <span className="text-2xl sm:text-3xl font-serif font-bold text-brand-400 tabular-nums">
         {String(value).padStart(2, '0')}
       </span>
       <span className="text-[10px] uppercase tracking-widest text-stone-500">{label}</span>
@@ -41,13 +41,13 @@ export function SaleCountdownCounter({ date, tier, title, personalized }: Props)
   }, [date])
 
   return (
-    <div className="rounded-2xl border border-amber-800/40 bg-gradient-to-br from-stone-900 to-amber-950/20 p-5">
-      <p className="text-xs uppercase tracking-widest text-amber-600 font-medium mb-1">
+    <div className="rounded-2xl border border-brand-800/40 bg-gradient-to-br from-stone-900 to-brand-950/20 p-5">
+      <p className="text-xs uppercase tracking-widest text-brand-600 font-medium mb-1">
         {personalized ? `Your ${tier} countdown` : `Next sale — ${tier}`}
       </p>
       {title && <p title={title} className="text-sm text-stone-300 font-serif mb-3 line-clamp-1">{title}</p>}
       {countdown.done ? (
-        <p className="text-lg font-serif text-amber-400">It&apos;s here!</p>
+        <p className="text-lg font-serif text-brand-400">It&apos;s here!</p>
       ) : (
         <div className="flex items-center gap-4">
           <Segment value={countdown.days} label={countdown.days === 1 ? 'Day' : 'Days'} />

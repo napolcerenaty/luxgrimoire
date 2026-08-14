@@ -16,9 +16,14 @@ import {
   resolveBackfillFallbackPrice,
   computeFirstBillingMonth,
   isGrandfatheredExcluded,
+  buildFirstBoxCandidates,
+  applyFirstBoxChoice,
   type PriceChangeRecord,
   type ComputedBatch,
+  type FirstBoxCandidates,
+  type BoxCandidate,
 } from '@/lib/joinSubscription.utils'
+import { bundleRangeLabel } from '@/lib/bundleHelpers'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -117,6 +122,14 @@ interface JoinResult {
     basePrice: string | null
   }
   eligibleMonths: SubscriptionMonth[]
+  /** One box unit's worth of months immediately before joinWindowYear/Month (see below) — empty if none. */
+  previousBoxMonths?: SubscriptionMonth[]
+  /** The server's renewal-cycle-aware eligibility suggestion — decides which picker slot is "Suggested". */
+  defaultFirstBoxYear?: number | null
+  defaultFirstBoxMonth?: number | null
+  /** The box unit containing the join date's own calendar position — decides which slot is "current". */
+  joinWindowYear?: number | null
+  joinWindowMonth?: number | null
 }
 
 interface Props {
@@ -192,6 +205,9 @@ interface JoinSubscriptionData {
   cancellationDate?: string
   cancellationReason?: string
   selectedPrepayOptionId: string | null
+  /** Set once the mandatory "choose your first box" step is confirmed — see StepChooseFirstBox. */
+  firstBoxYear?: number
+  firstBoxMonth?: number
 }
 
 interface Step1Props {
@@ -425,13 +441,13 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         <div>
           <label className="block text-xs text-stone-400 uppercase tracking-wider mb-2">Billing period</label>
           <div className="space-y-2">
-            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
+            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/5">
               <input
                 type="radio"
                 name="billingPeriod"
                 checked={selectedPrepayOptionId === null}
                 onChange={() => handleSelectPrepay(null)}
-                className="text-amber-600 focus:ring-amber-600/30"
+                className="text-brand-600 focus:ring-brand-600/30"
               />
               <div className="flex-1 flex items-center justify-between">
                 <span className="text-sm text-stone-200">Monthly</span>
@@ -441,13 +457,13 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               </div>
             </label>
             {displayedOptions.map(opt => (
-              <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
+              <label key={opt.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-stone-700 hover:border-stone-500 px-3 py-2.5 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/5">
                 <input
                   type="radio"
                   name="billingPeriod"
                   checked={selectedPrepayOptionId === opt.id}
                   onChange={() => handleSelectPrepay(opt.id)}
-                  className="text-amber-600 focus:ring-amber-600/30"
+                  className="text-brand-600 focus:ring-brand-600/30"
                 />
                 <div className="flex-1 flex items-center justify-between">
                   <span className="text-sm text-stone-200">{opt.label ?? `${opt.months} months`}</span>
@@ -634,7 +650,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                   </div>
                 )}
                 <p>
-                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-brand-400">Request data</span> form in the site footer.
                 </p>
               </>
             )
@@ -653,7 +669,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           if (currencyPriceChanges.length === 0) {
             return (
               <p>
-                As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                As we have no historical data of price changes, books will be added to your collection with the current subscription price. If you&apos;ve been a long-time subscriber and can provide historical pricing data, please submit it via the <span className="text-brand-400">Request data</span> form in the site footer.
               </p>
             )
           }
@@ -722,7 +738,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                       {' '}from{' '}
                       <span className="text-stone-300">{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</span>
                       {isGrandfatheredFutureChange(pc) && (
-                        <span className="text-amber-500/80"> (grandfathered — won&apos;t affect you)</span>
+                        <span className="text-brand-500/80"> (grandfathered — won&apos;t affect you)</span>
                       )}
                     </span>
                   ))}
@@ -744,11 +760,11 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               )}
               {visiblePriceChanges.length > 0 ? (
                 <p>
-                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                  Books will be added to your collection with those prices. If you&apos;ve been a long-time subscriber and can provide more historical pricing data, please submit it via the <span className="text-brand-400">Request data</span> form in the site footer.
                 </p>
               ) : (
                 <p>
-                  No historical price change information is available for this subscription. If you&apos;ve been a long-time subscriber and can provide pricing data, please submit it via the <span className="text-amber-400">Request data</span> form in the site footer.
+                  No historical price change information is available for this subscription. If you&apos;ve been a long-time subscriber and can provide pricing data, please submit it via the <span className="text-brand-400">Request data</span> form in the site footer.
                 </p>
               )}
             </>
@@ -771,7 +787,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
                     id={`ft-${t.id}`}
                     checked={!!linked}
                     onChange={() => toggleTemplate(t)}
-                    className="mt-1 rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+                    className="mt-1 rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
                   />
                   <label htmlFor={`ft-${t.id}`} className="flex-1 text-sm text-stone-200 cursor-pointer pt-0.5">
                     {t.name}
@@ -816,7 +832,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
         ) : templatesLoaded ? (
           <p className="text-xs text-stone-500 mb-2">
             No fee templates defined.{' '}
-            <a href="/profile" className="text-amber-400 underline" target="_blank" rel="noreferrer">Add them in settings.</a>
+            <a href="/profile" className="text-brand-400 underline" target="_blank" rel="noreferrer">Add them in settings.</a>
           </p>
         ) : (
           <p className="text-xs text-stone-600 mb-2">Loading…</p>
@@ -836,7 +852,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
           type="checkbox"
           checked={isForwarding}
           onChange={e => setIsForwarding(e.target.checked)}
-          className="rounded border-stone-600 bg-stone-800 text-amber-500"
+          className="rounded border-stone-600 bg-stone-800 text-brand-500"
         />
         <span className="text-sm text-stone-300">📦 Forwarding packages</span>
       </label>
@@ -845,7 +861,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       <div className="border-t border-stone-700/50 pt-4 space-y-3">
         {isDiscontinued ? (
           <p className="text-sm text-stone-400">
-            <span className="text-amber-500 font-medium">Discontinued subscription</span> — this entry will be saved as cancelled.
+            <span className="text-brand-500 font-medium">Discontinued subscription</span> — this entry will be saved as cancelled.
           </p>
         ) : (
           <label className="flex items-center gap-3 cursor-pointer">
@@ -853,7 +869,7 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
               type="checkbox"
               checked={alreadyCancelled}
               onChange={e => setAlreadyCancelled(e.target.checked)}
-              className="rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+              className="rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
             />
             <span className="text-sm text-stone-300">Already cancelled (historical entry)</span>
           </label>
@@ -897,11 +913,132 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
       {dateError && <p className="text-xs text-red-400">{dateError}</p>}
       <button
         type="submit"
-        className="w-full py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+        className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
       >
         Continue
       </button>
     </form>
+  )
+}
+
+// ── Step ChooseFirstBox: mandatory first-box month picker ───────────────────
+//
+// Renewal-day/signupIncludesCurrentMonth cycle math drifts over time (settings history bug
+// fixes, historical corrections) — the same entry can compute a different "first box" on every
+// recompute. Instead of trusting that formula live, we show the user a calculated default plus
+// the adjacent box (earlier/later) and let them confirm which one was actually theirs; the choice
+// gets saved on the entry and reused everywhere the app needs "first box month" from then on.
+// Always shown — no skip button — for every subscription type, including bundles.
+
+interface ChooseFirstBoxProps {
+  eligibleMonths: SubscriptionMonth[]
+  previousBoxMonths: SubscriptionMonth[]
+  /** The window containing the join date's own calendar position — decides which slot is "current". */
+  joinWindowYear: number
+  joinWindowMonth: number
+  /** Renewal-cycle-aware eligibility guess — decides which slot gets the "Suggested" badge. */
+  defaultFirstBoxYear: number
+  defaultFirstBoxMonth: number
+  isBundleMode: boolean
+  intervalMonths: number
+  startingMonth: number
+  onConfirm: (firstBoxYear: number, firstBoxMonth: number, adjustedEligibleMonths: SubscriptionMonth[]) => void
+  onBack: () => void
+}
+
+function candidateBookTitles(candidate: BoxCandidate, monthMap: Map<string, SubscriptionMonth>): string[] {
+  const titles = new Set<string>()
+  for (const id of candidate.monthIds) {
+    const m = monthMap.get(id)
+    if (!m) continue
+    for (const b of m.books) {
+      const title = editionDisplayTitle(b.edition)
+      if (title) titles.add(title)
+    }
+  }
+  return Array.from(titles)
+}
+
+function candidateLabel(candidate: BoxCandidate, isBundleMode: boolean, intervalMonths: number): string {
+  return isBundleMode
+    ? bundleRangeLabel(candidate.year, candidate.month, intervalMonths)
+    : `${MONTH_NAMES[candidate.month - 1]} ${candidate.year}`
+}
+
+function StepChooseFirstBox({ eligibleMonths, previousBoxMonths, joinWindowYear, joinWindowMonth, defaultFirstBoxYear, defaultFirstBoxMonth, isBundleMode, intervalMonths, startingMonth, onConfirm, onBack }: ChooseFirstBoxProps) {
+  const candidates: FirstBoxCandidates = buildFirstBoxCandidates(
+    eligibleMonths, previousBoxMonths, joinWindowYear, joinWindowMonth, defaultFirstBoxYear, defaultFirstBoxMonth, isBundleMode, intervalMonths, startingMonth,
+  )
+  const [choice, setChoice] = useState<'previous' | 'current' | 'next'>(candidates.suggested ?? 'current')
+
+  const monthMap = new Map<string, SubscriptionMonth>([...previousBoxMonths, ...eligibleMonths].map(m => [m.id, m]))
+
+  function submit() {
+    // choice can only ever be 'previous' if candidates.previous is non-null — the radio option
+    // for it isn't rendered otherwise (see options.map below) — but the indexed access can't
+    // express that to TypeScript.
+    const selected = candidates[choice]
+    if (!selected) return
+    const adjusted = applyFirstBoxChoice(choice, eligibleMonths, previousBoxMonths, candidates)
+    onConfirm(selected.year, selected.month, adjusted)
+  }
+
+  const options: { key: 'previous' | 'current' | 'next'; candidate: BoxCandidate | null }[] = [
+    { key: 'previous', candidate: candidates.previous },
+    { key: 'current', candidate: candidates.current },
+    { key: 'next', candidate: candidates.next },
+  ]
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-serif text-stone-100 font-semibold">Which was your first box?</h3>
+        <button onClick={onBack} className="text-xs text-stone-500 hover:text-stone-300">← Back</button>
+      </div>
+      <p className="text-sm text-stone-400">
+        Pick the box you actually received first. The one marked Suggested is our best guess from your join date and renewal timing — but that can shift over time, so confirm it&apos;s right.
+      </p>
+      <div className="space-y-2">
+        {options.map(({ key, candidate }) => {
+          if (!candidate) return null
+          const titles = candidateBookTitles(candidate, monthMap)
+          const label = candidateLabel(candidate, isBundleMode, intervalMonths)
+          return (
+            <label
+              key={key}
+              className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${choice === key ? 'border-brand-500 bg-brand-500/5' : 'border-stone-700 hover:border-stone-500'}`}
+            >
+              <input
+                type="radio"
+                name="firstBoxChoice"
+                checked={choice === key}
+                onChange={() => setChoice(key)}
+                className="mt-1 text-brand-600 focus:ring-brand-600/30"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-stone-100">{label}</span>
+                  {key === candidates.suggested && (
+                    <span className="text-[10px] uppercase tracking-wide text-brand-500/80">Suggested</span>
+                  )}
+                </div>
+                {titles.length > 0 ? (
+                  <p className="text-xs text-stone-400 mt-0.5">{titles.join(', ')}</p>
+                ) : (
+                  <p className="text-xs text-stone-600 mt-0.5 italic">Not yet announced</p>
+                )}
+              </div>
+            </label>
+          )
+        })}
+      </div>
+      <button
+        onClick={submit}
+        className="w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
+      >
+        Continue
+      </button>
+    </div>
   )
 }
 
@@ -1077,7 +1214,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
           <div className="flex gap-3">
             <button
               onClick={() => setWantBackfill(true)}
-              className="flex-1 py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+              className="flex-1 py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
             >
               Yes, add past boxes
             </button>
@@ -1106,7 +1243,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
         {!isBundleMode && (
           <button
             onClick={toggleAll}
-            className="text-xs text-amber-500 hover:text-amber-400 underline"
+            className="text-xs text-brand-500 hover:text-brand-400 underline"
           >
             {allSelected ? 'Deselect all' : 'Select all'}
           </button>
@@ -1147,7 +1284,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
                   type="checkbox"
                   checked={allBundleSelected}
                   onChange={() => toggleBundle(bundleMonthIds)}
-                  className="mt-0.5 rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+                  className="mt-0.5 rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-stone-100">{bundle.label}</p>
@@ -1181,7 +1318,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
             {/* Series groups */}
             {Array.from(seriesGroups.values()).map(({ series, months }) => (
               <div key={series!.id} className="border border-stone-700 rounded-lg overflow-hidden">
-                <div className="bg-stone-800/60 px-3 py-1.5 text-xs font-medium text-amber-400 uppercase tracking-wider">
+                <div className="bg-stone-800/60 px-3 py-1.5 text-xs font-medium text-brand-400 uppercase tracking-wider">
                   {series!.name}
                 </div>
                 {months.map(m => (
@@ -1199,7 +1336,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
       </div>
 
       {hasUnresolvedChoices && (
-        <p className="text-xs text-amber-400">Pick which book you received for the highlighted month(s) above before continuing.</p>
+        <p className="text-xs text-brand-400">Pick which book you received for the highlighted month(s) above before continuing.</p>
       )}
       {error && <p className="text-sm text-red-400">{error}</p>}
 
@@ -1207,7 +1344,7 @@ function Step2({ eligibleMonths, subscriptionSlug, entry, hasPrepayOptions, isBu
         <button
           onClick={submit}
           disabled={submitting || hasUnresolvedChoices}
-          className="flex-1 py-2.5 px-4 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-60 text-stone-100 text-sm font-medium transition-colors"
+          className="flex-1 py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-600 disabled:opacity-60 text-stone-100 text-sm font-medium transition-colors"
         >
           {submitting ? 'Saving…' : 'Confirm'}
         </button>
@@ -1244,6 +1381,10 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
     if (!choiceGroups.has(b.choiceGroupId)) choiceGroups.set(b.choiceGroupId, [])
     choiceGroups.get(b.choiceGroupId)!.push(b)
   }
+  const hasUnresolvedChoiceGroups = Array.from(choiceGroups.keys()).some(groupId => (choicePicks[groupId] ?? []).length === 0)
+  // Only books that will actually become entries: always-included extras, plus whichever
+  // choice-group option(s) were picked. Unpicked alternatives are excluded.
+  const priceableBooks = allBooks.filter(b => !b.choiceGroupId || (choicePicks[b.choiceGroupId] ?? []).includes(b.id))
 
   return (
     <div className="border-b border-stone-700/40 last:border-0">
@@ -1252,7 +1393,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
           type="checkbox"
           checked={checked}
           onChange={onToggle}
-          className="mt-0.5 rounded border-stone-600 bg-stone-800 text-amber-600 focus:ring-amber-600/30"
+          className="mt-0.5 rounded border-stone-600 bg-stone-800 text-brand-600 focus:ring-brand-600/30"
         />
         {mainBook?.edition?.additionalImages?.[0] && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -1265,7 +1406,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
           />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-amber-400/80 font-medium mb-0.5">{monthLabel(month)}</p>
+          <p className="text-xs text-brand-400/80 font-medium mb-0.5">{monthLabel(month)}</p>
           {allBooks.length <= 1 ? (
             <>
               <p className="text-sm text-stone-100 leading-snug truncate">
@@ -1296,10 +1437,10 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
             const picked = choicePicks[groupId] ?? []
             const unresolved = picked.length === 0
             return (
-              <div key={groupId} className={`rounded-lg border p-2 space-y-1 ${unresolved ? 'border-amber-500/60 bg-amber-500/5' : 'border-stone-700 bg-stone-800/40'}`}>
-                <p className="text-[10px] uppercase tracking-wider text-amber-400">
+              <div key={groupId} className={`rounded-lg border p-2 space-y-1 ${unresolved ? 'border-brand-500/60 bg-brand-500/5' : 'border-stone-700 bg-stone-800/40'}`}>
+                <p className="text-[10px] uppercase tracking-wider text-brand-400">
                   {meta?.label || 'Which did you receive?'}
-                  {unresolved && <span className="text-amber-300 normal-case"> — required</span>}
+                  {unresolved && <span className="text-brand-300 normal-case"> — required</span>}
                 </p>
                 {books.map(b => (
                   <label key={b.id} className="flex items-center gap-2 text-xs text-stone-200 cursor-pointer">
@@ -1323,10 +1464,37 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
         </div>
       )}
 
-      {/* Per-book price inputs temporarily removed: they're misleading — all books in a month
-          share one UserPurchaseGroup/totalAmount, there's no real per-book price to set (see
-          project_backfill_per_book_price_bug memory). bookPrices state/payload wiring is left
-          in place since nothing can populate it without this UI; revisit once that's resolved. */}
+      {/* Per-book price: only shown once the set of books that will actually be created is
+          known — i.e. always-included extras, plus whichever choice-group option(s) the user
+          picked above (unpicked alternatives never become entries, so pricing them is moot).
+          Optional: priced books get their exact price ON TOP of the box price (a paid extra
+          choice), and every book left blank splits the FULL box price evenly among themselves —
+          it is not reduced by whatever the priced books cost (see resolvePerBookPrices's
+          allowGrowth mode in price-allocation.util.ts). */}
+      {checked && priceableBooks.length > 1 && !hasUnresolvedChoiceGroups && (
+        <div className="px-3 pb-3 space-y-1.5" onClick={e => e.stopPropagation()}>
+          <p className="text-[10px] uppercase tracking-wider text-stone-500">Per-book price (optional)</p>
+          {priceableBooks.map(b => {
+            const key = `${month.id}:${b.editionId}`
+            return (
+              <label key={key} className="flex items-center gap-2 text-xs text-stone-300">
+                <span className="flex-1 truncate">{editionDisplayTitle(b.edition) ?? '—'}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={bookPrices[key] ?? ''}
+                  onChange={e => onPriceChange(key, e.target.value)}
+                  className="w-20 bg-stone-800 border border-stone-600 rounded px-1.5 py-0.5 text-stone-100 text-right focus:outline-none focus:ring-1 focus:ring-brand-600/40"
+                />
+              </label>
+            )
+          })}
+          <p className="text-[11px] text-stone-500">
+            Enter a price for any book that cost extra — the rest will get the box&apos;s price, split evenly if there&apos;s more than one.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -1662,7 +1830,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                 setDidChange(false)
               }
             }}
-            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-amber-500 text-stone-200 text-sm text-left transition-colors hover:bg-amber-500/5"
+            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-brand-500 text-stone-200 text-sm text-left transition-colors hover:bg-brand-500/5"
           >
             <span className="font-medium text-stone-100">No, all payments were {periodLabel}</span>
             <span className="block text-xs text-stone-500 mt-0.5">
@@ -1673,7 +1841,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           </button>
           <button
             onClick={() => setDidChange(true)}
-            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-amber-500 text-stone-200 text-sm text-left transition-colors hover:bg-amber-500/5"
+            className="w-full py-3 px-4 rounded-lg border border-stone-600 hover:border-brand-500 text-stone-200 text-sm text-left transition-colors hover:bg-brand-500/5"
           >
             <span className="font-medium text-stone-100">Yes, I used different billing periods</span>
             <span className="block text-xs text-stone-500 mt-0.5">Enter actual payment dates; we&apos;ll look up amounts from price history</span>
@@ -1704,7 +1872,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
             return (
               <div key={i} className="border border-stone-700 rounded-lg p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-amber-400">Billing period {i + 1}</span>
+                  <span className="text-xs font-medium text-brand-400">Billing period {i + 1}</span>
                   <span className="text-xs text-stone-400">{b.billingDate}</span>
                 </div>
                 <p className="text-xs text-stone-400">{months.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
@@ -1816,7 +1984,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                     {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                   ) : (
-                    <button onClick={() => setAddFeePickerBatch(i)} className="text-[10px] text-amber-600 hover:text-amber-400">+ fee</button>
+                    <button onClick={() => setAddFeePickerBatch(i)} className="text-[10px] text-brand-600 hover:text-brand-400">+ fee</button>
                   )}
                   <button onClick={() => addAutoOverrideDiscount(i)} className="text-[10px] text-blue-400 hover:text-blue-300">+ discount</button>
                 </div>
@@ -1831,7 +1999,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
         <button
           onClick={submitAuto}
           disabled={submitting}
-          className="w-full py-2.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+          className="w-full py-2.5 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
         >
           {submitting ? 'Saving…' : 'Confirm'}
         </button>
@@ -1981,7 +2149,7 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                       {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                   ) : (
-                    <button onClick={() => setAddFeePickerRow(i)} className="text-[10px] text-amber-600 hover:text-amber-400">+ fee</button>
+                    <button onClick={() => setAddFeePickerRow(i)} className="text-[10px] text-brand-600 hover:text-brand-400">+ fee</button>
                   )}
                   <button onClick={() => addRowDiscount(i)} className="text-[10px] text-blue-400 hover:text-blue-300">+ discount</button>
                 </div>
@@ -1990,14 +2158,14 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           )
         })}
       </div>
-      <button onClick={addRow} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
+      <button onClick={addRow} className="text-xs text-brand-500 hover:text-brand-400 transition-colors">
         + Add payment
       </button>
       {error && <p className="text-sm text-red-400">{error}</p>}
       <button
         onClick={submitYes}
         disabled={submitting || yesRows.every(r => !r.date)}
-        className="w-full py-2.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
+        className="w-full py-2.5 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors disabled:opacity-50"
       >
         {submitting ? 'Saving…' : 'Save billing'}
       </button>
@@ -2027,8 +2195,9 @@ export default function JoinSubscriptionModal({
   onJoined,
   onClose,
 }: Props) {
-  const [step, setStep] = useState<1 | 2 | 3 | 'done'>(1)
+  const [step, setStep] = useState<1 | 'chooseFirstBox' | 2 | 3 | 'done'>(1)
   const [joinResult, setJoinResult] = useState<JoinResult | null>(null)
+  const [finalEligibleMonths, setFinalEligibleMonths] = useState<SubscriptionMonth[] | null>(null)
   const [step2Data, setStep2Data] = useState<{ selectedMonthIds: string[]; bookPrices: Record<string, string>; backfillOwnershipStatus: 'OWNED' | 'PREORDER'; choicePicks: Record<string, string[]> } | null>(null)
   const [step1Fees, setStep1Fees] = useState<{ name: string; amount: string; currency: string }[]>([])
   const [step1PriceChanges, setStep1PriceChanges] = useState<PriceChange[]>([])
@@ -2079,20 +2248,36 @@ export default function JoinSubscriptionModal({
         setStep1SelectedPrepayOption(null)
       }
 
-      if (result.eligibleMonths.length > 0) {
-        setStep(2)
-      } else {
-        // No past months: do the real join immediately and finish
-        await performRealJoin(joinPayload, data.selectedPrepayOptionId ?? null)
-        setStep('done')
-        onJoined()
-      }
+      // Mandatory first-box picker step always comes next — regardless of subscription type
+      // (monthly, bundle, prepay) and regardless of whether there's anything to backfill yet.
+      setStep('chooseFirstBox')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to join')
     } finally {
       setJoining(false)
     }
-  }, [subscriptionSlug, onJoined])
+  }, [subscriptionSlug])
+
+  const handleChooseFirstBox = useCallback(async (firstBoxYear: number, firstBoxMonth: number, adjustedEligibleMonths: SubscriptionMonth[]) => {
+    setStep1JoinPayload(prev => prev ? { ...prev, firstBoxYear, firstBoxMonth } : prev)
+    setFinalEligibleMonths(adjustedEligibleMonths)
+    if (adjustedEligibleMonths.length > 0) {
+      setStep(2)
+    } else if (step1JoinPayload) {
+      // Nothing to backfill: do the real join immediately and finish
+      setJoining(true)
+      try {
+        await performRealJoin({ ...step1JoinPayload, firstBoxYear, firstBoxMonth })
+        setStep('done')
+        onJoined()
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to join')
+      } finally {
+        setJoining(false)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step1JoinPayload, onJoined])
 
   /** Executes the real join (creates subscription entry with prepaidMonths + scheduledPrepayOptionId set atomically) */
   const performRealJoin = useCallback(async (
@@ -2148,9 +2333,25 @@ export default function JoinSubscriptionModal({
           </>
         )}
 
-        {!joining && step === 2 && joinResult && joinResult.eligibleMonths.length > 0 && (
-          <Step2
+        {!joining && step === 'chooseFirstBox' && joinResult && (
+          <StepChooseFirstBox
             eligibleMonths={joinResult.eligibleMonths}
+            previousBoxMonths={joinResult.previousBoxMonths ?? []}
+            joinWindowYear={joinResult.joinWindowYear ?? new Date().getFullYear()}
+            joinWindowMonth={joinResult.joinWindowMonth ?? new Date().getMonth() + 1}
+            defaultFirstBoxYear={joinResult.defaultFirstBoxYear ?? new Date().getFullYear()}
+            defaultFirstBoxMonth={joinResult.defaultFirstBoxMonth ?? new Date().getMonth() + 1}
+            isBundleMode={(isBundleSubscription ?? false) && (intervalMonths ?? 1) > 1}
+            intervalMonths={intervalMonths ?? 1}
+            startingMonth={startingMonth ?? 1}
+            onConfirm={handleChooseFirstBox}
+            onBack={() => setStep(1)}
+          />
+        )}
+
+        {!joining && step === 2 && joinResult && finalEligibleMonths && finalEligibleMonths.length > 0 && (
+          <Step2
+            eligibleMonths={finalEligibleMonths}
             subscriptionSlug={subscriptionSlug}
             entry={joinResult.entry}
             hasPrepayOptions={(prepayOptions?.length ?? 0) > 0}
@@ -2158,7 +2359,7 @@ export default function JoinSubscriptionModal({
             intervalMonths={intervalMonths}
             startingMonth={startingMonth}
             onDone={() => { setStep('done'); onJoined() }}
-            onBack={() => setStep(1)}
+            onBack={() => setStep('chooseFirstBox')}
             onSkip={async () => {
               if (step1JoinPayload) {
                 try { await performRealJoin(step1JoinPayload) } catch { /* ignore */ }
@@ -2171,14 +2372,14 @@ export default function JoinSubscriptionModal({
                   setStep2Data(data)
                   if (step1SelectedPrepayOption && data.selectedMonthIds.length < step1SelectedPrepayOption.months) {
                     // Partial prepay period — skip step 3, backfill months+skips without billing batches
-                    const skippedMonthIds = (joinResult?.eligibleMonths ?? [])
+                    const skippedMonthIds = (finalEligibleMonths ?? [])
                       .filter(m => !data.selectedMonthIds.includes(m.id))
                       .map(m => m.id)
                     const doJoinAndBackfill = async () => {
                       if (step1JoinPayload) {
                         await performRealJoin(step1JoinPayload)
                       }
-                      await submitChoicePicks(subscriptionSlug, joinResult?.eligibleMonths ?? [], data.selectedMonthIds, data.choicePicks)
+                      await submitChoicePicks(subscriptionSlug, finalEligibleMonths ?? [], data.selectedMonthIds, data.choicePicks)
                       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -2201,7 +2402,7 @@ export default function JoinSubscriptionModal({
           />
         )}
 
-        {!joining && step === 3 && joinResult && step2Data && (step1SelectedPrepayOption || (prepayOptions?.length ?? 0) > 0) && (
+        {!joining && step === 3 && joinResult && step2Data && finalEligibleMonths && (step1SelectedPrepayOption || (prepayOptions?.length ?? 0) > 0) && (
           <Step3
             selectedMonthIds={step2Data.selectedMonthIds}
             bookPrices={step2Data.bookPrices}
@@ -2212,7 +2413,7 @@ export default function JoinSubscriptionModal({
             subscriptionSlug={subscriptionSlug}
             entryFees={step1Fees}
             entry={joinResult.entry}
-            eligibleMonths={joinResult.eligibleMonths}
+            eligibleMonths={finalEligibleMonths}
             onDone={() => { setStep('done'); onJoined() }}
             onBack={() => setStep(2)}
             onBeforeBackfill={step1JoinPayload
@@ -2229,14 +2430,14 @@ export default function JoinSubscriptionModal({
             {hasBookChoiceMonths && (
               <p className="text-xs text-stone-400 max-w-xs mx-auto">
                 Some months let you pick between book options — reminders for that are off by default.{' '}
-                <Link href="/profile?tab=notifications" className="text-amber-400 hover:text-amber-300 underline">
+                <Link href="/profile?tab=notifications" className="text-brand-400 hover:text-brand-300 underline">
                   Turn them on
                 </Link>
               </p>
             )}
             <button
               onClick={onClose}
-              className="mt-2 py-2 px-6 rounded-lg bg-amber-700 hover:bg-amber-600 text-stone-100 text-sm font-medium transition-colors"
+              className="mt-2 py-2 px-6 rounded-lg bg-brand-700 hover:bg-brand-600 text-stone-100 text-sm font-medium transition-colors"
             >
               Close
             </button>

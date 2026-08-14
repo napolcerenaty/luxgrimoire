@@ -16,7 +16,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles, Public } from '../../common/decorators/auth.decorators';
 import { SkipPolicyEngine } from './skip-policy.engine';
 import { SkipPolicyAdminService } from './skip-policy-admin.service';
-import { UpsertSkipPolicyDto } from './skip-policy.dto';
+import { UpsertSkipPolicyDto, PreviewRecomputeDto } from './skip-policy.dto';
 
 @Controller('skip-policy')
 export class SkipPolicyController {
@@ -147,5 +147,38 @@ export class SkipPolicyController {
     @Param('billingType') billingType: string,
   ) {
     return this.adminService.removePolicy(slug, billingType);
+  }
+
+  /**
+   * POST /skip-policy/:slug/policies/:billingType/recompute-preview — estimate how many active
+   * users' skip windows would change under a PROPOSED (not-yet-saved) type/windowMonths.
+   */
+  @Post(':slug/policies/:billingType/recompute-preview')
+  @ApiOperation({ summary: 'Preview impact of a skip-policy config change before saving it' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  previewRecompute(
+    @Param('slug') slug: string,
+    @Param('billingType') billingType: string,
+    @Body() dto: PreviewRecomputeDto,
+    @Request() req: { user: { id: string; role: string } },
+  ) {
+    return this.adminService.previewRecompute(slug, billingType, dto.type, dto.windowMonths, req.user);
+  }
+
+  /**
+   * POST /skip-policy/:slug/policies/:billingType/recompute — recompute skip windows for all
+   * active users under the CURRENTLY SAVED policy. Manual, admin-triggered only.
+   */
+  @Post(':slug/policies/:billingType/recompute')
+  @ApiOperation({ summary: 'Recompute skip windows for all active users under the saved policy' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'MODERATOR', 'COMPANY_MANAGER')
+  applyRecompute(
+    @Param('slug') slug: string,
+    @Param('billingType') billingType: string,
+    @Request() req: { user: { id: string; role: string } },
+  ) {
+    return this.adminService.applyRecompute(slug, billingType, req.user);
   }
 }

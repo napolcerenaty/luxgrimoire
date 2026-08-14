@@ -3,6 +3,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpsertSkipPolicyDto } from './skip-policy.dto';
+import { SkipPolicyEngine } from './skip-policy.engine';
 
 @Injectable()
 export class SkipPolicyAdminService {
@@ -11,6 +12,7 @@ export class SkipPolicyAdminService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly engine: SkipPolicyEngine,
   ) {}
 
   /** Returns all skip policies for a subscription (one per billing type). */
@@ -107,5 +109,29 @@ export class SkipPolicyAdminService {
     });
     void this.cache.del(this.subSlugKey(subscriptionSlug));
     return { message: 'All policies removed' };
+  }
+
+  /** Preview how many active users would be affected by a proposed (not-yet-saved) policy change. */
+  async previewRecompute(
+    subscriptionSlug: string,
+    billingType: string,
+    proposedType: string,
+    proposedWindowMonths: number | null | undefined,
+    actor: { id: string; role: string },
+  ) {
+    await this.resolveSubscription(subscriptionSlug, actor);
+    return this.engine.previewWindowRecompute(subscriptionSlug, billingType, proposedType, proposedWindowMonths ?? null);
+  }
+
+  /** Recompute skip windows for all active users under the CURRENTLY SAVED policy (billingType). */
+  async applyRecompute(
+    subscriptionSlug: string,
+    billingType: string,
+    actor: { id: string; role: string },
+  ) {
+    await this.resolveSubscription(subscriptionSlug, actor);
+    const result = await this.engine.recomputeWindowsForPolicy(subscriptionSlug, billingType);
+    void this.cache.del(this.subSlugKey(subscriptionSlug));
+    return result;
   }
 }

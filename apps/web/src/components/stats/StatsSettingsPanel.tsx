@@ -104,17 +104,17 @@ export default function StatsSettingsPanel({ onClose }: StatsSettingsPanelProps)
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className={`mt-0.5 p-1.5 rounded-lg ${isOn ? 'bg-amber-500/10 text-amber-400' : 'bg-stone-800 text-stone-600'}`}>
+                <div className={`mt-0.5 p-1.5 rounded-lg ${isOn ? 'bg-brand-500/10 text-brand-400' : 'bg-stone-800 text-stone-600'}`}>
                   <Icon size={14} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <span className={`text-sm font-medium ${isOn ? 'text-stone-200' : 'text-stone-500'}`}>{title}</span>
-                    <div className={`shrink-0 w-9 h-5 rounded-full transition-colors relative ${isOn ? 'bg-amber-500' : 'bg-stone-700'}`}>
+                    <div className={`shrink-0 w-9 h-5 rounded-full transition-colors relative ${isOn ? 'bg-brand-500' : 'bg-stone-700'}`}>
                       <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isOn ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
                     </div>
                   </div>
-                  <p className={`text-xs mt-1 italic ${isOn ? 'text-stone-400' : 'text-amber-600/70'}`}>
+                  <p className={`text-xs mt-1 italic ${isOn ? 'text-stone-400' : 'text-brand-600/70'}`}>
                     {isOn ? onMessage : offMessage}
                   </p>
                 </div>

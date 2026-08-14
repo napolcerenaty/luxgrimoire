@@ -132,12 +132,12 @@ export function NotificationBell() {
       <button
         ref={buttonRef}
         onClick={handleOpen}
-        className="relative p-1.5 rounded-lg text-stone-400 hover:text-amber-400 transition-colors"
+        className="relative p-1.5 rounded-lg text-stone-400 hover:text-brand-400 transition-colors"
         aria-label="Notifications"
       >
         <Bell size={18} />
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-amber-400 text-stone-950 text-[10px] font-bold flex items-center justify-center leading-none">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-brand-400 text-stone-950 text-[10px] font-bold flex items-center justify-center leading-none">
             {unread > 99 ? '99+' : unread}
           </span>
         )}
@@ -154,7 +154,7 @@ export function NotificationBell() {
             {unread > 0 && (
               <button
                 onClick={markAllRead}
-                className="text-xs text-stone-400 hover:text-amber-400 transition-colors flex items-center gap-1"
+                className="text-xs text-stone-400 hover:text-brand-400 transition-colors flex items-center gap-1"
                 title="Mark all as read"
               >
                 <CheckCheck size={13} />
@@ -167,7 +167,7 @@ export function NotificationBell() {
           <div className="max-h-[360px] overflow-y-auto">
             {loading ? (
               <div className="py-8 flex justify-center">
-                <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
               </div>
             ) : notifications.length === 0 ? (
               <p className="text-stone-500 text-sm text-center py-8">No notifications</p>
@@ -176,11 +176,11 @@ export function NotificationBell() {
                 <div
                   key={n.id}
                   className={`group flex items-start gap-3 px-4 py-3 border-b border-stone-800 last:border-0 transition-colors hover:bg-stone-800 ${
-                    !n.readAt ? 'bg-amber-500/5' : ''
+                    !n.readAt ? 'bg-brand-500/5' : ''
                   }`}
                 >
                   <div className="mt-1.5 shrink-0">
-                    <div className={`w-2 h-2 rounded-full ${!n.readAt ? 'bg-amber-400' : 'bg-stone-700'}`} />
+                    <div className={`w-2 h-2 rounded-full ${!n.readAt ? 'bg-brand-400' : 'bg-stone-700'}`} />
                   </div>
 
                   {n.link?.startsWith('/') ? (
@@ -216,7 +216,7 @@ export function NotificationBell() {
                     {!n.readAt && (
                       <button
                         onClick={(e) => { e.stopPropagation(); markRead(n.id) }}
-                        className="p-1 rounded hover:text-amber-400 text-stone-500 transition-colors"
+                        className="p-1 rounded hover:text-brand-400 text-stone-500 transition-colors"
                         title="Mark as read"
                       >
                         <Check size={13} />
@@ -240,7 +240,7 @@ export function NotificationBell() {
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+              className="text-xs text-brand-400 hover:text-brand-300 transition-colors"
             >
               View all notifications →
             </Link>

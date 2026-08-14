@@ -28,7 +28,7 @@ export default function WaitlistPanel() {
     return (
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6">
         <h2 className="font-serif font-semibold text-stone-100 mb-4 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-amber-400" /> Waitlists
+          <Clock className="w-4 h-4 text-brand-400" /> Waitlists
         </h2>
         <div className="flex justify-center py-6">
           <Loader2 className="w-5 h-5 text-stone-500 animate-spin" />
@@ -42,7 +42,7 @@ export default function WaitlistPanel() {
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4">
       <h2 className="font-serif font-semibold text-stone-100 flex items-center gap-2">
-        <Clock className="w-4 h-4 text-amber-400" />
+        <Clock className="w-4 h-4 text-brand-400" />
         Waitlists
       </h2>
 
@@ -99,15 +99,15 @@ function WaitlistRow({
       <div className="flex-1 min-w-0">
         <Link
           href={`/subscriptions/${sub.slug}`}
-          className="text-sm font-medium text-stone-100 hover:text-amber-400 transition-colors line-clamp-1"
+          className="text-sm font-medium text-stone-100 hover:text-brand-400 transition-colors line-clamp-1"
         >
           {sub.name}
         </Link>
         <div className="flex items-center gap-2 text-xs text-stone-400 mt-0.5">
-          <Clock className="w-3 h-3 text-amber-500/70 shrink-0" />
+          <Clock className="w-3 h-3 text-brand-500/70 shrink-0" />
           <span>
             Joined {new Date(entry.joinedAt).toLocaleDateString()} &middot;{' '}
-            <span className="text-amber-400 font-medium">
+            <span className="text-brand-400 font-medium">
               {entry.daysOnList} day{entry.daysOnList !== 1 ? 's' : ''} waiting
             </span>
           </span>
@@ -141,7 +141,7 @@ function WaitlistHistoryRow({ entry }: { entry: ApiWaitlistEntry }) {
       <div className="flex-1 min-w-0">
         <Link
           href={`/subscriptions/${sub.slug}`}
-          className="text-sm font-medium text-stone-300 hover:text-amber-400 transition-colors line-clamp-1"
+          className="text-sm font-medium text-stone-300 hover:text-brand-400 transition-colors line-clamp-1"
         >
           {sub.name}
         </Link>

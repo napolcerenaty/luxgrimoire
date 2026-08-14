@@ -46,6 +46,8 @@ import {
   computeAutoBatches,
   computeFirstBillingMonth,
   isGrandfatheredExcluded,
+  buildFirstBoxCandidates,
+  applyFirstBoxChoice,
 } from '../lib/joinSubscription.utils'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -347,5 +349,102 @@ describe('isGrandfatheredExcluded', () => {
     const change = pc(2026, 1, '21.00', 'GBP', true)
     const { year, month } = computeFirstBillingMonth(2025, 12, false) // Jan 2026
     expect(isGrandfatheredExcluded(change, year, month)).toBe(false)
+  })
+})
+
+// ── buildFirstBoxCandidates / applyFirstBoxChoice ─────────────────────────────
+//
+// Regression coverage for a real bug: a genuinely quarterly-release subscription
+// (isBundleSubscription=false, intervalMonths=3 — content itself only exists every 3rd month,
+// e.g. Enchantasy-style) showed March / June / July as previous/current/next — July was wrong,
+// should have been September. The synthetic "next" placeholder was shifting by 1 calendar month
+// whenever isBundleMode was false, instead of by the subscription's actual release cadence
+// (intervalMonths) — which applies just as much to a non-bundle quarterly release as to an actual
+// bundle box.
+
+// buildFirstBoxCandidates(eligibleMonths, previousBoxMonths, joinWindowYear, joinWindowMonth,
+//   suggestedYear, suggestedMonth, isBundleMode, intervalMonths, startingMonth)
+// In most tests below joinWindow === suggested (no divergence) — see the dedicated
+// "join-window vs suggested diverge" block for the Afterlight-style case where they don't.
+
+describe('buildFirstBoxCandidates', () => {
+  it('quarterly release (isBundleMode=false, intervalMonths=3): no content after June → next is September, not July', () => {
+    const eligibleMonths = [month('june', 2026, 6)]
+    const previousBoxMonths = [month('march', 2026, 3)]
+    const candidates = buildFirstBoxCandidates(eligibleMonths, previousBoxMonths, 2026, 6, 2026, 6, false, 3, 3)
+    expect(candidates.previous).toMatchObject({ year: 2026, month: 3 })
+    expect(candidates.current).toMatchObject({ year: 2026, month: 6 })
+    expect(candidates.next).toMatchObject({ year: 2026, month: 9, monthIds: [] })
+  })
+
+  it('actual bundle box (isBundleMode=true, intervalMonths=3): no content after the current bundle → next is 3 months later', () => {
+    // Bundle content is monthly under the hood, but grouped into 3-month blocks for picking.
+    const eligibleMonths = [month('apr', 2026, 4), month('may', 2026, 5), month('jun', 2026, 6)]
+    const candidates = buildFirstBoxCandidates(eligibleMonths, [], 2026, 4, 2026, 4, true, 3, 4)
+    expect(candidates.current).toMatchObject({ year: 2026, month: 4, endYear: 2026, endMonth: 6 })
+    expect(candidates.next).toMatchObject({ year: 2026, month: 7, monthIds: [] })
+  })
+
+  it('plain monthly (intervalMonths=1): no content after current → next is 1 month later', () => {
+    const eligibleMonths = [month('jun', 2026, 6)]
+    const candidates = buildFirstBoxCandidates(eligibleMonths, [], 2026, 6, 2026, 6, false, 1, 1)
+    expect(candidates.next).toMatchObject({ year: 2026, month: 7, monthIds: [] })
+  })
+
+  it('when real content already exists for next, uses it instead of a synthetic placeholder', () => {
+    const eligibleMonths = [month('june', 2026, 6), month('sept', 2026, 9)]
+    const candidates = buildFirstBoxCandidates(eligibleMonths, [], 2026, 6, 2026, 6, false, 3, 3)
+    expect(candidates.next).toMatchObject({ year: 2026, month: 9, monthIds: ['sept'] })
+  })
+
+  it('suggested matches whichever slot equals the eligibility guess', () => {
+    const eligibleMonths = [month('june', 2026, 6), month('sept', 2026, 9)]
+    const candidates = buildFirstBoxCandidates(eligibleMonths, [], 2026, 6, 2026, 6, false, 3, 3)
+    expect(candidates.suggested).toBe('current')
+  })
+
+  // Regression coverage for a real bug report: "Afterlight Romance" (monthly, renewalDay=1,
+  // signupIncludesCurrentMonth=false) — joining Aug 2 (after the Aug 1 renewal already fired),
+  // the eligibility-computed first box is September (join-modal-utils.ts's "current"/suggested
+  // slot used to be pinned to that). But August is the box actually shipping RIGHT NOW — showing
+  // it as "previous" instead of "current" was confusing. joinWindow (Aug) and the eligibility
+  // suggestion (Sep) are allowed to diverge: "current" always follows joinWindow; "suggested"
+  // just marks whichever of the 3 slots matches the eligibility guess.
+  describe('join-window vs suggested diverge (signupIncludesCurrentMonth=false mid-cycle join)', () => {
+    it('"current" follows the join-date window (August), not the eligibility default (September)', () => {
+      // eligibleMonths/previousBoxMonths are fetched anchored at joinWindow (Aug) now, not at the
+      // eligibility default (Sep) — Sep isn't announced yet so it's not in eligibleMonths at all.
+      const eligibleMonths = [month('aug', 2026, 8)]
+      const previousBoxMonths = [month('july', 2026, 7)]
+      const candidates = buildFirstBoxCandidates(eligibleMonths, previousBoxMonths, 2026, 8, 2026, 9, false, 1, 1)
+      expect(candidates.previous).toMatchObject({ year: 2026, month: 7, monthIds: ['july'] })
+      expect(candidates.current).toMatchObject({ year: 2026, month: 8, monthIds: ['aug'] })
+      expect(candidates.next).toMatchObject({ year: 2026, month: 9, monthIds: [] }) // Sep not yet announced
+      expect(candidates.suggested).toBe('next') // September is the eligibility guess, shown as "next" here
+    })
+  })
+})
+
+describe('applyFirstBoxChoice', () => {
+  it('picking "next" drops the current unit\'s months from the eligible list', () => {
+    const eligibleMonths = [month('june', 2026, 6), month('sept', 2026, 9)]
+    const candidates = buildFirstBoxCandidates(eligibleMonths, [], 2026, 6, 2026, 6, false, 3, 3)
+    const result = applyFirstBoxChoice('next', eligibleMonths, [], candidates)
+    expect(result.map(m => m.id)).toEqual(['sept'])
+  })
+
+  it('picking "previous" prepends previousBoxMonths to the eligible list', () => {
+    const eligibleMonths = [month('june', 2026, 6)]
+    const previousBoxMonths = [month('march', 2026, 3)]
+    const candidates = buildFirstBoxCandidates(eligibleMonths, previousBoxMonths, 2026, 6, 2026, 6, false, 3, 3)
+    const result = applyFirstBoxChoice('previous', eligibleMonths, previousBoxMonths, candidates)
+    expect(result.map(m => m.id)).toEqual(['march', 'june'])
+  })
+
+  it('picking "current" leaves the eligible list untouched', () => {
+    const eligibleMonths = [month('june', 2026, 6), month('sept', 2026, 9)]
+    const candidates = buildFirstBoxCandidates(eligibleMonths, [], 2026, 6, 2026, 6, false, 3, 3)
+    const result = applyFirstBoxChoice('current', eligibleMonths, [], candidates)
+    expect(result.map(m => m.id)).toEqual(['june', 'sept'])
   })
 })

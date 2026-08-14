@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 
 interface ApiBookSeriesItem {
   id: string
@@ -56,7 +56,7 @@ export function SeriesPicker({ value, onChange }: { value: string; onChange: (v:
               className="w-full text-left px-3 py-2 hover:bg-stone-700 transition-colors">
               <div className="text-stone-100 text-sm">{series.name}</div>
               {series.authors && series.authors.length > 0 && (
-                <div className="text-amber-400/70 text-xs">{series.authors.join(', ')}</div>
+                <div className="text-brand-400/70 text-xs">{series.authors.join(', ')}</div>
               )}
               {series.bookCount != null && series.bookCount > 0 && (
                 <div className="text-stone-500 text-xs">{series.bookCount} book{series.bookCount !== 1 ? 's' : ''}</div>
@@ -65,7 +65,7 @@ export function SeriesPicker({ value, onChange }: { value: string; onChange: (v:
           ))}
           {!isFetching && q.trim() && !(seriesResults ?? []).some(s => s.name.toLowerCase() === q.trim().toLowerCase()) && (
             <button type="button" onMouseDown={() => pick(q.trim())}
-              className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-stone-700 border-t border-stone-700 transition-colors">
+              className="w-full text-left px-3 py-2 text-xs text-brand-400 hover:bg-stone-700 border-t border-stone-700 transition-colors">
               + Use &ldquo;{q.trim()}&rdquo; (new series)
             </button>
           )}

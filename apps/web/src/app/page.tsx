@@ -37,13 +37,25 @@ async function fetchCachedPublic<T>(path: string): Promise<T> {
   return res.json()
 }
 
+export interface HomeNextSale {
+  date: string | null
+  tier: string | null
+  announcementId: string | null
+  title: string | null
+  personalized: boolean
+}
+
 async function getHomeData() {
-  const [announcementsRes, editionsRes, platformStats, trendingEditions, trendingSales] = await Promise.all([
+  const [announcementsRes, editionsRes, platformStats, trendingEditions, trendingSales, nextSale] = await Promise.all([
     apiFetch<PaginatedResponse<ApiSaleAnnouncement>>('/announcements?upcoming=true&pageSize=20').catch(() => null),
     apiFetch<PaginatedResponse<ApiBookEdition>>('/editions?pageSize=12').catch(() => null),
     fetchCachedPublic<ApiPlatformStats>('/platform/stats').catch(() => null),
     fetchCachedPublic<ApiTrendingEdition[]>('/editions/trending?limit=8').catch(() => null),
     fetchCachedPublic<ApiTrendingSaleAnnouncement[]>('/announcements/trending?limit=6').catch(() => null),
+    // Dedicated global "next sale" lookup (soonest tier across every company) — the announcements
+    // list above is capped to the 20 most-recently-created sales, which can exclude the true
+    // soonest-dated one entirely, so it must not be used to derive the countdown target.
+    apiFetch<HomeNextSale>('/announcements/next-sale').catch(() => null),
   ])
 
   return {
@@ -52,11 +64,12 @@ async function getHomeData() {
     platformStats,
     trendingEditions: trendingEditions ?? [],
     trendingSales: trendingSales ?? [],
+    nextSale,
   }
 }
 
 export default async function HomePage() {
-  const { announcements, recentEditions, platformStats, trendingEditions, trendingSales } = await getHomeData()
+  const { announcements, recentEditions, platformStats, trendingEditions, trendingSales, nextSale } = await getHomeData()
 
   const recentEditionCards: CarouselCard[] = recentEditions.map((e) => {
     const authors = e.book?.authors?.map((a) => a.name).join(', ') ?? null
@@ -84,7 +97,11 @@ export default async function HomePage() {
       {/* Features section — only for guests, after stats bar */}
       <HomeGuestFeatures />
 
-      {announcements.length > 0 && <SaleCountdownBanner announcements={announcements} />}
+      {nextSale?.date && nextSale.announcementId && nextSale.title && (
+        <SaleCountdownBanner
+          nextSale={{ date: nextSale.date, announcementId: nextSale.announcementId, title: nextSale.title }}
+        />
+      )}
 
       <HomeAnnouncementsSection
         announcements={announcements}
@@ -93,9 +110,9 @@ export default async function HomePage() {
 
       {announcements.length > 0 && (
         <div className="container mx-auto px-4 -mt-4 mb-2 text-center">
-          <p className="text-sm text-stone-400">
+          <p className="text-xs uppercase tracking-widest text-brand-600 font-medium">
             Have you seen an announcement?{' '}
-            <Link href="/sale-announcement-requests" className="text-amber-500 hover:text-amber-400 underline underline-offset-2 transition-colors">
+            <Link href="/sale-announcement-requests" className="underline underline-offset-2 hover:text-brand-400 transition-colors">
               Let us know!
             </Link>
           </p>

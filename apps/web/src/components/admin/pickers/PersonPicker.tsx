@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-amber-400 text-sm'
+const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
 
 export type PersonEntry = { id?: string; name: string }
 
@@ -72,7 +72,7 @@ export function PersonPicker({ endpoint, placeholder, onAdd, initialQuery }: {
           ))}
           {!exactMatch && (
             <button type="button" onClick={createNew} disabled={creating}
-              className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-stone-700 border-t border-stone-700 transition-colors disabled:opacity-50">
+              className="w-full text-left px-3 py-2 text-xs text-brand-400 hover:bg-stone-700 border-t border-stone-700 transition-colors disabled:opacity-50">
               {creating ? 'Creating…' : `+ Create "${q}"`}
             </button>
           )}

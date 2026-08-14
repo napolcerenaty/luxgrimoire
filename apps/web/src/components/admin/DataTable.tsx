@@ -58,7 +58,7 @@ function DataTable<T>({ columns, data, onEdit, onDelete, onDuplicate, duplicateL
                     {onEdit && (
                       <button
                         onClick={() => onEdit(row)}
-                        className="bg-amber-400/10 text-amber-400 border border-amber-400/20 px-3 py-1 rounded text-xs font-medium hover:bg-amber-400/20 transition-colors"
+                        className="bg-brand-400/10 text-brand-400 border border-brand-400/20 px-3 py-1 rounded text-xs font-medium hover:bg-brand-400/20 transition-colors"
                       >
                         Edit
                       </button>

@@ -181,7 +181,7 @@ export default async function CompanyPage({ params }: Props) {
                   rel="noopener noreferrer"
                   title={s.label}
                   aria-label={s.label}
-                  className="flex items-center justify-center w-9 h-9 rounded-full bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-amber-600/50 text-stone-300 hover:text-amber-400 transition-colors"
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-brand-600/50 text-stone-300 hover:text-brand-400 transition-colors"
                 >
                   {s.icon === 'instagram' && <InstagramIcon className="w-4 h-4 shrink-0" />}
                   {s.icon === 'facebook' && <FacebookIcon className="w-4 h-4 shrink-0" />}
@@ -204,7 +204,7 @@ export default async function CompanyPage({ params }: Props) {
         {/* Right column: company info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap mb-2">
-            <p className="text-xs text-amber-600 uppercase tracking-widest font-medium">Company</p>
+            <p className="text-xs text-brand-600 uppercase tracking-widest font-medium">Company</p>
             {company.hasOfficialImagePermission && (
               <Badge variant="outline">✓ Images used with brand permission</Badge>
             )}
@@ -249,13 +249,13 @@ export default async function CompanyPage({ params }: Props) {
                 <Link
                   key={sub.id}
                   href={`/subscriptions/${sub.slug}`}
-                  className={`group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-colors ${sub.isUpcoming ? 'edition-glow-amber' : ''}`}
+                  className={`group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/50 transition-colors ${sub.isUpcoming ? 'edition-glow-amber' : ''}`}
                 >
                   <SubCoverImage coverUrl={cover} name={sub.name} brandColors={company.brandColors} />
                   <div className="p-3">
                     {/* line-clamp + min-h so a long name (2 lines) and a short one (1 line) don't
                         leave cards in the same row at wildly different heights on mobile. */}
-                    <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-amber-400 transition-colors leading-tight mb-1 line-clamp-2 min-h-[2.4em]">
+                    <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-brand-400 transition-colors leading-tight mb-1 line-clamp-2 min-h-[2.4em]">
                       {sub.name}
                     </h3>
                     <div className="flex items-center gap-1 flex-wrap">

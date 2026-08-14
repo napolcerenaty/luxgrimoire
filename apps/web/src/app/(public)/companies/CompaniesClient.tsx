@@ -32,7 +32,7 @@ export function CompaniesClient({ companies }: Props) {
   return (
     <div className="container mx-auto px-4 py-10 max-w-5xl">
       <h1 className="text-4xl font-serif font-bold text-stone-100 mb-1">Book Boxes</h1>
-      <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 mb-1">Independent directory of book box companies.</p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-brand-600 mb-1">Independent directory of book box companies.</p>
       <p className="text-sm text-stone-400 mb-6">A curated overview of subscription box brands. Some listings may include content displayed with permission from the respective owners.</p>
 
       {/* Search + filter + view toggle */}
@@ -44,14 +44,14 @@ export function CompaniesClient({ companies }: Props) {
             placeholder="Search by name…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-stone-900 border border-stone-700 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-600 text-sm"
+            className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-stone-900 border border-stone-700 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-600 text-sm"
           />
         </div>
         {countries.length > 0 && (
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg bg-stone-900 border border-stone-700 text-stone-100 focus:outline-none focus:border-amber-600 text-sm min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg bg-stone-900 border border-stone-700 text-stone-100 focus:outline-none focus:border-brand-600 text-sm min-w-[160px]"
           >
             <option value="">All countries</option>
             {countries.map((c) => (
@@ -63,14 +63,14 @@ export function CompaniesClient({ companies }: Props) {
         <div className="flex items-center gap-1 bg-stone-900 border border-stone-700 rounded-lg p-1 self-start sm:self-auto">
           <button
             onClick={() => setView('grid')}
-            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'grid' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
             aria-label="Grid view"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
           <button
             onClick={() => setView('list')}
-            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-amber-400' : 'text-stone-500 hover:text-stone-300'}`}
+            className={`p-1.5 rounded transition-colors ${view === 'list' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`}
             aria-label="List view"
           >
             <List className="w-4 h-4" />
@@ -90,7 +90,7 @@ export function CompaniesClient({ companies }: Props) {
               <Link
                 key={company.id}
                 href={`/companies/${company.slug}`}
-                className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-amber-700/50 transition-all hover:shadow-lg hover:shadow-amber-900/10 flex flex-col"
+                className="group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/50 transition-all hover:shadow-lg hover:shadow-brand-900/10 flex flex-col"
               >
                 {/* Logo area with blur bg */}
                 <div className="relative h-24 overflow-hidden bg-stone-800 flex items-center justify-center">
@@ -102,11 +102,11 @@ export function CompaniesClient({ companies }: Props) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={logoImage} alt={company.name} className="relative z-10 max-w-[60%] max-h-[60%] object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300" />
                   ) : (
-                    <span className="relative z-10 text-3xl font-serif font-bold text-amber-600/60">{company.name.charAt(0)}</span>
+                    <span className="relative z-10 text-3xl font-serif font-bold text-brand-600/60">{company.name.charAt(0)}</span>
                   )}
                 </div>
                 <div className="p-4 flex flex-col gap-1.5 flex-1">
-                  <h2 className="font-serif font-bold text-lg text-stone-100 group-hover:text-amber-400 transition-colors leading-snug line-clamp-2">{company.name}</h2>
+                  <h2 className="font-serif font-bold text-lg text-stone-100 group-hover:text-brand-400 transition-colors leading-snug line-clamp-2">{company.name}</h2>
                   {company.country && (
                     <p className="text-xs text-stone-500 flex items-center gap-1">
                       <svg className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -141,7 +141,7 @@ export function CompaniesClient({ companies }: Props) {
                 </div>
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-stone-100 group-hover:text-amber-400 transition-colors truncate leading-tight">
+                  <p className="font-medium text-stone-100 group-hover:text-brand-400 transition-colors truncate leading-tight">
                     {company.name}
                   </p>
                   {company.country && (

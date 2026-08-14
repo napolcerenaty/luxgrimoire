@@ -41,7 +41,7 @@ export function SeriesHistoryCard({ series }: { series: ApiSubscriptionSeries })
               <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-700 text-stone-400">Past</span>
             )}
             {!isCurrentlyActive && !isPast && (
-              <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-800/60 text-amber-300">Upcoming</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-800/60 text-brand-300">Upcoming</span>
             )}
             <span className="text-[10px] px-2 py-0.5 rounded-full border border-stone-700 text-stone-400">
               {series.skipMode === 'NO_SKIP' ? 'No skips' :
@@ -50,7 +50,7 @@ export function SeriesHistoryCard({ series }: { series: ApiSubscriptionSeries })
                'Individual skips'}
             </span>
             {!series.canCancelDuring && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full border border-amber-700/50 text-amber-600/80">no cancel during</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full border border-brand-700/50 text-brand-600/80">no cancel during</span>
             )}
           </div>
           <p className="text-stone-400 text-sm mb-3">

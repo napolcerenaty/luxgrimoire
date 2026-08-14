@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
-import { getEarliestTierDate } from '@/lib/saleTiers'
 
 interface CountdownParts {
   days: number
@@ -42,7 +40,13 @@ function CountdownBox({ value, label }: { value: number; label: string }) {
   )
 }
 
-export function SaleCountdownBanner({ announcements }: { announcements: ApiSaleAnnouncement[] }) {
+interface NextSale {
+  date: string
+  announcementId: string
+  title: string
+}
+
+export function SaleCountdownBanner({ nextSale }: { nextSale: NextSale }) {
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
@@ -50,16 +54,7 @@ export function SaleCountdownBanner({ announcements }: { announcements: ApiSaleA
     return () => clearInterval(id)
   }, [])
 
-  const now = new Date()
-  const withDate = announcements
-    .map((a) => ({ a, date: getEarliestTierDate(a) }))
-    .filter((x): x is { a: ApiSaleAnnouncement; date: string } => x.date != null && new Date(x.date) > now)
-    .sort((x, y) => new Date(x.date).getTime() - new Date(y.date).getTime())[0] ?? null
-
-  if (!withDate) return null
-  const { a: nextSale, date: nextSaleDate } = withDate
-
-  const countdown = getCountdown(new Date(nextSaleDate))
+  const countdown = getCountdown(new Date(nextSale.date))
   if (countdown.expired || !countdown.within14Days) return null
 
   const title = nextSale.title.length > 45 ? `${nextSale.title.slice(0, 45)}…` : nextSale.title
@@ -74,8 +69,8 @@ export function SaleCountdownBanner({ announcements }: { announcements: ApiSaleA
             <div>
               <span className="text-xs uppercase tracking-widest text-stone-500">Next sale</span>
               <Link
-                href={`/sale-announcements/${nextSale.id}`}
-                className="ml-2 text-sm font-medium text-amber-400 transition-colors hover:text-amber-300"
+                href={`/sale-announcements/${nextSale.announcementId}`}
+                className="ml-2 text-sm font-medium text-brand-400 transition-colors hover:text-brand-300"
               >
                 {title}
               </Link>
@@ -89,7 +84,7 @@ export function SaleCountdownBanner({ announcements }: { announcements: ApiSaleA
             <CountdownBox value={countdown.minutes} label="min" />
             <CountdownBox value={countdown.seconds} label="sec" />
             <Link
-              href={`/sale-announcements/${nextSale.id}`}
+              href={`/sale-announcements/${nextSale.announcementId}`}
               className="mb-4 ml-1 rounded-full border border-stone-700 px-3 py-1 text-xs text-stone-400 transition-colors hover:border-stone-500 hover:text-stone-200"
             >
               View →

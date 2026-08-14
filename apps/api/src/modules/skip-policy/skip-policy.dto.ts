@@ -9,6 +9,7 @@ import { Type } from 'class-transformer';
  * CALENDAR_YEAR           – X skips per calendar year (resets Jan 1)
  * FROM_FIRST_SKIP         – X skips within N months of first skip
  * FROM_SUB_START          – X skips within N months of user's subscription start date
+ * FROM_FIRST_BOX           – X skips per rolling N-month window anchored to the user's first box month
  * PREPAID_WINDOW_SKIP      – skip causes skipping the entire upcoming prepaid renewal window (all prepaidMonths months)
  */
 export class UpsertSkipPolicyDto {
@@ -95,6 +96,16 @@ export class UpsertSkipPolicyDto {
   @IsOptional()
   @IsString()
   billingType?: string;
+}
+
+export class PreviewRecomputeDto {
+  @IsString()
+  type!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  windowMonths?: number;
 }
 
 export class RecordSkipDto {

@@ -110,11 +110,11 @@ export default async function AuthorPage({ params }: Props) {
           <img
             src={photoUrl}
             alt={author.name}
-            className="w-32 h-32 rounded-full object-cover shadow-lg ring-2 ring-amber-700/30 shrink-0"
+            className="w-32 h-32 rounded-full object-cover shadow-lg ring-2 ring-brand-700/30 shrink-0"
           />
         )}
         <div>
-          <p className="text-xs text-amber-600 uppercase tracking-widest mb-2 font-medium">Author</p>
+          <p className="text-xs text-brand-600 uppercase tracking-widest mb-2 font-medium">Author</p>
           <h1 className="text-4xl font-serif font-bold text-stone-100 mb-4">{author.name}</h1>
           {author.bio && (
             <p className="text-stone-300 leading-relaxed max-w-2xl">{author.bio}</p>

@@ -116,7 +116,7 @@ function QuickAddPhrase({
     <div className="flex gap-2 items-center">
       <input
         type="text"
-        className="flex-1 bg-stone-800/60 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 placeholder-stone-600 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20"
+        className="flex-1 bg-stone-800/60 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 placeholder-stone-600 focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400/20"
         placeholder={placeholder ?? 'Type a phrase and press Enter…'}
         value={phrase}
         onChange={e => setPhrase(e.target.value)}
@@ -245,7 +245,7 @@ function CategoryForm({
         <button
           type="button"
           onClick={() => setShowRegex(v => !v)}
-          className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+          className="text-xs text-brand-400 hover:text-brand-300 transition-colors"
         >
           {showRegex ? '👁 Hide regex' : '⌨️ Show raw regex'}
         </button>
@@ -404,7 +404,7 @@ function CategoryForm({
           type="checkbox"
           checked={form.isActive}
           onChange={e => set('isActive', e.target.checked)}
-          className="accent-amber-400"
+          className="accent-brand-400"
         />
         Active (used by tagger)
       </label>
@@ -597,7 +597,7 @@ export default function FeatureCategoriesPage() {
         <select
           value={groupFilter}
           onChange={e => setGroupFilter(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-amber-400 text-sm"
+          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400 text-sm"
         >
           <option value="">All groups</option>
           {GROUPS.map(g => (
@@ -609,7 +609,7 @@ export default function FeatureCategoriesPage() {
             type="checkbox"
             checked={showInactive}
             onChange={e => setShowInactive(e.target.checked)}
-            className="accent-amber-400"
+            className="accent-brand-400"
           />
           Show inactive
         </label>
@@ -673,7 +673,7 @@ export default function FeatureCategoriesPage() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => { setMutationError(undefined); setEditCategory(cat) }}
-                              className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                              className="text-xs text-brand-400 hover:text-brand-300 transition-colors"
                             >
                               Edit
                             </button>

@@ -18,7 +18,7 @@ export function BookDescription({ description, maxChars = 400 }: Props) {
       {isLong && (
         <button
           onClick={() => setExpanded(v => !v)}
-          className="mt-2 text-sm text-amber-500 hover:text-amber-400 transition-colors"
+          className="mt-2 text-sm text-brand-500 hover:text-brand-400 transition-colors"
         >
           {expanded ? 'See less' : 'See more'}
         </button>

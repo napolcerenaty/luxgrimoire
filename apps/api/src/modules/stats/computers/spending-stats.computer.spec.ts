@@ -39,6 +39,8 @@ function makeEntry(opts: {
   company?: { id: string; name: string; slug: string; brandColors: string[] } | null;
   subscriptionSlug?: string | null;
   isSecondHand?: boolean;
+  /** Real per-book allocation for this entry. Omitted/undefined = legacy data, falls back to an equal split. */
+  basePrice?: number;
 }): StatsEntryData {
   const {
     amount = 100,
@@ -59,6 +61,7 @@ function makeEntry(opts: {
     company = null,
     subscriptionSlug = null,
     isSecondHand = false,
+    basePrice,
   } = opts;
 
   // Generate dummy sibling book entries to match entryCount
@@ -72,6 +75,7 @@ function makeEntry(opts: {
     isWishlist,
     signatureType,
     readingStatus,
+    basePrice: basePrice != null ? basePrice : null,
     salePrice: salePrice != null ? salePrice : null,
     saleCurrency,
     saleDate: saleDate ? new Date(saleDate) : null,
@@ -239,12 +243,45 @@ describe('SpendingStatsComputer', () => {
   // ── entryCount splitting ────────────────────────────────────────────────────
 
   describe('purchase group with multiple entries', () => {
-    it('splits group total evenly across book entries', async () => {
+    it('splits group total evenly across book entries when no real basePrice is set (legacy data)', async () => {
       const ctx = makeCtx({
         entries: [makeEntry({ amount: 200, entryCount: 2 })],
       });
       const result = await computer.compute(ctx);
       expect(result.totalAllTime).toBe(100); // 200 / 2 per-entry
+    });
+
+    it('uses the real per-book basePrice instead of an equal split when set', async () => {
+      const ctx = makeCtx({
+        entries: [makeEntry({ amount: 200, entryCount: 2, basePrice: 150 })],
+      });
+      const result = await computer.compute(ctx);
+      expect(result.totalAllTime).toBe(150); // real allocation, not 200/2 = 100
+    });
+
+    it('a mixed group (one entry with a real basePrice, one legacy/null) resolves each independently', async () => {
+      const ctx = makeCtx({
+        entries: [
+          makeEntry({ amount: 100, entryCount: 2, basePrice: 70 }),
+          makeEntry({ amount: 100, entryCount: 2 }), // legacy → falls back to 100/2 = 50
+        ],
+      });
+      const result = await computer.compute(ctx);
+      expect(result.totalAllTime).toBe(120); // 70 + 50
+    });
+
+    it('shipping/fees/discounts/refunds still split evenly by count regardless of basePrice (out of scope for this feature)', async () => {
+      const ctx = makeCtx({
+        entries: [makeEntry({
+          amount: 200, entryCount: 2, basePrice: 150, shipping: 20,
+          fees: [{ amount: 10, currency: 'EUR', date: '2024-01-15', category: 'VAT' }],
+        })],
+      });
+      const result = await computer.compute(ctx);
+      // base (real 150) + shipping (20/2=10) + fee (10/2=5) = 165, NOT proportional to basePrice
+      expect(result.totalAllTime).toBe(165);
+      expect(result.totalShipping).toBe(10); // shipping alone — still an even split by count
+      expect(result.totalTax).toBe(5); // VAT fee — still an even split by count
     });
   });
 

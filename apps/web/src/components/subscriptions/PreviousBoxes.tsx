@@ -256,7 +256,7 @@ function PreviousBoxesList({
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={isFetching}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-amber-700/60 hover:text-amber-400 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-brand-700/60 hover:text-brand-400 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isFetching ? 'Loading…' : 'Load more'}
               </button>
@@ -271,7 +271,7 @@ function PreviousBoxesList({
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={isFetching}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-amber-700/60 hover:text-amber-400 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-brand-700/60 hover:text-brand-400 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isFetching ? 'Loading…' : 'Load more'}
               </button>
@@ -296,7 +296,7 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
       <div className="mt-10 text-center">
         <button
           onClick={() => setVisible(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-amber-700/60 hover:text-amber-400 transition-colors text-sm font-medium"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-700 text-stone-300 hover:border-brand-700/60 hover:text-brand-400 transition-colors text-sm font-medium"
         >
           View previous boxes
           {totalMonths != null && totalMonths > 0 && (
@@ -320,8 +320,8 @@ export default function PreviousBoxes({ subscriptionSlug, accentColors, totalMon
               onClick={() => setSelectedSlug(c.slug)}
               className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
                 selectedSlug === c.slug
-                  ? 'border-amber-600 bg-amber-600/10 text-amber-400'
-                  : 'border-stone-700 text-stone-300 hover:border-amber-700/50 hover:text-amber-400'
+                  ? 'border-brand-600 bg-brand-600/10 text-brand-400'
+                  : 'border-stone-700 text-stone-300 hover:border-brand-700/50 hover:text-brand-400'
               }`}
             >
               {c.name}
