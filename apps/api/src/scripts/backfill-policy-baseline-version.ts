@@ -1,32 +1,45 @@
 /**
- * One-off backfill: run once, right after the Terms of Use / Privacy Policy content is
- * migrated into Ghost Pages (slugs "terms-of-use" / "privacy-policy" — see auth.service.ts
- * saveConsent/register and apps/web/src/lib/consent.ts for how those versions gate re-consent).
+ * Backfill: re-tags existing users to a fixed Terms of Use / Privacy Policy baseline version
+ * (see auth.service.ts saveConsent/register and apps/web/src/lib/consent.ts for how those
+ * versions gate re-consent).
  *
- * Publishing those Ghost pages for the first time gives them a fresh `updated_at`, which
- * becomes the new baseline version. Without this script, that baseline would never match any
- * existing user's stored termsVersion/privacyVersion, and *every* existing user would be forced
- * through /consent on their next login — even though the content didn't meaningfully change,
- * it just moved from hardcoded JSX into Ghost. This script re-tags existing users to the new
- * baseline version without touching termsAcceptedAt/privacyAcceptedAt (it's a version-label
- * realignment, not a new consent event, so no PolicyAcceptance row is written either — only
- * users who already have a non-null accepted-at are touched; brand-new/never-consented users
- * are left alone and still correctly get sent through /consent).
+ * Why this exists: publishing terms-of-use/privacy-policy as Ghost Pages for the first time
+ * gives them a fresh `updated_at`, which becomes the new version. Without this script, that
+ * baseline would never match any existing user's stored termsVersion/privacyVersion, and
+ * *every* existing user would be forced through /consent on their next login — even though the
+ * content didn't meaningfully change, it just moved from hardcoded JSX into Ghost. This script
+ * re-tags existing users to the given baseline version without touching
+ * termsAcceptedAt/privacyAcceptedAt (it's a version-label realignment, not a new consent event,
+ * so no PolicyAcceptance row is written either — only users who already have a non-null
+ * accepted-at are touched; brand-new/never-consented users are left alone and still correctly
+ * get sent through /consent).
  *
- * Get the exact version strings to pass in from the running app after publishing in Ghost:
+ * Get the exact version strings from the running app *after* publishing in Ghost:
  *   curl https://<web-host>/api/legal/versions
- * (or your local dev server — see apps/web/src/app/api/legal/versions/route.ts). Use the
- * *ISO* updated_at value from that response, not whatever Ghost's admin UI displays.
+ * Use the *ISO* updated_at value from that response, not whatever Ghost's admin UI displays.
  *
- * Idempotent — only updates rows where the stored version differs from the target, so it's
- * safe to re-run. Run manually (never wired into docker-entrypoint.sh — this must only run
- * after a human has actually published the Ghost pages and knows the resulting version):
+ * IDEMPOTENT BY DESIGN — this is what makes it safe to wire into docker-entrypoint.sh instead
+ * of running by hand: it only ever updates rows where the stored version differs from the
+ * given target (`prisma.user.updateMany({ where: { ...field: { not: version } } })`), so
+ * running it again with the same version affects 0 rows the second time onward. It is also
+ * safe to leave wired into every deploy indefinitely, because the target version is whatever
+ * you pass in — fixed at the moment you publish the initial Ghost baseline — not "whatever
+ * Ghost currently has." It will never chase a later, genuine content change; only that one
+ * pinned baseline. (If you want a later real change to force re-consent, don't backfill it —
+ * that's the feature working as intended.)
+ *
+ * Wired into docker-entrypoint.sh, gated behind two optional env vars so it's a no-op on every
+ * deploy where they aren't set:
+ *   POLICY_BASELINE_TERMS_VERSION=2026-08-20T14:32:10.000Z
+ *   POLICY_BASELINE_PRIVACY_VERSION=2026-08-20T14:35:02.000Z
+ * Set them once you've published the Ghost pages and know the resulting version(s); either can
+ * be omitted if only one document was migrated. No manual invocation needed on deploy.
+ *
+ * Manual/local use (e.g. dry-run before deploying):
  *   node dist/scripts/backfill-policy-baseline-version.js \
  *     --terms-version="2026-08-20T14:32:10.000Z" \
  *     --privacy-version="2026-08-20T14:35:02.000Z" \
  *     [--dry-run]
- *
- * Either flag can be omitted if only one document was just migrated to Ghost.
  */
 import { runScript } from './run-script'
 import { PrismaService } from '../prisma/prisma.service'
