@@ -50,6 +50,14 @@ interface SaleInterest {
 
 type TypeFilter = 'all' | 'renewals' | 'sales'
 
+// A stable empty-array reference for useQuery's `data = []` fallback — a literal `[]` default
+// creates a NEW array every render whenever `data` is undefined (e.g. a disabled query for
+// guests), which breaks referential equality for anything depending on it. myInterests feeding
+// a useEffect dependency array with a fresh `[]` every render caused an infinite update loop for
+// logged-out visitors; `never[]` is assignable to any array type, so one constant covers all of
+// the queries below.
+const EMPTY_ARRAY: never[] = []
+
 function SalesCalendarContent() {
   const { theme } = useTheme()
   const { user } = useAuth()
@@ -80,19 +88,19 @@ function SalesCalendarContent() {
   const nextMonth = () => setViewDate(new Date(year, month0 + 1, 1))
   const monthLabel = viewDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 
-  const { data: companies = [] } = useQuery<{ id: string; name: string }[]>({
+  const { data: companies = EMPTY_ARRAY } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['companies-names'],
     queryFn: () => apiFetch('/companies/names'),
     staleTime: 5 * 60_000,
   })
 
-  const { data: tiers = [], isLoading: tiersLoading } = useQuery<CalendarTier[]>({
+  const { data: tiers = EMPTY_ARRAY, isLoading: tiersLoading } = useQuery<CalendarTier[]>({
     queryKey: ['sales-calendar-tiers', year, month],
     queryFn: () => apiFetch(`/announcements/calendar?year=${year}&month=${month}`),
     staleTime: 5 * 60_000,
   })
 
-  const { data: renewals = [], isLoading: renewalsLoading } = useQuery<CalendarRenewal[]>({
+  const { data: renewals = EMPTY_ARRAY, isLoading: renewalsLoading } = useQuery<CalendarRenewal[]>({
     queryKey: ['sales-calendar-renewals', year, month],
     queryFn: () => apiFetch(`/subscriptions/calendar?year=${year}&month=${month}`),
     staleTime: 5 * 60_000,
@@ -100,12 +108,12 @@ function SalesCalendarContent() {
 
   // Personal overlay — only fetched when logged in (never triggers authFetch's 401-redirect for
   // guests browsing this public page, since these queries stay disabled without a user).
-  const { data: myEntries = [] } = useQuery<CalEntry[]>({
+  const { data: myEntries = EMPTY_ARRAY } = useQuery<CalEntry[]>({
     queryKey: ['my-calendar-subscriptions'],
     queryFn: () => authFetch('/subscriptions/my/calendar'),
     enabled: !!user,
   })
-  const { data: myInterests = [] } = useQuery<SaleInterest[]>({
+  const { data: myInterests = EMPTY_ARRAY } = useQuery<SaleInterest[]>({
     queryKey: ['sale-interests'],
     queryFn: () => authFetch('/sale-interests'),
     enabled: !!user,

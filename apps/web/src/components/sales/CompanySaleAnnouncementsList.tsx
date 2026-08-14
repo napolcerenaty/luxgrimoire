@@ -18,6 +18,13 @@ import { AnnouncementCard, AnnouncementListRow, type ListSaleAnnouncement } from
 
 const PAGE_SIZE = 20
 
+// A stable empty-array reference for useQuery's `data = []` fallback — a literal `[]` default
+// creates a NEW array every render whenever `data` is undefined (e.g. a disabled query for
+// guests), breaking referential equality for anything depending on it. myInterests feeding a
+// useEffect dependency array with a fresh `[]` every render caused an infinite update loop for
+// logged-out visitors on the sibling /sales-calendar page — same risk here.
+const EMPTY_ARRAY: never[] = []
+
 interface CalendarTier {
   tierId: string
   name: string
@@ -103,14 +110,14 @@ export function CompanySaleAnnouncementsList({ companyId, companyName }: Props) 
     updateParams({ year: String(newDate.getFullYear()), month: String(newDate.getMonth() + 1) })
   }
 
-  const { data: tiers = [] } = useQuery<CalendarTier[]>({
+  const { data: tiers = EMPTY_ARRAY } = useQuery<CalendarTier[]>({
     queryKey: ['company-sales-calendar', companyId, year, month],
     queryFn: () => apiFetch(`/announcements/calendar?year=${year}&month=${month}&companyId=${companyId}`),
     enabled: view === 'calendar',
     staleTime: 5 * 60_000,
   })
 
-  const { data: myInterests = [] } = useQuery<SaleInterest[]>({
+  const { data: myInterests = EMPTY_ARRAY } = useQuery<SaleInterest[]>({
     queryKey: ['sale-interests'],
     queryFn: () => authFetch('/sale-interests'),
     enabled: view === 'calendar' && !!user,
