@@ -315,3 +315,109 @@ describe('EditionsService.linkEditionHistory', () => {
     );
   });
 });
+
+describe('EditionsService — edition-follow notification hooks', () => {
+  let service: EditionsService;
+  let prisma: DeepMockProxy<PrismaService>;
+  let followNotifications: { notifyOnEditionCreated: jest.Mock; notifyOnArtistAdded: jest.Mock };
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    const typesense = mockDeep<TypesenseService>();
+    const uploadService = mockDeep<UploadService>();
+    const mediaAssetsService = mockDeep<MediaAssetsService>();
+    const cache = { get: jest.fn(), set: jest.fn(), del: jest.fn() } as any;
+    const tagger = mockDeep<FeatureTaggerService>();
+    followNotifications = {
+      notifyOnEditionCreated: jest.fn().mockResolvedValue(undefined),
+      notifyOnArtistAdded: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new EditionsService(prisma, typesense, uploadService, mediaAssetsService, cache, tagger, followNotifications as any);
+  });
+
+  describe('create', () => {
+    it('queues edition-follow notifications for the new edition, keyed by edition id + book id', async () => {
+      (prisma.book.findUnique as jest.Mock).mockResolvedValue({ id: 'book-1', title: 'This Poison Heart' });
+      (prisma.bookEdition.create as jest.Mock).mockResolvedValue({ id: 'edition-1', bookId: 'book-1', slug: 'this-poison-heart-abcd' });
+
+      await service.create({ bookId: 'book-1' } as any);
+
+      expect(followNotifications.notifyOnEditionCreated).toHaveBeenCalledWith('edition-1', 'book-1');
+    });
+
+    it('does not let a failure in the notification queue break edition creation', async () => {
+      (prisma.book.findUnique as jest.Mock).mockResolvedValue({ id: 'book-1', title: 'This Poison Heart' });
+      (prisma.bookEdition.create as jest.Mock).mockResolvedValue({ id: 'edition-1', bookId: 'book-1', slug: 'this-poison-heart-abcd' });
+      followNotifications.notifyOnEditionCreated.mockRejectedValue(new Error('queue down'));
+
+      const result = await service.create({ bookId: 'book-1' } as any);
+
+      expect(result.id).toBe('edition-1');
+    });
+  });
+
+  describe('addArtist', () => {
+    const EDITION = { id: 'edition-1', slug: 'test-edition' };
+
+    it('notifies followers when the (edition, artist, role) contribution is genuinely new', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(EDITION as any);
+      (prisma.artistContribution.findUnique as jest.Mock).mockResolvedValue(null); // no existing row
+      (prisma.artistContribution.upsert as jest.Mock).mockResolvedValue({ id: 'contrib-1' });
+
+      await service.addArtist('test-edition', { artistId: 'artist-1', role: 'cover' } as any);
+
+      expect(followNotifications.notifyOnArtistAdded).toHaveBeenCalledWith('edition-1', 'artist-1');
+    });
+
+    it('does NOT notify when the contribution already exists (artistName-only touch-up)', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(EDITION as any);
+      (prisma.artistContribution.findUnique as jest.Mock).mockResolvedValue({
+        id: 'contrib-1', editionId: 'edition-1', artistId: 'artist-1', role: 'cover',
+      }); // already exists
+      (prisma.artistContribution.upsert as jest.Mock).mockResolvedValue({ id: 'contrib-1' });
+
+      await service.addArtist('test-edition', { artistId: 'artist-1', role: 'cover', artistName: 'New Display Name' } as any);
+
+      expect(followNotifications.notifyOnArtistAdded).not.toHaveBeenCalled();
+    });
+
+    it('treats a new role for an already-contributing artist as a new contribution', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(EDITION as any);
+      // No row for (edition-1, artist-1, 'illustrator') even though the artist already
+      // contributes under a different role — the unique key is the full triple.
+      (prisma.artistContribution.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.artistContribution.upsert as jest.Mock).mockResolvedValue({ id: 'contrib-2' });
+
+      await service.addArtist('test-edition', { artistId: 'artist-1', role: 'illustrator' } as any);
+
+      expect(followNotifications.notifyOnArtistAdded).toHaveBeenCalledWith('edition-1', 'artist-1');
+    });
+
+    it('checks existence for the exact same triple the upsert will act on', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(EDITION as any);
+      (prisma.artistContribution.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.artistContribution.upsert as jest.Mock).mockResolvedValue({ id: 'contrib-1' });
+
+      await service.addArtist('test-edition', { artistId: 'artist-1', role: 'cover' } as any);
+
+      expect(prisma.artistContribution.findUnique).toHaveBeenCalledWith({
+        where: { editionId_artistId_role: { editionId: 'edition-1', artistId: 'artist-1', role: 'cover' } },
+      });
+    });
+  });
+
+  describe('patchArtistContribution', () => {
+    it('never notifies followers — a role-only edit on an existing contributor is not notification-worthy', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue({ id: 'edition-1', slug: 'test-edition' } as any);
+      (prisma.artistContribution.findFirst as jest.Mock).mockResolvedValue({
+        id: 'contrib-1', editionId: 'edition-1', artistId: 'artist-1', role: 'cover',
+      });
+      (prisma.artistContribution.update as jest.Mock).mockResolvedValue({ id: 'contrib-1', role: 'illustrator' });
+
+      await service.patchArtistContribution('test-edition', 'contrib-1', 'illustrator');
+
+      expect(followNotifications.notifyOnArtistAdded).not.toHaveBeenCalled();
+      expect(followNotifications.notifyOnEditionCreated).not.toHaveBeenCalled();
+    });
+  });
+});
