@@ -48,6 +48,10 @@ model User {
   pushSubscriptions        PushSubscription[]
   reminderSettings         UserReminderSettings?
   scheduledReminders       ScheduledReminder[]
+  artistFollows            UserArtistFollow[]
+  authorFollows            UserAuthorFollow[]
+  bookFollows              UserBookFollow[]
+  pendingEditionNotifications PendingEditionNotification[]
   purchaseDiscounts        UserPurchaseDiscount[]
   purchaseFees             UserPurchaseFee[]
   purchaseGroups           UserPurchaseGroup[]
@@ -162,6 +166,7 @@ model Book {
   seriesEntries     BookSeriesEntry[]
   omnibusComponents BookComponent[]         @relation("OmnibusContents")
   componentOf       BookComponent[]         @relation("ComponentOf")
+  followers         UserBookFollow[]
 
   @@index([language])
   @@index([seriesName])
@@ -222,6 +227,7 @@ model Author {
   website     String?
   books       BookAuthor[]
   photoAsset  MediaAsset?          @relation("AuthorPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
+  followers   UserAuthorFollow[]
 
   @@index([nationality])
   @@index([name])
@@ -261,6 +267,7 @@ model Artist {
   contributions ArtistContribution[]
   cardArtistMonths SubscriptionMonth[]
   photoAsset    MediaAsset?          @relation("ArtistPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
+  followers     UserArtistFollow[]
 
   @@index([specialty])
   @@index([name])
@@ -329,6 +336,7 @@ model BookEdition {
   statsSnapshot            EditionStatsSnapshot?
   featureTags              EditionFeatureTag[]
   saleDates                EditionSaleDate[]
+  pendingFollowNotifications PendingEditionNotification[]
 
   @@index([bookId])
   @@index([bookBoxCompanyId])
@@ -1228,9 +1236,72 @@ model UserReminderSettings {
 
   appNotifPushEnabled  Boolean  @default(false)
 
+  /// Channel choice only — no separate master enable, since following an artist/author/book
+  /// is itself the opt-in. Both default true so a new follow notifies immediately.
+  newEditionFollowInAppEnabled Boolean @default(true)
+  newEditionFollowPushEnabled  Boolean @default(true)
+
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_reminder_settings")
+}
+
+model UserArtistFollow {
+  userId    String
+  artistId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@id([userId, artistId])
+  @@index([artistId])
+  @@map("user_artist_follows")
+}
+
+model UserAuthorFollow {
+  userId    String
+  authorId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  author    Author   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@id([userId, authorId])
+  @@index([authorId])
+  @@map("user_author_follows")
+}
+
+model UserBookFollow {
+  userId    String
+  bookId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@id([userId, bookId])
+  @@index([bookId])
+  @@map("user_book_follows")
+}
+
+/// Batches "new edition matched a follow" events per (user, edition) with a 5-minute debounce
+/// so a user following e.g. both the book and one of its artists gets ONE combined notification
+/// instead of one per matched follow, even though edition creation + artist attachment happen as
+/// separate API calls from the admin form. The cron in edition-follow-notifications.cron.ts
+/// consumes and deletes rows once scheduledFor is due — see PendingEditionNotificationsService.
+model PendingEditionNotification {
+  id           String      @id @default(uuid())
+  userId       String
+  editionId    String
+  /// Array of { type: 'artist'|'author'|'book', id: string, name: string }, merged/deduped as
+  /// more matching follows are found for the same edition within the debounce window.
+  reasons      Json
+  scheduledFor DateTime
+  createdAt    DateTime    @default(now())
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  edition      BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, editionId])
+  @@index([scheduledFor])
+  @@map("pending_edition_notifications")
 }
 
 model ScheduledReminder {

@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiAuthor } from '@luxgrimoire/shared-types'
 import { AuthorBooksSection } from './AuthorBooksSection'
+import { FollowButton } from '@/components/follows/FollowButton'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -115,7 +116,10 @@ export default async function AuthorPage({ params }: Props) {
         )}
         <div>
           <p className="text-xs text-brand-600 uppercase tracking-widest mb-2 font-medium">Author</p>
-          <h1 className="text-4xl font-serif font-bold text-navy-100 mb-4">{author.name}</h1>
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <h1 className="text-4xl font-serif font-bold text-navy-100">{author.name}</h1>
+            <FollowButton targetType="author" targetId={author.id} />
+          </div>
           {author.bio && (
             <p className="text-navy-300 leading-relaxed max-w-2xl">{author.bio}</p>
           )}

@@ -14,6 +14,7 @@ import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
 import { FeatureTaggerService } from '../feature-categories/feature-tagger.service';
+import { FollowNotificationsService } from '../follows/follow-notifications.service';
 import { EditionsService } from './editions.service';
 
 function daysFromNow(days: number): Date {
@@ -33,7 +34,8 @@ describe('EditionsService.resolveEditionSaleDate', () => {
     const mediaAssetsService = mockDeep<MediaAssetsService>();
     const cache = { get: jest.fn(), set: jest.fn(), del: jest.fn() } as any;
     const tagger = mockDeep<FeatureTaggerService>();
-    service = new EditionsService(prisma, typesense, uploadService, mediaAssetsService, cache, tagger);
+    const followNotifications = mockDeep<FollowNotificationsService>();
+    service = new EditionsService(prisma, typesense, uploadService, mediaAssetsService, cache, tagger, followNotifications);
   });
 
   it('returns null for an edition with no announcement link and no manual dates', async () => {
@@ -194,7 +196,8 @@ describe('EditionsService.linkEditionHistory', () => {
     const mediaAssetsService = mockDeep<MediaAssetsService>();
     const cache = { get: jest.fn(), set: jest.fn(), del: jest.fn() } as any;
     const tagger = mockDeep<FeatureTaggerService>();
-    service = new EditionsService(prisma, typesense, uploadService, mediaAssetsService, cache, tagger);
+    const followNotifications = mockDeep<FollowNotificationsService>();
+    service = new EditionsService(prisma, typesense, uploadService, mediaAssetsService, cache, tagger, followNotifications);
   });
 
   function mockEdition(overrides: Record<string, unknown> = {}) {

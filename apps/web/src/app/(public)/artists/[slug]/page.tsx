@@ -6,6 +6,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { Badge } from '@/components/ui/Badge'
 import type { ApiArtist } from '@luxgrimoire/shared-types'
 import { ArtistContributionsSection } from './ArtistContributionsSection'
+import { FollowButton } from '@/components/follows/FollowButton'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -127,9 +128,12 @@ export default async function ArtistPage({ params }: Props) {
             {/* Info */}
             <div className="flex-1">
               <p className="text-xs text-brand-600 uppercase tracking-widest mb-2 font-medium">Artist</p>
-              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-navy-100 leading-tight mb-1">
-                {artist.name}
-              </h1>
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-1">
+                <h1 className="text-4xl sm:text-5xl font-serif font-bold text-navy-100 leading-tight">
+                  {artist.name}
+                </h1>
+                <FollowButton targetType="artist" targetId={artist.id} />
+              </div>
 
               <div className="flex flex-wrap items-center gap-2 mb-4">
                 {artist.specialty && (

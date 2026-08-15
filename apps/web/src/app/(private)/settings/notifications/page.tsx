@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, BellOff, RefreshCw, Megaphone } from 'lucide-react'
+import { Bell, BellOff, RefreshCw, Megaphone, Heart } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 
@@ -15,6 +15,8 @@ interface NotificationPreferences {
 
 interface ReminderSettings {
   appNotifPushEnabled: boolean
+  newEditionFollowInAppEnabled: boolean
+  newEditionFollowPushEnabled: boolean
 }
 
 const DAYS_OPTIONS = [1, 3, 7]
@@ -213,6 +215,42 @@ export default function NotificationSettingsPage() {
             <Toggle
               checked={reminderSettings?.appNotifPushEnabled ?? false}
               onChange={(v) => reminderMutation.mutate({ appNotifPushEnabled: v })}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* New Editions from Follows */}
+      <section className="bg-navy-900 border border-navy-800 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Heart size={16} className="text-brand-400" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-navy-300">New Editions from Follows</h2>
+        </div>
+        <p className="text-xs text-navy-500 -mt-2">
+          When a new edition appears for an artist, author, or book you follow. Choose how you want to hear about it —
+          following is itself the opt-in, so at least one channel stays useful.
+        </p>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-navy-200">In-app</p>
+              <p className="text-xs text-navy-500">Shown in your notification bell</p>
+            </div>
+            <Toggle
+              checked={reminderSettings?.newEditionFollowInAppEnabled ?? true}
+              onChange={(v) => reminderMutation.mutate({ newEditionFollowInAppEnabled: v })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-navy-200">Push</p>
+              <p className="text-xs text-navy-500">Send to this device</p>
+            </div>
+            <Toggle
+              checked={reminderSettings?.newEditionFollowPushEnabled ?? true}
+              onChange={(v) => reminderMutation.mutate({ newEditionFollowPushEnabled: v })}
             />
           </div>
         </div>
