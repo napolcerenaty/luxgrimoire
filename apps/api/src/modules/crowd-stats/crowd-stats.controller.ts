@@ -4,6 +4,7 @@ import { Cache } from 'cache-manager';
 import { CrowdStatsService } from './crowd-stats.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CurrencyService } from '../currency/currency.service';
+import { AnnouncementsService } from '../announcements/announcements.service';
 import { Public } from '../../common/decorators/auth.decorators';
 
 const COLLECTION_COUNT_TTL = 6 * 60 * 60 * 1000; // 6 hours in ms
@@ -15,6 +16,7 @@ export class CrowdStatsController {
     private readonly crowdStatsService: CrowdStatsService,
     private readonly prisma: PrismaService,
     private readonly currencyService: CurrencyService,
+    private readonly announcementsService: AnnouncementsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -56,7 +58,7 @@ export class CrowdStatsController {
   @Public()
   @Get('platform/stats')
   async getPlatformStats() {
-    const cacheKey = 'platform:stats:v4';
+    const cacheKey = 'platform:stats:v5';
     const cached = await this.cache.get<{
       editionsCount: number;
       companiesCount: number;
@@ -65,11 +67,11 @@ export class CrowdStatsController {
     }>(cacheKey);
     if (cached) return cached;
 
-    const [editionsCount, companiesCount, subscriptionsCount, activeSalesCount] = await this.prisma.$transaction([
+    const [editionsCount, companiesCount, subscriptionsCount, activeSalesCount] = await Promise.all([
       this.prisma.bookEdition.count({ where: { verifiedAt: { not: null } } }),
       this.prisma.bookBoxCompany.count(),
       this.prisma.subscription.count({ where: { isDiscontinued: false, isContentStream: false } }),
-      this.prisma.saleAnnouncement.count({ where: { generalSaleDate: { gte: new Date() } } }),
+      this.announcementsService.getActiveSaleCount(),
     ]);
 
     const result = { editionsCount, companiesCount, subscriptionsCount, activeSalesCount };
