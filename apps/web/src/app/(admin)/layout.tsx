@@ -29,6 +29,7 @@ import {
   Star,
   AlertTriangle,
   Newspaper,
+  Sparkles,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -76,6 +77,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
       { href: '/admin/books', label: 'Books', icon: BookOpen },
       { href: '/admin/editions', label: 'Editions', icon: Layers },
       { href: '/admin/series', label: 'Series', icon: BookMarked },
+      { href: '/admin/series-suggestions', label: 'Series Suggestions', icon: Sparkles },
       { href: '/admin/authors', label: 'Authors', icon: Users },
       { href: '/admin/artists', label: 'Artists', icon: Brush },
       { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },

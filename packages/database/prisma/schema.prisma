@@ -134,8 +134,22 @@ model BookSeries {
   updatedAt DateTime @updatedAt
   books     Book[]
   entries   BookSeriesEntry[]
+  /// Manually set by an admin — no free book API exposes a reliable "series completed" flag.
+  /// Drives series-discovery: a completed series is excluded from the daily check batch entirely.
+  isCompleted         Boolean   @default(false)
+  completedAt         DateTime?
+  /// Cached external-source IDs so series-discovery doesn't have to re-search by name/author on
+  /// every run — set once on first successful match, then queried directly by ID afterward.
+  googleBooksSeriesId String?
+  openLibraryId       String?
+  wikidataId          String?
+  /// When this series was last checked by series-discovery — drives the daily batch's
+  /// oldest-checked-first ordering (see SeriesDiscoveryService).
+  lastCheckedAt       DateTime?
+  volumeSuggestions   SeriesVolumeSuggestion[]
 
   @@index([name])
+  @@index([isCompleted, lastCheckedAt])
   @@map("book_series")
 }
 
@@ -1666,6 +1680,36 @@ model SaleAnnouncementRequest {
 
   @@index([status])
   @@map("sale_announcement_requests")
+}
+
+/// A candidate "next volume" for a series we already track, surfaced by the series-discovery
+/// cron from a free book API. Never auto-creates a Book — an admin reviews and either uses it
+/// to prefill BookForm (status -> approved) or dismisses it (status -> dismissed).
+model SeriesVolumeSuggestion {
+  id            String     @id @default(uuid())
+  seriesId      String
+  title         String
+  authorNames   String[]   @default([])
+  volumeNumber  Float?
+  genres        String[]   @default([])
+  /// 'google_books' | 'open_library' | 'wikidata'
+  source        String     @db.VarChar(20)
+  /// The source API's own id for this volume — combined with `source` and `seriesId`, this is
+  /// what makes re-running the check idempotent (upsert instead of duplicate rows every run).
+  sourceId      String
+  sourceUrl     String?
+  description   String?
+  publishedDate String?
+  status        String     @default("pending") @db.VarChar(20)
+  adminNote     String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  series        BookSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([seriesId, source, sourceId])
+  @@index([status])
+  @@index([seriesId])
+  @@map("series_volume_suggestions")
 }
 
 enum UserImageStatus {

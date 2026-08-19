@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsObject, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsObject, IsBoolean, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BookSeriesQueryDto {
@@ -29,6 +29,10 @@ export class UpdateBookSeriesDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isCompleted?: boolean;
 }
 
 export class SwitchPrimarySeriesDto {

@@ -61,6 +61,7 @@ export class BookSeriesService {
           id: true,
           slug: true,
           name: true,
+          isCompleted: true,
           // `books` (the old single-series relation) counts only where this is the PRIMARY
           // series; `entries` (book_series_entries) counts every book attached at all, primary
           // or secondary — the list's "Books" column and the delete guard both need the total,
@@ -89,7 +90,7 @@ export class BookSeriesService {
         const authorNames = Array.from(
           new Set(s.entries.flatMap(e => e.book.authors.map(a => a.author.name)))
         );
-        return { id: s.id, slug: s.slug, name: s.name, bookCount: s._count.entries, primaryBookCount: s._count.books, authors: authorNames };
+        return { id: s.id, slug: s.slug, name: s.name, isCompleted: s.isCompleted, bookCount: s._count.entries, primaryBookCount: s._count.books, authors: authorNames };
       }),
       ...buildPageMeta(total, page, pageSize),
     };
@@ -332,7 +333,7 @@ export class BookSeriesService {
     const series = await this.prisma.bookSeries.findUnique({ where: { slug } });
     if (!series) throw new NotFoundException(`Series '${slug}' not found`);
 
-    const data: { name?: string; slug?: string } = {};
+    const data: { name?: string; slug?: string; isCompleted?: boolean; completedAt?: Date | null } = {};
     if (dto.name) {
       const nearMatch = await this.findByNormalizedName(dto.name, slug);
       if (nearMatch) {
@@ -345,11 +346,15 @@ export class BookSeriesService {
         data.slug = await this.ensureUniqueSlug(newSlug, slug);
       }
     }
+    if (dto.isCompleted !== undefined) {
+      data.isCompleted = dto.isCompleted;
+      data.completedAt = dto.isCompleted ? new Date() : null;
+    }
 
     return this.prisma.bookSeries.update({
       where: { slug },
       data,
-      select: { id: true, slug: true, name: true },
+      select: { id: true, slug: true, name: true, isCompleted: true },
     });
   }
 
