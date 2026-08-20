@@ -30,22 +30,26 @@ export default function ConsentPage() {
     })
   }, [])
 
-  if (checking || !auth.user) {
+  const resolvedVersions = versions ?? { terms: null, privacy: null }
+  const gap = computeConsentGap(auth.user, resolvedVersions)
+  const isNewUser = !auth.user?.termsAcceptedAt && !auth.user?.privacyAcceptedAt
+
+  // Nothing actually outdated (e.g. user navigated here directly, or just finished accepting
+  // and auth.user re-rendered with the updated versions) — nowhere to send them but home.
+  // Must run from an effect, never during render (calling router.replace mid-render was
+  // triggering "Cannot update a component (Router) while rendering ConsentPage").
+  useEffect(() => {
+    if (!checking && auth.user && !gap.needsConsent) {
+      router.replace(returnTo && returnTo.startsWith('/') ? returnTo : '/')
+    }
+  }, [checking, auth.user, gap.needsConsent, router, returnTo])
+
+  if (checking || !auth.user || !gap.needsConsent) {
     return (
       <div className="max-w-md mx-auto mt-16 px-4">
         <p className="text-navy-400 text-sm animate-pulse">Loading…</p>
       </div>
     )
-  }
-
-  const resolvedVersions = versions ?? { terms: null, privacy: null }
-  const gap = computeConsentGap(auth.user, resolvedVersions)
-  const isNewUser = !auth.user.termsAcceptedAt && !auth.user.privacyAcceptedAt
-
-  // Nothing actually outdated (e.g. user navigated here directly) — nowhere to send them but home
-  if (!gap.needsConsent) {
-    router.replace(returnTo && returnTo.startsWith('/') ? returnTo : '/')
-    return null
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,8 +69,7 @@ export default function ConsentPage() {
       })
       if (!res.ok) throw new Error('Failed to save consent')
       const me = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' }).then(r => r.json())
-      auth.login(me)
-      router.replace(returnTo && returnTo.startsWith('/') ? returnTo : '/')
+      auth.login(me) // re-render picks up gap.needsConsent === false, the effect above redirects
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
