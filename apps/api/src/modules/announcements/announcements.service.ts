@@ -313,7 +313,7 @@ export class AnnouncementsService {
         items: { orderBy: { sortOrder: 'asc' as const } },
         regions: regionsInclude,
         tiers: { orderBy: { date: 'asc' as const } },
-        company: { select: { name: true, slug: true, brandColors: true, website: true } },
+        company: { select: { name: true, slug: true, brandColors: true, website: true, instagram: true } },
       },
     });
     if (!announcement) throw new NotFoundException('Sale announcement not found');

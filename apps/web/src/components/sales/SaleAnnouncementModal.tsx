@@ -7,6 +7,7 @@ import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 import { SaleAnnouncementContent } from '@/components/sales/SaleAnnouncementContent'
+import { buildPhotoCredits } from '@/lib/photoCredit'
 
 interface Props {
   sale: ApiSaleAnnouncement | null
@@ -105,26 +106,25 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                     </>
                   )}
                 </div>
-                {sale.photoCredit && (() => {
-                  const credits: { handle: string; role: string | null }[] = []
-                  const regex = /@([\w.]+)(?:\s*\(([^)]+)\))?/g
-                  let m: RegExpExecArray | null
-                  while ((m = regex.exec(sale.photoCredit!)) !== null) {
-                    credits.push({ handle: m[1], role: m[2] ?? null })
-                  }
-                  if (credits.length === 0) return null
+                {(() => {
+                  const credits = buildPhotoCredits(sale.photoCredit, sale.company?.instagram)
                   const website = sale.company?.website
+                  if (credits.length === 0 && !website) return null
                   return (
                     <div className="text-[10px] text-navy-500 mt-1 text-center leading-4">
-                      <span>📷 photo by</span>
-                      {credits.map(({ handle, role }) => (
-                        <div key={handle}>
-                          <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
-                            @{handle}<ExternalLink size={9} className="shrink-0" />
-                          </a>
-                          {role && <span> ({role})</span>}
-                        </div>
-                      ))}
+                      {credits.length > 0 && (
+                        <>
+                          <span>📷 photo by</span>
+                          {credits.map(({ handle, role }) => (
+                            <div key={handle}>
+                              <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
+                                @{handle}<ExternalLink size={9} className="shrink-0" />
+                              </a>
+                              {role && <span> ({role})</span>}
+                            </div>
+                          ))}
+                        </>
+                      )}
                       {website && (
                         <div>
                           courtesy of{' '}
