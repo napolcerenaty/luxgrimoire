@@ -641,7 +641,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
 
                     {/* Name (+ studio badge right after it) + roles */}
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <Link
                           href={`/artists/${artist.slug}`}
                           className="text-sm font-medium text-navy-200 group-hover:text-brand-400 transition-colors leading-tight truncate max-w-[130px]"
@@ -651,7 +651,7 @@ export default async function EditionPage({ params, searchParams }: Props) {
                         {studio?.name && (
                           <Link
                             href={`/artists/${studio.slug}`}
-                            className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full leading-tight bg-navy-800/90 text-navy-300 border border-navy-600 hover:border-brand-500/50 hover:text-brand-400 transition-colors shrink-0 max-w-[110px] truncate"
+                            className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full leading-tight bg-navy-800/90 text-navy-300 border border-navy-600 hover:border-brand-500/50 hover:text-brand-400 transition-colors whitespace-nowrap"
                           >
                             {studio.name}
                           </Link>
