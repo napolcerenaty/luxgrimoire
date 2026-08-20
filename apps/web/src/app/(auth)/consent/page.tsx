@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import Link from 'next/link'
@@ -7,7 +7,7 @@ import { API_BASE } from '@/lib/authFetch'
 import { resolveTermsVersion, resolvePrivacyVersion } from '@/lib/consent'
 import { useConsentStatus } from '@/lib/useConsentStatus'
 
-export default function ConsentPage() {
+function ConsentForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const returnTo = searchParams.get('returnTo')
@@ -135,5 +135,13 @@ export default function ConsentPage() {
         </button>
       </form>
     </div>
+  )
+}
+
+export default function ConsentPage() {
+  return (
+    <Suspense>
+      <ConsentForm />
+    </Suspense>
   )
 }
