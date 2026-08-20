@@ -622,42 +622,45 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 const photoUrl = cloudinaryUrl(artist.photoUrl ?? null, 'w_64,h_64,c_fill,q_auto,f_auto')
                 const studio = artist.studio
                 return (
-                  <div key={artist.id} className="flex items-center gap-2">
-                    <Link href={`/artists/${artist.slug}`} className="flex items-center gap-3 group">
+                  <div key={artist.id} className="group flex items-center gap-3">
+                    <Link href={`/artists/${artist.slug}`} className="shrink-0">
                       {/* Avatar */}
                       {photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={photoUrl}
                           alt={cleanName}
-                          className="w-10 h-10 rounded-full object-cover ring-1 ring-navy-700 group-hover:ring-brand-500/50 transition-all shrink-0"
+                          className="w-10 h-10 rounded-full object-cover ring-1 ring-navy-700 group-hover:ring-brand-500/50 transition-all"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-navy-800 flex items-center justify-center text-navy-400 font-serif text-base shrink-0 ring-1 ring-navy-700 group-hover:ring-brand-500/50 transition-all">
+                        <div className="w-10 h-10 rounded-full bg-navy-800 flex items-center justify-center text-navy-400 font-serif text-base ring-1 ring-navy-700 group-hover:ring-brand-500/50 transition-all">
                           {cleanName[0]?.toUpperCase()}
                         </div>
                       )}
-
-                      {/* Name + roles */}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-navy-200 group-hover:text-brand-400 transition-colors leading-tight truncate max-w-[160px]">
-                          {cleanName}
-                        </p>
-                        {roles.map((role) => (
-                          <p key={role} className="text-sm text-navy-400">{normDisplay(role)}</p>
-                        ))}
-                      </div>
                     </Link>
 
-                    {/* Studio/collective the artist publishes under */}
-                    {studio?.name && (
-                      <Link
-                        href={`/artists/${studio.slug}`}
-                        className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full leading-tight bg-navy-800/90 text-navy-300 border border-navy-600 hover:border-brand-500/50 hover:text-brand-400 transition-colors shrink-0 max-w-[100px] truncate"
-                      >
-                        {studio.name}
-                      </Link>
-                    )}
+                    {/* Name (+ studio badge right after it) + roles */}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          href={`/artists/${artist.slug}`}
+                          className="text-sm font-medium text-navy-200 group-hover:text-brand-400 transition-colors leading-tight truncate max-w-[130px]"
+                        >
+                          {cleanName}
+                        </Link>
+                        {studio?.name && (
+                          <Link
+                            href={`/artists/${studio.slug}`}
+                            className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full leading-tight bg-navy-800/90 text-navy-300 border border-navy-600 hover:border-brand-500/50 hover:text-brand-400 transition-colors shrink-0 max-w-[110px] truncate"
+                          >
+                            {studio.name}
+                          </Link>
+                        )}
+                      </div>
+                      {roles.map((role) => (
+                        <p key={role} className="text-sm text-navy-400">{normDisplay(role)}</p>
+                      ))}
+                    </div>
                   </div>
                 )
               })}
