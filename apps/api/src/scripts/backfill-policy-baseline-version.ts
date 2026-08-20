@@ -1,45 +1,34 @@
 /**
- * Backfill: re-tags existing users to a fixed Terms of Use / Privacy Policy baseline version
- * (see auth.service.ts saveConsent/register and apps/web/src/lib/consent.ts for how those
- * versions gate re-consent).
+ * Auto-backfill: re-tags existing users to a fixed Terms of Use / Privacy Policy baseline
+ * version (see auth.service.ts saveConsent/register and apps/web/src/lib/consent.ts for how
+ * those versions gate re-consent).
  *
  * Why this exists: publishing terms-of-use/privacy-policy as Ghost Pages for the first time
  * gives them a fresh `updated_at`, which becomes the new version. Without this script, that
  * baseline would never match any existing user's stored termsVersion/privacyVersion, and
  * *every* existing user would be forced through /consent on their next login — even though the
  * content didn't meaningfully change, it just moved from hardcoded JSX into Ghost. This script
- * re-tags existing users to the given baseline version without touching
- * termsAcceptedAt/privacyAcceptedAt (it's a version-label realignment, not a new consent event,
- * so no PolicyAcceptance row is written either — only users who already have a non-null
- * accepted-at are touched; brand-new/never-consented users are left alone and still correctly
- * get sent through /consent).
+ * re-tags existing users to that baseline without touching termsAcceptedAt/privacyAcceptedAt
+ * (it's a version-label realignment, not a new consent event, so no PolicyAcceptance row is
+ * written either — only users who already have a non-null accepted-at are touched; brand-new/
+ * never-consented users are left alone and still correctly get sent through /consent).
  *
- * Get the exact version strings from the running app *after* publishing in Ghost:
- *   curl https://<web-host>/api/legal/versions
- * Use the *ISO* updated_at value from that response, not whatever Ghost's admin UI displays.
+ * Fetches the CURRENT version straight from Ghost's Content API — no manual curl/copy-paste of
+ * the version string needed. Wired unconditionally into docker-entrypoint.sh (runs on every
+ * deploy) and made safe to do so via a one-time-per-doc guard: an `AppSetting` marker row
+ * (policyBaselineTermsBackfilledAt / policyBaselinePrivacyBackfilledAt) is written the first
+ * time a doc is successfully backfilled, and checked before doing any work on every subsequent
+ * run. This is what makes "just fetch whatever Ghost currently has" safe long-term: a doc is
+ * only ever retagged the very first time it's found published — a *later*, genuine content
+ * change is never retroactively backfilled, so the feature keeps working as intended for real
+ * future ToS/Privacy updates. If a doc isn't published in Ghost yet, its half is silently
+ * skipped and retried on the next deploy. Per-doc failures don't affect the other doc.
  *
- * IDEMPOTENT BY DESIGN — this is what makes it safe to wire into docker-entrypoint.sh instead
- * of running by hand: it only ever updates rows where the stored version differs from the
- * given target (`prisma.user.updateMany({ where: { ...field: { not: version } } })`), so
- * running it again with the same version affects 0 rows the second time onward. It is also
- * safe to leave wired into every deploy indefinitely, because the target version is whatever
- * you pass in — fixed at the moment you publish the initial Ghost baseline — not "whatever
- * Ghost currently has." It will never chase a later, genuine content change; only that one
- * pinned baseline. (If you want a later real change to force re-consent, don't backfill it —
- * that's the feature working as intended.)
- *
- * Wired into docker-entrypoint.sh, gated behind two optional env vars so it's a no-op on every
- * deploy where they aren't set:
- *   POLICY_BASELINE_TERMS_VERSION=2026-08-20T14:32:10.000Z
- *   POLICY_BASELINE_PRIVACY_VERSION=2026-08-20T14:35:02.000Z
- * Set them once you've published the Ghost pages and know the resulting version(s); either can
- * be omitted if only one document was migrated. No manual invocation needed on deploy.
- *
- * Manual/local use (e.g. dry-run before deploying):
- *   node dist/scripts/backfill-policy-baseline-version.js \
- *     --terms-version="2026-08-20T14:32:10.000Z" \
- *     --privacy-version="2026-08-20T14:35:02.000Z" \
- *     [--dry-run]
+ * Manual/local testing:
+ *   node dist/scripts/backfill-policy-baseline-version.js [--dry-run]
+ *   node dist/scripts/backfill-policy-baseline-version.js --terms-version="..." --dry-run
+ * (--terms-version=/--privacy-version= override the Ghost fetch entirely for a given doc — the
+ * AppSetting guard still applies, so this only does something the first time.)
  */
 import { runScript } from './run-script'
 import { PrismaService } from '../prisma/prisma.service'
@@ -53,51 +42,90 @@ function argValue(name: string): string | undefined {
   return match?.slice(prefix.length)
 }
 
-const TERMS_VERSION = argValue('terms-version')
-const PRIVACY_VERSION = argValue('privacy-version')
+async function fetchGhostPageVersion(slug: string): Promise<string | null> {
+  const GHOST_URL = (process.env.GHOST_API_URL ?? 'http://localhost:2368').replace(/\/$/, '')
+  const GHOST_KEY = process.env.GHOST_CONTENT_API_KEY
+  if (!GHOST_KEY) return null
+  try {
+    const url = `${GHOST_URL}/ghost/api/content/pages/slug/${slug}/?key=${GHOST_KEY}&fields=updated_at`
+    const res = await fetch(url)
+    if (!res.ok) return null // 404 = not published yet; treat any failure as "not ready", not fatal
+    const data = (await res.json()) as { pages?: { updated_at: string }[] }
+    return data.pages?.[0]?.updated_at ?? null
+  } catch {
+    return null
+  }
+}
+
+const DOCS = [
+  {
+    docType: 'TERMS' as const,
+    slug: 'terms-of-use',
+    field: 'termsVersion' as const,
+    acceptedAtField: 'termsAcceptedAt' as const,
+    settingKey: 'policyBaselineTermsBackfilledAt',
+    override: argValue('terms-version'),
+  },
+  {
+    docType: 'PRIVACY' as const,
+    slug: 'privacy-policy',
+    field: 'privacyVersion' as const,
+    acceptedAtField: 'privacyAcceptedAt' as const,
+    settingKey: 'policyBaselinePrivacyBackfilledAt',
+    override: argValue('privacy-version'),
+  },
+]
 
 runScript('backfill-policy-baseline-version', async app => {
-  if (!TERMS_VERSION && !PRIVACY_VERSION) {
-    throw new Error('Pass at least one of --terms-version=... / --privacy-version=...')
-  }
-
   const prisma = app.get(PrismaService)
   const bugReports = app.get(BugReportsService)
 
   if (DRY_RUN) console.log('--- DRY RUN: no writes will be made ---')
 
-  for (const [docType, version] of [['TERMS', TERMS_VERSION], ['PRIVACY', PRIVACY_VERSION]] as const) {
-    if (!version) continue
-    const field = docType === 'TERMS' ? 'termsVersion' : 'privacyVersion'
-    const acceptedAtField = docType === 'TERMS' ? 'termsAcceptedAt' : 'privacyAcceptedAt'
-
+  for (const doc of DOCS) {
     try {
+      const alreadyDone = await prisma.appSetting.findUnique({ where: { key: doc.settingKey } })
+      if (alreadyDone) {
+        console.log(`[backfill-policy-baseline-version] ${doc.docType}: already backfilled to ${alreadyDone.value} on ${alreadyDone.updatedAt.toISOString()}, skipping`)
+        continue
+      }
+
+      const version = doc.override ?? (await fetchGhostPageVersion(doc.slug))
+      if (!version) {
+        console.log(`[backfill-policy-baseline-version] ${doc.docType}: not published in Ghost yet, skipping (will retry next deploy)`)
+        continue
+      }
+
       const matching = await prisma.user.count({
-        where: { [acceptedAtField]: { not: null }, [field]: { not: version } },
+        where: { [doc.acceptedAtField]: { not: null }, [doc.field]: { not: version } },
       })
 
       if (DRY_RUN) {
-        console.log(`[backfill-policy-baseline-version] ${docType}: would retag ${matching} user(s) to version ${version}`)
+        console.log(`[backfill-policy-baseline-version] ${doc.docType}: would retag ${matching} user(s) to version ${version} (dry run — marker not written, would still be pending next run)`)
         continue
       }
 
       const { count } = await prisma.user.updateMany({
-        where: { [acceptedAtField]: { not: null }, [field]: { not: version } },
-        data: { [field]: version },
+        where: { [doc.acceptedAtField]: { not: null }, [doc.field]: { not: version } },
+        data: { [doc.field]: version },
       })
-      console.log(`[backfill-policy-baseline-version] ${docType}: retagged ${count} user(s) to version ${version} (acceptedAt left untouched)`)
+      await prisma.appSetting.upsert({
+        where: { key: doc.settingKey },
+        create: { key: doc.settingKey, value: version },
+        update: { value: version },
+      })
+      console.log(`[backfill-policy-baseline-version] ${doc.docType}: retagged ${count} user(s) to version ${version} (acceptedAt left untouched), marked complete — will never run again for this doc`)
     } catch (err) {
-      console.error(`[backfill-policy-baseline-version] ${docType} backfill failed:`, err)
-      const title = `policy-baseline-version backfill failed for ${docType}`
+      console.error(`[backfill-policy-baseline-version] ${doc.docType} backfill failed:`, err)
+      const title = `policy-baseline-version backfill failed for ${doc.docType}`
       const alreadyFiled = await prisma.bugReport.findFirst({ where: { category: 'data-migration', title } })
       if (!alreadyFiled) {
         await bugReports.create({
           title,
           description:
-            `Backfilling existing users' ${field} to baseline version "${version}" failed: ` +
-            `${err instanceof Error ? err.message : String(err)}. Existing users may now be force-` +
-            `redirected to /consent on next login even though the content didn't meaningfully change. ` +
-            `Re-run: node dist/scripts/backfill-policy-baseline-version.js --${docType === 'TERMS' ? 'terms-version' : 'privacy-version'}="${version}"`,
+            `Backfilling existing users' ${doc.field} to the Ghost baseline version failed: ` +
+            `${err instanceof Error ? err.message : String(err)}. No AppSetting marker was written, ` +
+            `so this will automatically retry on the next deploy.`,
           category: 'data-migration',
         }).catch(() => {})
       }

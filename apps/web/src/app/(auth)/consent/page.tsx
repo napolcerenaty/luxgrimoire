@@ -4,34 +4,19 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import Link from 'next/link'
 import { API_BASE } from '@/lib/authFetch'
-import {
-  fetchLegalVersions,
-  computeConsentGap,
-  resolveTermsVersion,
-  resolvePrivacyVersion,
-  type LegalVersionsResponse,
-} from '@/lib/consent'
+import { resolveTermsVersion, resolvePrivacyVersion } from '@/lib/consent'
+import { useConsentStatus } from '@/lib/useConsentStatus'
 
 export default function ConsentPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const returnTo = searchParams.get('returnTo')
   const auth = useAuth()
+  const { needsConsent, outdated, terms, privacy, isLoading: consentLoading, versions } = useConsentStatus()
   const [accepted, setAccepted] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [checking, setChecking] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [versions, setVersions] = useState<LegalVersionsResponse | null>(null)
 
-  useEffect(() => {
-    fetchLegalVersions().then(v => {
-      setVersions(v)
-      setChecking(false)
-    })
-  }, [])
-
-  const resolvedVersions = versions ?? { terms: null, privacy: null }
-  const gap = computeConsentGap(auth.user, resolvedVersions)
   const isNewUser = !auth.user?.termsAcceptedAt && !auth.user?.privacyAcceptedAt
 
   // Nothing actually outdated (e.g. user navigated here directly, or just finished accepting
@@ -39,12 +24,12 @@ export default function ConsentPage() {
   // Must run from an effect, never during render (calling router.replace mid-render was
   // triggering "Cannot update a component (Router) while rendering ConsentPage").
   useEffect(() => {
-    if (!checking && auth.user && !gap.needsConsent) {
+    if (!auth.loading && !consentLoading && auth.user && !needsConsent) {
       router.replace(returnTo && returnTo.startsWith('/') ? returnTo : '/')
     }
-  }, [checking, auth.user, gap.needsConsent, router, returnTo])
+  }, [auth.loading, consentLoading, auth.user, needsConsent, router, returnTo])
 
-  if (checking || !auth.user || !gap.needsConsent) {
+  if (auth.loading || consentLoading || !auth.user || !needsConsent) {
     return (
       <div className="max-w-md mx-auto mt-16 px-4">
         <p className="text-navy-400 text-sm animate-pulse">Loading…</p>
@@ -63,13 +48,13 @@ export default function ConsentPage() {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...(gap.outdated.terms && { termsVersion: resolveTermsVersion(resolvedVersions) }),
-          ...(gap.outdated.privacy && { privacyVersion: resolvePrivacyVersion(resolvedVersions) }),
+          ...(outdated.terms && { termsVersion: resolveTermsVersion(versions) }),
+          ...(outdated.privacy && { privacyVersion: resolvePrivacyVersion(versions) }),
         }),
       })
       if (!res.ok) throw new Error('Failed to save consent')
       const me = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' }).then(r => r.json())
-      auth.login(me) // re-render picks up gap.needsConsent === false, the effect above redirects
+      auth.login(me) // re-render picks up needsConsent === false, the effect above redirects
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -88,16 +73,16 @@ export default function ConsentPage() {
       ) : (
         <div className="text-navy-400 text-sm mb-6 space-y-4">
           <p>We&apos;ve updated our policies since you last agreed. Please review the changes below and accept to continue.</p>
-          {gap.outdated.terms && (
+          {outdated.terms && (
             <div className="border border-navy-800 rounded-lg p-3">
               <p className="font-medium text-navy-200 mb-1">Terms of Use</p>
-              <p>{gap.terms?.summary ?? 'The Terms of Use have been updated.'}</p>
+              <p>{terms?.summary ?? 'The Terms of Use have been updated.'}</p>
             </div>
           )}
-          {gap.outdated.privacy && (
+          {outdated.privacy && (
             <div className="border border-navy-800 rounded-lg p-3">
               <p className="font-medium text-navy-200 mb-1">Privacy Policy</p>
-              <p>{gap.privacy?.summary ?? 'The Privacy Policy has been updated.'}</p>
+              <p>{privacy?.summary ?? 'The Privacy Policy has been updated.'}</p>
             </div>
           )}
         </div>
@@ -112,14 +97,30 @@ export default function ConsentPage() {
             className="mt-1 accent-brand-500"
           />
           <span className="text-sm text-navy-300">
-            I have read and agree to the{' '}
-            <Link href="/terms" target="_blank" className="text-brand-400 underline hover:text-brand-300">
-              Terms &amp; Conditions
-            </Link>{' '}
-            and{' '}
-            <Link href="/privacy" target="_blank" className="text-brand-400 underline hover:text-brand-300">
-              Privacy Policy
-            </Link>
+            {isNewUser ? (
+              <>
+                I have read and agree to the{' '}
+                <Link href="/terms" target="_blank" className="text-brand-400 underline hover:text-brand-300">
+                  Terms &amp; Conditions
+                </Link>{' '}
+                and{' '}
+                <Link href="/privacy" target="_blank" className="text-brand-400 underline hover:text-brand-300">
+                  Privacy Policy
+                </Link>
+              </>
+            ) : (
+              <>
+                I have read and agree to the updated {outdated.terms && (
+                  <Link href="/terms" target="_blank" className="text-brand-400 underline hover:text-brand-300">
+                    Terms of Use
+                  </Link>
+                )}{outdated.terms && outdated.privacy && ' and '}{outdated.privacy && (
+                  <Link href="/privacy" target="_blank" className="text-brand-400 underline hover:text-brand-300">
+                    Privacy Policy
+                  </Link>
+                )}
+              </>
+            )}
           </span>
         </label>
 
