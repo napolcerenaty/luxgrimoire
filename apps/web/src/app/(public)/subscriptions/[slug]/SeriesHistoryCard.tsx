@@ -22,28 +22,28 @@ export function SeriesHistoryCard({ series }: { series: ApiSubscriptionSeries })
   const months = series.months ?? []
 
   return (
-    <div className={`rounded-xl border p-5 ${isCurrentlyActive ? 'border-purple-700/60 bg-purple-950/20' : 'border-stone-800 bg-stone-900/50'}`}>
+    <div className={`rounded-xl border p-5 ${isCurrentlyActive ? 'border-purple-700/60 bg-purple-950/20' : 'border-navy-800 bg-navy-900/50'}`}>
       <div className="flex items-start gap-4 flex-wrap">
         {series.coverImage && (
           <img
             src={cloudinaryUrl(series.coverImage, 'w_100,h_150,c_fill,q_auto,f_auto') ?? undefined}
             alt={series.name}
-            className="w-[70px] h-[105px] rounded-lg object-cover shrink-0 border border-stone-700"
+            className="w-[70px] h-[105px] rounded-lg object-cover shrink-0 border border-navy-700"
           />
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <h3 className="text-stone-100 font-serif font-semibold text-lg leading-tight">{series.name}</h3>
+            <h3 className="text-navy-100 font-serif font-semibold text-lg leading-tight">{series.name}</h3>
             {isCurrentlyActive && (
               <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-700 text-purple-100">Active</span>
             )}
             {isPast && (
-              <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-700 text-stone-400">Past</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-navy-700 text-navy-400">Past</span>
             )}
             {!isCurrentlyActive && !isPast && (
               <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-800/60 text-brand-300">Upcoming</span>
             )}
-            <span className="text-[10px] px-2 py-0.5 rounded-full border border-stone-700 text-stone-400">
+            <span className="text-[10px] px-2 py-0.5 rounded-full border border-navy-700 text-navy-400">
               {series.skipMode === 'NO_SKIP' ? 'No skips' :
                series.skipMode === 'SERIES_AS_ONE' || series.skipMode === 'SERIES_ONLY' ? 'Skip as series (1 skip)' :
                series.skipMode === 'SERIES_AS_MANY' ? 'Skip as series (per volume)' :
@@ -53,18 +53,18 @@ export function SeriesHistoryCard({ series }: { series: ApiSubscriptionSeries })
               <span className="text-[10px] px-2 py-0.5 rounded-full border border-brand-700/50 text-brand-600/80">no cancel during</span>
             )}
           </div>
-          <p className="text-stone-400 text-sm mb-3">
+          <p className="text-navy-400 text-sm mb-3">
             {MONTH_SHORT[series.startMonth - 1]} {series.startYear} – {MONTH_SHORT[series.endMonth - 1]} {series.endYear}
           </p>
           {series.description && (
-            <p className="text-stone-400 text-sm mb-3 leading-relaxed">{series.description}</p>
+            <p className="text-navy-400 text-sm mb-3 leading-relaxed">{series.description}</p>
           )}
           {months.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {months.map((m) => (
                 <span
                   key={m.id}
-                  className="text-[11px] px-2 py-0.5 rounded bg-stone-800 text-stone-300 border border-stone-700"
+                  className="text-[11px] px-2 py-0.5 rounded bg-navy-800 text-navy-300 border border-navy-700"
                 >
                   {MONTH_SHORT[m.month - 1]} {m.year}
                   {m.theme ? ` · ${m.theme}` : ''}

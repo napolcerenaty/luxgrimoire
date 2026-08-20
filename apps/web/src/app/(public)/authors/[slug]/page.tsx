@@ -39,7 +39,7 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
       href={href}
       target="_blank"
       rel="noreferrer noopener"
-      className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-cyan-400 transition-colors border border-stone-700 hover:border-cyan-700/60 rounded-full px-3 py-1"
+      className="flex items-center gap-1.5 text-sm text-navy-400 hover:text-cyan-400 transition-colors border border-navy-700 hover:border-cyan-700/60 rounded-full px-3 py-1"
     >
       {icon}
       <span>{label}</span>
@@ -115,9 +115,9 @@ export default async function AuthorPage({ params }: Props) {
         )}
         <div>
           <p className="text-xs text-brand-600 uppercase tracking-widest mb-2 font-medium">Author</p>
-          <h1 className="text-4xl font-serif font-bold text-stone-100 mb-4">{author.name}</h1>
+          <h1 className="text-4xl font-serif font-bold text-navy-100 mb-4">{author.name}</h1>
           {author.bio && (
-            <p className="text-stone-300 leading-relaxed max-w-2xl">{author.bio}</p>
+            <p className="text-navy-300 leading-relaxed max-w-2xl">{author.bio}</p>
           )}
           {socials.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">
@@ -133,11 +133,11 @@ export default async function AuthorPage({ params }: Props) {
       <Suspense fallback={
         <div className="space-y-6">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="py-4 border-b border-stone-800">
-              <div className="h-5 w-48 bg-stone-800 rounded animate-pulse mb-3" />
+            <div key={i} className="py-4 border-b border-navy-800">
+              <div className="h-5 w-48 bg-navy-800 rounded animate-pulse mb-3" />
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                 {Array.from({ length: 4 }).map((_, j) => (
-                  <div key={j} className="aspect-[2/3] rounded bg-stone-800 animate-pulse" />
+                  <div key={j} className="aspect-[2/3] rounded bg-navy-800 animate-pulse" />
                 ))}
               </div>
             </div>

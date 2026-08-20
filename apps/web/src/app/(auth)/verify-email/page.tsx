@@ -57,35 +57,35 @@ function VerifyEmailContent() {
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full text-center">
+    <div className="bg-navy-900 border border-navy-800 rounded-2xl p-8 shadow-2xl max-w-md w-full text-center">
       <h1 className="font-serif text-3xl text-brand-400 mb-6">LuxGrimoire</h1>
 
       {status === 'loading' && (
         <>
           <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-stone-300 text-sm">Verifying your email address…</p>
+          <p className="text-navy-300 text-sm">Verifying your email address…</p>
         </>
       )}
 
       {status === 'success' && (
         <>
           <div className="text-4xl mb-4">✓</div>
-          <h2 className="text-xl font-semibold text-stone-100 mb-2">Email verified!</h2>
-          <p className="text-stone-400 text-sm">Your account is now active. Redirecting you…</p>
+          <h2 className="text-xl font-semibold text-navy-100 mb-2">Email verified!</h2>
+          <p className="text-navy-400 text-sm">Your account is now active. Redirecting you…</p>
         </>
       )}
 
       {status === 'error' && (
         <>
           <div className="text-4xl mb-4">✗</div>
-          <h2 className="text-xl font-semibold text-stone-100 mb-2">Verification failed</h2>
+          <h2 className="text-xl font-semibold text-navy-100 mb-2">Verification failed</h2>
           <p className="text-sm text-rose-400 bg-rose-950/30 border border-rose-900 rounded-lg px-4 py-2.5 mb-6">
             {errorMessage}
           </p>
           <div className="space-y-3">
             <Link
               href="/resend-verification"
-              className="block w-full bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
+              className="block w-full bg-brand-500 hover:bg-brand-400 text-navy-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
             >
               Resend verification email
             </Link>
@@ -106,7 +106,7 @@ export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-8 shadow-2xl max-w-md w-full text-center">
+        <div className="bg-navy-900 border border-navy-800 rounded-2xl p-8 shadow-2xl max-w-md w-full text-center">
           <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
       }

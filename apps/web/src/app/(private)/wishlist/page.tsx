@@ -281,7 +281,7 @@ export default function WishlistPage() {
   if (isLoading && activeTab === 'wishlist') {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-stone-400 animate-pulse">Loading wishlist…</div>
+        <div className="text-navy-400 animate-pulse">Loading wishlist…</div>
       </div>
     )
   }
@@ -289,37 +289,37 @@ export default function WishlistPage() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-3xl font-serif font-bold text-stone-100">My Library</h1>
+        <h1 className="text-3xl font-serif font-bold text-navy-100">My Library</h1>
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-1 mb-6 bg-stone-900 border border-stone-800 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-6 bg-navy-900 border border-navy-800 rounded-xl p-1 w-fit">
         <button
           onClick={() => setActiveTab('wishlist')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             activeTab === 'wishlist'
-              ? 'bg-stone-800 text-stone-100'
-              : 'text-stone-400 hover:text-stone-200'
+              ? 'bg-navy-800 text-navy-100'
+              : 'text-navy-400 hover:text-navy-200'
           }`}
         >
           <BookOpen size={15} />
           Books I want
           {entries.length > 0 && (
-            <span className="bg-stone-700 text-stone-300 text-xs px-1.5 py-0.5 rounded-full">{entries.length}</span>
+            <span className="bg-navy-700 text-navy-300 text-xs px-1.5 py-0.5 rounded-full">{entries.length}</span>
           )}
         </button>
         <button
           onClick={() => setActiveTab('sales')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             activeTab === 'sales'
-              ? 'bg-stone-800 text-stone-100'
-              : 'text-stone-400 hover:text-stone-200'
+              ? 'bg-navy-800 text-navy-100'
+              : 'text-navy-400 hover:text-navy-200'
           }`}
         >
           <Megaphone size={15} />
           Sale Announcements
           {saleInterests.length > 0 && (
-            <span className="bg-stone-700 text-stone-300 text-xs px-1.5 py-0.5 rounded-full">{saleInterests.length}</span>
+            <span className="bg-navy-700 text-navy-300 text-xs px-1.5 py-0.5 rounded-full">{saleInterests.length}</span>
           )}
         </button>
       </div>
@@ -327,7 +327,7 @@ export default function WishlistPage() {
       {/* Wishlist tab */}
       {activeTab === 'wishlist' && (
         entries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+          <div className="flex flex-col items-center justify-center py-20 text-navy-500">
             <BookOpen size={48} className="mb-4 opacity-30" />
             <p className="font-serif text-lg">Your wishlist is empty</p>
             <p className="text-sm mt-1">Add books you want to read or own</p>
@@ -346,13 +346,13 @@ export default function WishlistPage() {
                 variantLabel={entry.edition.variantLabel}
                 authors={(entry.edition.book.authors as any[]).map(a => a.author ?? a)}
                 imageActions={
-                  <div className="absolute inset-0 bg-stone-950/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                  <div className="absolute inset-0 bg-navy-950/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
                     <button
                       onClick={(e) => {
                         e.preventDefault(); e.stopPropagation()
                         setMoveEntry(entry)
                       }}
-                      className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
+                      className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-navy-950 font-semibold px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
                     >
                       <MoveRight size={12} />
                       Move to Collection
@@ -360,7 +360,7 @@ export default function WishlistPage() {
                     <button
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeMutation.mutate(entry.id) }}
                       disabled={removeMutation.isPending}
-                      className="flex items-center gap-1.5 border border-stone-600 text-stone-300 hover:text-red-400 hover:border-red-800 px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
+                      className="flex items-center gap-1.5 border border-navy-600 text-navy-300 hover:text-red-400 hover:border-red-800 px-3 py-1.5 rounded-lg text-xs w-full justify-center transition-colors"
                     >
                       <Trash2 size={12} />
                       Remove
@@ -377,10 +377,10 @@ export default function WishlistPage() {
       {activeTab === 'sales' && (
         isLoadingSales ? (
           <div className="flex items-center justify-center h-32">
-            <div className="text-stone-400 animate-pulse">Loading…</div>
+            <div className="text-navy-400 animate-pulse">Loading…</div>
           </div>
         ) : saleInterests.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+          <div className="flex flex-col items-center justify-center py-20 text-navy-500">
             <Megaphone size={48} className="mb-4 opacity-30" />
             <p className="font-serif text-lg">No tracked sales</p>
             <p className="text-sm mt-1">Mark sale announcements as Interested to track them here</p>
@@ -393,13 +393,13 @@ export default function WishlistPage() {
               {/* Time filter — always visible, not tucked behind the Filters toggle, since it's
                   the primary/most-used split. All first: it's the "no filter applied" baseline. */}
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex rounded-lg border border-stone-700 overflow-hidden text-sm w-fit shrink-0">
+                <div className="flex rounded-lg border border-navy-700 overflow-hidden text-sm w-fit shrink-0">
                   {(['all', 'upcoming', 'past'] as const).map((val) => (
                     <button
                       key={val}
                       onClick={() => setTimeFilter(val)}
-                      className={`px-3 py-2 capitalize transition-colors border-r border-stone-700 last:border-0 ${
-                        timeFilter === val ? 'bg-brand-500/20 text-brand-400' : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+                      className={`px-3 py-2 capitalize transition-colors border-r border-navy-700 last:border-0 ${
+                        timeFilter === val ? 'bg-brand-500/20 text-brand-400' : 'bg-navy-800 text-navy-400 hover:text-navy-200'
                       }`}
                     >
                       {val === 'upcoming' ? 'Upcoming' : val === 'past' ? 'Past' : 'All'}
@@ -412,30 +412,30 @@ export default function WishlistPage() {
                   onClick={() => setShowSaleFilters(p => !p)}
                   aria-expanded={showSaleFilters}
                   className={`relative flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
-                    showSaleFilters ? 'bg-stone-700 border-brand-600 text-brand-400' : 'bg-stone-800 border-stone-700 text-stone-300'
+                    showSaleFilters ? 'bg-navy-700 border-brand-600 text-brand-400' : 'bg-navy-800 border-navy-700 text-navy-300'
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
                   Filters
                   {activeFilterChips.length > 0 && (
-                    <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-brand-600 text-[10px] font-semibold text-stone-950">
+                    <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-brand-600 text-[10px] font-semibold text-navy-950">
                       {activeFilterChips.length}
                     </span>
                   )}
                 </button>
-                <span className="text-sm text-stone-500">{filteredInterests.length} / {saleInterests.length}</span>
+                <span className="text-sm text-navy-500">{filteredInterests.length} / {saleInterests.length}</span>
               </div>
 
               {/* Collapsible filter panel — company/type/date-range only; sized to content on
                   desktop (not stretched across half the row each) via flex-wrap + fixed widths. */}
               {showSaleFilters && (
-                <div className="rounded-xl border border-stone-700/60 bg-stone-900/60 p-3">
+                <div className="rounded-xl border border-navy-700/60 bg-navy-900/60 p-3">
                   <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                     {/* Company filter */}
                     <select
                       value={companyFilter}
                       onChange={(e) => setCompanyFilter(e.target.value)}
-                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-brand-600 sm:w-44"
+                      className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-1.5 text-sm text-navy-200 focus:outline-none focus:border-brand-600 sm:w-44"
                     >
                       <option value="">All companies</option>
                       {filterCompanies.map((c) => (
@@ -447,7 +447,7 @@ export default function WishlistPage() {
                     <select
                       value={saleTypeFilter}
                       onChange={(e) => setSaleTypeFilter(e.target.value)}
-                      className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-200 focus:outline-none focus:border-brand-600 sm:w-40"
+                      className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-1.5 text-sm text-navy-200 focus:outline-none focus:border-brand-600 sm:w-40"
                     >
                       <option value="">All types</option>
                       <option value="LIMITED_PREORDER">⏳ Limited Preorder</option>
@@ -456,24 +456,24 @@ export default function WishlistPage() {
                     </select>
 
                     {/* Date from */}
-                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-brand-600 sm:w-auto">
-                      <span className="shrink-0 text-stone-500">From</span>
+                    <label className="flex items-center gap-1.5 bg-navy-800 border border-navy-700 rounded-lg px-3 py-1.5 text-sm text-navy-400 focus-within:border-brand-600 sm:w-auto">
+                      <span className="shrink-0 text-navy-500">From</span>
                       <input
                         type="date"
                         value={dateFrom}
                         onChange={(e) => setDateFrom(e.target.value)}
-                        className="bg-transparent text-stone-300 focus:outline-none w-full sm:w-auto"
+                        className="bg-transparent text-navy-300 focus:outline-none w-full sm:w-auto"
                       />
                     </label>
 
                     {/* Date to */}
-                    <label className="flex items-center gap-1.5 bg-stone-800 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-400 focus-within:border-brand-600 sm:w-auto">
-                      <span className="shrink-0 text-stone-500">To</span>
+                    <label className="flex items-center gap-1.5 bg-navy-800 border border-navy-700 rounded-lg px-3 py-1.5 text-sm text-navy-400 focus-within:border-brand-600 sm:w-auto">
+                      <span className="shrink-0 text-navy-500">To</span>
                       <input
                         type="date"
                         value={dateTo}
                         onChange={(e) => setDateTo(e.target.value)}
-                        className="bg-transparent text-stone-300 focus:outline-none w-full sm:w-auto"
+                        className="bg-transparent text-navy-300 focus:outline-none w-full sm:w-auto"
                       />
                     </label>
                   </div>
@@ -494,7 +494,7 @@ export default function WishlistPage() {
                       <X className="w-3 h-3" />
                     </button>
                   ))}
-                  <button onClick={clearAllFilters} className="text-xs text-stone-500 hover:text-stone-300 underline underline-offset-2 ml-1">
+                  <button onClick={clearAllFilters} className="text-xs text-navy-500 hover:text-navy-300 underline underline-offset-2 ml-1">
                     Clear all
                   </button>
                 </div>
@@ -502,7 +502,7 @@ export default function WishlistPage() {
             </div>
 
             {filteredInterests.length === 0 ? (
-              <div className="text-center py-12 text-stone-500">
+              <div className="text-center py-12 text-navy-500">
                 <p>No results for current filters.</p>
               </div>
             ) : (
@@ -523,9 +523,9 @@ export default function WishlistPage() {
                   const tl = interest.saleTier?.name ?? 'General Sale'
 
                   return (
-                    <div key={sa.id} className="relative flex flex-col rounded-2xl bg-stone-900 border border-stone-800 hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10 group">
+                    <div key={sa.id} className="relative flex flex-col rounded-2xl bg-navy-900 border border-navy-800 hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10 group">
                       {/* Image — same 2/3 portrait ratio as AnnouncementCard/EditionCard */}
-                      <div className="relative aspect-[2/3] bg-stone-950 overflow-hidden rounded-t-2xl">
+                      <div className="relative aspect-[2/3] bg-navy-950 overflow-hidden rounded-t-2xl">
                         {coverSrc ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -534,9 +534,9 @@ export default function WishlistPage() {
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                         ) : (
-                          <div className="relative w-full h-full flex items-center justify-center text-stone-600">
+                          <div className="relative w-full h-full flex items-center justify-center text-navy-600">
                             <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(sa.company ? (getBrandColors(sa.company.slug) ?? sa.company.brandColors) : null)} />
-                            <p className="relative z-10 font-serif font-semibold text-center px-3 text-sm leading-snug line-clamp-4 text-stone-300">
+                            <p className="relative z-10 font-serif font-semibold text-center px-3 text-sm leading-snug line-clamp-4 text-navy-300">
                               {sa.title}
                             </p>
                           </div>
@@ -555,9 +555,9 @@ export default function WishlistPage() {
                         )}
                       </div>
                       <div className="p-3 space-y-2">
-                        <p className="text-stone-100 text-sm font-medium leading-tight line-clamp-2 group-hover:text-brand-400 transition-colors">{sa.title}</p>
+                        <p className="text-navy-100 text-sm font-medium leading-tight line-clamp-2 group-hover:text-brand-400 transition-colors">{sa.title}</p>
                         {dateLabel && (
-                          <p className="text-xs text-stone-500 flex items-center gap-1">
+                          <p className="text-xs text-navy-500 flex items-center gap-1">
                             <Tag size={10} />
                             <span className={isOpen ? 'text-green-400' : ''}>{tl}{isOpen ? ' (open)' : ''}: {dateLabel}</span>
                           </p>
@@ -566,14 +566,14 @@ export default function WishlistPage() {
                           <div className="flex gap-1.5">
                             <Link
                               href={`/sale-announcements/${sa.id}`}
-                              className="flex-1 text-center text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700"
+                              className="flex-1 text-center text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-navy-800 hover:bg-navy-700 text-navy-300 border border-navy-700"
                             >
                               View
                             </Link>
                             <button
                               onClick={() => removeSaleInterestMutation.mutate(sa.id)}
                               disabled={removeSaleInterestMutation.isPending}
-                              className="p-1.5 text-stone-600 hover:text-red-400 border border-stone-800 hover:border-red-900 rounded-lg transition-colors disabled:opacity-50"
+                              className="p-1.5 text-navy-600 hover:text-red-400 border border-navy-800 hover:border-red-900 rounded-lg transition-colors disabled:opacity-50"
                               title="Remove from tracked sales"
                             >
                               <Trash2 size={12} />

@@ -43,7 +43,7 @@ export function isLightColor(hex: string): boolean {
  * colors[0] is dominant (60%), colors[1] and colors[2] each contribute 20%.
  */
 export function brandTextClasses(colors?: string[] | null): { primary: string; secondary: string } {
-  if (!colors?.length) return { primary: 'text-stone-300', secondary: 'text-stone-500' }
+  if (!colors?.length) return { primary: 'text-navy-300', secondary: 'text-navy-500' }
   // Gradient: colors[1]@0%, colors[0]@60%, colors[2]@100% — weight accordingly
   const c0 = colors[0] ?? '#1c1917'
   const c1 = colors[1] ?? c0

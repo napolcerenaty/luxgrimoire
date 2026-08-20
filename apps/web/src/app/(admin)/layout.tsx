@@ -133,7 +133,7 @@ function NavContent({
       <nav className="flex-1 px-3 py-4 flex flex-col gap-4 overflow-y-auto">
         {navGroups.map((group) => (
           <div key={group.heading}>
-            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-stone-600">
+            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-navy-600">
               {group.heading}
             </p>
             <div className="flex flex-col gap-0.5">
@@ -149,7 +149,7 @@ function NavContent({
                       'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
                       isActive
                         ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
-                        : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800',
+                        : 'text-navy-400 hover:text-navy-100 hover:bg-navy-800',
                     )}
                   >
                     <Icon size={16} />
@@ -161,8 +161,8 @@ function NavContent({
           </div>
         ))}
       </nav>
-      <div className="px-4 py-4 border-t border-stone-800">
-        <p className="text-stone-500 text-xs truncate">{userEmail}</p>
+      <div className="px-4 py-4 border-t border-navy-800">
+        <p className="text-navy-500 text-xs truncate">{userEmail}</p>
         <p className="text-brand-400/70 text-xs mt-0.5">{userRole}</p>
       </div>
     </>
@@ -195,7 +195,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-stone-950 flex items-center justify-center">
+      <div className="min-h-screen bg-navy-950 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -209,10 +209,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     COMPANY_MANAGER_GROUPS
 
   return (
-    <div className="flex min-h-screen bg-stone-950">
+    <div className="flex min-h-screen bg-navy-950">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-60 shrink-0 bg-stone-950 border-r border-stone-800">
-        <div className="px-6 py-5 border-b border-stone-800">
+      <aside className="hidden md:flex flex-col w-60 shrink-0 bg-navy-950 border-r border-navy-800">
+        <div className="px-6 py-5 border-b border-navy-800">
           <p className="text-brand-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
         </div>
         <NavContent
@@ -226,7 +226,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile drawer overlay */}
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-40 bg-stone-950/80 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-navy-950/80 backdrop-blur-sm md:hidden"
           onClick={() => setDrawerOpen(false)}
         />
       )}
@@ -234,15 +234,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile drawer */}
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-50 flex flex-col w-72 bg-stone-950 border-r border-stone-800 transition-transform duration-300 md:hidden',
+          'fixed inset-y-0 left-0 z-50 flex flex-col w-72 bg-navy-950 border-r border-navy-800 transition-transform duration-300 md:hidden',
           drawerOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-stone-800">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-navy-800">
           <p className="text-brand-400 font-bold text-sm uppercase tracking-widest">Admin Panel</p>
           <button
             onClick={() => setDrawerOpen(false)}
-            className="text-stone-400 hover:text-stone-100 transition-colors"
+            className="text-navy-400 hover:text-navy-100 transition-colors"
             aria-label="Close menu"
           >
             <X size={20} />
@@ -260,10 +260,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile top bar */}
-        <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-stone-950 border-b border-stone-800 sticky top-0 z-30">
+        <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-navy-950 border-b border-navy-800 sticky top-0 z-30">
           <button
             onClick={() => setDrawerOpen(true)}
-            className="text-stone-400 hover:text-stone-100 transition-colors"
+            className="text-navy-400 hover:text-navy-100 transition-colors"
             aria-label="Open menu"
           >
             <Menu size={22} />

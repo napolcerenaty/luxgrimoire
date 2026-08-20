@@ -65,7 +65,7 @@ export function WishlistButton({ editionId }: WishlistButtonProps) {
 
   if (status === 'collection') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-stone-400">
+      <span className="inline-flex items-center gap-1.5 text-sm text-navy-400">
         <BookmarkCheck size={15} className="text-brand-400" />
         In your collection
       </span>
@@ -90,7 +90,7 @@ export function WishlistButton({ editionId }: WishlistButtonProps) {
     <button
       onClick={handleAdd}
       disabled={isPending}
-      className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-stone-200 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-stone-700 hover:border-stone-600"
+      className="inline-flex items-center gap-2 bg-navy-800 hover:bg-navy-700 text-navy-200 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors border border-navy-700 hover:border-navy-600"
     >
       <Bookmark size={16} />
       {isPending ? 'Adding…' : 'Add to Wishlist'}

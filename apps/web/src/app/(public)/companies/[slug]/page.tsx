@@ -67,10 +67,10 @@ interface Props {
 function EditionsSkeleton() {
   return (
     <section className="mt-12">
-      <div className="h-7 w-24 bg-stone-800 rounded animate-pulse mb-6" />
+      <div className="h-7 w-24 bg-navy-800 rounded animate-pulse mb-6" />
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="aspect-[2/3] bg-stone-800 rounded-lg animate-pulse" />
+          <div key={i} className="aspect-[2/3] bg-navy-800 rounded-lg animate-pulse" />
         ))}
       </div>
     </section>
@@ -164,7 +164,7 @@ export default async function CompanyPage({ params }: Props) {
         {/* Left column: logo + social links */}
         <div className="w-full sm:w-44 sm:shrink-0 flex flex-col items-start gap-3">
           {logoUrl && (
-            <div className="w-full h-28 sm:w-44 sm:h-24 rounded-xl bg-white/5 border border-stone-700/40 flex items-center justify-center overflow-hidden p-2">
+            <div className="w-full h-28 sm:w-44 sm:h-24 rounded-xl bg-white/5 border border-navy-700/40 flex items-center justify-center overflow-hidden p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logoUrl} alt={company.name} className="w-full h-full object-contain" />
             </div>
@@ -181,7 +181,7 @@ export default async function CompanyPage({ params }: Props) {
                   rel="noopener noreferrer"
                   title={s.label}
                   aria-label={s.label}
-                  className="flex items-center justify-center w-9 h-9 rounded-full bg-stone-800 hover:bg-stone-700 border border-stone-700 hover:border-brand-600/50 text-stone-300 hover:text-brand-400 transition-colors"
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-navy-800 hover:bg-navy-700 border border-navy-700 hover:border-brand-600/50 text-navy-300 hover:text-brand-400 transition-colors"
                 >
                   {s.icon === 'instagram' && <InstagramIcon className="w-4 h-4 shrink-0" />}
                   {s.icon === 'facebook' && <FacebookIcon className="w-4 h-4 shrink-0" />}
@@ -209,12 +209,12 @@ export default async function CompanyPage({ params }: Props) {
               <Badge variant="outline">✓ Images used with brand permission</Badge>
             )}
           </div>
-          <h1 className="text-4xl font-serif font-bold text-stone-100 mb-3">{company.name}</h1>
+          <h1 className="text-4xl font-serif font-bold text-navy-100 mb-3">{company.name}</h1>
           {company.country && (
-            <span className="text-sm text-stone-400 mb-3 block">{company.country}</span>
+            <span className="text-sm text-navy-400 mb-3 block">{company.country}</span>
           )}
           {company.description && (
-            <p className="text-stone-300 leading-relaxed max-w-2xl whitespace-pre-line">{company.description}</p>
+            <p className="text-navy-300 leading-relaxed max-w-2xl whitespace-pre-line">{company.description}</p>
           )}
         </div>
       </div>
@@ -234,9 +234,9 @@ export default async function CompanyPage({ params }: Props) {
       {/* Subscriptions — grouped active/upcoming/discontinued instead of one mixed grid */}
       {displaySubscriptions.length > 0 && (
         <section>
-          <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">Subscriptions</h2>
+          <h2 className="text-2xl font-serif font-semibold text-navy-100 mb-6">Subscriptions</h2>
           {activeSubscriptions.length === 0 && upcomingSubscriptions.length === 0 && (
-            <p className="text-stone-500 text-sm mb-4">No active subscriptions right now.</p>
+            <p className="text-navy-500 text-sm mb-4">No active subscriptions right now.</p>
           )}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {[...activeSubscriptions, ...upcomingSubscriptions].map((sub) => {
@@ -249,13 +249,13 @@ export default async function CompanyPage({ params }: Props) {
                 <Link
                   key={sub.id}
                   href={`/subscriptions/${sub.slug}`}
-                  className={`group rounded-xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/50 transition-colors ${sub.isUpcoming ? 'edition-glow-amber' : ''}`}
+                  className={`group rounded-xl overflow-hidden bg-navy-900 border border-navy-800 hover:border-brand-700/50 transition-colors ${sub.isUpcoming ? 'edition-glow-amber' : ''}`}
                 >
                   <SubCoverImage coverUrl={cover} name={sub.name} brandColors={company.brandColors} />
                   <div className="p-3">
                     {/* line-clamp + min-h so a long name (2 lines) and a short one (1 line) don't
                         leave cards in the same row at wildly different heights on mobile. */}
-                    <h3 className="font-serif text-sm font-semibold text-stone-100 group-hover:text-brand-400 transition-colors leading-tight mb-1 line-clamp-2 min-h-[2.4em]">
+                    <h3 className="font-serif text-sm font-semibold text-navy-100 group-hover:text-brand-400 transition-colors leading-tight mb-1 line-clamp-2 min-h-[2.4em]">
                       {sub.name}
                     </h3>
                     <div className="flex items-center gap-1 flex-wrap">
@@ -271,8 +271,8 @@ export default async function CompanyPage({ params }: Props) {
           {/* Discontinued — a much smaller secondary line, not full cards, since it's not
               actionable for someone deciding what to follow. */}
           {discontinuedSubscriptions.length > 0 && (
-            <div className="mt-5 pt-4 border-t border-stone-800/60">
-              <p className="text-xs text-stone-500 mb-2">Discontinued</p>
+            <div className="mt-5 pt-4 border-t border-navy-800/60">
+              <p className="text-xs text-navy-500 mb-2">Discontinued</p>
               <div className="flex flex-wrap gap-x-3 gap-y-2">
                 {discontinuedSubscriptions.map((sub) => {
                   const logo = cloudinaryUrl(sub.logoUrl ?? sub.coverImage, 'w_64,h_64,c_fit,q_auto,f_auto')
@@ -280,13 +280,13 @@ export default async function CompanyPage({ params }: Props) {
                     <Link
                       key={sub.id}
                       href={`/subscriptions/${sub.slug}`}
-                      className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-300 transition-colors"
+                      className="flex items-center gap-1.5 text-xs text-navy-500 hover:text-navy-300 transition-colors"
                     >
                       {logo && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={logo} alt="" className="w-4 h-4 rounded object-contain bg-stone-900" />
+                        <img src={logo} alt="" className="w-4 h-4 rounded object-contain bg-navy-900" />
                       )}
-                      <span className="underline decoration-stone-700 underline-offset-2">{sub.name}</span>
+                      <span className="underline decoration-navy-700 underline-offset-2">{sub.name}</span>
                     </Link>
                   )
                 })}

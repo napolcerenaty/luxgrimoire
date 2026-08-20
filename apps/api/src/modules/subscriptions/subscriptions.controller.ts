@@ -88,6 +88,15 @@ export class SubscriptionsController {
     return this.subscriptionsService.getMonthGaps(query.year, query.month);
   }
 
+  /** Global (not per-user) renewal calendar — every subscription's renewal day(s) for a given
+   *  month, for the public /sales-calendar page. Distinct from my/calendar below, which is
+   *  scoped to the logged-in user's own active entries. */
+  @Public()
+  @Get('calendar')
+  getGlobalCalendar(@Query() query: YearMonthQueryDto) {
+    return this.subscriptionsService.getGlobalCalendarRenewals(query.year, query.month);
+  }
+
   /** Public "Books by Month" catalog — works for guests too; personalization (mine/skipped
    *  highlight) only applies when a valid session is present. @Public() would skip the JWT
    *  guard entirely and never populate req.user even for logged-in visitors — @OptionalAuth()

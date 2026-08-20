@@ -53,8 +53,8 @@ interface CollectionEntry {
   }
 }
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
-const LBL = 'block text-sm text-stone-400 mb-1'
+const INP = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
+const LBL = 'block text-sm text-navy-400 mb-1'
 
 function RecordSaleModal({
   open,
@@ -153,21 +153,21 @@ function RecordSaleModal({
               <div>
                 <label className={LBL}>Books *</label>
                 <input className={`${INP} mb-2`} value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter by title…" />
-                <div className="max-h-44 overflow-y-auto border border-stone-700 rounded-lg divide-y divide-stone-800">
-                  {visible.length === 0 && <p className="text-stone-500 text-sm px-3 py-2">No books found</p>}
+                <div className="max-h-44 overflow-y-auto border border-navy-700 rounded-lg divide-y divide-navy-800">
+                  {visible.length === 0 && <p className="text-navy-500 text-sm px-3 py-2">No books found</p>}
                   {visible.map(e => (
                     <button key={e.id} type="button" onClick={() => toggle(e.id)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${selected.includes(e.id) ? 'bg-brand-500/10 text-brand-400' : 'text-stone-300 hover:bg-stone-800'}`}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${selected.includes(e.id) ? 'bg-brand-500/10 text-brand-400' : 'text-navy-300 hover:bg-navy-800'}`}
                     >
-                      <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-stone-600">
+                      <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-navy-600">
                         {selected.includes(e.id) ? '✓' : ''}
                       </span>
                       <span className="flex-1 truncate">{formatEditionDisplayTitle(e.edition.book, e.edition)}</span>
-                      {e.purchaseGroup && <span className="text-stone-500 text-xs shrink-0">{parseFloat(e.purchaseGroup.totalAmount).toFixed(2)} {e.purchaseGroup.currency}</span>}
+                      {e.purchaseGroup && <span className="text-navy-500 text-xs shrink-0">{parseFloat(e.purchaseGroup.totalAmount).toFixed(2)} {e.purchaseGroup.currency}</span>}
                     </button>
                   ))}
                 </div>
-                {count > 0 && <p className="text-xs text-stone-500 mt-1">{count} book{count !== 1 ? 's' : ''} selected</p>}
+                {count > 0 && <p className="text-xs text-navy-500 mt-1">{count} book{count !== 1 ? 's' : ''} selected</p>}
               </div>
               {count > 0 && totalNum > 0 && (
                 <div>
@@ -175,13 +175,13 @@ function RecordSaleModal({
                   <div className="flex gap-2">
                     {(['EQUAL', 'CUSTOM'] as const).map(d => (
                       <button key={d} type="button" onClick={() => setDistribution(d)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${distribution === d ? 'bg-brand-500/10 border-brand-500/30 text-brand-400' : 'border-stone-700 text-stone-400 hover:border-stone-500'}`}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${distribution === d ? 'bg-brand-500/10 border-brand-500/30 text-brand-400' : 'border-navy-700 text-navy-400 hover:border-navy-500'}`}
                       >
                         {d === 'EQUAL' ? 'Equal' : 'Custom per book'}
                       </button>
                     ))}
                   </div>
-                  {distribution === 'EQUAL' && <p className="text-xs text-stone-400 mt-1">{perBook} {currency} per book</p>}
+                  {distribution === 'EQUAL' && <p className="text-xs text-navy-400 mt-1">{perBook} {currency} per book</p>}
                   {distribution === 'CUSTOM' && (
                     <div className="mt-2 flex flex-col gap-2">
                       {selected.map(eid => {
@@ -189,10 +189,10 @@ function RecordSaleModal({
                         if (!entry) return null
                         return (
                           <div key={eid} className="flex items-center gap-2">
-                            <span className="flex-1 text-sm text-stone-300 truncate">{formatEditionDisplayTitle(entry.edition.book, entry.edition)}</span>
-                            <input type="number" step="0.01" min="0" className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-sm text-stone-100"
+                            <span className="flex-1 text-sm text-navy-300 truncate">{formatEditionDisplayTitle(entry.edition.book, entry.edition)}</span>
+                            <input type="number" step="0.01" min="0" className="w-24 bg-navy-800 border border-navy-700 rounded px-2 py-1 text-sm text-navy-100"
                               value={customAmounts[eid] ?? ''} onChange={e => setCustomAmounts(prev => ({ ...prev, [eid]: e.target.value }))} placeholder="0.00" />
-                            <span className="text-xs text-stone-500">{currency}</span>
+                            <span className="text-xs text-navy-500">{currency}</span>
                           </div>
                         )
                       })}
@@ -201,7 +201,7 @@ function RecordSaleModal({
                 </div>
               )}
               {error && <p className="text-red-400 text-sm">{error}</p>}
-              <p className="text-xs text-stone-500 mt-2">
+              <p className="text-xs text-navy-500 mt-2">
                 ℹ️ Anonymous sale data may contribute to community market statistics.
               </p>
             </>}
@@ -332,7 +332,7 @@ function EditSaleModal({
           {/* Books in this sale */}
           {saleGroup && saleGroup.entries.length > 0 && (
             <div className="mb-4">
-              <p className="text-xs text-stone-400 uppercase tracking-wider mb-2">Books in this sale</p>
+              <p className="text-xs text-navy-400 uppercase tracking-wider mb-2">Books in this sale</p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {saleGroup.entries.map(entry => {
                   const ube = entry.userBookEntry as any
@@ -348,16 +348,16 @@ function EditSaleModal({
                     const pl = cost != null && inputNum > 0 ? inputNum - cost : null
                     return (
                       <div key={entry.id} className="flex items-center gap-2">
-                        <span className="text-stone-300 truncate flex-1 text-sm">{bookTitle}</span>
+                        <span className="text-navy-300 truncate flex-1 text-sm">{bookTitle}</span>
                         <div className="shrink-0 flex flex-col items-end gap-0.5">
                           <div className="flex items-center gap-1.5">
                             <input
                               type="number" step="0.01" min="0.01"
                               value={inputVal}
                               onChange={ev => setCustomAmounts(prev => ({ ...prev, [entry.id]: ev.target.value }))}
-                              className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-xs text-brand-400 focus:outline-none focus:border-brand-400"
+                              className="w-24 bg-navy-800 border border-navy-700 rounded px-2 py-1 text-xs text-brand-400 focus:outline-none focus:border-brand-400"
                             />
-                            <span className="text-stone-500 text-xs">{sgCur}</span>
+                            <span className="text-navy-500 text-xs">{sgCur}</span>
                           </div>
                           {pl != null && (
                             <span className={`text-[10px] font-medium ${pl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -377,18 +377,18 @@ function EditSaleModal({
                   const plConverted = pl != null && rate ? `${pl >= 0 ? '+' : ''}${(pl * rate).toFixed(2)} ${userCurrency}` : null
                   return (
                     <div key={entry.id} className="flex items-center justify-between text-sm">
-                      <span className="text-stone-300 truncate flex-1">{bookTitle}</span>
+                      <span className="text-navy-300 truncate flex-1">{bookTitle}</span>
                       <div className="flex flex-col items-end gap-0.5 shrink-0 ml-2">
                         <div className="flex items-center gap-2">
                           <span className="text-brand-400 text-xs">{sold.toFixed(2)} {sgCur}</span>
-                          {soldConverted && <span className="text-stone-500 text-[10px]">{soldConverted}</span>}
+                          {soldConverted && <span className="text-navy-500 text-[10px]">{soldConverted}</span>}
                         </div>
                         {pl != null && (
                           <div className="flex items-center gap-2">
                             <span className={`text-xs font-medium ${pl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {pl >= 0 ? '+' : ''}{pl.toFixed(2)}
                             </span>
-                            {plConverted && <span className="text-stone-500 text-[10px]">{plConverted}</span>}
+                            {plConverted && <span className="text-navy-500 text-[10px]">{plConverted}</span>}
                           </div>
                         )}
                       </div>
@@ -397,7 +397,7 @@ function EditSaleModal({
                 })}
               </div>
               {isCustom && (
-                <div className="mt-2 flex justify-between items-center text-xs text-stone-400 border-t border-stone-800 pt-2">
+                <div className="mt-2 flex justify-between items-center text-xs text-navy-400 border-t border-navy-800 pt-2">
                   <span>Total</span>
                   <span className="text-brand-400 font-medium">{(customSum ?? 0).toFixed(2)} {saleGroup.currency}</span>
                 </div>
@@ -419,7 +419,7 @@ function EditSaleModal({
               submitLabel="Save Changes"
               beforeSubmit={<>
                 {!isCustom && totalChanged && count > 0 && (
-                  <p className="text-xs text-stone-400">
+                  <p className="text-xs text-navy-400">
                     Allocated amounts will be redistributed equally ({newPerBook} {currency} per book)
                   </p>
                 )}
@@ -632,11 +632,11 @@ export default function SoldPage() {
     if (totalPages <= 1) return null
     return (
       <div className="flex items-center justify-center gap-2 mt-6">
-        <button onClick={() => onPage(page - 1)} disabled={page <= 1} className="p-1.5 rounded-lg border border-stone-700 text-stone-400 hover:text-brand-400 hover:border-brand-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+        <button onClick={() => onPage(page - 1)} disabled={page <= 1} className="p-1.5 rounded-lg border border-navy-700 text-navy-400 hover:text-brand-400 hover:border-brand-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
           <ChevronLeft size={16} />
         </button>
-        <span className="text-sm text-stone-400">Page <span className="text-stone-200 font-medium">{page}</span> of <span className="text-stone-200 font-medium">{totalPages}</span></span>
-        <button onClick={() => onPage(page + 1)} disabled={page >= totalPages} className="p-1.5 rounded-lg border border-stone-700 text-stone-400 hover:text-brand-400 hover:border-brand-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+        <span className="text-sm text-navy-400">Page <span className="text-navy-200 font-medium">{page}</span> of <span className="text-navy-200 font-medium">{totalPages}</span></span>
+        <button onClick={() => onPage(page + 1)} disabled={page >= totalPages} className="p-1.5 rounded-lg border border-navy-700 text-navy-400 hover:text-brand-400 hover:border-brand-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
           <ChevronRight size={16} />
         </button>
       </div>
@@ -649,18 +649,18 @@ export default function SoldPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-stone-100">Sold Books</h1>
+          <h1 className="text-3xl font-serif font-bold text-navy-100">Sold Books</h1>
         </div>
         <button
           onClick={() => addSaleModal.open()}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-400 text-stone-950 text-sm font-semibold rounded-xl transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-400 text-navy-950 text-sm font-semibold rounded-xl transition-colors"
         >
           <Plus size={14} /> Record Sale
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-stone-800">
+      <div className="flex gap-1 mb-6 border-b border-navy-800">
         {([
           { id: 'books' as const, label: 'Sold Books', count: booksTotal },
           { id: 'gifted' as const, label: 'Gifted Away', count: giftedTotal },
@@ -672,12 +672,12 @@ export default function SoldPage() {
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
               activeTab === tab.id
                 ? 'border-brand-400 text-brand-400'
-                : 'border-transparent text-stone-500 hover:text-stone-300'
+                : 'border-transparent text-navy-500 hover:text-navy-300'
             }`}
           >
             {tab.label}
             {tab.count > 0 && (
-              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-brand-400/20 text-brand-400' : 'bg-stone-800 text-stone-500'}`}>
+              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-brand-400/20 text-brand-400' : 'bg-navy-800 text-navy-500'}`}>
                 {tab.count}
               </span>
             )}
@@ -689,9 +689,9 @@ export default function SoldPage() {
       {activeTab === 'books' && (
         <section>
           {booksQuery.isLoading ? (
-            <div className="flex items-center justify-center py-20 text-stone-400 animate-pulse">Loading…</div>
+            <div className="flex items-center justify-center py-20 text-navy-400 animate-pulse">Loading…</div>
           ) : booksTotal === 0 && !bookFilter && companyFilter === 'ALL' && tagFilter === 'ALL' ? (
-            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+            <div className="flex flex-col items-center justify-center py-20 text-navy-500">
               <ShoppingBag size={48} className="mb-4 opacity-30" />
               <p className="font-serif text-lg">No sold books yet</p>
               <p className="text-sm mt-1">Books you record as sold will appear here</p>
@@ -705,13 +705,13 @@ export default function SoldPage() {
                   value={bookFilterInput}
                   onChange={e => setBookFilterInput(e.target.value)}
                   placeholder="Search by title…"
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors min-w-[160px]"
+                  className="bg-navy-800 border border-navy-700 text-navy-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors min-w-[160px]"
                 />
                 {companiesData.length > 0 && (
                   <select
                     value={companyFilter}
                     onChange={e => setCompanyFilter(e.target.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                    className={`px-3 py-1.5 rounded-lg text-sm border bg-navy-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500'}`}
                   >
                     <option value="ALL">Box: Any</option>
                     {companiesData.map(c => <option key={c} value={c}>{c}</option>)}
@@ -721,20 +721,20 @@ export default function SoldPage() {
                   <select
                     value={tagFilter}
                     onChange={e => setTagFilter(e.target.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                    className={`px-3 py-1.5 rounded-lg text-sm border bg-navy-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500'}`}
                   >
                     <option value="ALL">Tag: Any</option>
                     {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 )}
-                <div className="ml-auto flex items-center gap-1 bg-stone-800 rounded-lg p-1">
-                  <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded transition-colors ${viewMode === 'grid' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`} title="Grid view"><LayoutGrid size={15} /></button>
-                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-stone-700 text-brand-400' : 'text-stone-500 hover:text-stone-300'}`} title="List view"><List size={15} /></button>
+                <div className="ml-auto flex items-center gap-1 bg-navy-800 rounded-lg p-1">
+                  <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded transition-colors ${viewMode === 'grid' ? 'bg-navy-700 text-brand-400' : 'text-navy-500 hover:text-navy-300'}`} title="Grid view"><LayoutGrid size={15} /></button>
+                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-navy-700 text-brand-400' : 'text-navy-500 hover:text-navy-300'}`} title="List view"><List size={15} /></button>
                 </div>
               </div>
 
               {soldBooks.length === 0 ? (
-                <p className="text-stone-500 text-sm py-8 text-center">No books match these filters.</p>
+                <p className="text-navy-500 text-sm py-8 text-center">No books match these filters.</p>
               ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {soldBooks.map(entry => (
@@ -772,22 +772,22 @@ export default function SoldPage() {
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col divide-y divide-stone-800/60 border border-stone-800 rounded-xl overflow-hidden">
+                <div className="flex flex-col divide-y divide-navy-800/60 border border-navy-800 rounded-xl overflow-hidden">
                   {soldBooks.map(entry => {
                     const cover = cloudinaryUrl(entry.edition.additionalImages[0] ?? entry.edition.communityPhotoCover ?? null, 'w_80,h_120,c_fill,q_auto,f_auto')
                     const sigIcon = entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : entry.signatureType === 'digitally_signed' ? '🖨️' : entry.signatureType === 'stamped' ? '🕹️' : null
                     const displayTitle = formatEditionDisplayTitle(entry.edition.book, entry.edition)
                     return (
-                      <a key={entry.id} href={`/editions/${entry.edition.slug}?entry=${entry.id}`} className="group flex items-center gap-3 px-3 py-2.5 bg-stone-900 hover:bg-stone-800/80 transition-colors first:rounded-t-xl last:rounded-b-xl">
+                      <a key={entry.id} href={`/editions/${entry.edition.slug}?entry=${entry.id}`} className="group flex items-center gap-3 px-3 py-2.5 bg-navy-900 hover:bg-navy-800/80 transition-colors first:rounded-t-xl last:rounded-b-xl">
                         <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden">
                           {cover ? <img src={cover} alt={displayTitle} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}><BookOpen size={14} /></div>}
+                            : <div className="w-full h-full flex items-center justify-center text-navy-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}><BookOpen size={14} /></div>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-stone-100 group-hover:text-brand-400 transition-colors truncate">{displayTitle}</p>
-                          <p className="text-xs text-stone-400 truncate">{(entry.edition.book.authors as any[]).map(a => (a.author ?? a).name).join(', ')}</p>
+                          <p className="text-sm font-medium text-navy-100 group-hover:text-brand-400 transition-colors truncate">{displayTitle}</p>
+                          <p className="text-xs text-navy-400 truncate">{(entry.edition.book.authors as any[]).map(a => (a.author ?? a).name).join(', ')}</p>
                           {(entry.edition.book.seriesName || entry.edition.bookBoxCompany) && (
-                            <p className="text-[10px] text-stone-500 truncate">
+                            <p className="text-[10px] text-navy-500 truncate">
                               {entry.edition.book.seriesName && <span>{entry.edition.book.seriesName}{entry.edition.book.volumeNumbers?.length ? ` #${formatVolumeNumbers(entry.edition.book.volumeNumbers)}` : ''}</span>}
                               {entry.edition.book.seriesName && entry.edition.bookBoxCompany && <span className="mx-1">·</span>}
                               {entry.edition.bookBoxCompany && <span>{entry.edition.bookBoxCompany.name}</span>}
@@ -809,7 +809,7 @@ export default function SoldPage() {
                           {entry.salePrice && entry.saleCurrency && (
                             <p className="text-xs text-brand-400 font-medium">{parseFloat(entry.salePrice).toFixed(2)} {entry.saleCurrency}</p>
                           )}
-                          {entry.saleDate && <p className="text-[10px] text-stone-600">{new Date(entry.saleDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>}
+                          {entry.saleDate && <p className="text-[10px] text-navy-600">{new Date(entry.saleDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>}
                         </div>
                       </a>
                     )
@@ -826,9 +826,9 @@ export default function SoldPage() {
       {activeTab === 'gifted' && (
         <section>
           {giftedQuery.isLoading ? (
-            <div className="flex items-center justify-center py-20 text-stone-400 animate-pulse">Loading…</div>
+            <div className="flex items-center justify-center py-20 text-navy-400 animate-pulse">Loading…</div>
           ) : giftedTotal === 0 && !giftedFilter ? (
-            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+            <div className="flex flex-col items-center justify-center py-20 text-navy-500">
               <BookOpen size={48} className="mb-4 opacity-30" />
               <p className="font-serif text-lg">No gifted away books yet</p>
               <p className="text-sm mt-1">Books you mark as gifted away will appear here</p>
@@ -841,11 +841,11 @@ export default function SoldPage() {
                   value={giftedFilterInput}
                   onChange={e => setGiftedFilterInput(e.target.value)}
                   placeholder="Search by title…"
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors min-w-[160px]"
+                  className="bg-navy-800 border border-navy-700 text-navy-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors min-w-[160px]"
                 />
               </div>
               {giftedBooks.length === 0 ? (
-                <p className="text-stone-500 text-sm py-8 text-center">No books match these filters.</p>
+                <p className="text-navy-500 text-sm py-8 text-center">No books match these filters.</p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {giftedBooks.map(entry => (
@@ -881,9 +881,9 @@ export default function SoldPage() {
       {activeTab === 'records' && (
         <section>
           {recordsQuery.isLoading ? (
-            <div className="flex items-center justify-center py-20 text-stone-400 animate-pulse">Loading…</div>
+            <div className="flex items-center justify-center py-20 text-navy-400 animate-pulse">Loading…</div>
           ) : recordsTotal === 0 && !recordsSearch ? (
-            <div className="flex flex-col items-center justify-center py-12 text-stone-500">
+            <div className="flex flex-col items-center justify-center py-12 text-navy-500">
               <ShoppingBag size={36} className="mb-3 opacity-30" />
               <p className="text-sm">No recorded sales yet</p>
             </div>
@@ -896,39 +896,39 @@ export default function SoldPage() {
                   value={recordsSearchInput}
                   onChange={e => setRecordsSearchInput(e.target.value)}
                   placeholder="Search by sale title or book title…"
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors w-full max-w-sm"
+                  className="bg-navy-800 border border-navy-700 text-navy-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors w-full max-w-sm"
                 />
               </div>
               {recordsTotal === 0 ? (
-                <p className="text-stone-500 text-sm py-8 text-center">No sales match your search.</p>
+                <p className="text-navy-500 text-sm py-8 text-center">No sales match your search.</p>
               ) : (
                 <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {saleGroups.map(sg => (
-                  <div key={sg.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 hover:border-stone-700 transition-colors">
+                  <div key={sg.id} className="bg-navy-900 border border-navy-800 rounded-2xl p-4 hover:border-navy-700 transition-colors">
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <p className="text-stone-200 font-medium">
+                        <p className="text-navy-200 font-medium">
                           {sg.title ?? new Date(sg.soldAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                         </p>
                         {sg.platform && (
-                          <span className="text-xs text-stone-400 bg-stone-800 px-2 py-0.5 rounded-full mt-1 inline-block">{sg.platform}</span>
+                          <span className="text-xs text-navy-400 bg-navy-800 px-2 py-0.5 rounded-full mt-1 inline-block">{sg.platform}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => setEditingSale(sg)} className="ml-1 p-1 text-stone-500 hover:text-brand-400 transition-colors" title="Edit sale"><Pencil size={14} /></button>
-                        <button onClick={() => deleteSaleMut.mutate(sg.id)} className="p-1 text-stone-500 hover:text-red-400 transition-colors" title="Delete sale"><Trash2 size={14} /></button>
+                        <button onClick={() => setEditingSale(sg)} className="ml-1 p-1 text-navy-500 hover:text-brand-400 transition-colors" title="Edit sale"><Pencil size={14} /></button>
+                        <button onClick={() => deleteSaleMut.mutate(sg.id)} className="p-1 text-navy-500 hover:text-red-400 transition-colors" title="Delete sale"><Trash2 size={14} /></button>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 mt-3">
                       <div>
-                        <p className="text-xs text-stone-500">Sold for</p>
+                        <p className="text-xs text-navy-500">Sold for</p>
                         <p className="text-lg font-bold text-brand-400">{sg.totalAmount} {sg.currency}</p>
-                        {(() => { const c = converted(sg.totalAmount, sg.currency, sg.soldAt); return c ? <p className="text-xs text-stone-500">{c}</p> : null })()}
+                        {(() => { const c = converted(sg.totalAmount, sg.currency, sg.soldAt); return c ? <p className="text-xs text-navy-500">{c}</p> : null })()}
                       </div>
                       {sg.profitLoss != null && (
                         <div>
-                          <p className="text-xs text-stone-500">P&amp;L</p>
+                          <p className="text-xs text-navy-500">P&amp;L</p>
                           <p className={`text-sm font-semibold ${sg.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                             {sg.profitLoss >= 0 ? '+' : ''}{sg.profitLoss.toFixed(2)} {sg.currency}
                           </p>
@@ -936,16 +936,16 @@ export default function SoldPage() {
                         </div>
                       )}
                     </div>
-                    {sg.soldAt && <p className="text-xs text-stone-500 mt-2">{new Date(sg.soldAt).toLocaleDateString()}</p>}
+                    {sg.soldAt && <p className="text-xs text-navy-500 mt-2">{new Date(sg.soldAt).toLocaleDateString()}</p>}
                     {/* Book titles */}
                     {sg.entries && sg.entries.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-stone-800 space-y-1">
+                      <div className="mt-3 pt-3 border-t border-navy-800 space-y-1">
                         {sg.entries.map(e => {
                           const ube = e.userBookEntry as any
                           const title = ube?.edition ? (formatEditionDisplayTitle(ube.edition.book, ube.edition) || '—') : '—'
                           return (
                             <div key={e.id} className="flex items-center justify-between gap-2">
-                              <span className="text-xs text-stone-400 truncate">{title}</span>
+                              <span className="text-xs text-navy-400 truncate">{title}</span>
                               {sg.entries.length > 1 && (
                                 <span className="text-xs text-brand-400 shrink-0">{Number(e.allocatedAmount).toFixed(2)} {sg.currency}</span>
                               )}

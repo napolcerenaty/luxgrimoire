@@ -180,9 +180,9 @@ export default function AdminBooksPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-stone-100">Books</h1>
+        <h1 className="text-2xl font-bold text-navy-100">Books</h1>
         <button onClick={() => createModal.open()}
-          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors">
+          className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors">
           Add Book
         </button>
       </div>
@@ -194,16 +194,16 @@ export default function AdminBooksPage() {
           placeholder="Search by title or author…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 w-72"
+          className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 w-72"
         />
         <input
           type="text"
           placeholder="Filter by series…"
           value={seriesFilter}
           onChange={(e) => setSeriesFilter(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 w-48"
+          className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 w-48"
         />
-        <label className="flex items-center gap-2 px-3 py-2 text-sm text-stone-300 whitespace-nowrap">
+        <label className="flex items-center gap-2 px-3 py-2 text-sm text-navy-300 whitespace-nowrap">
           <input type="checkbox" checked={omnibusOnly} onChange={e => setOmnibusOnly(e.target.checked)}
             className="accent-brand-400" />
           Omnibuses only
@@ -211,7 +211,7 @@ export default function AdminBooksPage() {
         {(search || seriesFilter || omnibusOnly) && (
           <button
             onClick={() => { setSearch(''); setSeriesFilter(''); setOmnibusOnly(false) }}
-            className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2"
+            className="text-navy-400 hover:text-navy-200 text-sm px-3 py-2"
           >
             Clear
           </button>
@@ -219,9 +219,9 @@ export default function AdminBooksPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-navy-400 py-8 text-center">Loading…</div>
       ) : books.length === 0 ? (
-        <div className="text-stone-500 py-8 text-center">No books found{search || seriesFilter ? ' matching your filters' : ''}.</div>
+        <div className="text-navy-500 py-8 text-center">No books found{search || seriesFilter ? ' matching your filters' : ''}.</div>
       ) : (
         <>
           <DataTable columns={columns} data={books}
@@ -241,7 +241,7 @@ export default function AdminBooksPage() {
 
       <FormModal open={editBookSlug !== null} title="Edit Book" onClose={() => setEditBookSlug(null)}>
         {editBookLoading && (
-          <div className="text-stone-400 py-8 text-center">Loading…</div>
+          <div className="text-navy-400 py-8 text-center">Loading…</div>
         )}
         {editBookData && (
           <BookForm initial={rawBookToForm(editBookData)} submitLabel="Save Changes"

@@ -50,28 +50,28 @@ export function EditionCommunityStats({ editionSlug, fallbackCurrency }: Edition
   }, [open, loaded, editionSlug, currency]);
 
   return (
-    <div className="rounded-lg border border-stone-700 bg-stone-900/50 overflow-hidden">
+    <div className="rounded-lg border border-navy-700 bg-navy-900/50 overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-stone-800/40 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-navy-800/40 transition-colors"
       >
-        <span className="text-sm font-semibold text-stone-300 uppercase tracking-wide">Community Data</span>
-        {open ? <ChevronUp size={14} className="text-stone-500" /> : <ChevronDown size={14} className="text-stone-500" />}
+        <span className="text-sm font-semibold text-navy-300 uppercase tracking-wide">Community Data</span>
+        {open ? <ChevronUp size={14} className="text-navy-500" /> : <ChevronDown size={14} className="text-navy-500" />}
       </button>
 
       {open && (
-        <div className="px-4 pb-4 space-y-4 border-t border-stone-800">
+        <div className="px-4 pb-4 space-y-4 border-t border-navy-800">
           {!loaded ? (
-            <div className="h-8 animate-pulse bg-stone-800 rounded mt-4" />
+            <div className="h-8 animate-pulse bg-navy-800 rounded mt-4" />
           ) : (
             <>
               {/* Collection count */}
               {collectionCount !== null && (
-                <div className="flex items-center gap-2 text-sm text-stone-400 mt-3">
+                <div className="flex items-center gap-2 text-sm text-navy-400 mt-3">
                   <span className="text-lg">📚</span>
                   <span>
-                    <span className="text-stone-100 font-medium">{collectionCount.toLocaleString()}</span>
+                    <span className="text-navy-100 font-medium">{collectionCount.toLocaleString()}</span>
                     {' '}users have this edition in their collection
                   </span>
                 </div>
@@ -80,39 +80,39 @@ export function EditionCommunityStats({ editionSlug, fallbackCurrency }: Edition
               {/* Sale price stats */}
               {saleStats && saleStats.count > 0 ? (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-stone-400">
+                  <div className="flex items-center gap-2 text-sm text-navy-400">
                     <span className="text-lg">💰</span>
-                    <span className="text-stone-300 font-medium">Resale Price Data</span>
-                    <span className="text-xs text-stone-500">({saleStats.count} reports)</span>
+                    <span className="text-navy-300 font-medium">Resale Price Data</span>
+                    <span className="text-xs text-navy-500">({saleStats.count} reports)</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="bg-stone-800 rounded p-2 text-center">
-                      <div className="text-stone-400 text-xs">Average</div>
-                      <div className="text-stone-100 font-medium">{formatMoney(saleStats.avg, saleStats.currency)}</div>
+                    <div className="bg-navy-800 rounded p-2 text-center">
+                      <div className="text-navy-400 text-xs">Average</div>
+                      <div className="text-navy-100 font-medium">{formatMoney(saleStats.avg, saleStats.currency)}</div>
                     </div>
-                    <div className="bg-stone-800 rounded p-2 text-center">
-                      <div className="text-stone-400 text-xs">Median</div>
-                      <div className="text-stone-100 font-medium">{formatMoney(saleStats.median, saleStats.currency)}</div>
+                    <div className="bg-navy-800 rounded p-2 text-center">
+                      <div className="text-navy-400 text-xs">Median</div>
+                      <div className="text-navy-100 font-medium">{formatMoney(saleStats.median, saleStats.currency)}</div>
                     </div>
-                    <div className="bg-stone-800 rounded p-2 text-center">
-                      <div className="text-stone-400 text-xs">Min</div>
-                      <div className="text-stone-100 font-medium">{formatMoney(saleStats.min, saleStats.currency)}</div>
+                    <div className="bg-navy-800 rounded p-2 text-center">
+                      <div className="text-navy-400 text-xs">Min</div>
+                      <div className="text-navy-100 font-medium">{formatMoney(saleStats.min, saleStats.currency)}</div>
                     </div>
-                    <div className="bg-stone-800 rounded p-2 text-center">
-                      <div className="text-stone-400 text-xs">Max</div>
-                      <div className="text-stone-100 font-medium">{formatMoney(saleStats.max, saleStats.currency)}</div>
+                    <div className="bg-navy-800 rounded p-2 text-center">
+                      <div className="text-navy-400 text-xs">Max</div>
+                      <div className="text-navy-100 font-medium">{formatMoney(saleStats.max, saleStats.currency)}</div>
                     </div>
                   </div>
-                  <p className="text-xs text-stone-500 italic">
+                  <p className="text-xs text-navy-500 italic">
                     Based on anonymized, user-contributed resale data. Values in {saleStats.currency}.
                   </p>
                 </div>
               ) : (collectionCount !== null && collectionCount > 0) ? (
-                <p className="text-xs text-stone-500 italic mt-1">
+                <p className="text-xs text-navy-500 italic mt-1">
                   No resale price data available for this edition yet.
                 </p>
               ) : (
-                <p className="text-xs text-stone-500 mt-1">No community data yet for this edition.</p>
+                <p className="text-xs text-navy-500 mt-1">No community data yet for this edition.</p>
               )}
             </>
           )}

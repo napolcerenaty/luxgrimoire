@@ -35,7 +35,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
       <div className="flex flex-col gap-3 w-full">
         {/* Main image */}
         <div
-          className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 ring-1 ring-stone-700/50 shadow-2xl cursor-zoom-in group"
+          className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-gradient-to-br from-navy-700 via-navy-800 to-navy-900 ring-1 ring-navy-700/50 shadow-2xl cursor-zoom-in group"
           onClick={() => setLightbox(true)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -46,7 +46,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
           />
 
           {/* Zoom hint */}
-          <div className="absolute top-2 right-2 p-1.5 rounded-full bg-stone-950/60 text-stone-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <div className="absolute top-2 right-2 p-1.5 rounded-full bg-navy-950/60 text-navy-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
             <ZoomIn size={14} />
           </div>
 
@@ -54,20 +54,20 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); prev() }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-stone-950/70 text-stone-300 hover:bg-stone-950 hover:text-brand-400 transition-all"
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-navy-950/70 text-navy-300 hover:bg-navy-950 hover:text-brand-400 transition-all"
                 aria-label="Previous"
               >
                 <ChevronLeft size={18} />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); next() }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-stone-950/70 text-stone-300 hover:bg-stone-950 hover:text-brand-400 transition-all"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-navy-950/70 text-navy-300 hover:bg-navy-950 hover:text-brand-400 transition-all"
                 aria-label="Next"
               >
                 <ChevronRight size={18} />
               </button>
 
-              <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-stone-950/70 text-stone-400 text-xs pointer-events-none">
+              <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-navy-950/70 text-navy-400 text-xs pointer-events-none">
                 {current + 1} / {total}
               </div>
             </>
@@ -87,7 +87,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
                 className={`w-14 h-20 rounded-lg object-cover shrink-0 cursor-pointer transition-all ${
                   i === current
                     ? 'ring-2 ring-brand-500 opacity-100'
-                    : 'ring-1 ring-stone-700 opacity-50 hover:opacity-80'
+                    : 'ring-1 ring-navy-700 opacity-50 hover:opacity-80'
                 }`}
               />
             ))}
@@ -98,12 +98,12 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
       {/* ── Lightbox ── */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-50 bg-stone-950/95 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-navy-950/95 flex items-center justify-center p-4"
           onClick={() => setLightbox(false)}
         >
           {/* Close button */}
           <button
-            className="absolute top-4 right-4 p-2 rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition-all z-10"
+            className="absolute top-4 right-4 p-2 rounded-full bg-navy-800 text-navy-300 hover:text-white hover:bg-navy-700 transition-all z-10"
             onClick={() => setLightbox(false)}
             aria-label="Close"
           >
@@ -112,7 +112,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
 
           {/* Counter */}
           {total > 1 && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-stone-800/80 text-stone-400 text-sm">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-navy-800/80 text-navy-400 text-sm">
               {current + 1} / {total}
             </div>
           )}
@@ -133,14 +133,14 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
             {total > 1 && (
               <>
                 <button
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-950/70 text-stone-300 hover:text-brand-400 hover:bg-stone-950 transition-all"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-navy-950/70 text-navy-300 hover:text-brand-400 hover:bg-navy-950 transition-all"
                   onClick={(e) => { e.stopPropagation(); prev() }}
                   aria-label="Previous"
                 >
                   <ChevronLeft size={24} />
                 </button>
                 <button
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-950/70 text-stone-300 hover:text-brand-400 hover:bg-stone-950 transition-all"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-navy-950/70 text-navy-300 hover:text-brand-400 hover:bg-navy-950 transition-all"
                   onClick={(e) => { e.stopPropagation(); next() }}
                   aria-label="Next"
                 >

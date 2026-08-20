@@ -28,7 +28,7 @@ export default function OAuthCallbackPage() {
 
   return (
     <div className="text-center">
-      <p className="text-stone-400 text-sm animate-pulse">Signing you in…</p>
+      <p className="text-navy-400 text-sm animate-pulse">Signing you in…</p>
     </div>
   )
 }

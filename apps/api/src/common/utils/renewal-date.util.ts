@@ -17,7 +17,7 @@ function shiftMonth(year: number, month: number, offset: number): [number, numbe
   return [y, m];
 }
 
-function getRenewalAlignmentBaseMonth(startingMonth: number, renewalMonthOffset: number): number {
+export function getRenewalAlignmentBaseMonth(startingMonth: number, renewalMonthOffset: number): number {
   // startingMonth is always the box (content) month; renewal month = box month - offset,
   // for both positive and negative offsets (see renewalMonthFromBoxMonth).
   const adjustedStartingMonth = startingMonth - renewalMonthOffset;
@@ -606,6 +606,58 @@ export async function getSubscriptionMonthSkips(
     where: { subscriptionId, undoneAt: null },
     select: { year: true, month: true },
   });
+}
+
+/**
+ * Global (not per-user) renewal day for a subscription in calendar month (year, month0),
+ * or null if no renewal fires. Mirrors the private calendar's renewalDayInMonth (see
+ * apps/web/src/app/(private)/calendar/page.tsx) minus the per-user startDate/skipRecords
+ * checks, which have no meaning outside a specific user's UserSubscriptionEntry — only
+ * the subscription's own default renewalDay and company-wide SubscriptionMonthSkip apply.
+ *
+ * @param month0 - 0-indexed month (JavaScript Date convention), matching the frontend twin.
+ */
+export function computeGlobalRenewalDay(
+  sub: {
+    renewalDay: number | null;
+    startDate: Date | null;
+    startingMonth: number | null;
+    intervalMonths: number;
+    renewalMonthOffset: number;
+  },
+  year: number,
+  month0: number,
+  monthSkips: { year: number; month: number }[],
+): number | null {
+  const renewalDay = sub.renewalDay;
+  if (!renewalDay) return null;
+
+  // Don't show renewals before the subscription's own start date (e.g. future subscriptions)
+  if (sub.startDate) {
+    const startYear = sub.startDate.getUTCFullYear();
+    const startMonth0 = sub.startDate.getUTCMonth();
+    if (year < startYear || (year === startYear && month0 < startMonth0)) return null;
+  }
+
+  const offset = sub.renewalMonthOffset ?? 0;
+  const interval = sub.intervalMonths ?? 1;
+  if (interval > 1) {
+    const alignBase = getRenewalAlignmentBaseMonth(sub.startingMonth ?? 1, offset);
+    const startMonthIdx = (alignBase - 1) % interval;
+    if (((month0 - startMonthIdx) % interval + interval) % interval !== 0) return null;
+  }
+
+  // A renewal in calendar month (year, month0) pays for box month = renewal month + offset.
+  // If that box month is company-wide skipped, no renewal fires for this calendar month.
+  if (offset !== 0 || monthSkips.length > 0) {
+    const rawBox = month0 + 1 + offset; // 1-indexed, may exceed 12
+    const boxYear = year + Math.floor((rawBox - 1) / 12);
+    const boxMonth = ((rawBox - 1) % 12) + 1;
+    const isSkipped = monthSkips.some((s) => s.year === boxYear && s.month === boxMonth);
+    if (isSkipped) return null;
+  }
+
+  return renewalDay;
 }
 
 /**

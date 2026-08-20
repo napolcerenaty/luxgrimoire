@@ -14,16 +14,16 @@ export function OAuthButtons({ returnTo }: Props) {
   return (
     <div className="space-y-2">
       <div className="relative flex items-center py-1">
-        <div className="flex-grow border-t border-stone-700" />
-        <span className="mx-3 text-xs text-stone-500 flex-shrink">or continue with</span>
-        <div className="flex-grow border-t border-stone-700" />
+        <div className="flex-grow border-t border-navy-700" />
+        <span className="mx-3 text-xs text-navy-500 flex-shrink">or continue with</span>
+        <div className="flex-grow border-t border-navy-700" />
       </div>
 
       <div>
         <a
           href={`${OAUTH_BASE}/api/auth/google`}
           onClick={handleOAuth}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-stone-700 bg-stone-900 hover:bg-stone-800 px-3 py-2.5 text-xs font-medium text-stone-300 transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-navy-700 bg-navy-900 hover:bg-navy-800 px-3 py-2.5 text-xs font-medium text-navy-300 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

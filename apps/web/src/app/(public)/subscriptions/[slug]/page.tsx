@@ -219,21 +219,21 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
       {from === 'subscriptions' ? (
         <Link
           href="/subscriptions"
-          className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-brand-400 transition-colors w-fit"
+          className="flex items-center gap-2 mb-6 text-sm text-navy-400 hover:text-brand-400 transition-colors w-fit"
         >
           <span>← Subscriptions</span>
         </Link>
       ) : from === 'my-subscriptions' ? (
         <Link
           href="/my-subscriptions"
-          className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-brand-400 transition-colors w-fit"
+          className="flex items-center gap-2 mb-6 text-sm text-navy-400 hover:text-brand-400 transition-colors w-fit"
         >
           <span>← My Subscriptions</span>
         </Link>
       ) : sub.company?.slug && (
         <Link
           href={`/companies/${sub.company.slug}`}
-          className="flex items-center gap-2 mb-6 text-sm text-stone-400 hover:text-brand-400 transition-colors w-fit"
+          className="flex items-center gap-2 mb-6 text-sm text-navy-400 hover:text-brand-400 transition-colors w-fit"
         >
           {cloudinaryUrl(sub.company.logoUrl, 'w_40,h_40,c_fill,q_auto,f_auto') && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -256,12 +256,12 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
               {sub.isDiscontinued ? 'DISCONTINUED' : sub.isUpcoming ? '🔔 UPCOMING' : 'ACTIVE'}
             </Badge>
             {sub.startDate && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-stone-600 text-stone-400">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-navy-600 text-navy-400">
                 Since {sub.startDate.slice(0, 7)}
               </span>
             )}
             {sub.endDate && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-stone-600 text-stone-500">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-navy-600 text-navy-500">
                 Ended {sub.endDate.slice(0, 7)}
               </span>
             )}
@@ -270,11 +270,11 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
             )}
           </div>
 
-          <h1 className="text-4xl font-serif font-bold text-stone-100 mb-4 leading-tight">
+          <h1 className="text-4xl font-serif font-bold text-navy-100 mb-4 leading-tight">
             {sub.company?.slug && (
               <Link
                 href={`/companies/${sub.company.slug}`}
-                className="block text-sm font-sans font-normal text-stone-400 hover:text-brand-400 transition-colors mb-1"
+                className="block text-sm font-sans font-normal text-navy-400 hover:text-brand-400 transition-colors mb-1"
               >
                 {sub.company.name}
               </Link>
@@ -283,7 +283,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
           </h1>
 
           {sub.description && (
-            <p className="text-stone-300 leading-relaxed whitespace-pre-line">{sub.description}</p>
+            <p className="text-navy-300 leading-relaxed whitespace-pre-line">{sub.description}</p>
           )}
 
           {/* Subscriber count */}
@@ -361,7 +361,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
                     .filter((f) => f.currentMonth || f.currentSkip)
                     .map(({ component, currentMonth: cur, currentSkip: curSkip }) => (
                       <div key={component.id} className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">{component.name}</p>
+                        <p className="text-xs font-semibold uppercase tracking-widest text-navy-400">{component.name}</p>
                         {curSkip ? (
                           <FeaturedMonthCard compact label="Current Month" labelVariant="current" monthData={{ year: curSkip.year, month: curSkip.month }} accentColors={brandColors} skipped={curSkip} />
                         ) : (
@@ -374,13 +374,13 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
             )}
             {comboFeatured.some((f) => f.upcomingMonth || f.upcomingSkip) && (
               <div>
-                <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4">Upcoming Theme</h3>
+                <h3 className="text-sm font-semibold uppercase tracking-widest text-navy-400 mb-4">Upcoming Theme</h3>
                 <div className={`grid gap-4 ${comboFeatured.filter((f) => f.upcomingMonth || f.upcomingSkip).length === 1 ? 'grid-cols-1 max-w-xs' : `grid-cols-1 sm:grid-cols-${Math.min(comboFeatured.filter((f) => f.upcomingMonth || f.upcomingSkip).length, 3)} ${comboFeatured.filter((f) => f.upcomingMonth || f.upcomingSkip).length === 2 ? 'max-w-2xl' : 'max-w-4xl'}`}`}>
                   {comboFeatured
                     .filter((f) => f.upcomingMonth || f.upcomingSkip)
                     .map(({ component, upcomingMonth: upc, upcomingSkip: upcSkip }) => (
                       <div key={component.id} className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">{component.name}</p>
+                        <p className="text-xs font-semibold uppercase tracking-widest text-navy-400">{component.name}</p>
                         {upcSkip ? (
                           <FeaturedMonthCard compact label="Upcoming Theme" labelVariant="upcoming" monthData={{ year: upcSkip.year, month: upcSkip.month }} accentColors={brandColors} skipped={upcSkip} />
                         ) : (
@@ -418,7 +418,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
             )}
             {upcomingBundleMonths.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-400 mb-4">
+                <h3 className="text-sm font-semibold uppercase tracking-widest text-navy-400 mb-4">
                   Upcoming Bundle — {MONTH_NAMES[nextBundleStartMonth - 1]} {nextBundleStartYear}
                 </h3>
                 <div className={`grid gap-6 grid-cols-1 sm:grid-cols-${Math.min(upcomingBundleMonths.length, 3)} ${upcomingBundleMonths.length === 1 ? 'max-w-xs' : upcomingBundleMonths.length === 2 ? 'max-w-2xl' : 'max-w-4xl'}`}>
@@ -526,12 +526,12 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
 
   if (skipped) {
     return (
-      <div className="rounded-2xl overflow-hidden bg-stone-900 border border-brand-800/40">
+      <div className="rounded-2xl overflow-hidden bg-navy-900 border border-brand-800/40">
         <div className={`relative flex flex-col items-center justify-center gap-2 bg-brand-950/20 ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
           <div className="absolute top-3 left-3">
             <span
               className={`text-xs font-semibold font-serif uppercase tracking-wider px-3 py-1 rounded-full ${
-                labelVariant === 'current' ? 'bg-brand-500 text-stone-950' : 'bg-stone-700 text-brand-400 border border-brand-700/50'
+                labelVariant === 'current' ? 'bg-brand-500 text-navy-950' : 'bg-navy-700 text-brand-400 border border-brand-700/50'
               }`}
             >
               {label}
@@ -541,7 +541,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
           <span className="text-brand-400 font-serif text-sm uppercase tracking-widest">Skipped</span>
         </div>
         <div className={compact ? 'p-3' : 'p-5'}>
-          <p className={`text-stone-100 font-serif font-bold mb-1 ${compact ? 'text-sm' : 'text-lg'}`}>
+          <p className={`text-navy-100 font-serif font-bold mb-1 ${compact ? 'text-sm' : 'text-lg'}`}>
             {monthName} {monthData.year}
           </p>
           <p className={`text-brand-500/90 italic ${compact ? 'text-xs' : 'text-sm'}`}>
@@ -561,7 +561,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
   )
 
   const imageArea = (
-    <div className={`group relative overflow-hidden bg-stone-950 cursor-pointer ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
+    <div className={`group relative overflow-hidden bg-navy-950 cursor-pointer ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
       {coverUrl ? (
         <>
           {/* Blurred background fill — eliminates hard letterboxing */}
@@ -629,13 +629,13 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
       )}
 
       {/* Hover overlay with title */}
-      <div className="absolute inset-0 z-30 flex items-center justify-center bg-stone-950/65 px-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+      <div className="absolute inset-0 z-30 flex items-center justify-center bg-navy-950/65 px-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
         {mainBook?.edition ? (
-          <p className="text-stone-100 text-sm font-serif font-semibold text-center leading-snug line-clamp-4">
+          <p className="text-navy-100 text-sm font-serif font-semibold text-center leading-snug line-clamp-4">
             {mainBook.book.title}
           </p>
         ) : (
-          <p className="text-stone-400 text-xs text-center italic">Book details coming soon</p>
+          <p className="text-navy-400 text-xs text-center italic">Book details coming soon</p>
         )}
       </div>
 
@@ -644,8 +644,8 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
         <span
           className={`text-xs font-semibold font-serif uppercase tracking-wider px-3 py-1 rounded-full ${
             labelVariant === 'current'
-              ? 'bg-brand-500 text-stone-950'
-              : 'bg-stone-700 text-brand-400 border border-brand-700/50'
+              ? 'bg-brand-500 text-navy-950'
+              : 'bg-navy-700 text-brand-400 border border-brand-700/50'
           }`}
         >
           {label}
@@ -655,7 +655,7 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
   )
 
   return (
-    <div className="rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/50 transition-colors">
+    <div className="rounded-2xl overflow-hidden bg-navy-900 border border-navy-800 hover:border-brand-700/50 transition-colors">
       {mainBook ? (
         <Link href={mainBook.edition?.slug ? `/editions/${mainBook.edition.slug}` : `/books/${mainBook.book.slug}`}>{imageArea}</Link>
       ) : (
@@ -663,20 +663,20 @@ function FeaturedMonthCard({ label, labelVariant, monthData, accentColors, compa
       )}
 
       <div className={compact ? 'p-3' : 'p-5'}>
-        <p className={`text-stone-100 font-serif font-bold mb-1 ${compact ? 'text-sm' : 'text-lg'}`}>
+        <p className={`text-navy-100 font-serif font-bold mb-1 ${compact ? 'text-sm' : 'text-lg'}`}>
           {monthName} {monthData.year}
         </p>
 
         {monthData.theme ? (
-          <p className={`text-stone-200 font-serif italic ${compact ? 'text-xs mb-2' : 'text-sm mb-3'}`}>{monthData.theme}</p>
+          <p className={`text-navy-200 font-serif italic ${compact ? 'text-xs mb-2' : 'text-sm mb-3'}`}>{monthData.theme}</p>
         ) : (
-          <p className={`text-stone-500 italic ${compact ? 'text-xs mb-2' : 'text-sm mb-3'}`}>Theme not announced yet</p>
+          <p className={`text-navy-500 italic ${compact ? 'text-xs mb-2' : 'text-sm mb-3'}`}>Theme not announced yet</p>
         )}
 
         {monthData.cardArtist && (
           <Link
             href={`/artists/${monthData.cardArtist.slug}`}
-            className="inline-block text-xs text-stone-500 hover:text-brand-400 transition-colors mb-3"
+            className="inline-block text-xs text-navy-500 hover:text-brand-400 transition-colors mb-3"
           >
             card art by {monthData.cardArtist.instagram
               ? `@${monthData.cardArtist.instagram.replace(/^@/, '')}`

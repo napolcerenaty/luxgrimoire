@@ -183,7 +183,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
 
   if (loading && !isInterested) {
     return (
-      <button disabled className="p-1.5 rounded-full bg-stone-800/80 text-stone-500">
+      <button disabled className="p-1.5 rounded-full bg-navy-800/80 text-navy-500">
         <Loader2 size={14} className="animate-spin" />
       </button>
     )
@@ -192,10 +192,10 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
   // Price picker section (shared between mobile + desktop)
   const PricePicker = ({ className = '' }: { className?: string }) => (
     hasSubscriberPrice ? (
-      <div className={`mb-3 pb-3 border-b border-stone-800 ${className}`}>
+      <div className={`mb-3 pb-3 border-b border-navy-800 ${className}`}>
         <div className="flex items-center gap-1.5 mb-2">
-          <Tag size={12} className="text-stone-500" />
-          <span className="text-xs text-stone-500 uppercase tracking-wider">Your price</span>
+          <Tag size={12} className="text-navy-500" />
+          <span className="text-xs text-navy-500 uppercase tracking-wider">Your price</span>
         </div>
         <div className="flex gap-2">
           <button
@@ -204,7 +204,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
             className={`flex-1 flex flex-col items-center py-2 px-3 rounded-lg border text-xs transition-colors ${
               priceMode === 'subscriber'
                 ? 'bg-emerald-900/40 border-emerald-600 text-emerald-300'
-                : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
+                : 'bg-navy-800 border-navy-700 text-navy-400 hover:border-navy-500'
             }`}
           >
             <span className="font-semibold text-sm">{formatPrice(effectiveSubscriberPrice!, currency)}</span>
@@ -215,11 +215,11 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
             onClick={e => { e.stopPropagation(); setPriceMode('regular') }}
             className={`flex-1 flex flex-col items-center py-2 px-3 rounded-lg border text-xs transition-colors ${
               priceMode === 'regular'
-                ? 'bg-stone-700 border-stone-500 text-stone-200'
-                : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
+                ? 'bg-navy-700 border-navy-500 text-navy-200'
+                : 'bg-navy-800 border-navy-700 text-navy-400 hover:border-navy-500'
             }`}
           >
-            <span className="font-semibold text-sm text-stone-400">regular</span>
+            <span className="font-semibold text-sm text-navy-400">regular</span>
             <span className="text-[10px] opacity-70 mt-0.5">General price</span>
           </button>
         </div>
@@ -239,7 +239,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
           ${compact ? 'p-1.5' : 'px-3 py-1.5 text-xs font-medium'}
           ${isInterested
             ? 'bg-violet-700/80 hover:bg-violet-700 text-white border border-violet-500'
-            : 'bg-stone-800/80 hover:bg-stone-700 text-stone-400 hover:text-stone-200 border border-stone-600'}
+            : 'bg-navy-800/80 hover:bg-navy-700 text-navy-400 hover:text-navy-200 border border-navy-600'}
         `}
       >
         {isInterested ? <Bell size={14} className="fill-current" /> : <Bell size={14} />}
@@ -256,23 +256,23 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
           {isMobile ? (
             /* Bottom sheet on mobile */
             <div
-              className="fixed inset-x-0 bottom-0 z-[101] rounded-t-2xl border-t border-stone-700 bg-stone-900 shadow-2xl p-4 pb-8"
+              className="fixed inset-x-0 bottom-0 z-[101] rounded-t-2xl border-t border-navy-700 bg-navy-900 shadow-2xl p-4 pb-8"
               onClick={e => e.stopPropagation()}
             >
               {/* Drag handle */}
-              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-stone-700" />
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-navy-700" />
 
               {hasRegions && (
-                <div className="mb-3 pb-3 border-b border-stone-800">
+                <div className="mb-3 pb-3 border-b border-navy-800">
                   <div className="flex items-center gap-1.5 mb-2">
-                    <MapPin size={12} className="text-stone-500" />
-                    <span className="text-xs text-stone-500 uppercase tracking-wider">Your region</span>
+                    <MapPin size={12} className="text-navy-500" />
+                    <span className="text-xs text-navy-500 uppercase tracking-wider">Your region</span>
                   </div>
                   <select
                     value={effectiveRegion?.id ?? ''}
                     onChange={e => changeRegion(e.target.value)}
                     onClick={e => e.stopPropagation()}
-                    className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2.5 text-stone-200 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2.5 text-navy-200 text-sm focus:outline-none focus:border-violet-500"
                   >
                     {regions.map(r => (
                       <option key={r.id} value={r.id}>{r.name}{r.isDefault ? ' (default)' : ''}</option>
@@ -283,7 +283,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
 
               <PricePicker />
 
-              <p className="text-xs text-stone-500 uppercase tracking-wider mb-3">
+              <p className="text-xs text-navy-500 uppercase tracking-wider mb-3">
                 When are you planning to buy?
               </p>
 
@@ -299,13 +299,13 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                         w-full flex items-start justify-between gap-3 px-4 py-3.5 rounded-xl text-sm transition-colors
                         ${tierId === t.id && isInterested
                           ? 'bg-violet-800/60 text-violet-200 border border-violet-600'
-                          : 'bg-stone-800 text-stone-300 border border-stone-700 active:bg-stone-700'}
+                          : 'bg-navy-800 text-navy-300 border border-navy-700 active:bg-navy-700'}
                       `}
                     >
                       <span className="font-medium text-left">{t.name}</span>
                       {formattedDate
-                        ? <span className="text-xs text-stone-400 font-mono tabular-nums whitespace-nowrap shrink-0 pt-0.5">{formattedDate}</span>
-                        : <span className="text-xs text-stone-600 font-mono shrink-0 pt-0.5">–</span>
+                        ? <span className="text-xs text-navy-400 font-mono tabular-nums whitespace-nowrap shrink-0 pt-0.5">{formattedDate}</span>
+                        : <span className="text-xs text-navy-600 font-mono shrink-0 pt-0.5">–</span>
                       }
                     </button>
                   )
@@ -316,7 +316,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
             /* Positioned dropdown on desktop */
             dropdownPos && (
               <div
-                className="fixed z-[101] w-72 rounded-xl border border-stone-600 bg-stone-900 shadow-2xl p-2 overflow-y-auto"
+                className="fixed z-[101] w-72 rounded-xl border border-navy-600 bg-navy-900 shadow-2xl p-2 overflow-y-auto"
                 style={{
                   ...(dropdownPos.top != null ? { top: dropdownPos.top } : { bottom: dropdownPos.bottom }),
                   right: dropdownPos.right,
@@ -325,16 +325,16 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                 onClick={e => e.stopPropagation()}
               >
                 {hasRegions && (
-                  <div className="px-2 pb-2 mb-1 border-b border-stone-800">
+                  <div className="px-2 pb-2 mb-1 border-b border-navy-800">
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <MapPin size={11} className="text-stone-500" />
-                      <span className="text-[10px] text-stone-500 uppercase tracking-wider">Your region</span>
+                      <MapPin size={11} className="text-navy-500" />
+                      <span className="text-[10px] text-navy-500 uppercase tracking-wider">Your region</span>
                     </div>
                     <select
                       value={effectiveRegion?.id ?? ''}
                       onChange={e => changeRegion(e.target.value)}
                       onClick={e => e.stopPropagation()}
-                      className="w-full bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-200 text-xs focus:outline-none focus:border-violet-500"
+                      className="w-full bg-navy-800 border border-navy-700 rounded-lg px-2 py-1.5 text-navy-200 text-xs focus:outline-none focus:border-violet-500"
                     >
                       {regions.map(r => (
                         <option key={r.id} value={r.id}>{r.name}{r.isDefault ? ' (default)' : ''}</option>
@@ -344,10 +344,10 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                 )}
 
                 {hasSubscriberPrice && (
-                  <div className="px-2 pb-2 mb-1 border-b border-stone-800">
+                  <div className="px-2 pb-2 mb-1 border-b border-navy-800">
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <Tag size={11} className="text-stone-500" />
-                      <span className="text-[10px] text-stone-500 uppercase tracking-wider">Your price</span>
+                      <Tag size={11} className="text-navy-500" />
+                      <span className="text-[10px] text-navy-500 uppercase tracking-wider">Your price</span>
                     </div>
                     <div className="flex gap-1.5">
                       <button
@@ -356,7 +356,7 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                         className={`flex-1 flex flex-col items-center py-1.5 px-2 rounded-lg border text-xs transition-colors ${
                           priceMode === 'subscriber'
                             ? 'bg-emerald-900/40 border-emerald-600 text-emerald-300'
-                            : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
+                            : 'bg-navy-800 border-navy-700 text-navy-400 hover:border-navy-500'
                         }`}
                       >
                         <span className="font-semibold">{formatPrice(effectiveSubscriberPrice!, currency)}</span>
@@ -367,18 +367,18 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                         onClick={e => { e.stopPropagation(); setPriceMode('regular') }}
                         className={`flex-1 flex flex-col items-center py-1.5 px-2 rounded-lg border text-xs transition-colors ${
                           priceMode === 'regular'
-                            ? 'bg-stone-700 border-stone-500 text-stone-200'
-                            : 'bg-stone-800 border-stone-700 text-stone-400 hover:border-stone-500'
+                            ? 'bg-navy-700 border-navy-500 text-navy-200'
+                            : 'bg-navy-800 border-navy-700 text-navy-400 hover:border-navy-500'
                         }`}
                       >
-                        <span className="font-semibold text-stone-400">regular</span>
+                        <span className="font-semibold text-navy-400">regular</span>
                         <span className="text-[10px] opacity-70">General price</span>
                       </button>
                     </div>
                   </div>
                 )}
 
-                <p className="text-[10px] text-stone-500 uppercase tracking-wider px-2 pb-1.5 pt-0.5">
+                <p className="text-[10px] text-navy-500 uppercase tracking-wider px-2 pb-1.5 pt-0.5">
                   When are you planning to buy?
                 </p>
 
@@ -393,13 +393,13 @@ export function SaleInterestButton({ sale, subscriberBasePrice, currency, compac
                         w-full flex items-start justify-between gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors
                         ${tierId === t.id && isInterested
                           ? 'bg-violet-800/60 text-violet-200'
-                          : 'hover:bg-stone-800 text-stone-300'}
+                          : 'hover:bg-navy-800 text-navy-300'}
                       `}
                     >
                       <span className="font-medium text-left">{t.name}</span>
                       {formattedDate
-                        ? <span className="text-xs text-stone-400 font-mono tabular-nums whitespace-nowrap shrink-0 pt-0.5">{formattedDate}</span>
-                        : <span className="text-xs text-stone-600 font-mono shrink-0 pt-0.5">–</span>
+                        ? <span className="text-xs text-navy-400 font-mono tabular-nums whitespace-nowrap shrink-0 pt-0.5">{formattedDate}</span>
+                        : <span className="text-xs text-navy-600 font-mono shrink-0 pt-0.5">–</span>
                       }
                     </button>
                   )

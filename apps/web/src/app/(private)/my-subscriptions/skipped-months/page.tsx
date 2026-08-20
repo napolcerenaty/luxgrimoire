@@ -40,17 +40,17 @@ function SkippedBookCard({ item }: { item: SkippedMonth }) {
     : null
 
   return (
-    <div className="flex flex-col rounded-2xl bg-stone-900 border border-stone-800 overflow-hidden">
-      <div className="relative aspect-[2/3] bg-stone-950">
+    <div className="flex flex-col rounded-2xl bg-navy-900 border border-navy-800 overflow-hidden">
+      <div className="relative aspect-[2/3] bg-navy-950">
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photo} alt={book?.title ?? item.theme ?? ''} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <BookOpen size={32} className="text-stone-700" />
+            <BookOpen size={32} className="text-navy-700" />
           </div>
         )}
-        <span className="absolute top-2 left-2 text-[11px] font-medium bg-stone-950/80 text-stone-300 px-2 py-0.5 rounded-full backdrop-blur-sm">
+        <span className="absolute top-2 left-2 text-[11px] font-medium bg-navy-950/80 text-navy-300 px-2 py-0.5 rounded-full backdrop-blur-sm">
           {MONTH_NAMES[item.month]} {item.year}
         </span>
       </div>
@@ -59,11 +59,11 @@ function SkippedBookCard({ item }: { item: SkippedMonth }) {
         <div>
           {book ? (
             <>
-              <p className="text-sm font-medium text-stone-100 line-clamp-2 leading-snug">{book.title}</p>
-              <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{book.authors || 'Unknown author'}</p>
+              <p className="text-sm font-medium text-navy-100 line-clamp-2 leading-snug">{book.title}</p>
+              <p className="text-xs text-navy-500 mt-0.5 line-clamp-1">{book.authors || 'Unknown author'}</p>
             </>
           ) : (
-            <p className="text-sm text-stone-400 italic">{item.theme ?? 'No book added yet'}</p>
+            <p className="text-sm text-navy-400 italic">{item.theme ?? 'No book added yet'}</p>
           )}
         </div>
       </div>
@@ -86,22 +86,22 @@ export default function SkippedMonthsPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/my-subscriptions" className="text-stone-500 hover:text-stone-300 transition-colors">
+        <Link href="/my-subscriptions" className="text-navy-500 hover:text-navy-300 transition-colors">
           <ArrowLeft size={18} />
         </Link>
         <div>
           {subName ? (
             <>
-              <p className="text-xs text-stone-500 mb-0.5">
+              <p className="text-xs text-navy-500 mb-0.5">
                 <Link href={`/subscriptions/${subSlug}`} className="hover:text-brand-400 transition-colors">{subName}</Link>
               </p>
-              <h1 className="text-2xl font-bold text-stone-100">Skipped Months</h1>
+              <h1 className="text-2xl font-bold text-navy-100">Skipped Months</h1>
             </>
           ) : (
-            <h1 className="text-2xl font-bold text-stone-100">All Skipped Months</h1>
+            <h1 className="text-2xl font-bold text-navy-100">All Skipped Months</h1>
           )}
           {filtered.length > 0 && (
-            <p className="text-sm text-stone-500 mt-0.5">{filtered.length} skipped box{filtered.length !== 1 ? 'es' : ''}</p>
+            <p className="text-sm text-navy-500 mt-0.5">{filtered.length} skipped box{filtered.length !== 1 ? 'es' : ''}</p>
           )}
         </div>
       </div>
@@ -109,7 +109,7 @@ export default function SkippedMonthsPage() {
       {isLoading && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="aspect-[2/3] rounded-2xl bg-stone-800 animate-pulse" />
+            <div key={i} className="aspect-[2/3] rounded-2xl bg-navy-800 animate-pulse" />
           ))}
         </div>
       )}
@@ -119,7 +119,7 @@ export default function SkippedMonthsPage() {
       )}
 
       {!isLoading && !error && filtered.length === 0 && (
-        <div className="text-center py-20 text-stone-500">
+        <div className="text-center py-20 text-navy-500">
           <BookOpen size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm">No skipped months yet.</p>
         </div>

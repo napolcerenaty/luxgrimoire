@@ -39,12 +39,12 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
   return (
     <>
       <div className="flex items-center justify-between gap-2">
-        <h4 className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Skips</h4>
+        <h4 className="text-[11px] uppercase tracking-[0.24em] text-navy-500">Skips</h4>
         {status && status.policyType !== 'NONE' && (
           <button
             type="button"
             onClick={() => setShowManageSkips(true)}
-            className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors"
+            className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-navy-700 text-navy-400 hover:text-navy-200 hover:border-navy-500 transition-colors"
           >
             <Settings2 size={11} />
             Manage
@@ -55,25 +55,25 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
       {isLoading && !status ? (
         <div className="space-y-2 animate-pulse">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-3 bg-stone-800 rounded" style={{ width: `${80 - i * 8}%` }} />
+            <div key={i} className="h-3 bg-navy-800 rounded" style={{ width: `${80 - i * 8}%` }} />
           ))}
         </div>
       ) : error ? (
         <p className="text-sm text-red-400">Could not load skip status.</p>
       ) : status?.policyType === 'NONE' ? (
-        <span className="inline-flex rounded-full border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-500 dark:border-stone-700 dark:bg-stone-900/70 dark:text-stone-400">
+        <span className="inline-flex rounded-full border border-navy-300 bg-navy-100 px-2.5 py-1 text-xs font-medium text-navy-500 dark:border-navy-700 dark:bg-navy-900/70 dark:text-navy-400">
           No skipping offered
         </span>
       ) : status ? (
         <div className="space-y-3">
-          <span className="inline-flex rounded-full border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 dark:border-stone-700 dark:bg-stone-900/70 dark:text-stone-200">
+          <span className="inline-flex rounded-full border border-navy-300 bg-navy-100 px-2.5 py-1 text-xs font-medium text-navy-700 dark:border-navy-700 dark:bg-navy-900/70 dark:text-navy-200">
             {skipLimit}
           </span>
 
           {status.maxSkips !== null && status.windowResetDate && (
-            <p className="text-xs text-stone-500 dark:text-stone-500">
+            <p className="text-xs text-navy-500 dark:text-navy-500">
               Window resets:{' '}
-              <span className="text-stone-600 dark:text-stone-400 font-medium">
+              <span className="text-navy-600 dark:text-navy-400 font-medium">
                 {new Date(status.windowResetDate).toLocaleDateString('en-GB', {
                   day: 'numeric', month: 'short', year: 'numeric',
                 })}
@@ -111,10 +111,10 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
           })()}
 
           {status.canSkip && status.targetMonth && (
-            <div className="rounded-lg border border-stone-200 bg-stone-50 p-3 dark:border-stone-700/60 dark:bg-stone-900/60">
-              <p className="text-xs text-stone-500">{isBundleMode ? 'Next eligible bundle' : 'Next eligible month'}</p>
+            <div className="rounded-lg border border-navy-200 bg-navy-50 p-3 dark:border-navy-700/60 dark:bg-navy-900/60">
+              <p className="text-xs text-navy-500">{isBundleMode ? 'Next eligible bundle' : 'Next eligible month'}</p>
               <div className="mt-2 flex items-center justify-between gap-2">
-                <span className="text-sm font-medium text-stone-800 dark:text-stone-100">
+                <span className="text-sm font-medium text-navy-800 dark:text-navy-100">
                   {isBundleMode
                     ? bundleRangeLabel(status.targetMonth.year, status.targetMonth.month, status.intervalMonths)
                     : formatMonthLabel(status.targetMonth.year, status.targetMonth.month)}
@@ -137,7 +137,7 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
 
           {status.skippedMonths.length > 0 && (
             <div className="flex items-center justify-between">
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-navy-500">
                 {isBundleMode
                   ? (() => {
                       const n = groupIntoBundles(status.skippedMonths, status.intervalMonths, status.startingMonth).length
@@ -161,7 +161,7 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
               : []
             return (
               <div className="space-y-2">
-                <p className="text-xs text-stone-500">{isBundleMode ? 'Unskip upcoming bundles' : 'Unskip upcoming'}</p>
+                <p className="text-xs text-navy-500">{isBundleMode ? 'Unskip upcoming bundles' : 'Unskip upcoming'}</p>
                 <div className="flex flex-wrap gap-2">
                   {isBundleMode
                     ? unskippableBundles.map((bundle) => (
@@ -170,7 +170,7 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
                           type="button"
                           onClick={() => unskipMutation.mutate({ year: bundle.startYear, month: bundle.startMonth })}
                           disabled={unskipMutation.isPending}
-                          className="rounded-lg border border-stone-300 px-2.5 py-1 text-xs text-stone-600 transition-colors hover:border-stone-400 hover:text-stone-800 disabled:opacity-50 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:text-stone-100"
+                          className="rounded-lg border border-navy-300 px-2.5 py-1 text-xs text-navy-600 transition-colors hover:border-navy-400 hover:text-navy-800 disabled:opacity-50 dark:border-navy-700 dark:text-navy-300 dark:hover:border-navy-600 dark:hover:text-navy-100"
                         >
                           Unskip {bundle.label}
                         </button>
@@ -181,7 +181,7 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
                           type="button"
                           onClick={() => unskipMutation.mutate(month)}
                           disabled={unskipMutation.isPending}
-                          className="rounded-lg border border-stone-300 px-2.5 py-1 text-xs text-stone-600 transition-colors hover:border-stone-400 hover:text-stone-800 disabled:opacity-50 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:text-stone-100"
+                          className="rounded-lg border border-navy-300 px-2.5 py-1 text-xs text-navy-600 transition-colors hover:border-navy-400 hover:text-navy-800 disabled:opacity-50 dark:border-navy-700 dark:text-navy-300 dark:hover:border-navy-600 dark:hover:text-navy-100"
                         >
                           Unskip {formatMonthLabel(month.year, month.month)}
                         </button>
@@ -195,7 +195,7 @@ export default function SkipStatusCompact({ subscriptionSlug, subscriptionName, 
           })()}
         </div>
       ) : (
-        <p className="text-sm text-stone-500">No skip details yet.</p>
+        <p className="text-sm text-navy-500">No skip details yet.</p>
       )}
 
       {showManageSkips && (
