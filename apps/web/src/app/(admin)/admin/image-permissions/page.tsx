@@ -39,7 +39,7 @@ const STATUS_STYLES: Record<PermissionStatus, string> = {
   PENDING: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
   GRANTED: 'text-green-400 bg-green-500/10 border-green-500/30',
   REVOKED: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
-  DENIED: 'text-stone-400 bg-stone-700/30 border-stone-600/30',
+  DENIED: 'text-navy-400 bg-navy-700/30 border-navy-600/30',
 }
 
 const STATUS_OPTIONS: PermissionStatus[] = ['PENDING', 'GRANTED', 'REVOKED', 'DENIED']
@@ -113,19 +113,19 @@ function PermissionModal({ row, onClose }: { row: PermissionRow; onClose: () => 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-lg my-8 shadow-2xl">
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-stone-800">
+      <div className="bg-navy-900 border border-navy-700 rounded-2xl w-full max-w-lg my-8 shadow-2xl">
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-navy-800">
           <BadgeCheck size={20} className="text-brand-400 shrink-0" />
-          <h2 className="text-stone-100 font-semibold text-base">{row.companyName}</h2>
+          <h2 className="text-navy-100 font-semibold text-base">{row.companyName}</h2>
         </div>
 
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className="block text-stone-400 text-xs mb-1.5">Status</label>
+            <label className="block text-navy-400 text-xs mb-1.5">Status</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as PermissionStatus)}
-              className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+              className="w-full bg-navy-800 border border-navy-700 rounded-xl px-3 py-2 text-navy-100 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/40"
             >
               {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -133,44 +133,44 @@ function PermissionModal({ row, onClose }: { row: PermissionRow; onClose: () => 
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-stone-400 text-xs mb-1.5">Contact at company</label>
+              <label className="block text-navy-400 text-xs mb-1.5">Contact at company</label>
               <input
                 type="text"
                 value={grantedByName}
                 onChange={(e) => setGrantedByName(e.target.value)}
                 placeholder="Jane Doe"
-                className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                className="w-full bg-navy-800 border border-navy-700 rounded-xl px-3 py-2 text-navy-100 text-sm placeholder:text-navy-600 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
               />
             </div>
             <div>
-              <label className="block text-stone-400 text-xs mb-1.5">Granted on</label>
+              <label className="block text-navy-400 text-xs mb-1.5">Granted on</label>
               <input
                 type="date"
                 value={grantedAt}
                 onChange={(e) => setGrantedAt(e.target.value)}
-                className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                className="w-full bg-navy-800 border border-navy-700 rounded-xl px-3 py-2 text-navy-100 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/40"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-stone-400 text-xs mb-1.5">Conditions (one per line)</label>
+            <label className="block text-navy-400 text-xs mb-1.5">Conditions (one per line)</label>
             <textarea
               rows={3}
               value={conditions}
               onChange={(e) => setConditions(e.target.value)}
               placeholder={'Photo credit required\nNo edited/altered use'}
-              className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+              className="w-full bg-navy-800 border border-navy-700 rounded-xl px-3 py-2 text-navy-100 text-sm placeholder:text-navy-600 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
             />
           </div>
 
           <div>
-            <label className="block text-stone-400 text-xs mb-1.5">Permission email (full text, kept for reference)</label>
+            <label className="block text-navy-400 text-xs mb-1.5">Permission email (full text, kept for reference)</label>
             <textarea
               rows={4}
               value={emailContent}
               onChange={(e) => setEmailContent(e.target.value)}
-              className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+              className="w-full bg-navy-800 border border-navy-700 rounded-xl px-3 py-2 text-navy-100 text-sm placeholder:text-navy-600 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
             />
           </div>
 
@@ -178,38 +178,38 @@ function PermissionModal({ row, onClose }: { row: PermissionRow; onClose: () => 
             <button
               onClick={onClose}
               disabled={savePermission.isPending}
-              className="flex-1 px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 rounded-xl bg-navy-800 hover:bg-navy-700 text-navy-300 text-sm font-medium transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={() => savePermission.mutate()}
               disabled={savePermission.isPending}
-              className="flex-1 px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-stone-950 text-sm font-semibold transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-navy-950 text-sm font-semibold transition-colors disabled:opacity-50"
             >
               {savePermission.isPending ? 'Saving…' : 'Save'}
             </button>
           </div>
 
           {/* Communication history */}
-          <div className="pt-3 border-t border-stone-800 space-y-3">
+          <div className="pt-3 border-t border-navy-800 space-y-3">
             <div className="flex items-center gap-2">
-              <Mail size={14} className="text-stone-500" />
-              <h3 className="text-stone-300 text-sm font-semibold">Communication history</h3>
+              <Mail size={14} className="text-navy-500" />
+              <h3 className="text-navy-300 text-sm font-semibold">Communication history</h3>
             </div>
 
             {commLoading ? (
-              <p className="text-stone-500 text-xs">Loading…</p>
+              <p className="text-navy-500 text-xs">Loading…</p>
             ) : !communications || communications.length === 0 ? (
-              <p className="text-stone-500 text-xs">No communication logged yet.</p>
+              <p className="text-navy-500 text-xs">No communication logged yet.</p>
             ) : (
-              <div className="rounded-xl border border-stone-800 divide-y divide-stone-800 overflow-hidden">
+              <div className="rounded-xl border border-navy-800 divide-y divide-navy-800 overflow-hidden">
                 {communications.map((c) => (
-                  <div key={c.id} className="flex items-center gap-3 px-3 py-2 text-xs bg-stone-950/40">
-                    <span className="text-stone-500 shrink-0 w-24">{new Date(c.sentAt).toLocaleDateString()}</span>
-                    <span className="text-stone-400 shrink-0 w-24">{c.channel.replace('_', ' ')}</span>
-                    <span className="text-stone-300 flex-1 truncate">{c.subject}</span>
-                    <label className="flex items-center gap-1.5 shrink-0 cursor-pointer text-stone-400">
+                  <div key={c.id} className="flex items-center gap-3 px-3 py-2 text-xs bg-navy-950/40">
+                    <span className="text-navy-500 shrink-0 w-24">{new Date(c.sentAt).toLocaleDateString()}</span>
+                    <span className="text-navy-400 shrink-0 w-24">{c.channel.replace('_', ' ')}</span>
+                    <span className="text-navy-300 flex-1 truncate">{c.subject}</span>
+                    <label className="flex items-center gap-1.5 shrink-0 cursor-pointer text-navy-400">
                       <input
                         type="checkbox"
                         checked={c.responded}
@@ -225,32 +225,32 @@ function PermissionModal({ row, onClose }: { row: PermissionRow; onClose: () => 
 
             <div className="grid grid-cols-[1fr_1fr_2fr_auto] gap-2 items-end">
               <div>
-                <label className="block text-stone-500 text-[11px] mb-1">Sent on</label>
+                <label className="block text-navy-500 text-[11px] mb-1">Sent on</label>
                 <input
                   type="date"
                   value={commSentAt}
                   onChange={(e) => setCommSentAt(e.target.value)}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-100 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                  className="w-full bg-navy-800 border border-navy-700 rounded-lg px-2 py-1.5 text-navy-100 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/40"
                 />
               </div>
               <div>
-                <label className="block text-stone-500 text-[11px] mb-1">Channel</label>
+                <label className="block text-navy-500 text-[11px] mb-1">Channel</label>
                 <select
                   value={commChannel}
                   onChange={(e) => setCommChannel(e.target.value as ContactChannel)}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-100 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                  className="w-full bg-navy-800 border border-navy-700 rounded-lg px-2 py-1.5 text-navy-100 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/40"
                 >
                   {CHANNEL_OPTIONS.map((c) => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-stone-500 text-[11px] mb-1">Subject</label>
+                <label className="block text-navy-500 text-[11px] mb-1">Subject</label>
                 <input
                   type="text"
                   value={commSubject}
                   onChange={(e) => setCommSubject(e.target.value)}
                   placeholder="Image permission request"
-                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-stone-100 text-xs placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                  className="w-full bg-navy-800 border border-navy-700 rounded-lg px-2 py-1.5 text-navy-100 text-xs placeholder:text-navy-600 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
                 />
               </div>
               <button
@@ -297,7 +297,7 @@ export default function ImagePermissionsPage() {
 
   if (user?.role !== 'ADMIN') {
     return (
-      <div className="text-stone-400 py-12 text-center text-sm">
+      <div className="text-navy-400 py-12 text-center text-sm">
         This section is restricted to admins.
       </div>
     )
@@ -310,8 +310,8 @@ export default function ImagePermissionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-stone-100">Image Permissions</h1>
-        <p className="text-stone-400 text-sm mt-1">
+        <h1 className="text-2xl font-bold text-navy-100">Image Permissions</h1>
+        <p className="text-navy-400 text-sm mt-1">
           Track which publishers and subscription companies have granted permission to use their
           official promotional materials — status, contact, and communication history.
         </p>
@@ -322,26 +322,26 @@ export default function ImagePermissionsPage() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search by company name…"
-        className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 text-sm placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+        className="w-full bg-navy-800 border border-navy-700 rounded-xl px-3 py-2 text-navy-100 text-sm placeholder:text-navy-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
       />
 
       {isLoading ? (
-        <div className="text-stone-400 text-sm py-6 text-center">Loading…</div>
+        <div className="text-navy-400 text-sm py-6 text-center">Loading…</div>
       ) : filtered.length === 0 ? (
-        <div className="text-stone-500 text-sm py-6 text-center">
+        <div className="text-navy-500 text-sm py-6 text-center">
           {search.trim() ? 'No companies match your search.' : 'No companies found.'}
         </div>
       ) : (
-        <div className="rounded-2xl border border-stone-800 divide-y divide-stone-800 overflow-hidden">
+        <div className="rounded-2xl border border-navy-800 divide-y divide-navy-800 overflow-hidden">
           {filtered.map((row) => (
             <div
               key={row.companyId}
-              className="flex items-center gap-4 px-5 py-4 bg-stone-900 hover:bg-stone-800/60 transition-colors"
+              className="flex items-center gap-4 px-5 py-4 bg-navy-900 hover:bg-navy-800/60 transition-colors"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-stone-100 font-medium text-sm truncate">{row.companyName}</p>
+                <p className="text-navy-100 font-medium text-sm truncate">{row.companyName}</p>
                 {row.grantedByName && (
-                  <p className="text-stone-500 text-xs">
+                  <p className="text-navy-500 text-xs">
                     {row.grantedByName}
                     {row.grantedAt && ` · ${new Date(row.grantedAt).toLocaleDateString()}`}
                   </p>

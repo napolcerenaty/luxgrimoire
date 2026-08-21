@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
@@ -55,17 +56,25 @@ export function EditionCard({
   const cover = cloudinaryUrl(coverImage, 'w_400,h_600,c_fill,q_auto,f_auto')
   const altText = title ?? companyName ?? 'Edition'
   const fullTitle = title && variantLabel ? `${title} (${variantLabel})` : title
-  const isUpcoming = generalSaleDate ? new Date(generalSaleDate) > new Date() : false
   const highlightClass = highlight ? (HIGHLIGHT_CLASS[highlight] ?? '') : ''
+
+  // Computed post-mount, not during render: comparing generalSaleDate against
+  // `new Date()` at render time diverges between the SSR pass and the client
+  // hydration pass (different "now"), which flips this badge in/out and
+  // triggers hydration mismatches (Sentry: Hydration Error on book pages).
+  const [isUpcoming, setIsUpcoming] = useState(false)
+  useEffect(() => {
+    setIsUpcoming(generalSaleDate ? new Date(generalSaleDate) > new Date() : false)
+  }, [generalSaleDate])
 
   return (
     <Link
       href={href}
-      className={`group flex flex-col h-full rounded-2xl bg-stone-900 border hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10 ${highlightClass} ${
-        unverified ? 'border-brand-800/50' : 'border-stone-800'
+      className={`group flex flex-col h-full rounded-2xl bg-navy-900 border hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10 ${highlightClass} ${
+        unverified ? 'border-brand-800/50' : 'border-navy-800'
       }`}
     >
-      <div className="relative aspect-[2/3] bg-stone-950 overflow-hidden rounded-t-2xl">
+      <div className="relative aspect-[2/3] bg-navy-950 overflow-hidden rounded-t-2xl">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -74,10 +83,10 @@ export function EditionCard({
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="relative w-full h-full flex items-center justify-center text-stone-600 p-3">
+          <div className="relative w-full h-full flex items-center justify-center text-navy-600 p-3">
             {/* Brand gradient overlay */}
             <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(companyBrandColors)} />
-            <span className="relative z-10 text-xs font-serif text-stone-300/80 text-center leading-snug line-clamp-4">{title ?? altText}</span>
+            <span className="relative z-10 text-xs font-serif text-navy-300/80 text-center leading-snug line-clamp-4">{title ?? altText}</span>
           </div>
         )}
 
@@ -88,13 +97,13 @@ export function EditionCard({
         )}
 
         {isUpcoming && (
-          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-stone-950/80 border border-stone-600/50">
-            <span className="text-[9px] text-stone-300 font-medium uppercase tracking-wide">Upcoming</span>
+          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-navy-950/80 border border-navy-600/50">
+            <span className="text-[9px] text-navy-300 font-medium uppercase tracking-wide">Upcoming</span>
           </div>
         )}
 
         {variantLabel && (
-          <span className="absolute bottom-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-tight bg-stone-800/90 text-stone-300 border border-stone-600 max-w-[calc(100%-0.75rem)] truncate">
+          <span className="absolute bottom-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-tight bg-navy-800/90 text-navy-300 border border-navy-600 max-w-[calc(100%-0.75rem)] truncate">
             {variantLabel}
           </span>
         )}
@@ -110,11 +119,11 @@ export function EditionCard({
               <p className="text-[11px] text-brand-600 font-medium tracking-wide truncate min-h-[1em]">
                 {seriesName ? `${seriesName}${volumeNumbers?.length ? ` #${formatVolumeNumbers(volumeNumbers)}` : ''}` : '\u00A0'}
               </p>
-              <p title={fullTitle} className="font-serif font-semibold text-stone-100 text-sm leading-snug line-clamp-2 group-hover:text-brand-400 transition-colors">
+              <p title={fullTitle} className="font-serif font-semibold text-navy-100 text-sm leading-snug line-clamp-2 group-hover:text-brand-400 transition-colors">
                 {title}
               </p>
               {authors && authors.length > 0 && (
-                <p className="text-[11px] text-stone-500 truncate">
+                <p className="text-[11px] text-navy-500 truncate">
                   {authors.map(a => a.name).join(', ')}
                 </p>
               )}
@@ -134,7 +143,7 @@ export function EditionCard({
             </>
           ) : (
             /* No title mode: only show company/edition name prominently */
-            <p className="font-serif font-semibold text-stone-100 text-sm leading-snug group-hover:text-brand-400 transition-colors line-clamp-2">
+            <p className="font-serif font-semibold text-navy-100 text-sm leading-snug group-hover:text-brand-400 transition-colors line-clamp-2">
               {companySlug ? (
                 <span
                   role="link"

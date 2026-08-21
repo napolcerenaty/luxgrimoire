@@ -76,10 +76,12 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
         editionSaleAnnouncementEditionIds[ed.editionId] = ed.id
       }
 
+      // CollectionFormModal enforces all-or-nothing: either every active edition has a price
+      // (per-book mode, validated before submit) or none do (single total, split evenly below).
       const editionPrices: Record<string, number> = {}
       for (const ed of activeEditions) {
         const raw = data.editionPrices[ed.editionId]
-        if (raw && parseDecimalInput(raw) > 0) editionPrices[ed.editionId] = parseDecimalInput(raw)
+        if (raw && raw.trim() !== '') editionPrices[ed.editionId] = parseDecimalInput(raw)
       }
       const hasCustomPrices = Object.keys(editionPrices).length > 0
 
@@ -118,11 +120,11 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
   if (!user) {
     return (
       <div className={compact
-        ? "flex items-center gap-1.5 text-xs bg-stone-800/60 border border-stone-700 px-3 py-1.5 rounded-lg"
-        : "inline-flex items-center gap-2 bg-stone-800/60 border border-stone-700 px-4 py-2 rounded-lg text-sm"
+        ? "flex items-center gap-1.5 text-xs bg-navy-800/60 border border-navy-700 px-3 py-1.5 rounded-lg"
+        : "inline-flex items-center gap-2 bg-navy-800/60 border border-navy-700 px-4 py-2 rounded-lg text-sm"
       }>
         <LogIn size={compact ? 13 : 16} className="text-brand-400 shrink-0" />
-        <span className="text-stone-400">
+        <span className="text-navy-400">
           <Link href="/login" className="text-brand-400 hover:text-brand-300 font-medium transition-colors">
             Sign in
           </Link>
@@ -149,11 +151,11 @@ export function AddToCollectionButton({ saleAnnouncementId, editions, basePrice,
 
       {success ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
-          <div className="w-full max-w-sm bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl p-6">
+          <div className="w-full max-w-sm bg-navy-900 border border-navy-700 rounded-2xl shadow-2xl p-6">
             <div className="text-center py-6">
               <div className="text-4xl mb-3">&#10003;</div>
               <p className="text-green-400 font-semibold">Added to your collection!</p>
-              <p className="text-stone-500 text-sm mt-1">{addedCount} edition{addedCount !== 1 ? 's' : ''} added</p>
+              <p className="text-navy-500 text-sm mt-1">{addedCount} edition{addedCount !== 1 ? 's' : ''} added</p>
             </div>
           </div>
         </div>

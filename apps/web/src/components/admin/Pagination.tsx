@@ -27,17 +27,17 @@ export function Pagination({ page, totalPages, onPageChange, total, className }:
   }
 
   const btnClass =
-    'px-3 py-1 rounded border border-stone-700 text-stone-400 disabled:opacity-40 hover:border-brand-500 hover:text-brand-400 transition-colors text-sm'
+    'px-3 py-1 rounded border border-navy-700 text-navy-400 disabled:opacity-40 hover:border-brand-500 hover:text-brand-400 transition-colors text-sm'
 
   return (
     <div className={`flex items-center gap-2 mt-4 flex-wrap ${className ?? ''}`}>
       {total !== undefined && (
-        <span className="text-stone-500 text-sm mr-2">{total} total</span>
+        <span className="text-navy-500 text-sm mr-2">{total} total</span>
       )}
       <button onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page === 1} className={btnClass}>
         ← Prev
       </button>
-      <span className="text-stone-500 text-sm">
+      <span className="text-navy-500 text-sm">
         Page {page} / {totalPages}
       </span>
       <button onClick={() => onPageChange(Math.min(totalPages, page + 1))} disabled={page === totalPages} className={btnClass}>
@@ -52,7 +52,7 @@ export function Pagination({ page, totalPages, onPageChange, total, className }:
           onChange={e => setJumpValue(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleJump()}
           placeholder="Go to…"
-          className="w-20 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-stone-300 text-sm focus:outline-none focus:border-brand-500"
+          className="w-20 bg-navy-800 border border-navy-700 rounded px-2 py-1 text-navy-300 text-sm focus:outline-none focus:border-brand-500"
         />
         <button onClick={handleJump} className={btnClass}>Go</button>
       </div>

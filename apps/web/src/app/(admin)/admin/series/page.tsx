@@ -150,16 +150,16 @@ export default function AdminSeriesPage() {
       label: 'Authors',
       render: (row: ApiSeries) =>
         row.authors.length > 0 ? (
-          <span className="text-stone-400 text-xs">{row.authors.join(', ')}</span>
+          <span className="text-navy-400 text-xs">{row.authors.join(', ')}</span>
         ) : (
-          <span className="text-stone-600 text-xs">—</span>
+          <span className="text-navy-600 text-xs">—</span>
         ),
     },
     {
       key: 'bookCount',
       label: 'Books',
       render: (row: ApiSeries) => (
-        <span className="text-stone-300">{row.bookCount}</span>
+        <span className="text-navy-300">{row.bookCount}</span>
       ),
     },
     {
@@ -176,7 +176,7 @@ export default function AdminSeriesPage() {
           {row.primaryBookCount > 0 && (
             <button
               onClick={() => setSwitchSeries(row)}
-              className="bg-stone-700 text-stone-300 px-3 py-1 rounded text-xs font-medium hover:bg-stone-600 transition-colors"
+              className="bg-navy-700 text-navy-300 px-3 py-1 rounded text-xs font-medium hover:bg-navy-600 transition-colors"
               title="Switch this series's books to a different primary series"
             >
               Switch primary…
@@ -192,7 +192,7 @@ export default function AdminSeriesPage() {
           ) : (
             <span
               title="Cannot delete — series has books"
-              className="bg-stone-800 text-stone-600 px-3 py-1 rounded text-xs cursor-not-allowed"
+              className="bg-navy-800 text-navy-600 px-3 py-1 rounded text-xs cursor-not-allowed"
             >
               Delete
             </span>
@@ -205,10 +205,10 @@ export default function AdminSeriesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-stone-100">Book Series</h1>
+        <h1 className="text-2xl font-bold text-navy-100">Book Series</h1>
         <button
           onClick={() => { createModal.open(); setNewName('') }}
-          className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
+          className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
         >
           Add Series
         </button>
@@ -220,12 +220,12 @@ export default function AdminSeriesPage() {
           placeholder="Search series…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          className="w-full max-w-sm bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-brand-400 text-sm"
+          className="w-full max-w-sm bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 placeholder-navy-500 focus:outline-none focus:border-brand-400 text-sm"
         />
       </div>
 
       {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-navy-400 py-8 text-center">Loading…</div>
       ) : (
         <>
           <DataTable columns={columns} data={series} />
@@ -252,7 +252,7 @@ export default function AdminSeriesPage() {
           <button
             type="submit"
             disabled={createMutation.isPending}
-            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
+            className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
           >
             {createMutation.isPending ? 'Saving…' : 'Create Series'}
           </button>
@@ -282,7 +282,7 @@ export default function AdminSeriesPage() {
             <button
               type="submit"
               disabled={editMutation.isPending}
-              className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
+              className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
             >
               {editMutation.isPending ? 'Saving…' : 'Save Changes'}
             </button>
@@ -302,30 +302,30 @@ export default function AdminSeriesPage() {
         {switchSeries && (
           switchResult !== null ? (
             <div className="flex flex-col gap-4">
-              <p className="text-sm text-stone-300">
+              <p className="text-sm text-navy-300">
                 Switched {switchResult} book{switchResult !== 1 ? 's' : ''} from{' '}
                 <strong>{switchSeries.name}</strong> to <strong>{switchTarget?.name}</strong>.
-                {' '}<span className="text-stone-500">"{switchSeries.name}" stays attached as a secondary series.</span>
+                {' '}<span className="text-navy-500">"{switchSeries.name}" stays attached as a secondary series.</span>
               </p>
               <button
                 onClick={closeSwitchModal}
-                className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
+                className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
               >
                 Done
               </button>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              <p className="text-sm text-stone-300">
+              <p className="text-sm text-navy-300">
                 Every book whose primary series is currently <strong>{switchSeries.name}</strong> ({switchSeries.primaryBookCount} book{switchSeries.primaryBookCount !== 1 ? 's' : ''})
                 will get the series below as its new primary. <strong>{switchSeries.name}</strong> stays attached to those books as a secondary series — nothing is removed.
               </p>
               <div>
                 <label className={LABEL_CLASS}>New primary series *</label>
                 {switchTarget ? (
-                  <div className="flex items-center gap-2 bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-200">
+                  <div className="flex items-center gap-2 bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-sm text-navy-200">
                     <span className="flex-1">{switchTarget.name}</span>
-                    <button type="button" onClick={() => setSwitchTarget(null)} className="text-stone-500 hover:text-red-400">×</button>
+                    <button type="button" onClick={() => setSwitchTarget(null)} className="text-navy-500 hover:text-red-400">×</button>
                   </div>
                 ) : (
                   <div className="relative">
@@ -337,13 +337,13 @@ export default function AdminSeriesPage() {
                       onChange={(e) => setSwitchQuery(e.target.value)}
                     />
                     {switchQuery.length >= 1 && (switchCandidates ?? []).length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-stone-800 border border-stone-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-navy-800 border border-navy-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
                         {(switchCandidates ?? []).map((s) => (
                           <button
                             key={s.id}
                             type="button"
                             onClick={() => { setSwitchTarget({ slug: s.slug, name: s.name }); setSwitchQuery('') }}
-                            className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-700 transition-colors"
+                            className="w-full text-left px-3 py-2 text-sm text-navy-200 hover:bg-navy-700 transition-colors"
                           >
                             {s.name}
                           </button>
@@ -359,16 +359,16 @@ export default function AdminSeriesPage() {
                   <label className={LABEL_CLASS}>
                     Volume numbers in <strong>{switchTarget.name}</strong>
                   </label>
-                  <p className="text-xs text-stone-500 mb-2">
+                  <p className="text-xs text-navy-500 mb-2">
                     Set each book's number now instead of editing it afterward — e.g. "1" or "1-3, 5" for an omnibus. Leave blank for none.
                   </p>
                   {!primaryBooks ? (
-                    <p className="text-xs text-stone-500">Loading books…</p>
+                    <p className="text-xs text-navy-500">Loading books…</p>
                   ) : (
                     <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-1">
                       {primaryBooks.map((b) => (
-                        <div key={b.bookId} className="flex flex-col gap-1 pb-3 border-b border-stone-800 last:border-0 last:pb-0">
-                          <span className="text-sm text-stone-200 leading-snug">{b.title}</span>
+                        <div key={b.bookId} className="flex flex-col gap-1 pb-3 border-b border-navy-800 last:border-0 last:pb-0">
+                          <span className="text-sm text-navy-200 leading-snug">{b.title}</span>
                           <input
                             className={INPUT_CLASS}
                             placeholder="e.g. 1-3, 5"
@@ -391,7 +391,7 @@ export default function AdminSeriesPage() {
                   ),
                 })}
                 disabled={!switchTarget || switchMutation.isPending}
-                className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
+                className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors"
               >
                 {switchMutation.isPending ? 'Switching…' : 'Switch primary series'}
               </button>

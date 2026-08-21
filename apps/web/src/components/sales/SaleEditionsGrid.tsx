@@ -43,7 +43,7 @@ function EditionCard({
       key={`${editionId}-${ed.itemId ?? 'standalone'}`}
       href={href}
       onClick={onLinkClick}
-      className="group rounded-lg overflow-hidden border border-stone-700 hover:border-brand-500/40 transition-colors bg-stone-900"
+      className="group rounded-lg overflow-hidden border border-navy-700 hover:border-brand-500/40 transition-colors bg-navy-900"
     >
       {imgSrc ? (
         <div className="relative w-full" style={{ aspectRatio: '2/3' }}>
@@ -59,9 +59,9 @@ function EditionCard({
         </div>
       )}
       <div className={compact ? 'px-2 py-1.5' : 'p-3'}>
-        <p className={`text-stone-200 font-medium leading-tight line-clamp-2 ${compact ? 'text-xs' : 'text-sm'}`}>{title}</p>
+        <p className={`text-navy-200 font-medium leading-tight line-clamp-2 ${compact ? 'text-xs' : 'text-sm'}`}>{title}</p>
         {authors.length > 0 && (
-          <p className={`text-stone-500 mt-0.5 line-clamp-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+          <p className={`text-navy-500 mt-0.5 line-clamp-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
             {authors.map((a: any) => (a.author ?? a).name).join(', ')}
           </p>
         )}
@@ -93,10 +93,10 @@ export function SaleEditionsGrid({ editions, items = [], saleBrandColors, compac
     : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
 
   const SectionDivider = ({ label }: { label: string }) => (
-    <h3 className={`font-semibold text-stone-300 mb-3 flex items-center gap-2 ${compact ? 'text-xs' : 'text-base'}`}>
-      <span className="h-px flex-1 bg-stone-800" />
+    <h3 className={`font-semibold text-navy-300 mb-3 flex items-center gap-2 ${compact ? 'text-xs' : 'text-base'}`}>
+      <span className="h-px flex-1 bg-navy-800" />
       <span>{label}</span>
-      <span className="h-px flex-1 bg-stone-800" />
+      <span className="h-px flex-1 bg-navy-800" />
     </h3>
   )
 

@@ -73,23 +73,23 @@ function AddEditionFlow({ defaultCompanyId, onSuccess, onCancel }: {
           onChange={e => handleSearchChange(e.target.value)}
         />
       </div>
-      {searching && <div className="text-stone-500 text-sm">Searching…</div>}
+      {searching && <div className="text-navy-500 text-sm">Searching…</div>}
       {debounced.length >= 2 && !searching && bookResults && (
         <div className="space-y-1 max-h-72 overflow-y-auto">
           {bookResults.data.length === 0
-            ? <div className="text-stone-500 text-sm px-2">No books found</div>
+            ? <div className="text-navy-500 text-sm px-2">No books found</div>
             : bookResults.data.map(book => (
               <button key={book.id} type="button" onClick={() => setSelectedBook(book)}
-                className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg bg-stone-800 hover:bg-stone-700 transition-colors"
+                className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg bg-navy-800 hover:bg-navy-700 transition-colors"
               >
                 {cloudinaryUrl(book.coverImage, 'w_64,h_80,c_fill,q_auto,f_auto')
                   ? <img src={cloudinaryUrl(book.coverImage, 'w_64,h_80,c_fill,q_auto,f_auto')!} alt="" className="w-8 h-10 object-cover rounded shrink-0" />
-                  : <div className="w-8 h-10 bg-stone-700 rounded shrink-0" />
+                  : <div className="w-8 h-10 bg-navy-700 rounded shrink-0" />
                 }
                 <div>
-                  <div className="text-stone-100 text-sm font-medium">{book.title}</div>
+                  <div className="text-navy-100 text-sm font-medium">{book.title}</div>
                   {book.authors && book.authors.length > 0 && (
-                    <div className="text-stone-500 text-xs">{book.authors.map(a => a.author.name).join(', ')}</div>
+                    <div className="text-navy-500 text-xs">{book.authors.map(a => a.author.name).join(', ')}</div>
                   )}
                 </div>
               </button>
@@ -98,7 +98,7 @@ function AddEditionFlow({ defaultCompanyId, onSuccess, onCancel }: {
         </div>
       )}
       <button type="button" onClick={onCancel}
-        className="text-stone-500 hover:text-stone-300 text-sm transition-colors">
+        className="text-navy-500 hover:text-navy-300 text-sm transition-colors">
         Cancel
       </button>
     </div>
@@ -114,7 +114,7 @@ function EditEditionLoader({ slug, onSuccess, onCancel }: { slug: string; onSucc
     gcTime: 0,
     refetchOnMount: 'always',
   })
-  if (isLoading || !data) return <div className="py-12 text-center text-stone-400">Loading…</div>
+  if (isLoading || !data) return <div className="py-12 text-center text-navy-400">Loading…</div>
   return <EditBookEditionForm key={data.id} edition={data} onSuccess={() => {
     queryClient.invalidateQueries({ queryKey: ['edition-detail', slug] })
     queryClient.invalidateQueries({ queryKey: ['edition-detail-edit', slug] })
@@ -130,7 +130,7 @@ function DuplicateEditionLoader({ slug, onSuccess, onCancel }: { slug: string; o
     queryFn: () => authFetch<ApiBookEdition & { bookId: string }>(`/editions/${slug}/for-edit`),
     staleTime: 0,
   })
-  if (isLoading || !data) return <div className="py-12 text-center text-stone-400">Loading…</div>
+  if (isLoading || !data) return <div className="py-12 text-center text-navy-400">Loading…</div>
   return (
     <CreateBookEditionForm
       existingBookId={data.bookId}
@@ -276,10 +276,10 @@ export default function AdminEditionsPage() {
         <div>
           {row.book?.slug
             ? <a href={`/books/${row.book.slug}`} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 font-medium">{formatEditionDisplayTitle(row.book, row)}</a>
-            : <div className="text-stone-100 font-medium">{row.book ? formatEditionDisplayTitle(row.book, row) : '—'}</div>
+            : <div className="text-navy-100 font-medium">{row.book ? formatEditionDisplayTitle(row.book, row) : '—'}</div>
           }
           {row.book?.seriesName && (
-            <div className="text-stone-500 text-xs">
+            <div className="text-navy-500 text-xs">
               {row.book.seriesName}{row.book.volumeNumbers?.length ? ` #${formatVolumeNumbers(row.book.volumeNumbers)}` : ''}
             </div>
           )}
@@ -291,8 +291,8 @@ export default function AdminEditionsPage() {
       label: 'Author(s)',
       render: (row: ApiBookEdition) => {
         const authors = row.book?.authors
-        if (!authors?.length) return <span className="text-stone-500">—</span>
-        return <span className="text-stone-300 text-sm">{authors.map((a) => a.name).join(', ')}</span>
+        if (!authors?.length) return <span className="text-navy-500">—</span>
+        return <span className="text-navy-300 text-sm">{authors.map((a) => a.name).join(', ')}</span>
       },
     },
     {
@@ -309,7 +309,7 @@ export default function AdminEditionsPage() {
       label: 'Book Box',
       render: (row: ApiBookEdition) => row.bookBoxCompany?.name
         ? <span className="text-brand-400 text-sm">{row.bookBoxCompany.name}</span>
-        : <span className="text-stone-500">—</span>,
+        : <span className="text-navy-500">—</span>,
     },
     {
       key: 'collection',
@@ -318,8 +318,8 @@ export default function AdminEditionsPage() {
         const col = (row as any).collection
         const subName = (row as any).subscriptionName
         if (!col && !subName) return <span className="text-xs text-violet-400 font-medium">Exclusive</span>
-        if (!col) return <span className="text-stone-600 text-sm">—</span>
-        return <span className="text-stone-400 text-sm">{col.name}</span>
+        if (!col) return <span className="text-navy-600 text-sm">—</span>
+        return <span className="text-navy-400 text-sm">{col.name}</span>
       },
     },
     {
@@ -327,7 +327,7 @@ export default function AdminEditionsPage() {
       label: 'Subscription',
       render: (row: ApiBookEdition) => {
         const name = (row as any).subscriptionName
-        if (!name) return <span className="text-stone-600 text-sm">—</span>
+        if (!name) return <span className="text-navy-600 text-sm">—</span>
         return <span className="text-sky-400 text-sm">{name}</span>
       },
     },
@@ -338,7 +338,7 @@ export default function AdminEditionsPage() {
         const hasPhoto = Array.isArray(row.additionalImages) && row.additionalImages.length > 0
         return hasPhoto
           ? <span className="text-green-400 text-sm" title="Has official photo">✓</span>
-          : <span className="text-stone-600 text-sm" title="No official photo">—</span>
+          : <span className="text-navy-600 text-sm" title="No official photo">—</span>
       },
     },
   ]
@@ -346,11 +346,11 @@ export default function AdminEditionsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold text-stone-100">Editions</h1>
+        <h1 className="text-2xl font-bold text-navy-100">Editions</h1>
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={() => createModal.open()}
-            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
+            className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
           >
             Add Edition
           </button>
@@ -364,13 +364,13 @@ export default function AdminEditionsPage() {
           placeholder="Search by book, author, publisher…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 w-72"
+          className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 w-72"
         />
         {!isManager && (
           <select
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
-            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400"
+            className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-300 focus:outline-none focus:border-brand-400"
           >
             <option value="">All Book Boxes</option>
             {companies.map((c) => (
@@ -382,7 +382,7 @@ export default function AdminEditionsPage() {
           <select
             value={collectionFilter}
             onChange={(e) => setCollectionFilter(e.target.value)}
-            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400"
+            className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-300 focus:outline-none focus:border-brand-400"
           >
             <option value="">All collections</option>
             <option value="none">Exclusive (no collection)</option>
@@ -395,7 +395,7 @@ export default function AdminEditionsPage() {
           <select
             value={subscriptionFilter}
             onChange={(e) => setSubscriptionFilter(e.target.value)}
-            className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400"
+            className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-300 focus:outline-none focus:border-brand-400"
           >
             <option value="">All subscriptions</option>
             <option value="none">Not a subscription</option>
@@ -407,21 +407,21 @@ export default function AdminEditionsPage() {
         {(search || companyFilter || collectionFilter || subscriptionFilter || unverifiedOnly || exclusiveOnly || hasOfficialPhoto) && (
           <button
             onClick={() => { setSearch(''); setCompanyFilter(''); setCollectionFilter(''); setSubscriptionFilter(''); setUnverifiedOnly(false); setExclusiveOnly(false); setHasOfficialPhoto(false) }}
-            className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2"
+            className="text-navy-400 hover:text-navy-200 text-sm px-3 py-2"
           >
             Clear
           </button>
         )}
         <div className="flex items-center gap-4 ml-auto flex-wrap">
-          <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-navy-400 cursor-pointer">
             <input type="checkbox" checked={exclusiveOnly} onChange={(e) => setExclusiveOnly(e.target.checked)} className="accent-violet-400" />
             Exclusive only
           </label>
-          <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-navy-400 cursor-pointer">
             <input type="checkbox" checked={hasOfficialPhoto} onChange={(e) => setHasOfficialPhoto(e.target.checked)} className="accent-green-400" />
             Missing official photo
           </label>
-          <label className="flex items-center gap-2 text-sm text-stone-400 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-navy-400 cursor-pointer">
             <input type="checkbox" checked={unverifiedOnly} onChange={(e) => setUnverifiedOnly(e.target.checked)} className="accent-brand-400" />
             Unverified only
           </label>
@@ -429,9 +429,9 @@ export default function AdminEditionsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-navy-400 py-8 text-center">Loading…</div>
       ) : editions.length === 0 ? (
-        <div className="text-stone-500 py-8 text-center">No editions found{search || companyFilter ? ' matching your filters' : ''}.</div>
+        <div className="text-navy-500 py-8 text-center">No editions found{search || companyFilter ? ' matching your filters' : ''}.</div>
       ) : (
         <>
           <DataTable

@@ -52,7 +52,7 @@ function LoadMoreButton({ onClick, loading }: { onClick: () => void; loading: bo
       <button
         onClick={onClick}
         disabled={loading}
-        className="px-6 py-2.5 rounded-full border border-stone-700 text-stone-300 text-sm hover:border-brand-600 hover:text-brand-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="px-6 py-2.5 rounded-full border border-navy-700 text-navy-300 text-sm hover:border-brand-600 hover:text-brand-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? 'Loading…' : 'Load more'}
       </button>
@@ -87,14 +87,14 @@ function EditionGrid({ artistSlug }: { artistSlug: string }) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="aspect-[2/3] rounded-2xl bg-stone-800 animate-pulse" />
+          <div key={i} className="aspect-[2/3] rounded-2xl bg-navy-800 animate-pulse" />
         ))}
       </div>
     )
   }
 
   if (!items.length && !isFetching) {
-    return <p className="text-stone-500 text-center py-20 font-serif text-lg">No book editions listed yet.</p>
+    return <p className="text-navy-500 text-center py-20 font-serif text-lg">No book editions listed yet.</p>
   }
 
   return (
@@ -107,15 +107,15 @@ function EditionGrid({ artistSlug }: { artistSlug: string }) {
             <Link
               key={edition.id}
               href={`/editions/${edition.slug}`}
-              className="group flex flex-col rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10"
+              className="group flex flex-col rounded-2xl overflow-hidden bg-navy-900 border border-navy-800 hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10"
             >
-              <div className="relative aspect-[2/3] bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 overflow-hidden">
+              <div className="relative aspect-[2/3] bg-gradient-to-br from-navy-700 via-navy-800 to-navy-900 overflow-hidden">
                 {cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={cover} alt={company?.name ?? 'Edition cover'}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
-                  <div className="relative w-full h-full flex items-center justify-center text-stone-600">
+                  <div className="relative w-full h-full flex items-center justify-center text-navy-600">
                     {company?.brandColors && company.brandColors.length > 0 && (
                       <div className="absolute inset-0 opacity-[0.18]" style={brandGradientStyle(company.brandColors)} />
                     )}
@@ -133,7 +133,7 @@ function EditionGrid({ artistSlug }: { artistSlug: string }) {
                   </div>
                 )}
                 {edition.variantLabel && (
-                  <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-tight bg-stone-800/90 text-stone-300 border border-stone-600 max-w-[calc(100%-0.75rem)] truncate">
+                  <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-tight bg-navy-800/90 text-navy-300 border border-navy-600 max-w-[calc(100%-0.75rem)] truncate">
                     {edition.variantLabel}
                   </span>
                 )}
@@ -183,14 +183,14 @@ function CardMonthGrid({ artistSlug }: { artistSlug: string }) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="aspect-[2/3] rounded-2xl bg-stone-800 animate-pulse" />
+          <div key={i} className="aspect-[2/3] rounded-2xl bg-navy-800 animate-pulse" />
         ))}
       </div>
     )
   }
 
   if (!items.length && !isFetching) {
-    return <p className="text-stone-500 text-center py-20 font-serif text-lg">No card months listed yet.</p>
+    return <p className="text-navy-500 text-center py-20 font-serif text-lg">No card months listed yet.</p>
   }
 
   return (
@@ -203,15 +203,15 @@ function CardMonthGrid({ artistSlug }: { artistSlug: string }) {
             <Link
               key={m.id}
               href={`/subscriptions/${m.subscription.slug}`}
-              className="group flex flex-col rounded-2xl overflow-hidden bg-stone-900 border border-stone-800 hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10"
+              className="group flex flex-col rounded-2xl overflow-hidden bg-navy-900 border border-navy-800 hover:border-brand-700/60 transition-all hover:shadow-xl hover:shadow-brand-900/10"
             >
-              <div className="relative aspect-square bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 overflow-hidden">
+              <div className="relative aspect-square bg-gradient-to-br from-navy-700 via-navy-800 to-navy-900 overflow-hidden">
                 {cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={cover} alt={m.theme ?? label}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-stone-600">
+                  <div className="w-full h-full flex items-center justify-center text-navy-600">
                     <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 16M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
@@ -226,7 +226,7 @@ function CardMonthGrid({ artistSlug }: { artistSlug: string }) {
               </div>
               <div className="p-3 flex flex-col gap-1">
                 <p className="text-xs font-semibold text-brand-400">{label}</p>
-                {m.theme && <p className="text-xs text-stone-400 line-clamp-1">{m.theme}</p>}
+                {m.theme && <p className="text-xs text-navy-400 line-clamp-1">{m.theme}</p>}
               </div>
             </Link>
           )
@@ -253,7 +253,7 @@ export function ArtistTabs({ artistSlug }: { artistSlug: string }) {
 
   return (
     <div>
-      <div className="flex items-center gap-1 border-b border-stone-800 mb-8">
+      <div className="flex items-center gap-1 border-b border-navy-800 mb-8">
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -261,7 +261,7 @@ export function ArtistTabs({ artistSlug }: { artistSlug: string }) {
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
               activeTab === tab.id
                 ? 'border-brand-500 text-brand-400'
-                : 'border-transparent text-stone-400 hover:text-stone-200'
+                : 'border-transparent text-navy-400 hover:text-navy-200'
             }`}
           >
             {tab.label}

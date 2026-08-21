@@ -107,8 +107,8 @@ interface CollectionEntry {
   }
 }
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
-const LBL = 'block text-sm text-stone-400 mb-1'
+const INP = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
+const LBL = 'block text-sm text-navy-400 mb-1'
 
 interface FeeEntry {
   key: number
@@ -290,9 +290,9 @@ function AddSaleForm({
       <div>
         <label className={LBL}>Books *</label>
         <input className={`${INP} mb-2`} value={saleBookSearch} onChange={e => setSaleBookSearch(e.target.value)} placeholder="Filter by title…" />
-        <div className="max-h-44 overflow-y-auto border border-stone-700 rounded-lg divide-y divide-stone-800">
+        <div className="max-h-44 overflow-y-auto border border-navy-700 rounded-lg divide-y divide-navy-800">
           {visibleEntries.length === 0 && (
-            <p className="text-stone-500 text-sm px-3 py-2">No books found</p>
+            <p className="text-navy-500 text-sm px-3 py-2">No books found</p>
           )}
           {visibleEntries.map(e => (
             <button
@@ -300,25 +300,25 @@ function AddSaleForm({
               type="button"
               onClick={() => toggleEntry(e.id)}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
-                saleSelectedEntries.includes(e.id) ? 'bg-brand-500/10 text-brand-400' : 'text-stone-300 hover:bg-stone-800'
+                saleSelectedEntries.includes(e.id) ? 'bg-brand-500/10 text-brand-400' : 'text-navy-300 hover:bg-navy-800'
               }`}
             >
-              <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-stone-600">
+              <span className="w-4 h-4 border rounded flex items-center justify-center text-xs shrink-0 border-navy-600">
                 {saleSelectedEntries.includes(e.id) ? '✓' : ''}
               </span>
               <span className="flex-1 truncate">{formatEditionDisplayTitle(e.edition.book, e.edition)}</span>
               {e.purchaseGroup && (
-                <span className="text-stone-500 text-xs shrink-0">
+                <span className="text-navy-500 text-xs shrink-0">
                   {(Number(e.purchaseGroup.totalAmount) + Number(e.purchaseGroup.shippingAmount ?? 0)).toFixed(2)} {e.purchaseGroup.currency}
                 </span>
               )}
             </button>
           ))}
           {hiddenCount > 0 && (
-            <p className="text-stone-600 text-xs px-3 py-2 italic">+{hiddenCount} more — type to search</p>
+            <p className="text-navy-600 text-xs px-3 py-2 italic">+{hiddenCount} more — type to search</p>
           )}
         </div>
-        {count > 0 && <p className="text-xs text-stone-500 mt-1">{count} book{count !== 1 ? 's' : ''} selected</p>}
+        {count > 0 && <p className="text-xs text-navy-500 mt-1">{count} book{count !== 1 ? 's' : ''} selected</p>}
       </div>
 
       {/* Price distribution — only relevant for multi-book sales */}
@@ -332,7 +332,7 @@ function AddSaleForm({
                 type="button"
                 onClick={() => setSaleDistribution(d)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                  saleDistribution === d ? 'bg-brand-500/10 border-brand-500/30 text-brand-400' : 'border-stone-700 text-stone-400 hover:border-stone-500'
+                  saleDistribution === d ? 'bg-brand-500/10 border-brand-500/30 text-brand-400' : 'border-navy-700 text-navy-400 hover:border-navy-500'
                 }`}
               >
                 {d === 'EQUAL' ? 'Equal' : 'Custom per book'}
@@ -340,7 +340,7 @@ function AddSaleForm({
             ))}
           </div>
           {saleDistribution === 'EQUAL' && count > 0 && (
-            <p className="text-xs text-stone-400 mt-1">{perBook} {saleCurrency} per book</p>
+            <p className="text-xs text-navy-400 mt-1">{perBook} {saleCurrency} per book</p>
           )}
           {saleDistribution === 'CUSTOM' && (
             <div className="mt-2 flex flex-col gap-2">
@@ -349,17 +349,17 @@ function AddSaleForm({
                 if (!entry) return null
                 return (
                   <div key={eid} className="flex items-center gap-2">
-                    <span className="flex-1 text-sm text-stone-300 truncate">{formatEditionDisplayTitle(entry.edition.book, entry.edition)}</span>
+                    <span className="flex-1 text-sm text-navy-300 truncate">{formatEditionDisplayTitle(entry.edition.book, entry.edition)}</span>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      className="w-24 bg-stone-800 border border-stone-700 rounded px-2 py-1 text-sm text-stone-100"
+                      className="w-24 bg-navy-800 border border-navy-700 rounded px-2 py-1 text-sm text-navy-100"
                       value={saleCustomAmounts[eid] ?? ''}
                       onChange={e => setSaleCustomAmounts({ ...saleCustomAmounts, [eid]: e.target.value })}
                       placeholder="0.00"
                     />
-                    <span className="text-xs text-stone-500">{saleCurrency}</span>
+                    <span className="text-xs text-navy-500">{saleCurrency}</span>
                   </div>
                 )
               })}
@@ -373,7 +373,7 @@ function AddSaleForm({
       <button
         type="submit"
         disabled={pending}
-        className="bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
+        className="bg-brand-500 hover:bg-brand-400 text-navy-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50"
       >
         {pending ? 'Saving…' : 'Record Sale'}
       </button>
@@ -847,7 +847,7 @@ export default function CollectionPage() {
   if (entriesLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-stone-400 animate-pulse">Loading collection…</div>
+        <div className="text-navy-400 animate-pulse">Loading collection…</div>
       </div>
     )
   }
@@ -856,16 +856,16 @@ export default function CollectionPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col min-[480px]:flex-row min-[480px]:items-start min-[480px]:justify-between gap-3 mb-8">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-stone-100">My Collection</h1>
-          <p className="text-stone-400 text-sm mt-1">Your physical book library</p>
+          <h1 className="text-3xl font-serif font-bold text-navy-100">My Collection</h1>
+          <p className="text-navy-400 text-sm mt-1">Your physical book library</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {/* View mode toggle */}
-          <div className="flex rounded-lg border border-stone-700 overflow-hidden">
+          <div className="flex rounded-lg border border-navy-700 overflow-hidden">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              className={`px-2.5 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : 'text-navy-500 hover:text-navy-300 bg-navy-900'}`}
               aria-label="Grid view"
             >
               <LayoutGrid size={15} />
@@ -873,7 +873,7 @@ export default function CollectionPage() {
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`px-2.5 py-1.5 border-l border-stone-700 transition-colors ${viewMode === 'list' ? 'bg-brand-500/20 text-brand-400' : 'text-stone-500 hover:text-stone-300 bg-stone-900'}`}
+              className={`px-2.5 py-1.5 border-l border-navy-700 transition-colors ${viewMode === 'list' ? 'bg-brand-500/20 text-brand-400' : 'text-navy-500 hover:text-navy-300 bg-navy-900'}`}
               aria-label="List view"
             >
               <List size={15} />
@@ -881,7 +881,7 @@ export default function CollectionPage() {
           </div>
           <button
             onClick={() => setAddModalOpen(true)}
-            className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 text-stone-950 font-semibold px-3 py-2 rounded-xl text-sm transition-colors"
+            className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 text-navy-950 font-semibold px-3 py-2 rounded-xl text-sm transition-colors"
           >
             <Plus size={16} />
             Add Book
@@ -891,19 +891,19 @@ export default function CollectionPage() {
 
       {/* Stats bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
-          <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Owned</p>
+        <div className="bg-navy-900 border border-navy-800 rounded-2xl p-4">
+          <p className="text-navy-400 text-xs uppercase tracking-wider mb-1">Total Owned</p>
           <p className="text-2xl font-serif font-bold text-brand-400">{stats?.totalOwned ?? 0}</p>
         </div>
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
-          <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Series</p>
-          <p className="text-2xl font-serif font-bold text-stone-100">
+        <div className="bg-navy-900 border border-navy-800 rounded-2xl p-4">
+          <p className="text-navy-400 text-xs uppercase tracking-wider mb-1">Series</p>
+          <p className="text-2xl font-serif font-bold text-navy-100">
             {stats?.uniqueSeries ?? 0}
           </p>
         </div>
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4">
-          <p className="text-stone-400 text-xs uppercase tracking-wider mb-1">Authors</p>
-          <p className="text-2xl font-serif font-bold text-stone-100">
+        <div className="bg-navy-900 border border-navy-800 rounded-2xl p-4">
+          <p className="text-navy-400 text-xs uppercase tracking-wider mb-1">Authors</p>
+          <p className="text-2xl font-serif font-bold text-navy-100">
             {stats?.uniqueAuthors ?? 0}
           </p>
         </div>
@@ -919,14 +919,14 @@ export default function CollectionPage() {
             value={bookFilter}
             onChange={e => setBookFilter(e.target.value)}
             placeholder="Search by title…"
-            className={`bg-stone-800 border text-stone-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-stone-500 focus:outline-none transition-colors min-w-[160px] flex-1 sm:flex-none ${filterLoading && hasActiveFilters ? 'border-brand-400/50 animate-pulse' : 'border-stone-700 focus:border-brand-400'}`}
+            className={`bg-navy-800 border text-navy-100 rounded-lg px-3 py-1.5 text-sm placeholder:text-navy-500 focus:outline-none transition-colors min-w-[160px] flex-1 sm:flex-none ${filterLoading && hasActiveFilters ? 'border-brand-400/50 animate-pulse' : 'border-navy-700 focus:border-brand-400'}`}
           />
 
           {/* Group by — always visible */}
           <select
             value={filter}
             onChange={e => setFilter(e.target.value as FilterMode)}
-            className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${filter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            className={`px-3 py-1.5 rounded-lg text-sm border bg-navy-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${filter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500'}`}
           >
             <option value="ALL">Group: All</option>
             <option value="BOOK">Group: By Book</option>
@@ -940,7 +940,7 @@ export default function CollectionPage() {
           <select
             value={sortOrder}
             onChange={e => setSortOrder(e.target.value as SortOrder)}
-            className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${sortOrder !== 'DATE_DESC' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+            className={`px-3 py-1.5 rounded-lg text-sm border bg-navy-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${sortOrder !== 'DATE_DESC' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500'}`}
           >
             <option value="DATE_DESC">Sort: Newest first</option>
             <option value="DATE_ASC">Sort: Oldest first</option>
@@ -953,18 +953,18 @@ export default function CollectionPage() {
               <button
                 type="button"
                 onClick={() => setFiltersOpen(prev => !prev)}
-                className={`sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors ${activeCount > 0 ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500 bg-stone-900'}`}
+                className={`sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors ${activeCount > 0 ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500 bg-navy-900'}`}
               >
                 <SlidersHorizontal size={13} />
                 Filters
                 {activeCount > 0 && (
-                  <span className="bg-brand-500 text-stone-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{activeCount}</span>
+                  <span className="bg-brand-500 text-navy-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{activeCount}</span>
                 )}
               </button>
             )
           })()}
 
-          <span className="text-xs text-stone-600 ml-auto">
+          <span className="text-xs text-navy-600 ml-auto">
             {hasActiveFilters ? (filteredTotal || filtered.length) : (collectionTotal || allEntries.length)}
           </span>
         </div>
@@ -976,7 +976,7 @@ export default function CollectionPage() {
               <select
                 value={companyFilter}
                 onChange={e => setCompanyFilter(e.target.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-navy-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${companyFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500'}`}
               >
                 <option value="ALL">Box: Any</option>
                 {companies.map(c => <option key={c} value={c}>{c}</option>)}
@@ -988,7 +988,7 @@ export default function CollectionPage() {
               <select
                 value={subFilter}
                 onChange={e => setSubFilter(e.target.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${subFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-navy-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${subFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500'}`}
               >
                 <option value="ALL">Sub: Any</option>
                 {subFilterOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -999,7 +999,7 @@ export default function CollectionPage() {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer ${statusFilter !== 'ALL' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-navy-900 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer ${statusFilter !== 'ALL' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500'}`}
             >
               <option value="ALL">Status: Any</option>
               <option value="PREORDER">Preorder</option>
@@ -1016,7 +1016,7 @@ export default function CollectionPage() {
               <select
                 value={tagFilter}
                 onChange={e => setTagFilter(e.target.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+                className={`px-3 py-1.5 rounded-lg text-sm border bg-navy-900 focus:outline-none focus:border-brand-400 transition-colors cursor-pointer ${tagFilter !== 'ALL' ? 'text-brand-400 border-brand-500/30 bg-brand-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500'}`}
               >
                 <option value="ALL">Tag: Any</option>
                 {allUserTags.map(t => <option key={t} value={t}>{t}</option>)}
@@ -1027,7 +1027,7 @@ export default function CollectionPage() {
             <select
               value={sigFilter}
               onChange={e => setSigFilter(e.target.value as typeof sigFilter)}
-              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${sigFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-navy-900 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer ${sigFilter !== 'ALL' ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500'}`}
             >
               <option value="ALL">Signature: Any</option>
               <option value="UNSIGNED">Unsigned</option>
@@ -1042,7 +1042,7 @@ export default function CollectionPage() {
             <select
               value={readingFilter}
               onChange={e => setReadingFilter(e.target.value as typeof readingFilter)}
-              className={`px-3 py-1.5 rounded-lg text-sm border bg-stone-900 focus:outline-none focus:border-green-400 transition-colors cursor-pointer ${readingFilter !== 'ALL' ? 'text-green-400 border-green-500/30 bg-green-500/10' : 'text-stone-400 border-stone-700 hover:border-stone-500'}`}
+              className={`px-3 py-1.5 rounded-lg text-sm border bg-navy-900 focus:outline-none focus:border-green-400 transition-colors cursor-pointer ${readingFilter !== 'ALL' ? 'text-green-400 border-green-500/30 bg-green-500/10' : 'text-navy-400 border-navy-700 hover:border-navy-500'}`}
             >
               <option value="ALL">Read: Any</option>
               <option value="UNREAD">📚 Unread</option>
@@ -1066,14 +1066,14 @@ export default function CollectionPage() {
                   <X className="w-3 h-3" />
                 </button>
               ))}
-              <button onClick={clearAllFilters} className="text-xs text-stone-500 hover:text-stone-300 underline underline-offset-2 ml-1">
+              <button onClick={clearAllFilters} className="text-xs text-navy-500 hover:text-navy-300 underline underline-offset-2 ml-1">
                 Clear all
               </button>
             </div>
           )}
 
           {entries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-stone-500">
+            <div className="flex flex-col items-center justify-center py-20 text-navy-500">
               <BookOpen size={48} className="mb-4 opacity-30" />
               <p className="font-serif text-lg">Your collection is empty</p>
               <p className="text-sm mt-1">Start adding books you own</p>
@@ -1107,7 +1107,7 @@ export default function CollectionPage() {
                 return (
                   <div key={gi}>
                     {groupLabel && (
-                      <h2 className="text-lg font-serif font-semibold text-stone-300 mb-4 border-b border-stone-800 pb-2 flex items-center gap-2">
+                      <h2 className="text-lg font-serif font-semibold text-navy-300 mb-4 border-b border-navy-800 pb-2 flex items-center gap-2">
                         {!isSingletonBucket && filter === 'BOOK' && group[0] && (
                           <a href={`/books/${group[0].edition.book.slug}`} className="hover:text-brand-400 transition-colors">
                             {groupLabel}
@@ -1125,9 +1125,9 @@ export default function CollectionPage() {
                         )}
                         {(isSingletonBucket || filter === 'SERIES' || filter === 'YEAR' || (filter === 'COMPANY' && !group[0]?.edition.bookBoxCompany)) && groupLabel}
                         {!isSingletonBucket && filter === 'BOOK' && group.length > 1 && (
-                          <span className="text-xs font-sans font-normal text-stone-500 bg-stone-800 rounded-full px-2 py-0.5">{group.length} editions</span>
+                          <span className="text-xs font-sans font-normal text-navy-500 bg-navy-800 rounded-full px-2 py-0.5">{group.length} editions</span>
                         )}
-                        <span className="text-xs font-sans font-normal text-stone-500 bg-stone-800 rounded-full px-2 py-0.5 ml-auto">{group.length}</span>
+                        <span className="text-xs font-sans font-normal text-navy-500 bg-navy-800 rounded-full px-2 py-0.5 ml-auto">{group.length}</span>
                       </h2>
                     )}
                 {viewMode === 'grid' ? (
@@ -1148,7 +1148,7 @@ export default function CollectionPage() {
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeMutation.mutate(entry.id) }}
                           disabled={removeMutation.isPending}
-                          className="absolute top-2 right-2 p-1.5 bg-stone-950/80 text-stone-400 hover:text-red-400 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                          className="absolute top-2 right-2 p-1.5 bg-navy-950/80 text-navy-400 hover:text-red-400 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                           aria-label="Remove"
                         >
                           <Trash2 size={14} />
@@ -1169,13 +1169,13 @@ export default function CollectionPage() {
                                   entry.ownershipStatus === 'PREORDER' ? 'text-brand-600 bg-brand-500/20 border-brand-500/40' :
                                   entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
                                   (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
-                                  'text-stone-500 bg-stone-500/10 border-stone-500/30'
+                                  'text-navy-500 bg-navy-500/10 border-navy-500/30'
                                 }`}
                               >
                                 {fmtStatus(entry.ownershipStatus)}
                               </span>
                               {openDropdown === `${entry.id}-ownership` && (
-                                <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl w-28 overflow-hidden">
+                                <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl w-28 overflow-hidden">
                                   {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => (
                                     <button
                                       key={val}
@@ -1190,7 +1190,7 @@ export default function CollectionPage() {
                                         }).then(() => void invalidateCollectionQueries())
                                         setOpenDropdown(null)
                                       }}
-                                      className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                      className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
                                     >
                                       {fmtStatus(val)}
                                     </button>
@@ -1210,13 +1210,13 @@ export default function CollectionPage() {
                                   entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
                                   entry.readingStatus === 'READING' ? 'text-brand-400 bg-brand-500/10 border-brand-500/30' :
                                   entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
-                                  'text-stone-500 bg-stone-500/10 border-stone-500/30'
+                                  'text-navy-500 bg-navy-500/10 border-navy-500/30'
                                 }`}
                               >
                                 {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : entry.readingStatus === 'READING' ? 'READING' : 'UNREAD'}
                               </span>
                               {openDropdown === `${entry.id}-reading` && (
-                                <div className="absolute bottom-full left-0 mb-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                   {(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => (
                                     <button
                                       key={val}
@@ -1231,7 +1231,7 @@ export default function CollectionPage() {
                                         }).then(() => void invalidateCollectionQueries())
                                         setOpenDropdown(null)
                                       }}
-                                      className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                      className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
                                     >
                                       {val}
                                     </button>
@@ -1264,10 +1264,10 @@ export default function CollectionPage() {
                                   {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : entry.signatureType === 'autopen' ? '✒️ AUTOPEN' : entry.signatureType === 'stamped' ? '🕹️ STAMPED' : '🖨️ DIGITALLY SIGNED'}
                                 </span>
                                 {openDropdown === `${entry.id}-sig-grid` && (
-                                  <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                  <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                     {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
                                       <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
-                                        className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                        className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
                                       >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                     ))}
                                   </div>
@@ -1278,14 +1278,14 @@ export default function CollectionPage() {
                               <div className="relative" data-dropdown>
                                 <span
                                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-sig-grid` ? null : `${entry.id}-sig-grid`) }}
-                                  className="text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none text-stone-600 bg-stone-800 border-stone-700"
+                                  className="text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none text-navy-600 bg-navy-800 border-navy-700"
                                   title="Set signature type"
                                 >UNSIGNED</span>
                                 {openDropdown === `${entry.id}-sig-grid` && (
-                                  <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                  <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                     {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
                                       <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
-                                        className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                        className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
                                       >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                     ))}
                                   </div>
@@ -1336,21 +1336,21 @@ export default function CollectionPage() {
                             const perBook = bookCount > 1 ? base + extras / bookCount : base + extras
                             const dc = user?.preferredCurrency
                             return (
-                              <p className="text-[10px] text-stone-400">
+                              <p className="text-[10px] text-navy-400">
                                 {perBook.toFixed(2)} {pgCur}
-                                {bookCount > 1 && <span className="text-stone-600"> /book</span>}
+                                {bookCount > 1 && <span className="text-navy-600"> /book</span>}
                                 {dc && pgCur !== dc && (() => {
                                   const key = `${pgCur}:${dc}:${dateStr}`
                                   const rate = conversionRates[key]
                                   if (!rate) return null
-                                  return <span className="text-stone-500"> · ~{(perBook * rate).toFixed(2)} {dc}</span>
+                                  return <span className="text-navy-500"> · ~{(perBook * rate).toFixed(2)} {dc}</span>
                                 })()}
                               </p>
                             )
                           })() : null}
 
                           {entry.acquiredAt && (
-                            <p className="text-[10px] text-stone-500">
+                            <p className="text-[10px] text-navy-500">
                               {new Date(entry.acquiredAt).toLocaleDateString()}
                             </p>
                           )}
@@ -1366,7 +1366,7 @@ export default function CollectionPage() {
                           )}
 
                           {/* Quick action buttons */}
-                          <div className="flex flex-wrap gap-1 mt-2 pt-1.5 border-t border-stone-800/60">
+                          <div className="flex flex-wrap gap-1 mt-2 pt-1.5 border-t border-navy-800/60">
                             {/* Track shipment — show if SHIPPING/PREORDER or has tracking numbers */}
                             {(entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'PREORDER' || entry.trackingNumbers.length > 0) && (
                               <button
@@ -1380,7 +1380,7 @@ export default function CollectionPage() {
                                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border transition-colors ${
                                   entry.trackingNumbers.length > 0
                                     ? 'text-blue-400 border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20'
-                                    : 'text-stone-400 border-stone-700 hover:text-blue-400 hover:border-blue-500/30 hover:bg-blue-500/10'
+                                    : 'text-navy-400 border-navy-700 hover:text-blue-400 hover:border-blue-500/30 hover:bg-blue-500/10'
                                 }`}
                                 title={entry.trackingNumbers.length > 0 ? `${entry.trackingNumbers.length} tracking number(s)` : 'Add tracking number'}
                               >
@@ -1396,7 +1396,7 @@ export default function CollectionPage() {
                                   e.preventDefault(); e.stopPropagation()
                                   openRecordSale(entry.id, entry.purchaseGroup?.currency ?? 'GBP')
                                 }}
-                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-stone-700 text-stone-400 hover:text-brand-400 hover:border-brand-500/30 hover:bg-brand-500/10 transition-colors"
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-navy-700 text-navy-400 hover:text-brand-400 hover:border-brand-500/30 hover:bg-brand-500/10 transition-colors"
                                 title="Record sale"
                               >
                                 <Banknote size={10} />
@@ -1415,7 +1415,7 @@ export default function CollectionPage() {
                                 setHistoryItems(data)
                                 setHistoryLoading(false)
                               }}
-                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-600 hover:bg-stone-700/40 transition-colors"
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border border-navy-700 text-navy-400 hover:text-navy-200 hover:border-navy-600 hover:bg-navy-700/40 transition-colors"
                               title="Ownership history"
                             >
                               <History size={10} />
@@ -1429,7 +1429,7 @@ export default function CollectionPage() {
                 </div>
                 ) : (
                 /* ── List view ── */
-                <div className="flex flex-col divide-y divide-stone-800/60 border border-stone-800 rounded-xl">
+                <div className="flex flex-col divide-y divide-navy-800/60 border border-navy-800 rounded-xl">
                   {group.map((entry) => {
                     const cover = cloudinaryUrl(resolveEditionCoverRaw(entry.edition), 'w_80,h_120,c_fill,q_auto,f_auto')
                     const book = entry.edition.book
@@ -1445,13 +1445,13 @@ export default function CollectionPage() {
                       <a
                         key={entry.id}
                         href={`/editions/${entry.edition.slug}?entry=${entry.id}`}
-                        className="group flex items-center gap-3 px-3 py-2.5 bg-stone-900 hover:bg-stone-800/80 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                        className="group flex items-center gap-3 px-3 py-2.5 bg-navy-900 hover:bg-navy-800/80 transition-colors first:rounded-t-xl last:rounded-b-xl"
                       >
                         {/* Thumbnail */}
                         <div className="w-10 h-[60px] flex-shrink-0 rounded overflow-hidden">
                           {cover
                             ? <img src={cover} alt={displayTitle} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-stone-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}>
+                            : <div className="w-full h-full flex items-center justify-center text-navy-600" style={brandGradientStyle(getBrandColors(entry.edition.bookBoxCompany?.slug) ?? entry.edition.bookBoxCompany?.brandColors)}>
                                 <BookOpen size={14} />
                               </div>
                           }
@@ -1459,10 +1459,10 @@ export default function CollectionPage() {
 
                         {/* Main info */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-stone-100 truncate">{displayTitle}</p>
-                          {authors && <p className="text-xs text-stone-400 truncate">{authors}</p>}
+                          <p className="text-sm font-medium text-navy-100 truncate">{displayTitle}</p>
+                          {authors && <p className="text-xs text-navy-400 truncate">{authors}</p>}
                           {(book.seriesName || entry.edition.bookBoxCompany?.name) && (
-                            <p className="text-[10px] text-stone-500 truncate">
+                            <p className="text-[10px] text-navy-500 truncate">
                               {book.seriesName && <span>{book.seriesName}{book.volumeNumbers?.length ? ` #${formatVolumeNumbers(book.volumeNumbers)}` : ''}</span>}
                               {book.seriesName && entry.edition.bookBoxCompany?.name && <span className="mx-1">·</span>}
                               {entry.edition.bookBoxCompany?.name && <span>{entry.edition.bookBoxCompany.name}</span>}
@@ -1481,16 +1481,16 @@ export default function CollectionPage() {
                                 entry.ownershipStatus === 'PREORDER' ? 'text-brand-600 bg-brand-500/20 border-brand-500/40' :
                                 entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
                                 (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
-                                'text-stone-500 bg-stone-500/10 border-stone-500/30'
+                                'text-navy-500 bg-navy-500/10 border-navy-500/30'
                               }`}
                             >
                               {fmtStatus(entry.ownershipStatus)}
                             </span>
                             {openDropdown === `${entry.id}-ownership` && (
-                              <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl w-28 overflow-hidden">
+                              <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl w-28 overflow-hidden">
                                 {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => (
                                   <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
-                                    className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                    className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
                                   >{fmtStatus(val)}</button>
                                 ))}
                               </div>
@@ -1505,16 +1505,16 @@ export default function CollectionPage() {
                                 entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
                                 entry.readingStatus === 'READING' ? 'text-brand-400 bg-brand-500/10 border-brand-500/30' :
                                 entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
-                                'text-stone-500 bg-stone-500/10 border-stone-500/30'
+                                'text-navy-500 bg-navy-500/10 border-navy-500/30'
                               }`}
                             >
                               {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : entry.readingStatus === 'READING' ? 'READING' : 'UNREAD'}
                             </span>
                             {openDropdown === `${entry.id}-reading` && (
-                              <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                              <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                 {(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => (
                                   <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ readingStatus: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
-                                    className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                    className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
                                   >{val}</button>
                                 ))}
                               </div>
@@ -1525,15 +1525,15 @@ export default function CollectionPage() {
                           <div className="relative" data-dropdown>
                             <span
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-sig` ? null : `${entry.id}-sig`) }}
-                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${entry.signatureType && entry.signatureType !== 'unsigned' ? (entry.signatureType === 'signed' ? 'text-purple-400 bg-purple-500/10 border-purple-500/30' : entry.signatureType === 'stamped' ? 'text-teal-400 bg-teal-500/10 border-teal-500/30' : 'text-stone-400 bg-stone-500/10 border-stone-500/30') : 'text-stone-600 bg-stone-800 border-stone-700'}`}
+                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${entry.signatureType && entry.signatureType !== 'unsigned' ? (entry.signatureType === 'signed' ? 'text-purple-400 bg-purple-500/10 border-purple-500/30' : entry.signatureType === 'stamped' ? 'text-teal-400 bg-teal-500/10 border-teal-500/30' : 'text-navy-400 bg-navy-500/10 border-navy-500/30') : 'text-navy-600 bg-navy-800 border-navy-700'}`}
                             >
                               {entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : entry.signatureType === 'digitally_signed' ? '🖨️' : entry.signatureType === 'stamped' ? '🕹️' : '—'}
                             </span>
                             {openDropdown === `${entry.id}-sig` && (
-                              <div className="absolute top-full left-0 mt-1 z-50 bg-stone-900 border border-stone-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                              <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                 {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
                                   <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
-                                    className="w-full text-left text-xs px-2 py-1 hover:bg-stone-700 text-stone-200 transition-colors"
+                                    className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
                                   >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
                                 ))}
                               </div>
@@ -1543,13 +1543,13 @@ export default function CollectionPage() {
 
                         {/* Date & cost */}
                         <div className="hidden md:flex flex-col items-end gap-0.5 flex-shrink-0 min-w-[80px]">
-                          {dateLabel && <p className="text-[10px] text-stone-500">{dateLabel}</p>}
+                          {dateLabel && <p className="text-[10px] text-navy-500">{dateLabel}</p>}
                           {pg && (() => {
                             const bookCount = pg._count?.bookEntries ?? 1
                             const base = entry.basePrice != null ? Number(entry.basePrice) : Number(pg.totalAmount) / bookCount
                             const shippingShare = Number(pg.shippingAmount ?? 0) / bookCount
                             const perBook = base + shippingShare
-                            return <p className="text-[10px] text-stone-400">{perBook.toFixed(2)} {pg.currency}</p>
+                            return <p className="text-[10px] text-navy-400">{perBook.toFixed(2)} {pg.currency}</p>
                           })()}
                         </div>
 
@@ -1558,7 +1558,7 @@ export default function CollectionPage() {
                           {(entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'PREORDER' || entry.trackingNumbers.length > 0) && (
                             <button
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setTrackEntry({ id: entry.id, trackingNumbers: entry.trackingNumbers }); setTrackingInput(''); setTrackingLabelInput(''); setShowAddTracking(entry.trackingNumbers.length === 0) }}
-                              className={`p-1.5 rounded-lg transition-colors ${entry.trackingNumbers.length > 0 ? 'text-blue-400 hover:bg-blue-500/10' : 'text-stone-500 hover:text-blue-400 hover:bg-blue-500/10'}`}
+                              className={`p-1.5 rounded-lg transition-colors ${entry.trackingNumbers.length > 0 ? 'text-blue-400 hover:bg-blue-500/10' : 'text-navy-500 hover:text-blue-400 hover:bg-blue-500/10'}`}
                               title={entry.trackingNumbers.length > 0 ? `${entry.trackingNumbers.length} tracking number(s)` : 'Add tracking number'}
                             >
                               <Truck size={12} />
@@ -1567,7 +1567,7 @@ export default function CollectionPage() {
                           {entry.ownershipStatus !== 'SOLD' && entry.ownershipStatus !== 'GIFTED_AWAY' && (
                             <button
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); openRecordSale(entry.id, entry.purchaseGroup?.currency ?? 'GBP') }}
-                              className="p-1.5 rounded-lg text-stone-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
+                              className="p-1.5 rounded-lg text-navy-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
                               title="Record sale"
                             >
                               <Banknote size={12} />
@@ -1576,7 +1576,7 @@ export default function CollectionPage() {
                           <button
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeMutation.mutate(entry.id) }}
                             disabled={removeMutation.isPending}
-                            className="p-1.5 text-stone-600 hover:text-red-400 transition-all"
+                            className="p-1.5 text-navy-600 hover:text-red-400 transition-all"
                             aria-label="Remove"
                           >
                             <Trash2 size={12} />
@@ -1598,7 +1598,7 @@ export default function CollectionPage() {
           <button
             onClick={() => void loadMoreCollection()}
             disabled={loadingMore}
-            className="px-6 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors disabled:opacity-50"
+            className="px-6 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-700 text-navy-300 text-sm font-medium transition-colors disabled:opacity-50"
           >
             {loadingMore ? 'Loading…' : `Show more (${allEntries.length} / ${collectionTotal})`}
           </button>
@@ -1610,7 +1610,7 @@ export default function CollectionPage() {
           <button
             onClick={() => void loadMoreFiltered()}
             disabled={loadingMoreFiltered}
-            className="px-6 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition-colors disabled:opacity-50"
+            className="px-6 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-700 text-navy-300 text-sm font-medium transition-colors disabled:opacity-50"
           >
             {loadingMoreFiltered ? 'Loading…' : `Show more (${filteredEntries.length} / ${filteredTotal})`}
           </button>
@@ -1638,9 +1638,9 @@ export default function CollectionPage() {
         title="Ownership History"
       >
         <div className="flex flex-col gap-3 min-w-[320px]">
-          {historyLoading && <p className="text-stone-400 text-sm">Loading…</p>}
+          {historyLoading && <p className="text-navy-400 text-sm">Loading…</p>}
           {!historyLoading && historyItems.length === 0 && (
-            <p className="text-stone-500 text-sm">No history recorded yet.</p>
+            <p className="text-navy-500 text-sm">No history recorded yet.</p>
           )}
           {historyItems.map(item => (
             <div key={item.id} className="flex items-center gap-2 group">
@@ -1649,7 +1649,7 @@ export default function CollectionPage() {
                   <select
                     value={historyEditStatus}
                     onChange={e => setHistoryEditStatus(e.target.value)}
-                    className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
+                    className="bg-navy-800 border border-navy-600 text-navy-200 text-xs rounded px-2 py-1"
                   >
                     {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','TO_SELL','SOLD'].map(s => (
                       <option key={s} value={s}>{s}</option>
@@ -1659,7 +1659,7 @@ export default function CollectionPage() {
                     type="date"
                     value={historyEditDate}
                     onChange={e => setHistoryEditDate(e.target.value)}
-                    className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
+                    className="bg-navy-800 border border-navy-600 text-navy-200 text-xs rounded px-2 py-1"
                   />
                   <button
                     onClick={async () => {
@@ -1672,15 +1672,15 @@ export default function CollectionPage() {
                     }}
                     className="text-xs text-green-400 hover:text-green-300 px-1"
                   >Save</button>
-                  <button onClick={() => setHistoryEditId(null)} className="text-xs text-stone-500 hover:text-stone-300 px-1">Cancel</button>
+                  <button onClick={() => setHistoryEditId(null)} className="text-xs text-navy-500 hover:text-navy-300 px-1">Cancel</button>
                 </>
               ) : (
                 <>
-                  <span className="text-xs font-medium text-stone-300 w-28 shrink-0">{item.status}</span>
-                  <span className="text-xs text-stone-500 flex-1">{new Date(item.changedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                  <span className="text-xs font-medium text-navy-300 w-28 shrink-0">{item.status}</span>
+                  <span className="text-xs text-navy-500 flex-1">{new Date(item.changedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                   <button
                     onClick={() => { setHistoryEditId(item.id); setHistoryEditStatus(item.status); setHistoryEditDate(new Date(item.changedAt).toISOString().slice(0,10)) }}
-                    className="opacity-0 group-hover:opacity-100 text-stone-500 hover:text-stone-300 transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 text-navy-500 hover:text-navy-300 transition-opacity"
                     title="Edit"
                   ><Pencil size={11} /></button>
                   <button
@@ -1688,7 +1688,7 @@ export default function CollectionPage() {
                       await authFetch(`/collection/entry/${historyEntryId}/history/${item.id}`, { method: 'DELETE' })
                       setHistoryItems(prev => prev.filter(h => h.id !== item.id))
                     }}
-                    className="opacity-0 group-hover:opacity-100 text-stone-500 hover:text-rose-400 transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 text-navy-500 hover:text-rose-400 transition-opacity"
                     title="Delete"
                   ><X size={11} /></button>
                 </>
@@ -1697,13 +1697,13 @@ export default function CollectionPage() {
           ))}
 
           {/* Add new entry */}
-          <div className="border-t border-stone-700 pt-3 mt-1">
-            <p className="text-xs text-stone-500 mb-2">Add entry manually</p>
+          <div className="border-t border-navy-700 pt-3 mt-1">
+            <p className="text-xs text-navy-500 mb-2">Add entry manually</p>
             <div className="flex gap-2 flex-wrap">
               <select
                 id="new-hist-status"
                 defaultValue="OWNED"
-                className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
+                className="bg-navy-800 border border-navy-600 text-navy-200 text-xs rounded px-2 py-1"
               >
                 {['PREORDER','SHIPPING','OWNED','BORROWED','LENDED','TO_SELL','SOLD'].map(s => (
                   <option key={s} value={s}>{s}</option>
@@ -1712,7 +1712,7 @@ export default function CollectionPage() {
               <input
                 id="new-hist-date"
                 type="date"
-                className="bg-stone-800 border border-stone-600 text-stone-200 text-xs rounded px-2 py-1"
+                className="bg-navy-800 border border-navy-600 text-navy-200 text-xs rounded px-2 py-1"
               />
               <button
                 onClick={async () => {
@@ -1725,7 +1725,7 @@ export default function CollectionPage() {
                   setHistoryItems(prev => [...prev, created].sort((a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime()))
                   dateEl.value = ''
                 }}
-                className="px-3 py-1 rounded-lg bg-stone-700 hover:bg-stone-600 text-xs text-stone-200 transition-colors"
+                className="px-3 py-1 rounded-lg bg-navy-700 hover:bg-navy-600 text-xs text-navy-200 transition-colors"
               >Add</button>
             </div>
           </div>
@@ -1746,7 +1746,7 @@ export default function CollectionPage() {
                 <div key={tn.id} className="flex items-center gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
                   <Truck size={14} className="text-blue-400 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    {tn.label && <p className="text-[10px] text-stone-400 mb-0.5">{tn.label}</p>}
+                    {tn.label && <p className="text-[10px] text-navy-400 mb-0.5">{tn.label}</p>}
                     <a
                       href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(tn.trackingNumber)}`}
                       target="_blank"
@@ -1763,7 +1763,7 @@ export default function CollectionPage() {
                       invalidateCollectionQueries()
                       setTrackEntry(prev => prev ? { ...prev, trackingNumbers: prev.trackingNumbers.filter(t => t.id !== tn.id) } : null)
                     }}
-                    className="p-1.5 text-stone-600 hover:text-red-400 transition-colors shrink-0"
+                    className="p-1.5 text-navy-600 hover:text-red-400 transition-colors shrink-0"
                     title="Remove tracking number"
                   >
                     <X size={13} />
@@ -1781,7 +1781,7 @@ export default function CollectionPage() {
                 placeholder="Tracking number (e.g. JD014600006278907695)"
                 value={trackingInput}
                 onChange={(e) => setTrackingInput(e.target.value)}
-                className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
+                className="w-full bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors"
                 autoFocus
               />
               <input
@@ -1789,14 +1789,14 @@ export default function CollectionPage() {
                 placeholder="Label (optional, e.g. Volume 1)"
                 value={trackingLabelInput}
                 onChange={(e) => setTrackingLabelInput(e.target.value)}
-                className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
+                className="w-full bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-4 py-2.5 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors"
               />
               {trackingInput.trim() && (
                 <a
                   href={`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackingInput.trim())}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-xs text-stone-400 hover:text-brand-400 transition-colors"
+                  className="flex items-center gap-2 text-xs text-navy-400 hover:text-brand-400 transition-colors"
                 >
                   <Truck size={12} /> Preview on ParcelsApp ↗
                 </a>
@@ -1817,13 +1817,13 @@ export default function CollectionPage() {
                     setShowAddTracking(false)
                   }}
                   disabled={!trackingInput.trim()}
-                  className="flex-1 bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-stone-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                  className="flex-1 bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-navy-950 font-semibold py-2.5 rounded-xl text-sm transition-colors"
                 >
                   Add
                 </button>
                 <button
                   onClick={() => { setTrackingInput(''); setTrackingLabelInput(''); setShowAddTracking(false) }}
-                  className="px-4 py-2.5 rounded-xl text-sm border border-stone-700 text-stone-400 hover:text-stone-200 transition-colors"
+                  className="px-4 py-2.5 rounded-xl text-sm border border-navy-700 text-navy-400 hover:text-navy-200 transition-colors"
                 >
                   Cancel
                 </button>
@@ -1832,7 +1832,7 @@ export default function CollectionPage() {
           ) : (
             <button
               onClick={() => setShowAddTracking(true)}
-              className="flex items-center gap-2 text-sm text-stone-400 hover:text-brand-400 transition-colors"
+              className="flex items-center gap-2 text-sm text-navy-400 hover:text-brand-400 transition-colors"
             >
               <Plus size={14} /> Add tracking number
             </button>
@@ -2039,7 +2039,7 @@ function AddToCollectionSearch({
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {/* Header with back */}
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => setStep('search')} className="text-stone-500 hover:text-stone-200 transition-colors">
+          <button type="button" onClick={() => setStep('search')} className="text-navy-500 hover:text-navy-200 transition-colors">
             <X size={16} />
           </button>
           <div className="flex items-center gap-2 min-w-0">
@@ -2048,8 +2048,8 @@ function AddToCollectionSearch({
                 className="w-8 h-8 rounded object-cover shrink-0" unoptimized />
             )}
             <div className="min-w-0">
-              <p className="text-sm font-medium text-stone-100 truncate">{formatEditionDisplayTitle(selected.book, selected)}</p>
-              <p className="text-xs text-stone-500 truncate">
+              <p className="text-sm font-medium text-navy-100 truncate">{formatEditionDisplayTitle(selected.book, selected)}</p>
+              <p className="text-xs text-navy-500 truncate">
                 {[selected.bookBoxCompany?.name, selected.publisher].filter(Boolean).join(' · ')}
               </p>
             </div>
@@ -2088,14 +2088,14 @@ function AddToCollectionSearch({
         {/* Fees */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-stone-400">Additional fees (optional)</span>
+            <span className="text-xs font-medium text-navy-400">Additional fees (optional)</span>
             <button type="button"
               onClick={() => { feeKeyRef.current++; setFeeEntries(p => [...p, { key: feeKeyRef.current, templateId: '', amount: '', currency }]) }}
               className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 transition-colors">
               <Plus size={12} /> Add fee
             </button>
           </div>
-          {feeEntries.length === 0 && <p className="text-xs text-stone-500 italic">No additional fees</p>}
+          {feeEntries.length === 0 && <p className="text-xs text-navy-500 italic">No additional fees</p>}
           <div className="space-y-2">
             {feeEntries.map(fee => (
               <div key={fee.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
@@ -2104,17 +2104,17 @@ function AddToCollectionSearch({
                     const tpl = feeTemplates.find(t => t.id === e.target.value)
                     setFeeEntries(p => p.map(f => f.key === fee.key ? { ...f, templateId: e.target.value, amount: tpl?.defaultAmount != null ? String(tpl.defaultAmount) : f.amount, currency: tpl?.defaultCurrency ?? f.currency } : f))
                   }}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400">
+                  className="bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400">
                   <option value="">— Template —</option>
                   {feeTemplates.map(t => <option key={t.id} value={t.id}>{t.name}{t.category ? ` (${t.category})` : ''}</option>)}
                 </select>
                 <input type="text" value={fee.amount} onChange={e => setFeeEntries(p => p.map(f => f.key === fee.key ? { ...f, amount: e.target.value } : f))}
-                  placeholder="0.00" className="w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400" />
+                  placeholder="0.00" className="w-20 bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400" />
                 <select value={fee.currency} onChange={e => setFeeEntries(p => p.map(f => f.key === fee.key ? { ...f, currency: e.target.value } : f))}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400">
+                  className="bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-brand-400">
                   {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <button type="button" onClick={() => setFeeEntries(p => p.filter(f => f.key !== fee.key))} className="p-2 text-stone-500 hover:text-red-400 transition-colors">
+                <button type="button" onClick={() => setFeeEntries(p => p.filter(f => f.key !== fee.key))} className="p-2 text-navy-500 hover:text-red-400 transition-colors">
                   <X size={14} />
                 </button>
               </div>
@@ -2125,27 +2125,27 @@ function AddToCollectionSearch({
         {/* Discounts */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-stone-400">Discounts (optional)</span>
+            <span className="text-xs font-medium text-navy-400">Discounts (optional)</span>
             <button type="button"
               onClick={() => { discountKeyRef.current++; setDiscountEntries(p => [...p, { key: discountKeyRef.current, name: '', amount: '', currency }]) }}
               className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors">
               <Plus size={12} /> Add discount
             </button>
           </div>
-          {discountEntries.length === 0 && <p className="text-xs text-stone-500 italic">No discounts</p>}
+          {discountEntries.length === 0 && <p className="text-xs text-navy-500 italic">No discounts</p>}
           <div className="space-y-2">
             {discountEntries.map(disc => (
               <div key={disc.key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
                 <input type="text" value={disc.name} onChange={e => setDiscountEntries(p => p.map(d => d.key === disc.key ? { ...d, name: e.target.value } : d))}
                   placeholder="e.g. Promo code, loyalty…"
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400" />
+                  className="bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400" />
                 <input type="text" value={disc.amount} onChange={e => setDiscountEntries(p => p.map(d => d.key === disc.key ? { ...d, amount: e.target.value } : d))}
-                  placeholder="0.00" className="w-20 bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400" />
+                  placeholder="0.00" className="w-20 bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400" />
                 <select value={disc.currency} onChange={e => setDiscountEntries(p => p.map(d => d.key === disc.key ? { ...d, currency: e.target.value } : d))}
-                  className="bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400">
+                  className="bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-green-400">
                   {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <button type="button" onClick={() => setDiscountEntries(p => p.filter(d => d.key !== disc.key))} className="p-2 text-stone-500 hover:text-red-400 transition-colors">
+                <button type="button" onClick={() => setDiscountEntries(p => p.filter(d => d.key !== disc.key))} className="p-2 text-navy-500 hover:text-red-400 transition-colors">
                   <X size={14} />
                 </button>
               </div>
@@ -2162,11 +2162,11 @@ function AddToCollectionSearch({
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={isSecondHand} onChange={e => { setIsSecondHand(e.target.checked); if (!e.target.checked) setSourcePlatform('') }}
               className="w-4 h-4 rounded accent-brand-500" />
-            <span className="text-sm text-stone-300">Second-hand purchase</span>
+            <span className="text-sm text-navy-300">Second-hand purchase</span>
           </label>
           {isSecondHand && (
             <select value={sourcePlatform} onChange={e => setSourcePlatform(e.target.value)}
-              className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400 transition-colors">
+              className="w-full bg-navy-800 border border-navy-700 text-navy-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400 transition-colors">
               <option value="">Select platform (optional)</option>
               {SALE_PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
@@ -2177,11 +2177,11 @@ function AddToCollectionSearch({
 
         <div className="flex gap-2 pt-1">
           <button type="button" onClick={() => setStep('search')}
-            className="flex-1 py-2 rounded-xl border border-stone-700 text-stone-400 text-sm hover:bg-stone-800 transition-colors">
+            className="flex-1 py-2 rounded-xl border border-navy-700 text-navy-400 text-sm hover:bg-navy-800 transition-colors">
             Back
           </button>
           <button type="submit" disabled={submitting}
-            className="flex-1 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-stone-950 font-semibold py-2 rounded-xl text-sm transition-colors">
+            className="flex-1 bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-navy-950 font-semibold py-2 rounded-xl text-sm transition-colors">
             {submitting ? 'Adding…' : 'Add to Collection'}
           </button>
         </div>
@@ -2198,31 +2198,31 @@ function AddToCollectionSearch({
           placeholder="Search by title, author, series…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full bg-stone-800 border border-stone-700 text-stone-100 rounded-xl pl-9 pr-4 py-2.5 text-sm placeholder:text-stone-500 focus:outline-none focus:border-brand-400 transition-colors"
+          className="w-full bg-navy-800 border border-navy-700 text-navy-100 rounded-xl pl-9 pr-4 py-2.5 text-sm placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors"
         />
-        <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 ${loading ? 'animate-pulse' : ''}`} />
+        <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 text-navy-500 ${loading ? 'animate-pulse' : ''}`} />
       </div>
 
       {query.length >= 2 && (
         <div className="flex flex-col gap-1 max-h-72 overflow-y-auto">
           {results.length === 0 && !loading && (
-            <p className="text-sm text-stone-500 text-center py-4">No editions found</p>
+            <p className="text-sm text-navy-500 text-center py-4">No editions found</p>
           )}
           {results.map((edition) => {
             const alreadyOwned = existingEditionIds.has(edition.id)
             return (
-              <div key={edition.id} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-stone-800 transition-colors">
-                <div className="w-10 h-10 rounded-lg bg-stone-800 shrink-0 overflow-hidden">
+              <div key={edition.id} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-navy-800 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-navy-800 shrink-0 overflow-hidden">
                   {edition.additionalImages?.[0] ? (
                     <Image src={cloudinaryUrl(edition.additionalImages[0]) ?? ''} alt={formatEditionDisplayTitle(edition.book, edition)}
                       width={40} height={40} className="w-full h-full object-cover" unoptimized />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-stone-700"><BookOpen size={14} /></div>
+                    <div className="w-full h-full flex items-center justify-center text-navy-700"><BookOpen size={14} /></div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-stone-100 truncate">{formatEditionDisplayTitle(edition.book, edition)}</p>
-                  <p className="text-xs text-stone-500 truncate">
+                  <p className="text-sm text-navy-100 truncate">{formatEditionDisplayTitle(edition.book, edition)}</p>
+                  <p className="text-xs text-navy-500 truncate">
                     {[edition.bookBoxCompany?.name, edition.publisher].filter(Boolean).join(' · ')}
                   </p>
                 </div>
@@ -2231,8 +2231,8 @@ function AddToCollectionSearch({
                   onClick={() => openForm(edition)}
                   className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                     alreadyOwned
-                      ? 'bg-stone-700 text-stone-500 cursor-not-allowed'
-                      : 'bg-brand-500 hover:bg-brand-400 text-stone-950'
+                      ? 'bg-navy-700 text-navy-500 cursor-not-allowed'
+                      : 'bg-brand-500 hover:bg-brand-400 text-navy-950'
                   }`}
                 >
                   {alreadyOwned ? <><Check size={11} /> Owned</> : <><Plus size={11} /> Add</>}

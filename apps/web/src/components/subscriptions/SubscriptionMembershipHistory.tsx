@@ -46,61 +46,61 @@ export default function SubscriptionMembershipHistory({ subscriptionSlug }: { su
   }
 
   if (loaded && entries.length === 0) return (
-    <div className="mt-6 border border-stone-800 rounded-xl px-4 py-3 flex items-center gap-2 text-sm text-stone-500">
+    <div className="mt-6 border border-navy-800 rounded-xl px-4 py-3 flex items-center gap-2 text-sm text-navy-500">
       <History className="w-4 h-4 shrink-0" />
       No recorded membership history.
     </div>
   )
 
   return (
-    <div className="mt-6 border border-stone-800 rounded-xl overflow-hidden">
+    <div className="mt-6 border border-navy-800 rounded-xl overflow-hidden">
       <button
         type="button"
         onClick={handleToggle}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-stone-800/30 transition-colors"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-navy-800/30 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <History className="w-4 h-4 text-stone-400 shrink-0" />
-          <span className="text-sm font-medium text-stone-300">My Membership History</span>
+          <History className="w-4 h-4 text-navy-400 shrink-0" />
+          <span className="text-sm font-medium text-navy-300">My Membership History</span>
         </div>
         {loading ? (
-          <Loader2 className="w-4 h-4 text-stone-500 animate-spin shrink-0" />
+          <Loader2 className="w-4 h-4 text-navy-500 animate-spin shrink-0" />
         ) : open ? (
-          <ChevronUp className="w-4 h-4 text-stone-500 shrink-0" />
+          <ChevronUp className="w-4 h-4 text-navy-500 shrink-0" />
         ) : (
-          <ChevronDown className="w-4 h-4 text-stone-500 shrink-0" />
+          <ChevronDown className="w-4 h-4 text-navy-500 shrink-0" />
         )}
       </button>
 
       {error && (
-        <p className="px-4 py-2 text-xs text-red-400 border-t border-stone-800">{error}</p>
+        <p className="px-4 py-2 text-xs text-red-400 border-t border-navy-800">{error}</p>
       )}
 
       {open && loaded && entries.length > 0 && (
-        <div className="border-t border-stone-800 divide-y divide-stone-800/50">
+        <div className="border-t border-navy-800 divide-y divide-navy-800/50">
           {entries.map((entry, i) => (
             <div key={entry.id} className="flex items-start gap-3 px-4 py-3">
               <div className="flex flex-col items-center pt-1 shrink-0">
-                <div className={`w-2 h-2 rounded-full ${entry.active ? 'bg-emerald-400' : 'bg-stone-600'}`} />
-                {i < entries.length - 1 && <div className="w-px flex-1 bg-stone-700/50 mt-1 min-h-[16px]" />}
+                <div className={`w-2 h-2 rounded-full ${entry.active ? 'bg-emerald-400' : 'bg-navy-600'}`} />
+                {i < entries.length - 1 && <div className="w-px flex-1 bg-navy-700/50 mt-1 min-h-[16px]" />}
               </div>
               <div className="flex-1 min-w-0 pb-1">
                 {entry.active ? (
                   <p className="text-sm text-emerald-400 font-medium">
                     Active
                     {entry.startDate && (
-                      <span className="text-stone-400 font-normal"> from {formatDate(entry.startDate)}</span>
+                      <span className="text-navy-400 font-normal"> from {formatDate(entry.startDate)}</span>
                     )}
                   </p>
                 ) : (
-                  <p className="text-sm text-stone-300">
+                  <p className="text-sm text-navy-300">
                     {entry.startDate ? formatDate(entry.startDate) : '?'}
-                    <span className="text-stone-500 mx-1.5">→</span>
+                    <span className="text-navy-500 mx-1.5">→</span>
                     {entry.cancellationDate ? formatDate(entry.cancellationDate) : '?'}
                   </p>
                 )}
                 {entry.cancellationReason && (
-                  <p className="text-xs text-stone-500 italic mt-0.5">{entry.cancellationReason}</p>
+                  <p className="text-xs text-navy-500 italic mt-0.5">{entry.cancellationReason}</p>
                 )}
               </div>
             </div>

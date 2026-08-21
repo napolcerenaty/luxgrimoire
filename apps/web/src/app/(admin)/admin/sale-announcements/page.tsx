@@ -42,10 +42,10 @@ import { isValidCalendarDateTime } from '@/lib/dateValidation'
 import { Sparkles, Trash2 } from 'lucide-react'
 import { CURRENCIES } from '@/lib/currencies'
 
-const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
+const INP = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
 /** Swaps the border color of an INP-based class string to flag an invalid field. */
-const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-stone-700', 'border-red-500/70') : base
-const LBL = 'block text-sm text-stone-400 mb-1'
+const inpErr = (base: string, invalid: boolean) => invalid ? base.replace('border-navy-700', 'border-red-500/70') : base
+const LBL = 'block text-sm text-navy-400 mb-1'
 
 // UTC offsets in minutes for each timezone abbreviation
 const TZ_OFFSETS: Record<string, number> = {
@@ -251,13 +251,13 @@ function ComboBox({
         autoComplete="off"
       />
       {open && filtered.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-stone-800 border border-stone-600 rounded-lg shadow-xl max-h-56 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-navy-800 border border-navy-600 rounded-lg shadow-xl max-h-56 overflow-y-auto">
           {filtered.map(opt => (
             <button
               key={opt.value}
               type="button"
               onMouseDown={() => handleSelect(opt)}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-stone-700 transition-colors ${opt.value === value ? 'text-brand-400 bg-stone-700/50' : 'text-stone-200'}`}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-navy-700 transition-colors ${opt.value === value ? 'text-brand-400 bg-navy-700/50' : 'text-navy-200'}`}
             >
               {opt.label}
             </button>
@@ -420,11 +420,11 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
     setSelectedBook(null)
   }
 
-  const inputCls = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
+  const inputCls = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
 
   if (mode === 'createBook') {
     return (
-      <div className="border border-stone-700 rounded-lg p-3 mt-2">
+      <div className="border border-navy-700 rounded-lg p-3 mt-2">
         <CreateBookEditionForm
           key="create-book"
           bookOnly
@@ -441,7 +441,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
 
   if (mode === 'createEdition' && selectedBook) {
     return (
-      <div className="border border-stone-700 rounded-lg p-3 mt-2">
+      <div className="border border-navy-700 rounded-lg p-3 mt-2">
         <CreateBookEditionForm
           key={`create-edition-${selectedBook.id}`}
           existingBookId={selectedBook.id}
@@ -481,7 +481,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Number of Books</label>
+              <label className="block text-xs text-navy-400 mb-1">Number of Books</label>
               <input
                 type="number" min="1" className={inputCls}
                 value={bdBookCount}
@@ -490,7 +490,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
               />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Price per Book <span className="text-stone-600">(calculated)</span></label>
+              <label className="block text-xs text-navy-400 mb-1">Price per Book <span className="text-navy-600">(calculated)</span></label>
               <input
                 type="text" readOnly className={`${inputCls} opacity-60 cursor-default`}
                 value={perBookPrice != null ? String(perBookPrice) : '—'}
@@ -499,24 +499,24 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
           </div>
 
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Language</label>
+            <label className="block text-xs text-navy-400 mb-1">Language</label>
             <input className={inputCls} value={bdLanguage} onChange={e => setBdLanguage(e.target.value)} placeholder="English" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Publisher</label>
+              <label className="block text-xs text-navy-400 mb-1">Publisher</label>
               <PublisherPicker value={bdPublisher} onChange={setBdPublisher} />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Photo Credit</label>
+              <label className="block text-xs text-navy-400 mb-1">Photo Credit</label>
               <input className={inputCls} value={bdPhotoCredit} onChange={e => setBdPhotoCredit(e.target.value)} placeholder="e.g. John Smith" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Company</label>
+              <label className="block text-xs text-navy-400 mb-1">Company</label>
               <select
                 className={inputCls}
                 value={bdCompanyId}
@@ -527,7 +527,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
               </select>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Collection</label>
+              <label className="block text-xs text-navy-400 mb-1">Collection</label>
               <select
                 className={inputCls}
                 value={bdCollectionId}
@@ -541,7 +541,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
           </div>
 
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Artists &amp; Features <span className="text-stone-600">(paste text, then parse)</span></label>
+            <label className="block text-xs text-navy-400 mb-1">Artists &amp; Features <span className="text-navy-600">(paste text, then parse)</span></label>
             <textarea
               className={`${inputCls} h-20 resize-none`}
               value={bdArtistsText}
@@ -552,7 +552,7 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
               type="button"
               onClick={parseBdArtists}
               disabled={bdParsing || !bdArtistsText.trim()}
-              className="mt-1 flex items-center gap-1.5 text-xs bg-brand-500/20 text-stone-100 border border-brand-500/30 px-2.5 py-1 rounded-lg hover:bg-brand-500/30 disabled:opacity-50 transition-colors"
+              className="mt-1 flex items-center gap-1.5 text-xs bg-brand-500/20 text-navy-100 border border-brand-500/30 px-2.5 py-1 rounded-lg hover:bg-brand-500/30 disabled:opacity-50 transition-colors"
             >
               <Sparkles size={12} />
               {bdParsing ? 'Parsing…' : 'Parse with AI'}
@@ -562,8 +562,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
                 {bdArtists.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <div className="text-xs text-stone-400">Artists (applied to each edition):</div>
-                      <button type="button" onClick={() => setBdArtists([])} className="text-xs text-stone-400 hover:text-red-400">Clear all</button>
+                      <div className="text-xs text-navy-400">Artists (applied to each edition):</div>
+                      <button type="button" onClick={() => setBdArtists([])} className="text-xs text-navy-400 hover:text-red-400">Clear all</button>
                     </div>
                     <div className="space-y-1">
                       {bdArtists.map((a, i) => (
@@ -571,28 +571,28 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
                           <div className="flex flex-col shrink-0 justify-center mr-0.5">
                             <button type="button" disabled={i === 0}
                               onClick={() => setBdArtists(prev => { const arr = [...prev]; [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; return arr })}
-                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▲</button>
+                              className="text-navy-400 hover:text-navy-100 disabled:opacity-20 leading-none text-[10px]">▲</button>
                             <button type="button" disabled={i === bdArtists.length - 1}
                               onClick={() => setBdArtists(prev => { const arr = [...prev]; [arr[i], arr[i+1]] = [arr[i+1], arr[i]]; return arr })}
-                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▼</button>
+                              className="text-navy-400 hover:text-navy-100 disabled:opacity-20 leading-none text-[10px]">▼</button>
                           </div>
-                          <span className="text-stone-400 text-[10px] w-4 shrink-0 text-right pt-1">{i + 1}.</span>
+                          <span className="text-navy-400 text-[10px] w-4 shrink-0 text-right pt-1">{i + 1}.</span>
                           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                             <input
-                              className="w-full bg-transparent border-b border-brand-500/30 focus:border-brand-500 outline-none text-xs text-stone-100 px-1 py-0.5 placeholder:text-stone-500"
+                              className="w-full bg-transparent border-b border-brand-500/30 focus:border-brand-500 outline-none text-xs text-navy-100 px-1 py-0.5 placeholder:text-navy-500"
                               value={a.name}
                               onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                               placeholder="Name"
                             />
                             <input
-                              className="w-full bg-transparent border-b border-brand-500/20 focus:border-brand-500 outline-none text-xs text-stone-300 px-1 py-0.5 placeholder:text-stone-500"
+                              className="w-full bg-transparent border-b border-brand-500/20 focus:border-brand-500 outline-none text-xs text-navy-300 px-1 py-0.5 placeholder:text-navy-500"
                               value={a.role}
                               onChange={e => setBdArtists(prev => prev.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
                               placeholder="Role"
                             />
                           </div>
                           <button type="button" onClick={() => setBdArtists(prev => prev.filter((_, j) => j !== i))}
-                            className="text-stone-400 hover:text-red-400 shrink-0 px-0.5 self-start pt-1">×</button>
+                            className="text-navy-400 hover:text-red-400 shrink-0 px-0.5 self-start pt-1">×</button>
                         </div>
                       ))}
                     </div>
@@ -601,8 +601,8 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
                 {bdFeatureTags.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <div className="text-xs text-stone-400">Features (applied to each edition):</div>
-                      <button type="button" onClick={() => setBdFeatureTags([])} className="text-xs text-stone-400 hover:text-red-400">Clear all</button>
+                      <div className="text-xs text-navy-400">Features (applied to each edition):</div>
+                      <button type="button" onClick={() => setBdFeatureTags([])} className="text-xs text-navy-400 hover:text-red-400">Clear all</button>
                     </div>
                     <div className="space-y-1">
                       {bdFeatureTags.map((t, i) => (
@@ -610,25 +610,25 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
                           <div className="flex flex-col mr-0.5">
                             <button type="button" disabled={i === 0}
                               onClick={() => setBdFeatureTags(prev => { const arr = [...prev]; [arr[i-1], arr[i]] = [arr[i], arr[i-1]]; return arr })}
-                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▲</button>
+                              className="text-navy-400 hover:text-navy-100 disabled:opacity-20 leading-none text-[10px]">▲</button>
                             <button type="button" disabled={i === bdFeatureTags.length - 1}
                               onClick={() => setBdFeatureTags(prev => { const arr = [...prev]; [arr[i], arr[i+1]] = [arr[i+1], arr[i]]; return arr })}
-                              className="text-stone-400 hover:text-stone-100 disabled:opacity-20 leading-none text-[10px]">▼</button>
+                              className="text-navy-400 hover:text-navy-100 disabled:opacity-20 leading-none text-[10px]">▼</button>
                           </div>
-                          <span className="text-stone-400 text-[10px] w-4 shrink-0 text-right">{i + 1}.</span>
+                          <span className="text-navy-400 text-[10px] w-4 shrink-0 text-right">{i + 1}.</span>
                           <input
-                            className="flex-1 min-w-0 bg-transparent border-b border-violet-500/30 focus:border-violet-400 outline-none text-xs text-stone-100 px-1 py-0.5 placeholder:text-stone-500"
+                            className="flex-1 min-w-0 bg-transparent border-b border-violet-500/30 focus:border-violet-400 outline-none text-xs text-navy-100 px-1 py-0.5 placeholder:text-navy-500"
                             value={t.rawValue}
                             onChange={e => setBdFeatureTags(prev => prev.map((x, j) => j === i ? { ...x, rawValue: e.target.value } : x))}
                             placeholder="Feature"
                           />
                           {t.categories.length > 0 && (
-                            <span className="text-[10px] text-stone-400 shrink-0 max-w-[80px] truncate" title={t.categories.join(', ')}>
+                            <span className="text-[10px] text-navy-400 shrink-0 max-w-[80px] truncate" title={t.categories.join(', ')}>
                               {t.categories.join(', ')}
                             </span>
                           )}
                           <button type="button" onClick={() => setBdFeatureTags(prev => prev.filter((_, j) => j !== i))}
-                            className="text-stone-400 hover:text-red-400 shrink-0 px-0.5">×</button>
+                            className="text-navy-400 hover:text-red-400 shrink-0 px-0.5">×</button>
                         </div>
                       ))}
                     </div>
@@ -646,17 +646,17 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
           {linked.map(e => {
             const thumb = e.coverImage ? cloudThumb(e.coverImage, 32, 40) : null
             return (
-              <div key={e.editionId} className="flex items-center gap-2 bg-stone-800 rounded-lg px-3 py-2">
+              <div key={e.editionId} className="flex items-center gap-2 bg-navy-800 rounded-lg px-3 py-2">
                 {thumb
                   ? <img src={thumb} alt="" className="w-8 h-10 object-cover rounded" />
-                  : <div className="w-8 h-10 bg-stone-700 rounded" />
+                  : <div className="w-8 h-10 bg-navy-700 rounded" />
                 }
                 <div className="flex-1 min-w-0">
-                  <div className="text-stone-100 text-xs font-medium truncate">
+                  <div className="text-navy-100 text-xs font-medium truncate">
                     {e.bookTitle}
                     {e.variantLabel && <span className="text-brand-400"> ({e.variantLabel})</span>}
                   </div>
-                  <div className="text-stone-500 text-xs truncate">{e.companyName || e.publisher || '—'}</div>
+                  <div className="text-navy-500 text-xs truncate">{e.companyName || e.publisher || '—'}</div>
                 </div>
                 <button type="button" onClick={() => onRemove(e.editionId)}
                   className="text-red-400 hover:text-red-300 text-xs shrink-0">Remove</button>
@@ -668,30 +668,30 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
 
       {/* Search / book selected views */}
       {selectedBook ? (
-        <div className="space-y-2 border border-stone-700 rounded-lg p-3">
+        <div className="space-y-2 border border-navy-700 rounded-lg p-3">
           <div className="flex items-center gap-2">
-            <div className="flex-1 text-stone-100 text-sm font-medium">{selectedBook.title}</div>
+            <div className="flex-1 text-navy-100 text-sm font-medium">{selectedBook.title}</div>
             <button type="button" onClick={() => setSelectedBook(null)}
-              className="text-stone-500 hover:text-stone-300 text-xs">← Back</button>
+              className="text-navy-500 hover:text-navy-300 text-xs">← Back</button>
           </div>
-          <div className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Pick edition</div>
+          <div className="text-xs text-navy-400 font-semibold uppercase tracking-wide">Pick edition</div>
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {editions.map(ed => (
               <button key={ed.id} type="button"
                 onClick={() => addEdition(ed)}
                 disabled={linked.some(l => l.editionId === ed.id)}
-                className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-stone-700 hover:bg-stone-600 disabled:opacity-40 transition-colors"
+                className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-navy-700 hover:bg-navy-600 disabled:opacity-40 transition-colors"
               >
                 {ed.additionalImages?.[0]
                   ? <img src={cloudThumb(ed.additionalImages[0], 32, 40) ?? ''} alt="" className="w-8 h-10 object-cover rounded" />
-                  : <div className="w-8 h-10 bg-stone-600 rounded" />
+                  : <div className="w-8 h-10 bg-navy-600 rounded" />
                 }
                 <div>
-                  <div className="text-stone-100 text-xs">
+                  <div className="text-navy-100 text-xs">
                     {ed.bookBoxCompany?.name || '—'}
                     {ed.variantLabel && <span className="text-brand-400"> ({ed.variantLabel})</span>}
                   </div>
-                  <div className="text-stone-500 text-xs">{ed.publisher ?? ''}</div>
+                  <div className="text-navy-500 text-xs">{ed.publisher ?? ''}</div>
                 </div>
               </button>
             ))}
@@ -702,26 +702,26 @@ function EditionPicker({ linked, onAdd, onRemove, defaultPrice, defaultCurrency,
             className="text-brand-400 hover:text-brand-300 text-xs mt-1 block">+ Create new book</button>
         </div>
       ) : (
-        <div className="space-y-1 border border-stone-700 rounded-lg p-3">
+        <div className="space-y-1 border border-navy-700 rounded-lg p-3">
           <input value={search} onChange={e => handleSearchChange(e.target.value)}
             placeholder="Search books by title…" className={inputCls} />
-          {searching && <div className="text-stone-500 text-xs">Searching…</div>}
+          {searching && <div className="text-navy-500 text-xs">Searching…</div>}
           {search.length >= 2 && !searching && bookResults && (
             <div className="space-y-1 max-h-48 overflow-y-auto mt-1">
               {bookResults.data.length === 0
-                ? <div className="text-stone-500 text-xs px-2">No books found</div>
+                ? <div className="text-navy-500 text-xs px-2">No books found</div>
                 : bookResults.data.map(book => (
                   <button key={book.id} type="button" onClick={() => setSelectedBook(book)}
-                    className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-stone-700 hover:bg-stone-600 transition-colors"
+                    className="w-full text-left flex items-center gap-2 px-3 py-2 rounded bg-navy-700 hover:bg-navy-600 transition-colors"
                   >
                     {book.coverImage
                       ? <img src={cloudThumb(book.coverImage, 32, 40) ?? ''} alt="" className="w-8 h-10 object-cover rounded" />
-                      : <div className="w-8 h-10 bg-stone-600 rounded" />
+                      : <div className="w-8 h-10 bg-navy-600 rounded" />
                     }
                     <div>
-                      <div className="text-stone-100 text-sm">{book.title}</div>
+                      <div className="text-navy-100 text-sm">{book.title}</div>
                       {book.authors && book.authors.length > 0 && (
-                        <div className="text-stone-500 text-xs">{book.authors.map((a: { author: { name: string } }) => a.author.name).join(', ')}</div>
+                        <div className="text-navy-500 text-xs">{book.authors.map((a: { author: { name: string } }) => a.author.name).join(', ')}</div>
                       )}
                     </div>
                   </button>
@@ -914,16 +914,16 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone, 
   return (
     <div className="space-y-3">
       {regions.map((r, i) => (
-        <div key={i} className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-2">
+        <div key={i} className="bg-navy-800/60 border border-navy-700 rounded-lg p-3 space-y-2">
           <div className="flex items-start gap-2">
             <div className="grid grid-cols-2 gap-2 flex-1">
               <div>
-                <label className="block text-xs text-stone-400 mb-1">Region Name *</label>
+                <label className="block text-xs text-navy-400 mb-1">Region Name *</label>
                 <input className={INP} value={r.name} placeholder="UK + International"
                   onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, name: e.target.value } : row))} />
               </div>
               <div>
-                <label className="block text-xs text-stone-400 mb-1">Country Codes <span className="text-stone-600">(comma-separated)</span></label>
+                <label className="block text-xs text-navy-400 mb-1">Country Codes <span className="text-navy-600">(comma-separated)</span></label>
                 <input className={INP} value={r.countryCodes} placeholder="GB, AU, DE, FR…"
                   onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, countryCodes: e.target.value } : row))} />
               </div>
@@ -933,19 +933,19 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone, 
               <Trash2 size={16} />
             </button>
           </div>
-          <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
+          <label className="flex items-center gap-2 text-xs text-navy-300 cursor-pointer">
             <input type="checkbox" checked={r.isDefault} className="accent-brand-400"
               onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, isDefault: e.target.checked } : row))} />
             Default region (catch-all for unmatched countries)
           </label>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Price <span className="text-stone-600">(override)</span></label>
+              <label className="block text-xs text-navy-400 mb-1">Price <span className="text-navy-600">(override)</span></label>
               <input className={INP} value={r.basePrice} placeholder="Same as default"
                 onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, basePrice: e.target.value } : row))} />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Currency</label>
+              <label className="block text-xs text-navy-400 mb-1">Currency</label>
               <select className={INP} value={CURRENCIES.includes(r.currency) ? r.currency : ''}
                 onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, currency: e.target.value } : row))}>
                 <option value="">— select —</option>
@@ -956,12 +956,12 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone, 
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Ends At <span className="text-stone-600">(optional)</span></label>
+              <label className="block text-xs text-navy-400 mb-1">Ends At <span className="text-navy-600">(optional)</span></label>
               <input type="datetime-local" className={inpErr(INP, invalidEndsAt?.has(i) ?? false)} value={r.endsAt}
                 onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, endsAt: e.target.value } : row))} />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Timezone</label>
+              <label className="block text-xs text-navy-400 mb-1">Timezone</label>
               <ComboBox
                 value={r.saleTimezone || defaultTimezone}
                 options={TIMEZONE_OPTIONS}
@@ -971,13 +971,13 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone, 
             </div>
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Subscriber Price <span className="text-stone-600">(same currency, optional)</span></label>
+            <label className="block text-xs text-navy-400 mb-1">Subscriber Price <span className="text-navy-600">(same currency, optional)</span></label>
             <input className={INP} value={r.subscriberBasePrice} placeholder="Lower subscriber price"
               onChange={e => onChange(prev => prev.map((row, j) => j === i ? { ...row, subscriberBasePrice: e.target.value } : row))} />
           </div>
-          <div className="pt-2 border-t border-stone-700/60">
+          <div className="pt-2 border-t border-navy-700/60">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-stone-500 uppercase tracking-wide">Tiers for this region</span>
+              <span className="text-xs text-navy-500 uppercase tracking-wide">Tiers for this region</span>
               {defaultTiers.length > 0 && (
                 <button type="button"
                   onClick={() => onChange(prev => prev.map((row, j) => j === i ? { ...row, tiers: [...row.tiers, ...defaultTiers.map(t => ({ ...t }))] } : row))}
@@ -987,7 +987,7 @@ function LocalRegionsEditor({ regions, onChange, defaultTiers, defaultTimezone, 
               )}
             </div>
             {r.tiers.length === 0 && (
-              <p className="text-xs text-stone-600 italic mb-1">Inherits the sale's default tiers unless you add one here.</p>
+              <p className="text-xs text-navy-600 italic mb-1">Inherits the sale's default tiers unless you add one here.</p>
             )}
             <LocalTierRowsEditor
               tiers={r.tiers}
@@ -1121,7 +1121,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
           which commits each change immediately since the announcement already exists). */}
       {isCreate && (
         <div>
-          <label className={LBL}>Sale Tiers <span className="text-stone-600 font-normal normal-case tracking-normal">(First Access, VIP, General Sale, etc. — created right after this sale saves)</span></label>
+          <label className={LBL}>Sale Tiers <span className="text-navy-600 font-normal normal-case tracking-normal">(First Access, VIP, General Sale, etc. — created right after this sale saves)</span></label>
           <LocalTierRowsEditor tiers={form.tiers} onChange={fn => setForm(f => ({ ...f, tiers: fn(f.tiers) }))} invalidIndices={invalidTierIndices} />
         </div>
       )}
@@ -1129,7 +1129,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
       {/* Ends At + Timezone */}
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
         <div>
-          <label className={LBL}>Ends At <span className="text-stone-600 font-normal">(optional)</span></label>
+          <label className={LBL}>Ends At <span className="text-navy-600 font-normal">(optional)</span></label>
           <input type="datetime-local" className={inpErr(INP, endsAtInvalid)} value={form.endsAt} onChange={set('endsAt')} />
         </div>
         <div className="sm:col-span-2 md:col-span-2">
@@ -1155,7 +1155,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
           <datalist id="sale-currencies">{CURRENCIES.map(c => <option key={c} value={c} />)}</datalist>
         </div>
         <div>
-          <label className={LBL}>Subscriber Price <span className="text-stone-600 font-normal">(optional)</span></label>
+          <label className={LBL}>Subscriber Price <span className="text-navy-600 font-normal">(optional)</span></label>
           <input type="text" step="0.01" min="0" className={INP} value={form.subscriberBasePrice} onChange={set('subscriberBasePrice')} placeholder="e.g. 22.00" />
         </div>
       </div>
@@ -1163,7 +1163,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
       {/* Regions — inline, create-mode only (edit mode uses AnnouncementRegionsPanel below). */}
       {isCreate && (
         <div>
-          <label className={LBL}>Regions <span className="text-stone-600 font-normal normal-case tracking-normal">(optional — for region-specific pricing and/or tier dates)</span></label>
+          <label className={LBL}>Regions <span className="text-navy-600 font-normal normal-case tracking-normal">(optional — for region-specific pricing and/or tier dates)</span></label>
           <LocalRegionsEditor
             regions={form.regions}
             onChange={fn => setForm(f => ({ ...f, regions: fn(f.regions) }))}
@@ -1182,20 +1182,20 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
           <input className={INP} value={form.expectedShipping} onChange={set('expectedShipping')} placeholder="e.g. January/February 2026" />
         </div>
         <div>
-          <label className={LBL}>Source URL <span className="text-stone-600 font-normal">(announcement link)</span></label>
+          <label className={LBL}>Source URL <span className="text-navy-600 font-normal">(announcement link)</span></label>
           <input type="url" className={INP} value={form.sourceUrl} onChange={set('sourceUrl')} placeholder="https://instagram.com/p/…" />
         </div>
       </div>
 
       {/* Photo Credit */}
       <div>
-        <label className={LBL}>Photo by (IG handler)</label>
+        <label className={LBL}>Photo by (IG handler) <span className="text-navy-600 font-normal">(leave blank if there's no dedicated photographer — the company's own handle is credited automatically)</span></label>
         <input className={INP} value={form.photoCredit} onChange={set('photoCredit')} placeholder="@photographer" />
       </div>
 
       {/* Images */}
       <div>
-        <label className={LBL}>Images <span className="text-stone-600 font-normal normal-case tracking-normal">(first = main cover)</span></label>
+        <label className={LBL}>Images <span className="text-navy-600 font-normal normal-case tracking-normal">(first = main cover)</span></label>
         <MultiImageUpload
           images={form.allImages}
           folder="luxgrimoire/announcements"
@@ -1205,11 +1205,11 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
 
       {/* Flags */}
       <div className="flex flex-wrap gap-4">
-        <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-navy-300 cursor-pointer">
           <input type="checkbox" checked={form.isBundle} onChange={setCheck('isBundle')} className="accent-brand-400" />
-          <span>Is Bundle <span className="text-stone-500">— multiple editions as a set</span></span>
+          <span>Is Bundle <span className="text-navy-500">— multiple editions as a set</span></span>
         </label>
-        <label className="flex items-center gap-2 text-sm text-stone-300 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-navy-300 cursor-pointer">
           <input type="checkbox" checked={form.isSoldOut} onChange={setCheck('isSoldOut')} className="accent-red-400" />
           <span>Sold Out</span>
         </label>
@@ -1217,19 +1217,19 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
 
       {/* Notes */}
       <div>
-        <label className={LBL}>Notes <span className="text-stone-600 font-normal">(optional — HTML supported)</span></label>
+        <label className={LBL}>Notes <span className="text-navy-600 font-normal">(optional — HTML supported)</span></label>
         <textarea
           className={`${INP} min-h-[80px] resize-y font-mono text-xs`}
           value={form.notes}
           onChange={set('notes')}
           placeholder={'Additional notes or details…\nLink syntax: <a href="https://example.com" target="_blank">link text</a>'}
         />
-        <p className="mt-1 text-xs text-stone-600">Link: <code className="text-stone-500">{`<a href="URL" target="_blank">text</a>`}</code></p>
+        <p className="mt-1 text-xs text-navy-600">Link: <code className="text-navy-500">{`<a href="URL" target="_blank">text</a>`}</code></p>
       </div>
 
       {formError && <p className="text-xs text-red-400">{formError}</p>}
       <button type="submit" disabled={submitting}
-        className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors">
+        className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 transition-colors">
         {submitting ? 'Saving…' : submitLabel}
       </button>
     </form>
@@ -1360,13 +1360,13 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
     <div className="space-y-2">
       {sorted.map(t => (
         editingTierId === t.id ? (
-          <div key={t.id} className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-2">
+          <div key={t.id} className="bg-navy-800/60 border border-navy-700 rounded-lg p-3 space-y-2">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Tier Name *</label>
+              <label className="block text-xs text-navy-400 mb-1">Tier Name *</label>
               <input className={inpErr(INP, editTierErrorField === 'name')} value={editName} onChange={e => { setEditName(e.target.value); if (editTierErrorField === 'name') { setEditTierError(null); setEditTierErrorField(null) } }} placeholder="e.g. First Access, VIP, Flash Sale" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">Date & Time *</label>
+              <label className="block text-xs text-navy-400 mb-1">Date & Time *</label>
               <input type="datetime-local" className={inpErr(INP, editTierErrorField === 'date')} value={editDate} onChange={e => { setEditDate(e.target.value); if (editTierErrorField === 'date') { setEditTierError(null); setEditTierErrorField(null) } }} />
             </div>
             {editTierError && <p className="text-xs text-red-400">{editTierError}</p>}
@@ -1374,20 +1374,20 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
               <button type="button"
                 onClick={() => submitEditTier(t)}
                 disabled={upsertMutation.isPending}
-                className="bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs">
+                className="bg-brand-400 text-navy-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs">
                 {upsertMutation.isPending ? 'Saving…' : 'Save'}
               </button>
-              <button type="button" onClick={() => { setEditingTierId(null); setEditTierError(null); setEditTierErrorField(null) }} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
+              <button type="button" onClick={() => { setEditingTierId(null); setEditTierError(null); setEditTierErrorField(null) }} className="text-xs text-navy-400 hover:text-navy-300 px-3 py-1.5">Cancel</button>
             </div>
           </div>
         ) : (
-          <div key={t.id} className="flex items-center gap-2 bg-stone-800/50 rounded-lg px-3 py-2">
+          <div key={t.id} className="flex items-center gap-2 bg-navy-800/50 rounded-lg px-3 py-2">
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-stone-200 truncate">{t.name}</div>
-              <div className="text-xs text-stone-500">{fmtAdminDate(t.date, saleTimezone)}</div>
+              <div className="text-sm text-navy-200 truncate">{t.name}</div>
+              <div className="text-xs text-navy-500">{fmtAdminDate(t.date, saleTimezone)}</div>
             </div>
             <button type="button" onClick={() => startEdit(t)}
-              className="text-xs text-stone-400 hover:text-stone-200 px-2 py-1 rounded hover:bg-stone-700 transition-colors">
+              className="text-xs text-navy-400 hover:text-navy-200 px-2 py-1 rounded hover:bg-navy-700 transition-colors">
               Edit
             </button>
             <button type="button" onClick={() => deleteMutation.mutate(t.id)}
@@ -1399,13 +1399,13 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
       ))}
 
       {addingTier ? (
-        <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-2">
+        <div className="bg-navy-800/60 border border-navy-700 rounded-lg p-3 space-y-2">
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Tier Name *</label>
+            <label className="block text-xs text-navy-400 mb-1">Tier Name *</label>
             <input className={inpErr(INP, newTierErrorField === 'name')} value={newName} onChange={e => { setNewName(e.target.value); if (newTierErrorField === 'name') { setNewTierError(null); setNewTierErrorField(null) } }} placeholder="e.g. First Access, VIP, Flash Sale" />
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Date & Time *</label>
+            <label className="block text-xs text-navy-400 mb-1">Date & Time *</label>
             <input type="datetime-local" className={inpErr(INP, newTierErrorField === 'date')} value={newDate} onChange={e => { setNewDate(e.target.value); if (newTierErrorField === 'date') { setNewTierError(null); setNewTierErrorField(null) } }} />
           </div>
           {newTierError && <p className="text-xs text-red-400">{newTierError}</p>}
@@ -1413,10 +1413,10 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
             <button type="button"
               onClick={submitNewTier}
               disabled={upsertMutation.isPending}
-              className="bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs">
+              className="bg-brand-400 text-navy-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs">
               {upsertMutation.isPending ? 'Saving…' : 'Add Tier'}
             </button>
-            <button type="button" onClick={() => { setAddingTier(false); setNewTierError(null); setNewTierErrorField(null) }} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
+            <button type="button" onClick={() => { setAddingTier(false); setNewTierError(null); setNewTierErrorField(null) }} className="text-xs text-navy-400 hover:text-navy-300 px-3 py-1.5">Cancel</button>
           </div>
         </div>
       ) : (
@@ -1431,8 +1431,8 @@ function TierListEditor({ saleId, regionId, tiers, saleTimezone }: {
 function AnnouncementTiersPanel({ announcement }: { announcement: ApiSaleAnnouncement }) {
   const defaultTiers = (announcement.tiers ?? []).filter(t => t.regionId === null)
   return (
-    <div className="border-t border-stone-700 px-4 py-3">
-      <span className="block text-sm text-stone-400 mb-2">Sale Tiers</span>
+    <div className="border-t border-navy-700 px-4 py-3">
+      <span className="block text-sm text-navy-400 mb-2">Sale Tiers</span>
       <TierListEditor
         saleId={announcement.id}
         tiers={defaultTiers}
@@ -1501,31 +1501,31 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
       onSave(f)
     }
     return (
-      <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 space-y-3">
+      <div className="bg-navy-800/60 border border-navy-700 rounded-lg p-3 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Region Name *</label>
+            <label className="block text-xs text-navy-400 mb-1">Region Name *</label>
             <input required className={INP} value={f.name} onChange={s('name')} placeholder="UK + International" />
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Country Codes <span className="text-stone-600">(comma-separated)</span></label>
+            <label className="block text-xs text-navy-400 mb-1">Country Codes <span className="text-navy-600">(comma-separated)</span></label>
             <input className={INP} value={f.countryCodes} onChange={s('countryCodes')} placeholder="GB, AU, DE, FR…" />
           </div>
         </div>
-        <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
+        <label className="flex items-center gap-2 text-xs text-navy-300 cursor-pointer">
           <input type="checkbox" checked={f.isDefault} onChange={e => setF(p => ({ ...p, isDefault: e.target.checked }))} className="accent-brand-400" />
           Default region (catch-all for unmatched countries)
         </label>
-        <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
+        <label className="flex items-center gap-2 text-xs text-navy-300 cursor-pointer">
           <input type="checkbox" checked={f.isSoldOut} onChange={e => setF(p => ({ ...p, isSoldOut: e.target.checked }))} className="accent-red-400" />
           Sold out in this region
         </label>
         <div>
-          <label className="block text-xs text-stone-400 mb-1">Ends At <span className="text-stone-600">(when this region's sale closes — tiers are managed separately, below, once the region is saved)</span></label>
+          <label className="block text-xs text-navy-400 mb-1">Ends At <span className="text-navy-600">(when this region's sale closes — tiers are managed separately, below, once the region is saved)</span></label>
           <input type="datetime-local" className={inpErr(INP, endsAtInvalid)} value={f.endsAt} onChange={s('endsAt')} />
         </div>
         <div>
-          <label className="block text-xs text-stone-400 mb-1">Timezone</label>
+          <label className="block text-xs text-navy-400 mb-1">Timezone</label>
           <ComboBox
             value={f.saleTimezone}
             options={TIMEZONE_OPTIONS}
@@ -1535,11 +1535,11 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Price</label>
+            <label className="block text-xs text-navy-400 mb-1">Price</label>
             <input type="text" step="0.01" className={INP} value={f.basePrice} onChange={s('basePrice')} placeholder="Override price" />
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">Currency</label>
+            <label className="block text-xs text-navy-400 mb-1">Currency</label>
             <select className={INP} value={CURRENCIES.includes(f.currency) ? f.currency : ''} onChange={s('currency')}>
               <option value="">— select —</option>
               {!CURRENCIES.includes(f.currency) && f.currency && <option value={f.currency}>{f.currency}</option>}
@@ -1548,35 +1548,35 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
           </div>
         </div>
         <div>
-          <label className="block text-xs text-stone-400 mb-1">Subscriber Price <span className="text-stone-600">(same currency)</span></label>
+          <label className="block text-xs text-navy-400 mb-1">Subscriber Price <span className="text-navy-600">(same currency)</span></label>
           <input type="text" step="0.01" className={INP} value={f.subscriberBasePrice} onChange={s('subscriberBasePrice')} placeholder="Lower subscriber price" />
         </div>
         {regionError && <p className="text-xs text-red-400">{regionError}</p>}
         <div className="flex gap-2">
           <button type="button" onClick={submit} disabled={!f.name || upsertMutation.isPending}
-            className="bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs">
+            className="bg-brand-400 text-navy-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs">
             {upsertMutation.isPending ? 'Saving…' : 'Save'}
           </button>
-          <button type="button" onClick={onCancel} className="text-xs text-stone-400 hover:text-stone-300 px-3 py-1.5">Cancel</button>
+          <button type="button" onClick={onCancel} className="text-xs text-navy-400 hover:text-navy-300 px-3 py-1.5">Cancel</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="border-t border-stone-700">
+    <div className="border-t border-navy-700">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-2 hover:bg-stone-800/40 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-2 hover:bg-navy-800/40 transition-colors text-left"
       >
-        <span className="flex items-center gap-2 text-sm text-stone-400">
+        <span className="flex items-center gap-2 text-sm text-navy-400">
           Regional Windows
           {regions.length > 0 && (
             <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">{regions.length}</span>
           )}
         </span>
-        <span className="text-stone-500 text-xs">{open ? '▲' : '▼'}</span>
+        <span className="text-navy-500 text-xs">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
         <div className="px-4 pb-4 space-y-3">
@@ -1596,34 +1596,34 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
             }
 
             return (
-              <div key={r.id} className="bg-stone-800/50 rounded-lg p-3">
+              <div key={r.id} className="bg-navy-800/50 rounded-lg p-3">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm text-stone-200 font-medium">{r.name}</span>
-                      {r.isDefault && <span className="text-xs bg-stone-600/60 text-stone-400 px-1.5 py-0.5 rounded">default</span>}
+                      <span className="text-sm text-navy-200 font-medium">{r.name}</span>
+                      {r.isDefault && <span className="text-xs bg-navy-600/60 text-navy-400 px-1.5 py-0.5 rounded">default</span>}
                     </div>
                     {codes.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {codes.map(c => (
-                          <span key={c} className="text-xs bg-stone-700 text-stone-400 px-1.5 py-0.5 rounded">{c}</span>
+                          <span key={c} className="text-xs bg-navy-700 text-navy-400 px-1.5 py-0.5 rounded">{c}</span>
                         ))}
                       </div>
                     )}
-                    <div className="text-xs text-stone-500 mt-1 space-y-0.5">
+                    <div className="text-xs text-navy-500 mt-1 space-y-0.5">
                       {r.basePrice != null && <div className="text-brand-500/70">{r.basePrice} {r.currency}</div>}
                     </div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <button type="button" onClick={() => setEditingRegion(regionToForm(r))}
-                      className="text-xs text-stone-400 hover:text-stone-200 px-2 py-1 rounded hover:bg-stone-700 transition-colors">Edit</button>
+                      className="text-xs text-navy-400 hover:text-navy-200 px-2 py-1 rounded hover:bg-navy-700 transition-colors">Edit</button>
                     <button type="button" onClick={() => deleteMutation.mutate(r.id)}
                       className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-400/10 transition-colors">Delete</button>
                   </div>
                 </div>
-                <div className="mt-3 pt-3 border-t border-stone-700/60">
+                <div className="mt-3 pt-3 border-t border-navy-700/60">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-stone-500 uppercase tracking-wide">Tiers for this region</span>
+                    <span className="text-xs text-navy-500 uppercase tracking-wide">Tiers for this region</span>
                     {isInheriting && defaultTiers.length > 0 && (
                       <button type="button"
                         onClick={async () => {
@@ -1641,18 +1641,18 @@ function AnnouncementRegionsPanel({ announcement }: { announcement: ApiSaleAnnou
                   {isInheriting ? (
                     defaultTiers.length > 0 ? (
                       <div className="space-y-1">
-                        <p className="text-xs text-stone-600 italic mb-1">Inherits the sale's default tiers — always matches them until overridden above.</p>
+                        <p className="text-xs text-navy-600 italic mb-1">Inherits the sale's default tiers — always matches them until overridden above.</p>
                         {defaultTiers.map(t => (
-                          <div key={t.id} className="flex items-center gap-2 bg-stone-800/30 rounded-lg px-3 py-2 opacity-70">
+                          <div key={t.id} className="flex items-center gap-2 bg-navy-800/30 rounded-lg px-3 py-2 opacity-70">
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm text-stone-300 truncate">{t.name}</div>
-                              <div className="text-xs text-stone-500">{fmtAdminDate(t.date, r.saleTimezone ?? announcement.saleTimezone ?? 'UTC')}</div>
+                              <div className="text-sm text-navy-300 truncate">{t.name}</div>
+                              <div className="text-xs text-navy-500">{fmtAdminDate(t.date, r.saleTimezone ?? announcement.saleTimezone ?? 'UTC')}</div>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-stone-600 italic">No tiers set on the sale yet.</p>
+                      <p className="text-xs text-navy-600 italic">No tiers set on the sale yet.</p>
                     )
                   ) : (
                     <TierListEditor
@@ -1754,27 +1754,27 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
   })
 
   return (
-    <div className="border-t border-stone-700 mt-3">
+    <div className="border-t border-navy-700 mt-3">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-2 hover:bg-stone-800/40 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-2 hover:bg-navy-800/40 transition-colors text-left"
       >
-        <span className="flex items-center gap-2 text-sm text-stone-400">
+        <span className="flex items-center gap-2 text-sm text-navy-400">
           Linked Books and Signature Types
           {editions.length > 0 && (
             <span className="text-xs bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-full">{editions.length}</span>
           )}
         </span>
-        <span className="text-stone-500 text-xs">{open ? '▲' : '▼'}</span>
+        <span className="text-navy-500 text-xs">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
         <div className="px-4 pb-4 space-y-3">
           {editions.length === 0 && (
-            <p className="text-stone-500 text-xs py-2">No linked books yet.</p>
+            <p className="text-navy-500 text-xs py-2">No linked books yet.</p>
           )}
           {editions.length > 1 && (
-            <div className="flex gap-2 pb-1 border-b border-stone-700/50">
+            <div className="flex gap-2 pb-1 border-b border-navy-700/50">
               <button
                 type="button"
                 onClick={() => setAllReprintMutation.mutate(true)}
@@ -1787,7 +1787,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                 type="button"
                 onClick={() => setAllReprintMutation.mutate(false)}
                 disabled={setAllReprintMutation.isPending}
-                className="text-xs px-2 py-1 rounded bg-stone-700 text-stone-400 hover:bg-stone-600 transition-colors disabled:opacity-50"
+                className="text-xs px-2 py-1 rounded bg-navy-700 text-navy-400 hover:bg-navy-600 transition-colors disabled:opacity-50"
               >
                 Clear all reprint
               </button>
@@ -1797,14 +1797,14 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
             const thumb = (e.edition as any)?.additionalImages?.[0] ? cloudThumb((e.edition as any).additionalImages[0], 48, 60) : null
             const activeVariants = new Set((e.variants ?? []).map(v => v.signatureType))
             return (
-              <div key={e.editionId} className="bg-stone-800/50 rounded-lg p-3">
+              <div key={e.editionId} className="bg-navy-800/50 rounded-lg p-3">
                 <div className="flex items-center gap-3 mb-3">
                   {thumb
                     ? <img src={thumb} className="w-9 object-cover rounded flex-shrink-0" style={{ height: '44px' }} />
-                    : <div className="w-9 bg-stone-700 rounded flex-shrink-0 flex items-center justify-center text-stone-500 text-xs" style={{ height: '44px' }}>?</div>
+                    : <div className="w-9 bg-navy-700 rounded flex-shrink-0 flex items-center justify-center text-navy-500 text-xs" style={{ height: '44px' }}>?</div>
                   }
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-stone-200 truncate">{e.edition ? (formatEditionDisplayTitle(e.edition.book, e.edition) || 'Unknown') : 'Unknown'}</div>
+                    <div className="text-sm text-navy-200 truncate">{e.edition ? (formatEditionDisplayTitle(e.edition.book, e.edition) || 'Unknown') : 'Unknown'}</div>
                     <label className="flex items-center gap-1.5 mt-1 cursor-pointer">
                       <input
                         type="checkbox"
@@ -1812,7 +1812,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                         className="accent-brand-400"
                         onChange={ev => setReprintMutation.mutate({ editionId: e.editionId, isReprint: ev.target.checked })}
                       />
-                      <span className="text-xs text-stone-400">🔁 Reprint</span>
+                      <span className="text-xs text-navy-400">🔁 Reprint</span>
                     </label>
                     {(e as any).itemId && (
                       <label className="flex items-center gap-1.5 mt-1 cursor-pointer" title="Also show this edition as standalone (not just within the group)">
@@ -1822,7 +1822,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                           className="accent-sky-400"
                           onChange={ev => setStandaloneMutation.mutate({ editionId: e.editionId, isStandalone: ev.target.checked })}
                         />
-                        <span className="text-xs text-stone-400">📦 Also standalone</span>
+                        <span className="text-xs text-navy-400">📦 Also standalone</span>
                       </label>
                     )}
                   </div>
@@ -1836,7 +1836,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                   </button>
                 </div>
                 <div className="flex flex-col gap-1.5 pl-1">
-                  <p className="text-xs text-stone-500 mb-1">Select all that apply. Enter a price only if this variant differs from the main price.</p>
+                  <p className="text-xs text-navy-500 mb-1">Select all that apply. Enter a price only if this variant differs from the main price.</p>
                   {SIGNATURE_TYPES.map(sig => {
                     const checked = activeVariants.has(sig.value)
                     const variant = (e.variants ?? []).find(v => v.signatureType === sig.value)
@@ -1855,7 +1855,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                               }
                             }}
                           />
-                          <span className="text-xs text-stone-300">{sig.label}</span>
+                          <span className="text-xs text-navy-300">{sig.label}</span>
                         </label>
                         {checked && (
                           <div className="flex items-center gap-1">
@@ -1865,7 +1865,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                               min="0"
                               placeholder="Price"
                               defaultValue={variant?.price ?? ''}
-                              className="w-20 bg-stone-700 border border-stone-600 rounded px-2 py-0.5 text-xs text-stone-100 focus:outline-none focus:border-brand-400"
+                              className="w-20 bg-navy-700 border border-navy-600 rounded px-2 py-0.5 text-xs text-navy-100 focus:outline-none focus:border-brand-400"
                               onBlur={ev => {
                                 const price = ev.target.value ? Number(ev.target.value) : null
                                 setVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value, price })
@@ -1873,7 +1873,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
                             />
                             <select
                               defaultValue={variant?.currency ?? ''}
-                              className="w-20 bg-stone-700 border border-stone-600 rounded px-1 py-0.5 text-xs text-stone-100 focus:outline-none focus:border-brand-400"
+                              className="w-20 bg-navy-700 border border-navy-600 rounded px-1 py-0.5 text-xs text-navy-100 focus:outline-none focus:border-brand-400"
                               onChange={ev => {
                                 setVariantMutation.mutate({ editionId: e.editionId, signatureType: sig.value, currency: ev.target.value || null })
                               }}
@@ -1911,7 +1911,7 @@ function AnnouncementBooksPanel({ announcement }: { announcement: ApiSaleAnnounc
               <button
                 type="button"
                 onClick={() => setAddMode(false)}
-                className="mt-2 text-xs text-stone-400 hover:text-stone-300"
+                className="mt-2 text-xs text-navy-400 hover:text-navy-300"
               >
                 Cancel
               </button>
@@ -1967,35 +1967,35 @@ function AnnouncementItemsPanel({ announcement }: { announcement: ApiSaleAnnounc
   })
 
   return (
-    <div className="border-t border-stone-700 mt-0">
+    <div className="border-t border-navy-700 mt-0">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-2 hover:bg-stone-800/40 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-2 hover:bg-navy-800/40 transition-colors text-left"
       >
-        <span className="flex items-center gap-2 text-sm text-stone-400">
+        <span className="flex items-center gap-2 text-sm text-navy-400">
           📦 Item Groups (Overstock)
           {items.length > 0 && (
             <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">{items.length}</span>
           )}
         </span>
-        <span className="text-stone-500 text-xs">{open ? '▲' : '▼'}</span>
+        <span className="text-navy-500 text-xs">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
         <div className="px-4 pb-4 space-y-3">
-          <p className="text-xs text-stone-500">Group editions into purchasable bundles within this sale. Editions not assigned to a group are sold individually.</p>
+          <p className="text-xs text-navy-500">Group editions into purchasable bundles within this sale. Editions not assigned to a group are sold individually.</p>
 
           {/* Existing items */}
           {items.map(item => {
             const itemEditions = editions.filter(e => e.itemId === item.id)
             const unassigned = editions.filter(e => !e.itemId)
             return (
-              <div key={item.id} className="bg-stone-800/50 rounded-lg p-3 space-y-2">
+              <div key={item.id} className="bg-navy-800/50 rounded-lg p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   {editingItemId === item.id ? (
                     <>
                       <input
-                        className="flex-1 bg-stone-700 border border-stone-600 rounded px-2 py-1 text-xs text-stone-100 focus:outline-none focus:border-brand-400"
+                        className="flex-1 bg-navy-700 border border-navy-600 rounded px-2 py-1 text-xs text-navy-100 focus:outline-none focus:border-brand-400"
                         value={editingName}
                         onChange={e => setEditingName(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && updateMutation.mutate({ itemId: item.id, name: editingName })}
@@ -2003,25 +2003,25 @@ function AnnouncementItemsPanel({ announcement }: { announcement: ApiSaleAnnounc
                       <button type="button" onClick={() => updateMutation.mutate({ itemId: item.id, name: editingName })}
                         className="text-xs text-brand-400 hover:text-brand-300 px-2">Save</button>
                       <button type="button" onClick={() => setEditingItemId(null)}
-                        className="text-xs text-stone-500 hover:text-stone-300 px-1">Cancel</button>
+                        className="text-xs text-navy-500 hover:text-navy-300 px-1">Cancel</button>
                     </>
                   ) : (
                     <>
-                      <span className="flex-1 text-xs font-medium text-stone-200">{item.name || `Group ${item.sortOrder + 1}`}</span>
+                      <span className="flex-1 text-xs font-medium text-navy-200">{item.name || `Group ${item.sortOrder + 1}`}</span>
                       <button type="button" onClick={() => { setEditingItemId(item.id); setEditingName(item.name ?? '') }}
-                        className="text-xs text-stone-400 hover:text-stone-200">Rename</button>
+                        className="text-xs text-navy-400 hover:text-navy-200">Rename</button>
                       <button type="button" onClick={() => deleteMutation.mutate(item.id)}
                         className="text-xs text-red-400 hover:text-red-300">Delete</button>
                     </>
                   )}
                 </div>
-                <div className="text-xs text-stone-500">
+                <div className="text-xs text-navy-500">
                   Editions in this group: {itemEditions.length === 0 ? 'none' : itemEditions.map(e => e.edition ? (formatEditionDisplayTitle(e.edition.book, e.edition) || 'Unknown') : 'Unknown').join(', ')}
                 </div>
                 {/* Assign editions to this group */}
                 {unassigned.length > 0 && (
                   <div className="space-y-1">
-                    <div className="text-xs text-stone-600">Add to group:</div>
+                    <div className="text-xs text-navy-600">Add to group:</div>
                     {unassigned.map(e => (
                       <button key={e.editionId} type="button"
                         onClick={() => assignMutation.mutate({ editionId: e.editionId, itemId: item.id })}
@@ -2052,7 +2052,7 @@ function AnnouncementItemsPanel({ announcement }: { announcement: ApiSaleAnnounc
           {/* Add new group */}
           <div className="flex gap-2 items-center">
             <input
-              className="flex-1 bg-stone-800 border border-stone-700 rounded-lg px-2 py-1.5 text-xs text-stone-100 focus:outline-none focus:border-brand-400"
+              className="flex-1 bg-navy-800 border border-navy-700 rounded-lg px-2 py-1.5 text-xs text-navy-100 focus:outline-none focus:border-brand-400"
               placeholder="New group name (optional)…"
               value={newItemName}
               onChange={e => setNewItemName(e.target.value)}
@@ -2094,16 +2094,16 @@ function AnnouncementCard({
     : null
 
   return (
-    <div className={`bg-stone-900 border border-stone-700 rounded-xl overflow-hidden${isEditing ? ' rounded-b-none border-b-0' : ''}`}>
+    <div className={`bg-navy-900 border border-navy-700 rounded-xl overflow-hidden${isEditing ? ' rounded-b-none border-b-0' : ''}`}>
       <div className="flex items-start gap-4 p-4">
         {thumb
           ? <img src={thumb} className="w-12 h-15 object-cover rounded-lg flex-shrink-0" style={{ height: '60px', width: '48px' }} />
-          : <div className="w-12 bg-stone-700 rounded-lg flex-shrink-0 flex items-center justify-center text-stone-500 text-xs" style={{ height: '60px', width: '48px' }}>—</div>
+          : <div className="w-12 bg-navy-700 rounded-lg flex-shrink-0 flex items-center justify-center text-navy-500 text-xs" style={{ height: '60px', width: '48px' }}>—</div>
         }
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <h3 className="text-stone-100 font-medium truncate">{announcement.title}</h3>
+              <h3 className="text-navy-100 font-medium truncate">{announcement.title}</h3>
               {/* Signature + bundle badges */}
               {(() => {
                 const counts: Record<string, number> = {}
@@ -2133,7 +2133,7 @@ function AnnouncementCard({
                   </div>
                 ) : null
               })()}
-              {companyName && <p className="text-stone-400 text-xs mt-0.5">{companyName}</p>}
+              {companyName && <p className="text-navy-400 text-xs mt-0.5">{companyName}</p>}
               {saleDate && (() => {
                 const typeLabels: Record<string, string> = {
                   LIMITED_PREORDER: '⏳ Limited Preorder',
@@ -2150,9 +2150,9 @@ function AnnouncementCard({
                 const type = (announcement as any).saleType
                 return (
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                    <span className="text-stone-500 text-xs">📅 {saleDate}</span>
+                    <span className="text-navy-500 text-xs">📅 {saleDate}</span>
                     {type && (
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${typeColors[type] ?? 'bg-stone-700 text-stone-400'}`}>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${typeColors[type] ?? 'bg-navy-700 text-navy-400'}`}>
                         {typeLabels[type] ?? type}
                       </span>
                     )}
@@ -2165,15 +2165,15 @@ function AnnouncementCard({
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button onClick={onEdit}
-                className={`text-xs px-3 py-1 rounded border transition-colors ${isEditing ? 'bg-brand-400/20 text-brand-300 border-brand-400/50' : 'text-brand-400 hover:text-brand-300 border-stone-600 hover:border-brand-400/50'}`}>
+                className={`text-xs px-3 py-1 rounded border transition-colors ${isEditing ? 'bg-brand-400/20 text-brand-300 border-brand-400/50' : 'text-brand-400 hover:text-brand-300 border-navy-600 hover:border-brand-400/50'}`}>
                 {isEditing ? 'Cancel' : 'Edit'}
               </button>
               <button onClick={onCopy}
-                className="text-sky-400 hover:text-sky-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-sky-400/50 transition-colors">
+                className="text-sky-400 hover:text-sky-300 text-xs px-3 py-1 rounded border border-navy-600 hover:border-sky-400/50 transition-colors">
                 Copy
               </button>
               <button onClick={onDelete}
-                className="text-red-400 hover:text-red-300 text-xs px-3 py-1 rounded border border-stone-600 hover:border-red-400/50 transition-colors">
+                className="text-red-400 hover:text-red-300 text-xs px-3 py-1 rounded border border-navy-600 hover:border-red-400/50 transition-colors">
                 Delete
               </button>
             </div>
@@ -2267,26 +2267,26 @@ function AiSaleParseModal({ onApply, onClose }: {
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col gap-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-navy-900 border border-navy-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col gap-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-stone-100 font-semibold text-lg">Parse announcement with AI</h2>
-          <button type="button" onClick={onClose} className="text-stone-500 hover:text-stone-300 text-xl">✕</button>
+          <h2 className="text-navy-100 font-semibold text-lg">Parse announcement with AI</h2>
+          <button type="button" onClick={onClose} className="text-navy-500 hover:text-navy-300 text-xl">✕</button>
         </div>
 
         {!result ? (
           <>
             {/* Mode toggle */}
-            <div className="flex rounded-lg overflow-hidden border border-stone-700 self-start">
+            <div className="flex rounded-lg overflow-hidden border border-navy-700 self-start">
               <button type="button" onClick={() => setInputMode('text')}
-                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'text' ? 'bg-brand-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'text' ? 'bg-brand-600 text-white' : 'bg-navy-800 text-navy-400 hover:text-navy-200'}`}>
                 Paste text
               </button>
               <button type="button" onClick={() => setInputMode('url')}
-                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'url' ? 'bg-brand-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'url' ? 'bg-brand-600 text-white' : 'bg-navy-800 text-navy-400 hover:text-navy-200'}`}>
                 Enter URL
               </button>
               <button type="button" onClick={() => setInputMode('screenshot')}
-                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-brand-600 text-white' : 'bg-stone-800 text-stone-400 hover:text-stone-200'}`}>
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${inputMode === 'screenshot' ? 'bg-brand-600 text-white' : 'bg-navy-800 text-navy-400 hover:text-navy-200'}`}>
                 Screenshot
               </button>
             </div>
@@ -2297,7 +2297,7 @@ function AiSaleParseModal({ onApply, onClose }: {
                 onChange={e => setText(e.target.value)}
                 placeholder="Paste the full announcement text here…"
                 rows={10}
-                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-400 resize-y"
+                className="w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 text-sm focus:outline-none focus:border-brand-400 resize-y"
               />
             ) : inputMode === 'url' ? (
               <div className="space-y-1">
@@ -2307,23 +2307,23 @@ function AiSaleParseModal({ onApply, onClose }: {
                   onChange={e => setUrl(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleParse()}
                   placeholder="https://www.fairyloot.com/blogs/…"
-                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 text-sm focus:outline-none focus:border-brand-400"
+                  className="w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 text-sm focus:outline-none focus:border-brand-400"
                 />
-                <p className="text-xs text-stone-500">The page will be fetched server-side and its text sent to AI. Works with FairyLoot, OwlCrate, Illumicrate, etc.</p>
+                <p className="text-xs text-navy-500">The page will be fetched server-side and its text sent to AI. Works with FairyLoot, OwlCrate, Illumicrate, etc.</p>
               </div>
             ) : (
               <div className="space-y-2">
                 <input type="file" accept="image/*" onChange={handleFileChange}
-                  className="block w-full text-sm text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-stone-700 file:text-stone-200 hover:file:bg-stone-600 cursor-pointer" />
+                  className="block w-full text-sm text-navy-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-navy-700 file:text-navy-200 hover:file:bg-navy-600 cursor-pointer" />
                 {imagePreview && (
-                  <img src={imagePreview} alt="Preview" className="max-h-60 rounded-lg border border-stone-700 object-contain" />
+                  <img src={imagePreview} alt="Preview" className="max-h-60 rounded-lg border border-navy-700 object-contain" />
                 )}
-                <p className="text-xs text-stone-500">Image is processed in-memory and never saved to storage.</p>
+                <p className="text-xs text-navy-500">Image is processed in-memory and never saved to storage.</p>
               </div>
             )}
             {error && <p className="text-red-400 text-sm">{error}</p>}
             <div className="flex justify-end gap-3">
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-navy-400 hover:text-navy-200">Cancel</button>
               <button type="button" onClick={handleParse} disabled={loading || !canParse}
                 className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-500 disabled:opacity-50 transition-colors">
                 {loading ? 'Parsing…' : 'Parse with AI'}
@@ -2335,42 +2335,42 @@ function AiSaleParseModal({ onApply, onClose }: {
             <div className="space-y-4 text-sm">
               {result.title && (
                 <div>
-                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Title</p>
-                  <p className="text-stone-100 font-medium">{result.title}</p>
+                  <p className="text-navy-500 text-xs uppercase tracking-wider mb-1">Title</p>
+                  <p className="text-navy-100 font-medium">{result.title}</p>
                 </div>
               )}
               {result.saleType && (
                 <div>
-                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Sale Type</p>
-                  <p className="text-stone-300">{{ LIMITED_PREORDER: 'Limited Preorder', OPEN_PREORDER: 'Open Preorder', OVERSTOCK: 'Overstock', SALE: 'Sale' }[result.saleType] ?? result.saleType}</p>
+                  <p className="text-navy-500 text-xs uppercase tracking-wider mb-1">Sale Type</p>
+                  <p className="text-navy-300">{{ LIMITED_PREORDER: 'Limited Preorder', OPEN_PREORDER: 'Open Preorder', OVERSTOCK: 'Overstock', SALE: 'Sale' }[result.saleType] ?? result.saleType}</p>
                 </div>
               )}
               {result.expectedShipping && (
                 <div>
-                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Expected shipping</p>
-                  <p className="text-stone-300">{result.expectedShipping}</p>
+                  <p className="text-navy-500 text-xs uppercase tracking-wider mb-1">Expected shipping</p>
+                  <p className="text-navy-300">{result.expectedShipping}</p>
                 </div>
               )}
               {result.endsAt && (
                 <div>
-                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-1">Ends At</p>
-                  <p className="text-stone-300">{new Date(result.endsAt).toLocaleString('en-GB')} UTC</p>
+                  <p className="text-navy-500 text-xs uppercase tracking-wider mb-1">Ends At</p>
+                  <p className="text-navy-300">{new Date(result.endsAt).toLocaleString('en-GB')} UTC</p>
                 </div>
               )}
               {result.regions && result.regions.length > 0 && (
                 <div>
-                  <p className="text-stone-500 text-xs uppercase tracking-wider mb-2">Regional windows ({result.regions.length})</p>
+                  <p className="text-navy-500 text-xs uppercase tracking-wider mb-2">Regional windows ({result.regions.length})</p>
                   <div className="space-y-2">
                     {result.regions.map((r, i) => (
-                      <div key={i} className="bg-stone-800 rounded-lg p-3 border border-stone-700">
+                      <div key={i} className="bg-navy-800 rounded-lg p-3 border border-navy-700">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-stone-100 font-medium">{r.name}</span>
+                          <span className="text-navy-100 font-medium">{r.name}</span>
                           {r.isDefault && <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-1.5 py-0.5">default</span>}
                           {r.currency && r.price != null && (
                             <span className="text-brand-400 text-xs ml-auto">{r.currency} {r.price}</span>
                           )}
                         </div>
-                        <div className="text-xs text-stone-500 space-y-0.5">
+                        <div className="text-xs text-navy-500 space-y-0.5">
                           {r.countryCodes && <p>Countries: {r.countryCodes}</p>}
                           {(r.tiers ?? []).map((t, ti) => (
                             <p key={ti}>{t.name}: {new Date(t.date).toLocaleString('en-GB')} UTC</p>
@@ -2384,12 +2384,12 @@ function AiSaleParseModal({ onApply, onClose }: {
               )}
             </div>
 
-            <div className="flex justify-between items-center pt-2 border-t border-stone-800">
-              <button type="button" onClick={() => setResult(null)} className="text-sm text-stone-500 hover:text-stone-300">
+            <div className="flex justify-between items-center pt-2 border-t border-navy-800">
+              <button type="button" onClick={() => setResult(null)} className="text-sm text-navy-500 hover:text-navy-300">
                 ← Re-parse
               </button>
               <div className="flex gap-3">
-                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200">Cancel</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-navy-400 hover:text-navy-200">Cancel</button>
                 <button type="button" onClick={() => onApply(result, parsedUrl)}
                   className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-500 transition-colors">
                   Apply to form
@@ -2584,10 +2584,10 @@ export default function AdminSaleAnnouncementsPage() {
   return (
     <div>
       <div className="flex flex-wrap items-start gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-stone-100 mr-auto">Sale Announcements</h1>
+        <h1 className="text-2xl font-bold text-navy-100 mr-auto">Sale Announcements</h1>
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={() => setShowAiModal(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-stone-800 text-stone-300 hover:bg-stone-700 border border-stone-700 hover:border-stone-600 transition-colors">
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-navy-800 text-navy-300 hover:bg-navy-700 border border-navy-700 hover:border-navy-600 transition-colors">
             <Sparkles size={14} className="text-brand-400" />
             Parse with AI
           </button>
@@ -2600,7 +2600,7 @@ export default function AdminSaleAnnouncementsPage() {
               createModal.toggle()
               setEditItem(null)
             }}
-            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
+            className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 transition-colors"
           >
             {createModal.isOpen ? '✕ Cancel' : '+ Add Sale'}
           </button>
@@ -2609,7 +2609,7 @@ export default function AdminSaleAnnouncementsPage() {
 
       {/* Inline create form */}
       {createModal.isOpen && (
-        <div className="bg-stone-900 border border-brand-500/40 rounded-xl p-5 mb-5">
+        <div className="bg-navy-900 border border-brand-500/40 rounded-xl p-5 mb-5">
           <h2 className="text-brand-400 font-semibold text-sm mb-4">New Sale Announcement</h2>
           <SaleAnnouncementForm
             key={createFormKey}
@@ -2629,12 +2629,12 @@ export default function AdminSaleAnnouncementsPage() {
           placeholder="Search announcements…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 w-64 text-sm"
+          className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 w-64 text-sm"
         />
         <select
           value={companyFilter}
           onChange={e => { setCompanyFilter(e.target.value); setPage(1) }}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400 text-sm"
+          className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-300 focus:outline-none focus:border-brand-400 text-sm"
         >
           <option value="">All companies</option>
           {allCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -2642,7 +2642,7 @@ export default function AdminSaleAnnouncementsPage() {
         <select
           value={saleTypeFilter}
           onChange={e => { setSaleTypeFilter(e.target.value as SaleType | ''); setPage(1) }}
-          className="bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-300 focus:outline-none focus:border-brand-400 text-sm"
+          className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-300 focus:outline-none focus:border-brand-400 text-sm"
         >
           <option value="">All types</option>
           <option value="LIMITED_PREORDER">Limited Preorder</option>
@@ -2652,14 +2652,14 @@ export default function AdminSaleAnnouncementsPage() {
         </select>
         {(search || companyFilter || saleTypeFilter) && (
           <button onClick={() => { setSearch(''); setCompanyFilter(''); setSaleTypeFilter(''); setPage(1) }}
-            className="text-stone-400 hover:text-stone-200 text-sm px-3 py-2">Clear</button>
+            className="text-navy-400 hover:text-navy-200 text-sm px-3 py-2">Clear</button>
         )}
       </div>
 
       {isLoading ? (
-        <div className="text-stone-400 py-8 text-center">Loading…</div>
+        <div className="text-navy-400 py-8 text-center">Loading…</div>
       ) : announcements.length === 0 ? (
-        <div className="text-stone-500 py-8 text-center">No sale announcements yet.</div>
+        <div className="text-navy-500 py-8 text-center">No sale announcements yet.</div>
       ) : (
         <div className="flex flex-col gap-3">
           {announcements.map(a => (
@@ -2673,7 +2673,7 @@ export default function AdminSaleAnnouncementsPage() {
                 isEditing={editItem?.id === a.id}
               />
               {editItem?.id === a.id && (
-                <div className="bg-stone-900 border border-brand-500/40 border-t-0 rounded-b-xl p-5 -mt-1">
+                <div className="bg-navy-900 border border-brand-500/40 border-t-0 rounded-b-xl p-5 -mt-1">
                   <h2 className="text-brand-400 font-semibold text-sm mb-4">Edit Sale Announcement</h2>
                   <SaleAnnouncementForm
                     key={editItem.id}
@@ -2685,7 +2685,7 @@ export default function AdminSaleAnnouncementsPage() {
                   <button
                     type="button"
                     onClick={() => setEditItem(null)}
-                    className="mt-3 text-stone-500 hover:text-stone-300 text-sm"
+                    className="mt-3 text-navy-500 hover:text-navy-300 text-sm"
                   >
                     Cancel
                   </button>

@@ -32,10 +32,10 @@ function BookRow({ book }: { book: BookSnippet }) {
     : book.title
 
   return (
-    <div className="py-4 border-b border-stone-800 last:border-0">
+    <div className="py-4 border-b border-navy-800 last:border-0">
       <Link
         href={`/books/${book.slug}`}
-        className="inline-block font-serif font-semibold text-stone-100 hover:text-brand-400 transition-colors mb-3 text-base leading-snug"
+        className="inline-block font-serif font-semibold text-navy-100 hover:text-brand-400 transition-colors mb-3 text-base leading-snug"
       >
         {label}
       </Link>
@@ -63,7 +63,7 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
   const books = await apiFetch<BookSnippet[]>(`/authors/${authorSlug}/books`)
 
   if (!books.length) {
-    return <p className="text-stone-600 text-sm">No books listed yet.</p>
+    return <p className="text-navy-600 text-sm">No books listed yet.</p>
   }
 
   const standalones = books
@@ -88,22 +88,22 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
 
   return (
     <section>
-      <h2 className="text-2xl font-serif font-semibold text-stone-100 mb-6">
+      <h2 className="text-2xl font-serif font-semibold text-navy-100 mb-6">
         Books by {authorName}
-        <span className="ml-2 text-base font-sans font-normal text-stone-500">({books.length})</span>
+        <span className="ml-2 text-base font-sans font-normal text-navy-500">({books.length})</span>
       </h2>
 
       {standalones.length > 0 && (
         <div className="mb-10">
           {seriesMap.size > 0 && (
-            <h3 className="text-xs uppercase tracking-widest text-stone-500 font-medium mb-2 border-b border-stone-800 pb-2">
+            <h3 className="text-xs uppercase tracking-widest text-navy-500 font-medium mb-2 border-b border-navy-800 pb-2">
               Standalones
             </h3>
           )}
           {standaloneVolumes.map(book => <BookRow key={book.id} book={book} />)}
           {standaloneOmnibuses.length > 0 && (
             <div className="mt-4">
-              <p className="text-[11px] uppercase tracking-widest text-stone-600 font-medium mb-2">
+              <p className="text-[11px] uppercase tracking-widest text-navy-600 font-medium mb-2">
                 Also available as a bind-up edition
               </p>
               {standaloneOmnibuses.map(book => <BookRow key={book.id} book={book} />)}
@@ -121,7 +121,7 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
           .sort((a, b) => compareVolumeNumbers(a.volumeNumbers, b.volumeNumbers))
         return (
           <div key={key} className="mb-10">
-            <h3 className="text-xs uppercase tracking-widest text-stone-500 font-medium mb-2 border-b border-stone-800 pb-2">
+            <h3 className="text-xs uppercase tracking-widest text-navy-500 font-medium mb-2 border-b border-navy-800 pb-2">
               {slug ? (
                 <Link href={`/series/${slug}`} className="hover:text-brand-400 transition-colors">
                   {label}
@@ -131,7 +131,7 @@ export async function AuthorBooksSection({ authorSlug, authorName }: { authorSlu
             {volumes.map(book => <BookRow key={book.id} book={book} />)}
             {omnibuses.length > 0 && (
               <div className="mt-4">
-                <p className="text-[11px] uppercase tracking-widest text-stone-600 font-medium mb-2">
+                <p className="text-[11px] uppercase tracking-widest text-navy-600 font-medium mb-2">
                   Also available as a bind-up edition
                 </p>
                 {omnibuses.map(book => <BookRow key={book.id} book={book} />)}

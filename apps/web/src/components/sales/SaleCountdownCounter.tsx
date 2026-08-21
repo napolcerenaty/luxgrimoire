@@ -17,7 +17,7 @@ function Segment({ value, label }: { value: number; label: string }) {
       <span className="text-2xl sm:text-3xl font-serif font-bold text-brand-400 tabular-nums">
         {String(value).padStart(2, '0')}
       </span>
-      <span className="text-[10px] uppercase tracking-widest text-stone-500">{label}</span>
+      <span className="text-[10px] uppercase tracking-widest text-navy-500">{label}</span>
     </div>
   )
 }
@@ -41,11 +41,11 @@ export function SaleCountdownCounter({ date, tier, title, personalized }: Props)
   }, [date])
 
   return (
-    <div className="rounded-2xl border border-brand-800/40 bg-gradient-to-br from-stone-900 to-brand-950/20 p-5">
+    <div className="rounded-2xl border border-brand-800/40 bg-gradient-to-br from-navy-900 to-brand-950/20 p-5">
       <p className="text-xs uppercase tracking-widest text-brand-600 font-medium mb-1">
         {personalized ? `Your ${tier} countdown` : `Next sale — ${tier}`}
       </p>
-      {title && <p title={title} className="text-sm text-stone-300 font-serif mb-3 line-clamp-1">{title}</p>}
+      {title && <p title={title} className="text-sm text-navy-300 font-serif mb-3 line-clamp-1">{title}</p>}
       {countdown.done ? (
         <p className="text-lg font-serif text-brand-400">It&apos;s here!</p>
       ) : (

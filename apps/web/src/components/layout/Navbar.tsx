@@ -20,6 +20,7 @@ const NAV_LINKS = [
   { href: '/subscriptions', label: 'Subscriptions' },
   { href: '/books-by-month', label: 'Boxes by Month' },
   { href: '/sale-announcements', label: 'Sale Announcements' },
+  { href: '/sales-calendar', label: 'Sales Calendar' },
   { href: '/blog', label: 'Blog' },
 ]
 
@@ -70,7 +71,7 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full">
       {/* Top bar — logo + controls */}
       <div
-        className="border-b border-stone-700 px-4 sm:px-6 py-3 flex items-center gap-3 w-full"
+        className="border-b border-navy-700 px-4 sm:px-6 py-3 flex items-center gap-3 w-full"
         style={{ background: 'var(--grad-header)', position: 'relative' }}
       >
         {/* Radial glow — clipped separately so it doesn't affect dropdowns */}
@@ -102,14 +103,14 @@ export function Navbar() {
           <SearchDropdown />
         </div>
         {/* Mobile search icon */}
-        <Link href="/search" className="relative z-10 sm:hidden p-1.5 text-stone-400 hover:text-brand-400 transition-colors">
+        <Link href="/search" className="relative z-10 sm:hidden p-1.5 text-navy-400 hover:text-brand-400 transition-colors">
           <Search size={17} />
         </Link>
 
         <div className="relative z-10 ml-auto flex items-center gap-1 sm:gap-2">
           {/* Mobile hamburger — shown only on small screens */}
           <button
-            className="md:hidden p-1.5 text-stone-400 hover:text-brand-400 transition-colors"
+            className="md:hidden p-1.5 text-navy-400 hover:text-brand-400 transition-colors"
             onClick={() => setMobileNavOpen(v => !v)}
             aria-label="Toggle navigation"
           >
@@ -119,14 +120,14 @@ export function Navbar() {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-brand-400 transition-colors"
+            className="p-1.5 rounded-lg text-navy-400 hover:text-brand-400 transition-colors"
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
 
           {/* Separator */}
-          <div className="w-px h-5 bg-stone-700 mx-1 hidden sm:block" />
+          <div className="w-px h-5 bg-navy-700 mx-1 hidden sm:block" />
 
           {/* Notification bell */}
           {user && <NotificationBell />}
@@ -136,7 +137,7 @@ export function Navbar() {
             <div ref={dropdownRef} className="relative">
               <button
                 onClick={() => setDropdownOpen((o) => !o)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-700 hover:border-brand-600 text-stone-300 hover:text-brand-400 transition-colors text-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-navy-700 hover:border-brand-600 text-navy-300 hover:text-brand-400 transition-colors text-sm"
               >
                 <User size={14} />
                 <span className="hidden sm:inline max-w-[100px] truncate">{user.username}</span>
@@ -144,15 +145,15 @@ export function Navbar() {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-52 rounded-xl border border-stone-700 bg-stone-800 shadow-2xl overflow-hidden z-50">
-                  <div className="px-4 py-3 border-b border-stone-700">
-                    <p className="text-sm font-semibold text-stone-100">{user.username}</p>
-                    <p className="text-xs text-stone-500 truncate">{user.email}</p>
+                <div className="absolute right-0 mt-2 w-52 rounded-xl border border-navy-700 bg-navy-800 shadow-2xl overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-navy-700">
+                    <p className="text-sm font-semibold text-navy-100">{user.username}</p>
+                    <p className="text-xs text-navy-500 truncate">{user.email}</p>
                   </div>
 
                   <div className="py-1">
                     {/* My Library */}
-                    <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-stone-600">My Library</p>
+                    <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-navy-600">My Library</p>
                     {[
                       { href: '/calendar',         icon: CalendarDays, label: 'Calendar' },
                       { href: '/collection',        icon: BookOpen,     label: 'Collection' },
@@ -164,13 +165,13 @@ export function Navbar() {
                         key={href}
                         href={href}
                         onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-300 hover:bg-stone-700 hover:text-brand-400 transition-colors"
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-navy-300 hover:bg-navy-700 hover:text-brand-400 transition-colors"
                       >
                         <Icon size={14} /> {label}
                       </Link>
                     ))}
 
-                    <div className="h-px bg-stone-700 my-1" />
+                    <div className="h-px bg-navy-700 my-1" />
                     {/* Finance & Account */}
                     {[
                       { href: '/statistics', icon: BarChart2, label: 'Statistics' },
@@ -180,7 +181,7 @@ export function Navbar() {
                         key={href}
                         href={href}
                         onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-300 hover:bg-stone-700 hover:text-brand-400 transition-colors"
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-navy-300 hover:bg-navy-700 hover:text-brand-400 transition-colors"
                       >
                         <Icon size={14} /> {label}
                       </Link>
@@ -188,21 +189,21 @@ export function Navbar() {
 
                     {(user.role === 'ADMIN' || user.role === 'MODERATOR' || user.role === 'COMPANY_MANAGER') && (
                       <>
-                        <div className="h-px bg-stone-700 my-1" />
+                        <div className="h-px bg-navy-700 my-1" />
                         <Link
                           href="/admin"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-400 hover:bg-stone-700 hover:text-brand-400 transition-colors"
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-navy-400 hover:bg-navy-700 hover:text-brand-400 transition-colors"
                         >
                           <LayoutDashboard size={14} /> Admin Panel
                         </Link>
                       </>
                     )}
 
-                    <div className="h-px bg-stone-700 my-1" />
+                    <div className="h-px bg-navy-700 my-1" />
                     <button
                       onClick={handleLogout}
-                      className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-stone-500 hover:bg-rose-950/40 hover:text-rose-400 transition-colors"
+                      className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-navy-500 hover:bg-rose-950/40 hover:text-rose-400 transition-colors"
                     >
                       <LogOut size={14} /> Sign out
                     </button>
@@ -213,7 +214,7 @@ export function Navbar() {
           ) : (
             <Link
               href={`/login${pathname && !pathname.startsWith('/login') && !pathname.startsWith('/register') ? `?returnTo=${encodeURIComponent(pathname)}` : ''}`}
-              className="px-4 py-1.5 rounded-full border border-brand-700 text-brand-400 hover:bg-brand-700 hover:text-stone-950 transition-colors text-xs font-semibold font-serif tracking-wide"
+              className="px-4 py-1.5 rounded-full border border-brand-700 text-brand-400 hover:bg-brand-700 hover:text-navy-950 transition-colors text-xs font-semibold font-serif tracking-wide"
             >
               Sign in
             </Link>
@@ -222,7 +223,7 @@ export function Navbar() {
       </div>
 
       {/* Second bar — desktop only */}
-      <nav className="hidden md:block border-b border-stone-700 bg-stone-800">
+      <nav className="hidden md:block border-b border-navy-700 bg-navy-800">
         <div className="flex items-center px-4 sm:px-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {NAV_LINKS.map(({ href, label }) => (
             <Link
@@ -232,7 +233,7 @@ export function Navbar() {
                 flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
                 ${isActive(href)
                   ? 'border-brand-400 text-brand-400'
-                  : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
+                  : 'border-transparent text-navy-400 hover:text-navy-200 hover:border-navy-600'}
               `}
             >
               {label}
@@ -242,14 +243,14 @@ export function Navbar() {
           {/* User area links — visible when logged in */}
           {user && (
             <>
-              <div className="w-px h-4 bg-stone-700 mx-2 shrink-0" />
+              <div className="w-px h-4 bg-navy-700 mx-2 shrink-0" />
               <Link
                 href="/calendar"
                 className={`
                   flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
                   ${['/collection', '/calendar', '/wishlist', '/my-subscriptions', '/statistics', '/sold'].some(p => pathname.startsWith(p))
                     ? 'border-brand-400 text-brand-400'
-                    : 'border-transparent text-stone-400 hover:text-stone-200 hover:border-stone-600'}
+                    : 'border-transparent text-navy-400 hover:text-navy-200 hover:border-navy-600'}
                 `}
               >
                 <Library size={12} />
@@ -261,7 +262,7 @@ export function Navbar() {
           {/* Admin Panel — far right, admins/mods only */}
           {user && (user.role === 'ADMIN' || user.role === 'MODERATOR' || user.role === 'COMPANY_MANAGER') && (
             <div className="ml-auto flex items-center shrink-0">
-              <div className="w-px h-4 bg-stone-700 mx-1 shrink-0" />
+              <div className="w-px h-4 bg-navy-700 mx-1 shrink-0" />
               <Link
                 href="/admin"
                 className={`
@@ -281,7 +282,7 @@ export function Navbar() {
 
       {/* Mobile nav dropdown — shown when hamburger is open */}
       {mobileNavOpen && (
-        <div className="md:hidden bg-stone-900 border-b border-stone-800 shadow-xl">
+        <div className="md:hidden bg-navy-900 border-b border-navy-800 shadow-xl">
           <div className="px-4 py-3 flex flex-col gap-1">
             {NAV_LINKS.map(({ href, label }) => (
               <Link
@@ -292,7 +293,7 @@ export function Navbar() {
                   flex items-center px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest transition-colors
                   ${isActive(href)
                     ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
-                    : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800'}
+                    : 'text-navy-400 hover:text-navy-100 hover:bg-navy-800'}
                 `}
               >
                 {label}
@@ -300,7 +301,7 @@ export function Navbar() {
             ))}
             {user && (
               <>
-                <div className="h-px bg-stone-800 my-1" />
+                <div className="h-px bg-navy-800 my-1" />
                 {USER_NAV_LINKS.map(({ href, label, icon: Icon }) => (
                   <Link
                     key={href}
@@ -310,7 +311,7 @@ export function Navbar() {
                       flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest transition-colors
                       ${isActive(href)
                         ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
-                        : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800'}
+                        : 'text-navy-400 hover:text-navy-100 hover:bg-navy-800'}
                     `}
                   >
                     <Icon size={15} />
@@ -321,11 +322,11 @@ export function Navbar() {
             )}
             {user && (user.role === 'ADMIN' || user.role === 'MODERATOR' || user.role === 'COMPANY_MANAGER') && (
               <>
-                <div className="h-px bg-stone-800 my-1" />
+                <div className="h-px bg-navy-800 my-1" />
                 <Link
                   href="/admin"
                   onClick={() => setMobileNavOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest text-brand-600 hover:text-brand-400 hover:bg-stone-800 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-serif uppercase tracking-widest text-brand-600 hover:text-brand-400 hover:bg-navy-800 transition-colors"
                 >
                   <LayoutDashboard size={15} />
                   Admin

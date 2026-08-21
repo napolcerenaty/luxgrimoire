@@ -6,8 +6,8 @@ import { authFetch } from '@/lib/authFetch'
 import Link from 'next/link'
 import { CURRENCIES } from '@/components/sale/SaleFormFields'
 
-const INPUT = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
-const LABEL = 'block text-xs text-stone-400 mb-1'
+const INPUT = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
+const LABEL = 'block text-xs text-navy-400 mb-1'
 const BTN_SM = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors'
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -33,15 +33,15 @@ export default function SubscriptionPricesPage({ params }: { params: Promise<{ s
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/admin/subscriptions" className="text-stone-400 hover:text-brand-400 text-sm transition-colors">
+        <Link href="/admin/subscriptions" className="text-navy-400 hover:text-brand-400 text-sm transition-colors">
           ← Subscriptions
         </Link>
-        <span className="text-stone-600">/</span>
-        <span className="text-stone-300 text-sm">{subscription?.name ?? slug}</span>
+        <span className="text-navy-600">/</span>
+        <span className="text-navy-300 text-sm">{subscription?.name ?? slug}</span>
       </div>
 
       {subscription?.parentSubscriptionId && subscription.parent && (
-        <div className="bg-stone-800/60 border border-stone-700 rounded-xl px-4 py-3 text-sm text-stone-400">
+        <div className="bg-navy-800/60 border border-navy-700 rounded-xl px-4 py-3 text-sm text-navy-400">
           Variant of{' '}
           <Link href={`/admin/subscriptions/${subscription.parent.slug}/prices`} className="text-brand-400 hover:underline">
             {subscription.parent.name}
@@ -65,9 +65,9 @@ function GrandfatheredToggle({ value, onChange }: { value: boolean; onChange: (v
         onChange={e => onChange(e.target.checked)}
         className="mt-0.5 accent-brand-400 cursor-pointer"
       />
-      <label htmlFor="grandfathered-toggle" className="text-xs text-stone-300 cursor-pointer leading-tight">
+      <label htmlFor="grandfathered-toggle" className="text-xs text-navy-300 cursor-pointer leading-tight">
         <span className="font-medium text-brand-400/90">Grandfathered price</span>
-        <span className="text-stone-400"> — existing subscribers (joined before this effective month) keep their current price; new subscribers pay the new price.</span>
+        <span className="text-navy-400"> — existing subscribers (joined before this effective month) keep their current price; new subscribers pay the new price.</span>
       </label>
     </div>
   )
@@ -144,19 +144,19 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
   }
 
   return (
-    <div className="bg-stone-900 border border-stone-700 rounded-2xl p-4 space-y-3">
+    <div className="bg-navy-900 border border-navy-700 rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-stone-100 font-semibold text-sm">💰 Price Change History</h3>
+        <h3 className="text-navy-100 font-semibold text-sm">💰 Price Change History</h3>
         <button
           onClick={() => setShowForm(v => !v)}
-          className={`${BTN_SM} ${showForm ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' : 'bg-stone-700 hover:bg-stone-600 text-stone-300'}`}
+          className={`${BTN_SM} ${showForm ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' : 'bg-navy-700 hover:bg-navy-600 text-navy-300'}`}
         >
           {showForm ? 'Cancel' : '+ Add Price Change'}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-stone-800 rounded-xl p-3 space-y-3 border border-stone-700">
+        <div className="bg-navy-800 rounded-xl p-3 space-y-3 border border-navy-700">
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={LABEL}>Month *</label>
@@ -194,7 +194,7 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
           <button
             disabled={addMutation.isPending || !price || !currency}
             onClick={() => addMutation.mutate()}
-            className="bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm"
+            className="bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-sm"
           >
             {addMutation.isPending ? 'Saving…' : 'Save Price Change'}
           </button>
@@ -202,16 +202,16 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
       )}
 
       {isLoading ? (
-        <p className="text-stone-500 text-sm">Loading…</p>
+        <p className="text-navy-500 text-sm">Loading…</p>
       ) : !changes?.length ? (
-        <p className="text-stone-600 text-sm italic">No price changes recorded yet.</p>
+        <p className="text-navy-600 text-sm italic">No price changes recorded yet.</p>
       ) : (
         <div className="space-y-2">
           {changes.map(pc => {
             const isSentinel = pc.effectiveYear === 1900
             const isEditing = editId === pc.id
             return (
-              <div key={pc.id} className={`rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-stone-800/50 border border-brand-900/40' : 'bg-stone-800'}`}>
+              <div key={pc.id} className={`rounded-lg px-3 py-2 text-sm ${isSentinel ? 'bg-navy-800/50 border border-brand-900/40' : 'bg-navy-800'}`}>
                 {isEditing ? (
                   <div className="space-y-2">
                     <p className="text-brand-400/80 text-xs font-medium">
@@ -241,17 +241,17 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
                           notes: editNotes || undefined,
                           ...(!editIsSentinel && { grandfatheredPrice: editGrandfathered }),
                         })}
-                        className="bg-brand-400 text-stone-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs"
+                        className="bg-brand-400 text-navy-950 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-300 disabled:opacity-50 text-xs"
                       >
                         {updateMutation.isPending ? 'Saving…' : 'Save'}
                       </button>
-                      <button onClick={() => setEditId(null)} className="text-xs text-stone-400 hover:text-stone-200">Cancel</button>
+                      <button onClick={() => setEditId(null)} className="text-xs text-navy-400 hover:text-navy-200">Cancel</button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <span className="text-stone-100 font-medium">
+                      <span className="text-navy-100 font-medium">
                         {isSentinel
                           ? <span className="text-brand-400/80">⚓ Base price (sentinel)</span>
                           : <>{MONTH_NAMES[pc.effectiveMonth - 1]} {pc.effectiveYear}</>
@@ -263,8 +263,8 @@ function PriceChangesPanel({ slug, subscriptionCurrency }: { slug: string; subsc
                           </span>
                         )}
                       </span>
-                      {isSentinel && <p className="text-stone-500 text-xs">Initial known price. Edit to correct it.</p>}
-                      {pc.notes && <p className="text-stone-500 text-xs">{pc.notes}</p>}
+                      {isSentinel && <p className="text-navy-500 text-xs">Initial known price. Edit to correct it.</p>}
+                      {pc.notes && <p className="text-navy-500 text-xs">{pc.notes}</p>}
                     </div>
                     <div className="flex gap-3 ml-3 shrink-0">
                       <button

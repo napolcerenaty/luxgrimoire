@@ -106,16 +106,16 @@ export function BugReportButton() {
           onClick={e => { if (e.target === e.currentTarget) handleClose() }}
         >
           <div
-            className="modal-dark w-full max-w-md rounded-2xl shadow-2xl border border-stone-700"
+            className="modal-dark w-full max-w-md rounded-2xl shadow-2xl border border-navy-700"
             style={{ background: '#070f1c' }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-stone-800">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-navy-800">
               <div className="flex items-center gap-2">
                 <Bug size={16} className="text-brand-500" />
-                <h2 className="font-serif font-semibold text-stone-100 text-base">Report a Bug</h2>
+                <h2 className="font-serif font-semibold text-navy-100 text-base">Report a Bug</h2>
               </div>
-              <button onClick={handleClose} className="p-1 rounded text-stone-500 hover:text-stone-200 transition-colors">
+              <button onClick={handleClose} className="p-1 rounded text-navy-500 hover:text-navy-200 transition-colors">
                 <X size={16} />
               </button>
             </div>
@@ -124,8 +124,8 @@ export function BugReportButton() {
               /* Success state */
               <div className="px-5 py-10 flex flex-col items-center gap-3 text-center">
                 <div className="text-4xl">🐛✅</div>
-                <p className="font-serif text-stone-100 text-lg">Thank you!</p>
-                <p className="text-sm text-stone-400">Your report has been submitted. We'll look into it.</p>
+                <p className="font-serif text-navy-100 text-lg">Thank you!</p>
+                <p className="text-sm text-navy-400">Your report has been submitted. We'll look into it.</p>
                 <button
                   onClick={handleClose}
                   className="mt-4 px-6 py-2 rounded-xl bg-brand-500/10 text-brand-400 border border-brand-500/30 text-sm font-medium hover:bg-brand-500/20 transition-colors"
@@ -138,24 +138,24 @@ export function BugReportButton() {
               <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
                 {/* Category */}
                 <div>
-                  <label className="block text-xs text-stone-400 font-medium mb-1.5">Category</label>
+                  <label className="block text-xs text-navy-400 font-medium mb-1.5">Category</label>
                   <div className="relative">
                     <select
                       value={category}
                       onChange={e => setCategory(e.target.value)}
-                      className="w-full appearance-none bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-200 focus:outline-none focus:border-brand-500 transition-colors pr-8"
+                      className="w-full appearance-none bg-navy-900 border border-navy-700 rounded-xl px-3 py-2 text-sm text-navy-200 focus:outline-none focus:border-brand-500 transition-colors pr-8"
                     >
                       {CATEGORIES.map(c => (
                         <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
-                    <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
+                    <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-navy-500 pointer-events-none" />
                   </div>
                 </div>
 
                 {/* Title */}
                 <div>
-                  <label className="block text-xs text-stone-400 font-medium mb-1.5">Short description</label>
+                  <label className="block text-xs text-navy-400 font-medium mb-1.5">Short description</label>
                   <input
                     type="text"
                     value={title}
@@ -163,26 +163,26 @@ export function BugReportButton() {
                     placeholder="e.g. Collection page crashes on filter"
                     maxLength={120}
                     required
-                    className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-brand-500 transition-colors"
+                    className="w-full bg-navy-900 border border-navy-700 rounded-xl px-3 py-2 text-sm text-navy-100 placeholder:text-navy-600 focus:outline-none focus:border-brand-500 transition-colors"
                   />
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-xs text-stone-400 font-medium mb-1.5">Details</label>
+                  <label className="block text-xs text-navy-400 font-medium mb-1.5">Details</label>
                   <textarea
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     placeholder="What happened? What did you expect? Steps to reproduce…"
                     rows={4}
                     required
-                    className="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-brand-500 transition-colors resize-none"
+                    className="w-full bg-navy-900 border border-navy-700 rounded-xl px-3 py-2 text-sm text-navy-100 placeholder:text-navy-600 focus:outline-none focus:border-brand-500 transition-colors resize-none"
                   />
                 </div>
 
                 {/* Page URL (readonly) */}
-                <p className="text-xs text-stone-600">
-                  Page: <span className="text-stone-500">{pathname}</span>
+                <p className="text-xs text-navy-600">
+                  Page: <span className="text-navy-500">{pathname}</span>
                 </p>
 
                 {error && <p className="text-xs text-rose-400">{error}</p>}
@@ -191,7 +191,7 @@ export function BugReportButton() {
                   <button
                     type="button"
                     onClick={handleClose}
-                    className="flex-1 py-2 rounded-xl border border-stone-700 text-stone-400 text-sm hover:bg-stone-800 transition-colors"
+                    className="flex-1 py-2 rounded-xl border border-navy-700 text-navy-400 text-sm hover:bg-navy-800 transition-colors"
                   >
                     Cancel
                   </button>

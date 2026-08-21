@@ -5,8 +5,10 @@ import { ArrowLeft, Clock, Calendar } from 'lucide-react'
 import { getPostBySlug, getPosts, getPostsByTag, getSponsoredLabel, type GhostPost } from '@/lib/ghost'
 import { getFeatureImageBackdropColor } from '@/lib/featureImageColor'
 import BlogPostViewTracker from '@/components/blog/BlogPostViewTracker'
+import BlogPostViewCount from '@/components/blog/BlogPostViewCount'
 import BlogPostContent from '@/components/blog/BlogPostContent'
 import BlogShareButton from '@/components/blog/BlogShareButton'
+import { getBlogPostViewCount } from '@/lib/analytics'
 
 export const revalidate = 60
 
@@ -145,9 +147,10 @@ export default async function BlogPostPage({
   if (!post) notFound()
 
   const tagSlug = post.primary_tag?.slug
-  const [related, backdropColor] = await Promise.all([
+  const [related, backdropColor, viewCount] = await Promise.all([
     tagSlug ? getPostsByTag(tagSlug, 4, slug) : Promise.resolve([]),
     getFeatureImageBackdropColor(post.feature_image),
+    getBlogPostViewCount(post.slug),
   ])
 
   return (
@@ -228,6 +231,7 @@ export default async function BlogPostPage({
               {post.reading_time > 0 && (
                 <span className="flex items-center gap-1.5"><Clock size={13} />{post.reading_time} min read</span>
               )}
+              <BlogPostViewCount count={viewCount} />
               <BlogShareButton
                 url={`${process.env.NEXT_PUBLIC_BASE_URL ?? 'https://luxgrimoire.com'}/blog/${post.slug}`}
                 title={post.title}

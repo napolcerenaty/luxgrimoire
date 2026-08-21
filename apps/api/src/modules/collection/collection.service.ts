@@ -397,6 +397,7 @@ export class CollectionService {
               sourcePlatform: true,
               notes: true,
               saleAnnouncementId: true,
+              priceDistribution: true,
               fees: {
                 select: { id: true, name: true, amount: true, currency: true, category: true, date: true, feeTemplateId: true },
                 orderBy: { createdAt: 'asc' },
@@ -408,6 +409,14 @@ export class CollectionService {
               refunds: {
                 select: { id: true, amount: true, currency: true, date: true, reason: true },
                 orderBy: { date: 'asc' },
+              },
+              bookEntries: {
+                select: {
+                  id: true,
+                  editionId: true,
+                  basePrice: true,
+                  edition: { select: { book: { select: { title: true } } } },
+                },
               },
               _count: { select: { bookEntries: true } },
             },

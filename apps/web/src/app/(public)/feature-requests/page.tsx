@@ -12,7 +12,7 @@ import {
 import { useAuth } from '@/components/AuthProvider'
 
 const STATUS_BADGE: Record<string, string> = {
-  pending: 'bg-stone-700 text-stone-400',
+  pending: 'bg-navy-700 text-navy-400',
   accepted: 'bg-green-900/40 text-green-400',
   rejected: 'bg-red-900/40 text-red-400',
   implemented: 'bg-purple-900/40 text-purple-400',
@@ -25,7 +25,7 @@ function VoteButton({ req, onVote }: { req: ApiFeatureRequest; onVote: () => voi
       className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl border transition-all min-w-[52px]
         ${req.userHasVoted
           ? 'border-brand-500 bg-brand-500/10 text-brand-400'
-          : 'border-stone-700 bg-stone-800/60 text-stone-400 hover:border-brand-500/60 hover:text-brand-400'
+          : 'border-navy-700 bg-navy-800/60 text-navy-400 hover:border-brand-500/60 hover:text-brand-400'
         }`}
     >
       <svg className="w-4 h-4" fill={req.userHasVoted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -43,18 +43,18 @@ function SubmitModal({ onClose, onSubmit, submitting }: {
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const INP = 'w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-stone-100 focus:outline-none focus:border-brand-400 text-sm'
+  const INP = 'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 text-sm'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+      <div className="bg-navy-900 border border-navy-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-stone-100">💡 Suggest a Feature</h2>
-          <button onClick={onClose} className="text-stone-500 hover:text-stone-300 text-xl leading-none">×</button>
+          <h2 className="text-lg font-bold text-navy-100">💡 Suggest a Feature</h2>
+          <button onClick={onClose} className="text-navy-500 hover:text-navy-300 text-xl leading-none">×</button>
         </div>
         <form onSubmit={e => { e.preventDefault(); onSubmit({ title, description }) }} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm text-stone-400 mb-1">Feature title *</label>
+            <label className="block text-sm text-navy-400 mb-1">Feature title *</label>
             <input
               required minLength={5} maxLength={120}
               className={INP}
@@ -64,7 +64,7 @@ function SubmitModal({ onClose, onSubmit, submitting }: {
             />
           </div>
           <div>
-            <label className="block text-sm text-stone-400 mb-1">Description *</label>
+            <label className="block text-sm text-navy-400 mb-1">Description *</label>
             <textarea
               required minLength={20} maxLength={2000} rows={4}
               className={INP}
@@ -73,16 +73,16 @@ function SubmitModal({ onClose, onSubmit, submitting }: {
               placeholder="Describe the feature in detail. What problem does it solve? How should it work?"
             />
           </div>
-          <p className="text-xs text-stone-500">
+          <p className="text-xs text-navy-500">
             Submissions are reviewed before appearing in the public list. You'll be notified of the outcome.
           </p>
           <div className="flex gap-3 justify-end">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm text-stone-400 hover:text-stone-200 border border-stone-700 hover:border-stone-500 transition-colors">
+              className="px-4 py-2 rounded-lg text-sm text-navy-400 hover:text-navy-200 border border-navy-700 hover:border-navy-500 transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={submitting}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand-400 text-stone-950 hover:bg-brand-300 disabled:opacity-50 transition-colors">
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand-400 text-navy-950 hover:bg-brand-300 disabled:opacity-50 transition-colors">
               {submitting ? 'Submitting…' : 'Submit Request'}
             </button>
           </div>
@@ -142,14 +142,14 @@ export default function FeatureRequestsPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-stone-100 mb-2">Feature Requests</h1>
-          <p className="text-stone-400 text-sm">
+          <h1 className="text-3xl font-bold text-navy-100 mb-2">Feature Requests</h1>
+          <p className="text-navy-400 text-sm">
             Have an idea? Submit a feature request. Vote on suggestions you'd love to see!
           </p>
         </div>
         <button
           onClick={() => setShowSubmit(true)}
-          className="shrink-0 bg-brand-400 text-stone-950 font-semibold px-4 py-2 rounded-xl hover:bg-brand-300 transition-colors text-sm"
+          className="shrink-0 bg-brand-400 text-navy-950 font-semibold px-4 py-2 rounded-xl hover:bg-brand-300 transition-colors text-sm"
         >
           + Suggest Feature
         </button>
@@ -175,13 +175,13 @@ export default function FeatureRequestsPage() {
       {showMine && myRequests.length > 0 && (
         <div className="mb-6 space-y-2">
           {myRequests.map(req => (
-            <div key={req.id} className="flex items-center gap-3 bg-stone-800/60 border border-stone-700 rounded-xl px-4 py-3">
+            <div key={req.id} className="flex items-center gap-3 bg-navy-800/60 border border-navy-700 rounded-xl px-4 py-3">
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[req.status] ?? STATUS_BADGE.pending}`}>
                 {req.status}
               </span>
-              <span className="text-stone-200 text-sm flex-1">{req.title}</span>
+              <span className="text-navy-200 text-sm flex-1">{req.title}</span>
               {req.adminNote && (
-                <span className="text-stone-500 text-xs italic truncate max-w-xs">Admin: {req.adminNote}</span>
+                <span className="text-navy-500 text-xs italic truncate max-w-xs">Admin: {req.adminNote}</span>
               )}
             </div>
           ))}
@@ -190,41 +190,41 @@ export default function FeatureRequestsPage() {
 
       {/* Public ranking */}
       {isLoading ? (
-        <div className="text-stone-500 py-16 text-center">Loading…</div>
+        <div className="text-navy-500 py-16 text-center">Loading…</div>
       ) : requests.length === 0 ? (
-        <div className="text-center py-20 text-stone-500">
+        <div className="text-center py-20 text-navy-500">
           <div className="text-5xl mb-4">💡</div>
-          <div className="text-lg font-medium text-stone-400 mb-2">No accepted features yet</div>
+          <div className="text-lg font-medium text-navy-400 mb-2">No accepted features yet</div>
           <div className="text-sm">Be the first to suggest one!</div>
         </div>
       ) : (
         <div className="space-y-3">
           {requests.map((req, i) => (
-            <div key={req.id} className="flex gap-4 bg-stone-900 border border-stone-800 rounded-2xl p-4 hover:border-stone-700 transition-colors">
+            <div key={req.id} className="flex gap-4 bg-navy-900 border border-navy-800 rounded-2xl p-4 hover:border-navy-700 transition-colors">
               {/* Rank */}
               <div className="flex flex-col items-center gap-2">
-                <span className="text-xs text-stone-600 font-mono w-6 text-center">#{i + 1}</span>
+                <span className="text-xs text-navy-600 font-mono w-6 text-center">#{i + 1}</span>
                 {user ? (
                   <VoteButton req={req} onVote={() => voteMutation.mutate(req.id)} />
                 ) : (
-                  <div className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl border border-stone-700 bg-stone-800/60 min-w-[52px]">
-                    <svg className="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <div className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl border border-navy-700 bg-navy-800/60 min-w-[52px]">
+                    <svg className="w-4 h-4 text-navy-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
                     </svg>
-                    <span className="text-sm font-bold text-stone-400">{req.voteCount}</span>
+                    <span className="text-sm font-bold text-navy-400">{req.voteCount}</span>
                   </div>
                 )}
               </div>
               {/* Content */}
               <div className="flex-1 min-w-0">
-                <div className="text-stone-100 font-semibold mb-1">{req.title}</div>
-                <div className="text-stone-400 text-sm leading-relaxed whitespace-pre-line line-clamp-3">{req.description}</div>
+                <div className="text-navy-100 font-semibold mb-1">{req.title}</div>
+                <div className="text-navy-400 text-sm leading-relaxed whitespace-pre-line line-clamp-3">{req.description}</div>
                 {req.adminNote && (
                   <div className="mt-2 text-xs text-brand-400/80 bg-brand-900/10 border border-brand-900/20 rounded-lg px-3 py-2">
                     <span className="font-semibold">Admin note:</span> {req.adminNote}
                   </div>
                 )}
-                <div className="mt-2 text-xs text-stone-600">
+                <div className="mt-2 text-xs text-navy-600">
                   {req.user?.username && <span>by {req.user.username} · </span>}
                   {new Date(req.createdAt).toLocaleDateString()}
                 </div>
@@ -235,13 +235,13 @@ export default function FeatureRequestsPage() {
       )}
 
       {!user && requests.length > 0 && (
-        <p className="text-center text-stone-600 text-sm mt-8">
+        <p className="text-center text-navy-600 text-sm mt-8">
           <a href="/login" className="text-brand-400 hover:text-brand-300">Log in</a> to vote and submit feature requests
         </p>
       )}
 
       {/* Implemented section */}
-      <div className="mt-12 border-t border-stone-800 pt-8">
+      <div className="mt-12 border-t border-navy-800 pt-8">
         <button
           onClick={() => setShowImplemented(v => !v)}
           className="flex items-center gap-2 text-sm font-semibold text-purple-400 hover:text-purple-300 transition-colors"
@@ -258,25 +258,25 @@ export default function FeatureRequestsPage() {
         {showImplemented && (
           <div className="mt-4">
             {implementedLoading ? (
-              <div className="text-stone-500 py-8 text-center text-sm">Loading…</div>
+              <div className="text-navy-500 py-8 text-center text-sm">Loading…</div>
             ) : implemented.length === 0 ? (
-              <div className="text-stone-600 text-sm py-6 text-center">No implemented features yet.</div>
+              <div className="text-navy-600 text-sm py-6 text-center">No implemented features yet.</div>
             ) : (
               <div className="space-y-2">
                 {implemented.map(req => (
-                  <div key={req.id} className="flex gap-4 bg-stone-900 border border-purple-900/30 rounded-2xl p-4">
+                  <div key={req.id} className="flex gap-4 bg-navy-900 border border-purple-900/30 rounded-2xl p-4">
                     <div className="flex flex-col items-center justify-center min-w-[52px]">
                       <span className="text-2xl">✅</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-stone-100 font-semibold mb-1">{req.title}</div>
-                      <div className="text-stone-400 text-sm leading-relaxed whitespace-pre-line line-clamp-2">{req.description}</div>
+                      <div className="text-navy-100 font-semibold mb-1">{req.title}</div>
+                      <div className="text-navy-400 text-sm leading-relaxed whitespace-pre-line line-clamp-2">{req.description}</div>
                       {req.adminNote && (
                         <div className="mt-2 text-xs text-purple-400/80 bg-purple-900/10 border border-purple-900/20 rounded-lg px-3 py-2">
                           <span className="font-semibold">Note:</span> {req.adminNote}
                         </div>
                       )}
-                      <div className="mt-2 text-xs text-stone-600">
+                      <div className="mt-2 text-xs text-navy-600">
                         {req.voteCount} votes
                         {req.user?.username && <span> · by {req.user.username}</span>}
                       </div>

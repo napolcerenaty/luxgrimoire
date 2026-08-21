@@ -35,7 +35,7 @@ function CountdownBox({ value, label }: { value: number; label: string }) {
       >
         {String(value).padStart(2, '0')}
       </span>
-      <span className="mt-0.5 text-[9px] uppercase tracking-widest text-stone-500">{label}</span>
+      <span className="mt-0.5 text-[9px] uppercase tracking-widest text-navy-500">{label}</span>
     </div>
   )
 }
@@ -47,27 +47,32 @@ interface NextSale {
 }
 
 export function SaleCountdownBanner({ nextSale }: { nextSale: NextSale }) {
-  const [tick, setTick] = useState(0)
+  // Computed client-side only: getCountdown() reads Date.now(), so calling it directly during
+  // render produces a different value at SSR time vs. client hydration a moment later — a text
+  // mismatch React then has to discard and re-render. Starting from null and filling it in via
+  // effect means the server never renders a Date-derived number at all.
+  const [countdown, setCountdown] = useState<CountdownParts | null>(null)
 
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1_000)
+    const update = () => setCountdown(getCountdown(new Date(nextSale.date)))
+    update()
+    const id = setInterval(update, 1_000)
     return () => clearInterval(id)
-  }, [])
+  }, [nextSale.date])
 
-  const countdown = getCountdown(new Date(nextSale.date))
-  if (countdown.expired || !countdown.within14Days) return null
+  if (!countdown || countdown.expired || !countdown.within14Days) return null
 
   const title = nextSale.title.length > 45 ? `${nextSale.title.slice(0, 45)}…` : nextSale.title
 
   return (
-    <div className="border-y border-stone-800 bg-stone-900/40">
+    <div className="border-y border-navy-800 bg-navy-900/40">
       <div className="container mx-auto px-4 py-3">
         <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-6">
           {/* Label + title */}
           <div className="flex items-center gap-2 text-center sm:text-left">
             <span>🔔</span>
             <div>
-              <span className="text-xs uppercase tracking-widest text-stone-500">Next sale</span>
+              <span className="text-xs uppercase tracking-widest text-navy-500">Next sale</span>
               <Link
                 href={`/sale-announcements/${nextSale.announcementId}`}
                 className="ml-2 text-sm font-medium text-brand-400 transition-colors hover:text-brand-300"
@@ -85,7 +90,7 @@ export function SaleCountdownBanner({ nextSale }: { nextSale: NextSale }) {
             <CountdownBox value={countdown.seconds} label="sec" />
             <Link
               href={`/sale-announcements/${nextSale.announcementId}`}
-              className="mb-4 ml-1 rounded-full border border-stone-700 px-3 py-1 text-xs text-stone-400 transition-colors hover:border-stone-500 hover:text-stone-200"
+              className="mb-4 ml-1 rounded-full border border-navy-700 px-3 py-1 text-xs text-navy-400 transition-colors hover:border-navy-500 hover:text-navy-200"
             >
               View →
             </Link>

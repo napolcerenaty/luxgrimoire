@@ -41,6 +41,11 @@ export function MonthPicker({ year, month, onChange, maxAheadMonths, minYear, mi
   const effectiveMinMonth = minYear != null ? (minMonth ?? 1) : (earliestData?.month ?? FALLBACK_MIN_MONTH)
   const minAbs = effectiveMinYear * 12 + (effectiveMinMonth - 1)
 
+  // Known low-risk hydration edge case: computed independently on the SSR pass and
+  // the client hydration pass, so a request straddling midnight on the last day of
+  // a month could make the two disagree on which options render. Deferred — fixing
+  // it for real means passing a server-computed "now" in as a prop. Revisit if it
+  // shows up in Sentry.
   const now = new Date()
   const nowAbs = now.getFullYear() * 12 + now.getMonth()
   const maxAbs = maxAheadMonths != null ? nowAbs + maxAheadMonths : null

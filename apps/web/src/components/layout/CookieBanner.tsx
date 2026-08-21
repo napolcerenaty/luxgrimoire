@@ -24,7 +24,7 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-label="Cookie information"
-      className="fixed bottom-0 left-0 right-0 z-[70] border-t border-brand-800/20 bg-stone-900/95 backdrop-blur-md"
+      className="fixed bottom-0 left-0 right-0 z-[70] border-t border-brand-800/20 bg-navy-900/95 backdrop-blur-md"
     >
       <div className="mx-auto max-w-5xl flex items-start sm:items-center gap-4 px-4 py-4 sm:flex-row flex-col">
         <Cookie
@@ -33,12 +33,12 @@ export function CookieBanner() {
           aria-hidden
         />
 
-        <p className="flex-1 text-xs leading-relaxed text-stone-400">
-          <span className="font-medium text-stone-300">
+        <p className="flex-1 text-xs leading-relaxed text-navy-400">
+          <span className="font-medium text-navy-300">
             We use browser storage to keep you signed in and remember your theme preference.
           </span>{' '}
           We do{' '}
-          <strong className="font-semibold text-stone-200">
+          <strong className="font-semibold text-navy-200">
             not
           </strong>{' '}
           use tracking, analytics or advertising cookies.{' '}
@@ -55,7 +55,7 @@ export function CookieBanner() {
           </button>
           <button
             onClick={accept}
-            className="p-1 rounded transition-opacity opacity-50 hover:opacity-100 text-stone-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
+            className="p-1 rounded transition-opacity opacity-50 hover:opacity-100 text-navy-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
             aria-label="Dismiss"
           >
             <X size={14} />

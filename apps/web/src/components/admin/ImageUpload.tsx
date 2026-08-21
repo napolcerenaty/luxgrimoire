@@ -60,18 +60,18 @@ export default function ImageUpload({
 
   return (
     <div>
-      <label className="block text-sm text-stone-400 mb-2">{label}</label>
+      <label className="block text-sm text-navy-400 mb-2">{label}</label>
       <div className="flex items-start gap-4">
         {/* Preview box */}
         <div
-          className="shrink-0 rounded-lg overflow-hidden border border-stone-700 bg-stone-800 flex items-center justify-center"
+          className="shrink-0 rounded-lg overflow-hidden border border-navy-700 bg-navy-800 flex items-center justify-center"
           style={{ width: isSquare ? 64 : 48, height: isSquare ? 64 : 72 }}
         >
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
           ) : (
-            <span className="text-stone-600 text-xs">No img</span>
+            <span className="text-navy-600 text-xs">No img</span>
           )}
         </div>
 
@@ -82,14 +82,14 @@ export default function ImageUpload({
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:border-brand-500 hover:text-brand-400 text-sm transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-lg border border-navy-700 text-navy-300 hover:border-brand-500 hover:text-brand-400 text-sm transition-colors disabled:opacity-50"
             >
               {uploading ? 'Uploading…' : value ? 'Change image' : 'Upload image'}
             </button>
             <button
               type="button"
               onClick={() => setPickerOpen(true)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-700 text-stone-300 hover:bg-stone-600 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-700 text-navy-300 hover:bg-navy-600 transition-colors"
             >
               Pick from library
             </button>
@@ -104,7 +104,7 @@ export default function ImageUpload({
             </button>
           )}
           {value && (
-            <p className="text-[11px] text-stone-600 mt-1 truncate font-mono">{value}</p>
+            <p className="text-[11px] text-navy-600 mt-1 truncate font-mono">{value}</p>
           )}
           {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
         </div>

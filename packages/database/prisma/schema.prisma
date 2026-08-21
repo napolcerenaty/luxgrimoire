@@ -254,12 +254,17 @@ model Artist {
   tiktok        String?
   twitter       String?
   website       String?
+  isCollective  Boolean              @default(false)
+  studioId      String?
+  studio        Artist?              @relation("ArtistStudio", fields: [studioId], references: [id], onDelete: SetNull)
+  studioMembers Artist[]             @relation("ArtistStudio")
   contributions ArtistContribution[]
   cardArtistMonths SubscriptionMonth[]
   photoAsset    MediaAsset?          @relation("ArtistPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
 
   @@index([specialty])
   @@index([name])
+  @@index([studioId])
   @@map("artists")
 }
 

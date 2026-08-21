@@ -53,7 +53,7 @@ async function getGrantedCompanies(): Promise<GrantedCompany[]> {
 function PublishersList({ companies }: { companies: GrantedCompany[] }) {
   if (companies.length === 0) {
     return (
-      <p className="text-stone-500 text-sm italic">
+      <p className="text-navy-500 text-sm italic">
         We&apos;re currently building relationships with publishers and subscription companies —
         this list will be updated as permissions are granted.
       </p>
@@ -122,10 +122,10 @@ export default async function PublishersPermissionsPage() {
         Publishers &amp; Permissions
       </h1>
 
-      <div className="prose prose-invert prose-stone max-w-none space-y-10 text-stone-300 leading-relaxed">
+      <div className="prose prose-invert prose-stone max-w-none space-y-10 text-navy-300 leading-relaxed">
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">Official Promotional Materials</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">Official Promotional Materials</h2>
           <p>
             LuxGrimoire aims to showcase special editions while respecting the work of publishers,
             artists, and designers.
@@ -141,7 +141,7 @@ export default async function PublishersPermissionsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">
             ✓ What does &ldquo;Images used with brand permission&rdquo; mean?
           </h2>
           <p>
@@ -158,12 +158,12 @@ export default async function PublishersPermissionsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">Image Credits</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">Image Credits</h2>
           <p>
             Official promotional materials always include attribution where appropriate. Below an
             edition&apos;s photos, you may see:
           </p>
-          <ul className="list-disc list-inside mt-3 space-y-1.5 text-stone-400">
+          <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
             <li>📷 <strong>photo by @handle</strong> — a link to the photographer or artist&apos;s Instagram.</li>
             <li><strong>courtesy of {'{'}Company Name{'}'}</strong> — a link to the company&apos;s official website.</li>
           </ul>
@@ -174,7 +174,7 @@ export default async function PublishersPermissionsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">User Submitted Photos</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">User Submitted Photos</h2>
           <p>
             When official promotional materials cannot be displayed, collectors can upload their
             own photographs of their physical copy.
@@ -186,7 +186,7 @@ export default async function PublishersPermissionsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">Copyright &amp; Removal Requests</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">Copyright &amp; Removal Requests</h2>
           <p>
             Respecting copyright is one of LuxGrimoire&apos;s core principles.
           </p>
@@ -201,7 +201,7 @@ export default async function PublishersPermissionsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">Companies Granting Permission</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">Companies Granting Permission</h2>
           <p className="mb-4">
             The following publishers and subscription companies have kindly granted LuxGrimoire
             permission to display their official promotional materials. This list is updated as
@@ -211,7 +211,7 @@ export default async function PublishersPermissionsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-serif font-semibold text-stone-100 mb-3">Contact</h2>
+          <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">Contact</h2>
           <p>
             Representing a publisher, subscription company, or rights-holder? We&apos;d be happy to
             discuss how LuxGrimoire presents your official promotional materials.
