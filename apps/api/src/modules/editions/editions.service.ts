@@ -1043,8 +1043,11 @@ export class EditionsService {
   async addArtist(slug: string, dto: AddArtistDto) {
     const edition = await this.findBySlug(slug);
     const role = dto.role ?? 'cover';
-    const existing = await this.prisma.artistContribution.findUnique({
-      where: { editionId_artistId_role: { editionId: edition.id, artistId: dto.artistId, role } },
+    // Notification-worthiness is keyed on (edition, artist) — an artist already credited on
+    // this edition under a different role isn't "new" to it, so adding a second role for them
+    // must not re-notify their followers about an edition they already know about.
+    const alreadyCredited = await this.prisma.artistContribution.findFirst({
+      where: { editionId: edition.id, artistId: dto.artistId },
     });
     const result = await this.prisma.artistContribution.upsert({
       where: { editionId_artistId_role: { editionId: edition.id, artistId: dto.artistId, role } },
@@ -1056,9 +1059,7 @@ export class EditionsService {
       },
       update: { artistName: dto.artistName },
     });
-    // Only a genuinely new contribution is notification-worthy — an artistName-only touch-up on
-    // an already-existing (edition, artist, role) triple must not re-notify followers.
-    if (!existing) {
+    if (!alreadyCredited) {
       void this.followNotifications.notifyOnArtistAdded(edition.id, dto.artistId).catch((err) =>
         this.logger.error(`Failed to queue edition-follow notification for artist ${dto.artistId} on edition ${edition.id}: ${err}`),
       );

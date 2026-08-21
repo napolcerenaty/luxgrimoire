@@ -359,9 +359,9 @@ describe('EditionsService — edition-follow notification hooks', () => {
   describe('addArtist', () => {
     const EDITION = { id: 'edition-1', slug: 'test-edition' };
 
-    it('notifies followers when the (edition, artist, role) contribution is genuinely new', async () => {
+    it('notifies followers when the artist has no prior contribution on this edition at all', async () => {
       jest.spyOn(service, 'findBySlug').mockResolvedValue(EDITION as any);
-      (prisma.artistContribution.findUnique as jest.Mock).mockResolvedValue(null); // no existing row
+      (prisma.artistContribution.findFirst as jest.Mock).mockResolvedValue(null); // not credited yet, any role
       (prisma.artistContribution.upsert as jest.Mock).mockResolvedValue({ id: 'contrib-1' });
 
       await service.addArtist('test-edition', { artistId: 'artist-1', role: 'cover' } as any);
@@ -369,11 +369,11 @@ describe('EditionsService — edition-follow notification hooks', () => {
       expect(followNotifications.notifyOnArtistAdded).toHaveBeenCalledWith('edition-1', 'artist-1');
     });
 
-    it('does NOT notify when the contribution already exists (artistName-only touch-up)', async () => {
+    it('does NOT notify when the exact same (edition, artist, role) already exists (artistName-only touch-up)', async () => {
       jest.spyOn(service, 'findBySlug').mockResolvedValue(EDITION as any);
-      (prisma.artistContribution.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.artistContribution.findFirst as jest.Mock).mockResolvedValue({
         id: 'contrib-1', editionId: 'edition-1', artistId: 'artist-1', role: 'cover',
-      }); // already exists
+      });
       (prisma.artistContribution.upsert as jest.Mock).mockResolvedValue({ id: 'contrib-1' });
 
       await service.addArtist('test-edition', { artistId: 'artist-1', role: 'cover', artistName: 'New Display Name' } as any);
@@ -381,27 +381,43 @@ describe('EditionsService — edition-follow notification hooks', () => {
       expect(followNotifications.notifyOnArtistAdded).not.toHaveBeenCalled();
     });
 
-    it('treats a new role for an already-contributing artist as a new contribution', async () => {
+    // Regression: adding the SAME artist a second time under a different role (e.g. an admin
+    // credits them as "cover" first, then comes back and also credits them as "illustrator")
+    // must not re-notify their followers — they're not new to this edition, just doing more on
+    // it. Only the artist's very first contribution to an edition is notification-worthy.
+    it('does NOT notify for a new role on an artist already credited under a different role', async () => {
       jest.spyOn(service, 'findBySlug').mockResolvedValue(EDITION as any);
-      // No row for (edition-1, artist-1, 'illustrator') even though the artist already
-      // contributes under a different role — the unique key is the full triple.
-      (prisma.artistContribution.findUnique as jest.Mock).mockResolvedValue(null);
+      // No row for the (edition-1, artist-1, 'illustrator') triple specifically, but the artist
+      // already has a 'cover' contribution on this same edition.
+      (prisma.artistContribution.findFirst as jest.Mock).mockResolvedValue({
+        id: 'contrib-1', editionId: 'edition-1', artistId: 'artist-1', role: 'cover',
+      });
       (prisma.artistContribution.upsert as jest.Mock).mockResolvedValue({ id: 'contrib-2' });
 
       await service.addArtist('test-edition', { artistId: 'artist-1', role: 'illustrator' } as any);
 
-      expect(followNotifications.notifyOnArtistAdded).toHaveBeenCalledWith('edition-1', 'artist-1');
+      expect(followNotifications.notifyOnArtistAdded).not.toHaveBeenCalled();
     });
 
-    it('checks existence for the exact same triple the upsert will act on', async () => {
+    it('notifies for a genuinely different artist even when another artist already contributes to this edition', async () => {
       jest.spyOn(service, 'findBySlug').mockResolvedValue(EDITION as any);
-      (prisma.artistContribution.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.artistContribution.findFirst as jest.Mock).mockResolvedValue(null); // no row for artist-2
+      (prisma.artistContribution.upsert as jest.Mock).mockResolvedValue({ id: 'contrib-3' });
+
+      await service.addArtist('test-edition', { artistId: 'artist-2', role: 'cover' } as any);
+
+      expect(followNotifications.notifyOnArtistAdded).toHaveBeenCalledWith('edition-1', 'artist-2');
+    });
+
+    it('checks prior credit scoped to edition + artist, not role', async () => {
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(EDITION as any);
+      (prisma.artistContribution.findFirst as jest.Mock).mockResolvedValue(null);
       (prisma.artistContribution.upsert as jest.Mock).mockResolvedValue({ id: 'contrib-1' });
 
       await service.addArtist('test-edition', { artistId: 'artist-1', role: 'cover' } as any);
 
-      expect(prisma.artistContribution.findUnique).toHaveBeenCalledWith({
-        where: { editionId_artistId_role: { editionId: 'edition-1', artistId: 'artist-1', role: 'cover' } },
+      expect(prisma.artistContribution.findFirst).toHaveBeenCalledWith({
+        where: { editionId: 'edition-1', artistId: 'artist-1' },
       });
     });
   });
