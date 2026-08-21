@@ -214,8 +214,14 @@ export default async function BlogPage() {
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
-              {tagPosts.map((post) => (
-                <Link key={post.id} href={`/blog/${post.slug}`} className="block h-full">
+              {/* Capped to 2 rows at every breakpoint (2 posts @1col, 4 @2col, 6 @3col) —
+                  "See all" above links to the full /blog/tag/[slug] listing for the rest. */}
+              {tagPosts.slice(0, 6).map((post, i) => (
+                <Link
+                  key={post.id}
+                  href={`/blog/${post.slug}`}
+                  className={`block h-full ${i >= 4 ? 'hidden lg:block' : i >= 2 ? 'hidden sm:block' : ''}`}
+                >
                   <GuideCard post={post} />
                 </Link>
               ))}
