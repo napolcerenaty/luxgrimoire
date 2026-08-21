@@ -128,11 +128,11 @@ export default async function CompaniesPermissionsPage() {
           <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">Official Promotional Materials</h2>
           <p>
             LuxGrimoire aims to showcase special editions while respecting the work of publishers,
-            artists, and designers.
+            companies, artists, and designers.
           </p>
           <p className="mt-2">
             Official promotional materials are displayed only with permission from the publisher,
-            subscription company, or relevant rights-holder.
+            company, or relevant rights-holder.
           </p>
           <p className="mt-2">
             Images remain the property of their respective rights-holders and are used solely for
@@ -149,7 +149,7 @@ export default async function CompaniesPermissionsPage() {
             has received permission to display that company&apos;s official promotional materials.
           </p>
           <p className="mt-2">
-            Permissions vary between companies, but generally include official promotional images,
+            Permissions vary between companies, but may include official promotional images,
             mock-ups, and other marketing materials used to present their editions.
           </p>
           <p className="mt-2">
@@ -160,8 +160,8 @@ export default async function CompaniesPermissionsPage() {
         <section>
           <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">Image Credits</h2>
           <p>
-            Official promotional materials always include attribution where appropriate. Below an
-            edition&apos;s photos, you may see:
+            Official promotional materials always include attribution. Below an edition&apos;s photos,
+            you may see:
           </p>
           <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
             <li>
@@ -176,7 +176,7 @@ export default async function CompaniesPermissionsPage() {
             </li>
           </ul>
           <p className="mt-3">
-            Whenever available, credits are preserved and link back to their original source.
+            Whenever available, original credits and source links are preserved.
           </p>
         </section>
 
@@ -200,8 +200,8 @@ export default async function CompaniesPermissionsPage() {
             Respecting copyright is one of LuxGrimoire&apos;s core principles.
           </p>
           <p className="mt-2">
-            If you represent a publisher, subscription company, artist, or rights-holder and believe
-            any material should be removed or updated, please{' '}
+            If you represent a publisher, company, artist, designer, or other rights-holder and
+            believe any material should be removed or updated, please{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
               contact us
             </a>
@@ -213,20 +213,18 @@ export default async function CompaniesPermissionsPage() {
           <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">Companies Granting Permission</h2>
           <p className="mb-4">
             The following companies have kindly granted LuxGrimoire permission to display their
-            official promotional materials. This list is updated as new permissions are received.
+            official promotional materials. Permissions are granted directly to LuxGrimoire and may
+            be subject to conditions specified by each company or rights-holder. This list is
+            updated as new permissions are received.
           </p>
           <GrantedCompaniesList companies={companies} />
-          <p className="mt-4 text-sm text-navy-500">
-            Permissions are granted directly to LuxGrimoire and may be subject to conditions
-            specified by each company or rights-holder.
-          </p>
         </section>
 
         <section>
           <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">Contact</h2>
           <p>
-            Representing a publisher, subscription company, or rights-holder? We&apos;d be happy to
-            discuss how LuxGrimoire presents your official promotional materials.
+            Representing a publisher, company, artist, designer, or other rights-holder? We&apos;d be
+            happy to discuss how LuxGrimoire presents your official promotional materials.
           </p>
           <p className="mt-2">
             📧{' '}
