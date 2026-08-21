@@ -142,7 +142,7 @@ export default async function CompaniesPermissionsPage() {
 
         <section>
           <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">
-            ✓ What does &ldquo;Images used with brand permission&rdquo; mean?
+            What does &ldquo;✓ Images used with brand permission&rdquo; mean?
           </h2>
           <p>
             When you see this badge on a company or subscription page, it means that LuxGrimoire
