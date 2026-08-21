@@ -660,6 +660,25 @@ export default function CollectionPage() {
     }
   }
 
+  // Grouped views (by book/series/year/author/company) only group what's currently loaded —
+  // with the collection paginated at 100/page, an item past page 1 silently disappears from
+  // its group (or from the whole view) until "Show more" is clicked. Auto-load the rest of
+  // the collection while a grouped mode is active so grouping always reflects everything.
+  const isGroupedFilterMode = filter === 'BOOK' || filter === 'SERIES' || filter === 'YEAR' || filter === 'AUTHOR' || filter === 'COMPANY'
+  useEffect(() => {
+    if (!isGroupedFilterMode) return
+    if (hasActiveFilters) {
+      if (!loadingMoreFiltered && filteredEntries.length > 0 && filteredEntries.length < filteredTotal) {
+        void loadMoreFiltered()
+      }
+    } else {
+      if (!loadingMore && allEntries.length > 0 && allEntries.length < collectionTotal) {
+        void loadMoreCollection()
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGroupedFilterMode, hasActiveFilters, allEntries.length, collectionTotal, loadingMore, filteredEntries.length, filteredTotal, loadingMoreFiltered])
+
   const { data: allUserTags = [] } = useQuery({
     queryKey: ['collection-tags'],
     queryFn: () => authFetch<string[]>('/collection/tags'),
@@ -909,7 +928,7 @@ export default function CollectionPage() {
     return [sorted]
   })()
 
-  const isGroupedView = filter === 'BOOK' || filter === 'SERIES' || filter === 'YEAR' || filter === 'AUTHOR' || filter === 'COMPANY'
+  const isGroupedView = isGroupedFilterMode
 
   // Most groups only ever have one entry — giving each of those its own header + near-empty
   // row produces a long, sparse list (same rationale as the "boxes by month" grouping). Only
