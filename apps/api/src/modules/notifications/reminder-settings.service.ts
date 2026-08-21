@@ -22,6 +22,9 @@ export interface ReminderSettingsDto {
   bookChoiceDaysBefore?: number;
 
   appNotifPushEnabled?: boolean;
+
+  seriesContinuationInAppEnabled?: boolean;
+  seriesContinuationPushEnabled?: boolean;
 }
 
 @Injectable()
@@ -50,6 +53,8 @@ export class ReminderSettingsService {
         bookChoicePushEnabled: false,
         bookChoiceDaysBefore: 3,
         appNotifPushEnabled: false,
+        seriesContinuationInAppEnabled: true,
+        seriesContinuationPushEnabled: true,
       };
     }
     return s;
@@ -77,6 +82,8 @@ export class ReminderSettingsService {
         bookChoicePushEnabled: dto.bookChoicePushEnabled ?? false,
         bookChoiceDaysBefore: dto.bookChoiceDaysBefore ?? 3,
         appNotifPushEnabled: dto.appNotifPushEnabled ?? false,
+        seriesContinuationInAppEnabled: dto.seriesContinuationInAppEnabled ?? true,
+        seriesContinuationPushEnabled: dto.seriesContinuationPushEnabled ?? true,
       },
       update: {
         ...(dto.renewalEnabled !== undefined && { renewalEnabled: dto.renewalEnabled }),
@@ -96,6 +103,8 @@ export class ReminderSettingsService {
         ...(dto.bookChoicePushEnabled !== undefined && { bookChoicePushEnabled: dto.bookChoicePushEnabled }),
         ...(dto.bookChoiceDaysBefore !== undefined && { bookChoiceDaysBefore: dto.bookChoiceDaysBefore }),
         ...(dto.appNotifPushEnabled !== undefined && { appNotifPushEnabled: dto.appNotifPushEnabled }),
+        ...(dto.seriesContinuationInAppEnabled !== undefined && { seriesContinuationInAppEnabled: dto.seriesContinuationInAppEnabled }),
+        ...(dto.seriesContinuationPushEnabled !== undefined && { seriesContinuationPushEnabled: dto.seriesContinuationPushEnabled }),
       },
     });
   }

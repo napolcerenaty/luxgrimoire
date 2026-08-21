@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, BellOff, RefreshCw, Megaphone } from 'lucide-react'
+import { Bell, BellOff, RefreshCw, Megaphone, BookMarked } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 
@@ -15,6 +15,8 @@ interface NotificationPreferences {
 
 interface ReminderSettings {
   appNotifPushEnabled: boolean
+  seriesContinuationInAppEnabled: boolean
+  seriesContinuationPushEnabled: boolean
 }
 
 const DAYS_OPTIONS = [1, 3, 7]
@@ -182,6 +184,41 @@ export default function NotificationSettingsPage() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* Series Continuation */}
+      <section className="bg-navy-900 border border-navy-800 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <BookMarked size={16} className="text-brand-400" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-navy-300">Series Continuation</h2>
+        </div>
+        <p className="text-xs text-navy-500 -mt-2">
+          Get notified when a company you&apos;ve bought from adds a new volume of a series you already own to a sale. On by default — no need to follow anything.
+        </p>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-navy-200">In-app</p>
+              <p className="text-xs text-navy-500">Always shown in your notification bell</p>
+            </div>
+            <Toggle
+              checked={reminderSettings?.seriesContinuationInAppEnabled ?? true}
+              onChange={(v) => reminderMutation.mutate({ seriesContinuationInAppEnabled: v })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-navy-200">Push</p>
+              <p className="text-xs text-navy-500">Send to this device</p>
+            </div>
+            <Toggle
+              checked={reminderSettings?.seriesContinuationPushEnabled ?? true}
+              onChange={(v) => reminderMutation.mutate({ seriesContinuationPushEnabled: v })}
+            />
+          </div>
+        </div>
       </section>
 
       {/* App Notifications */}

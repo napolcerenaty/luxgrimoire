@@ -10,6 +10,7 @@ import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
+import { SeriesContinuationService } from '../series-continuation/series-continuation.service';
 
 // Full include — used for public endpoints where book authors/artists are displayed
 const editionsInclude = {
@@ -62,7 +63,29 @@ export class AnnouncementsService {
     private readonly mediaAssetsService: MediaAssetsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     @Optional() private readonly scheduledReminders?: ScheduledRemindersService,
+    @Optional() private readonly seriesContinuation?: SeriesContinuationService,
   ) {}
+
+  /** True if this announcement is currently live/upcoming — the same definition findAll's
+   *  `upcoming` filter and getActiveSaleCount use. Used to gate series-continuation
+   *  notifications so bulk-backfilling old/past sale announcements doesn't fire them. */
+  private async isAnnouncementActiveOrUpcoming(saleAnnouncementId: string): Promise<boolean> {
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    const count = await this.prisma.saleAnnouncement.count({
+      where: { id: saleAnnouncementId, ...this.buildActiveSaleCondition(now, today, null) },
+    });
+    return count > 0;
+  }
+
+  private async notifySeriesContinuation(saleAnnouncementId: string, editionIds: string[]) {
+    if (!this.seriesContinuation || !editionIds.length) return;
+    if (!(await this.isAnnouncementActiveOrUpcoming(saleAnnouncementId))) return;
+    for (const editionId of editionIds) {
+      this.seriesContinuation.notifyOnEditionAddedToSale(editionId, saleAnnouncementId).catch(() => {});
+    }
+  }
 
   // Global sale-tier calendar (public /sales-calendar + company embed) — sales/tiers change
   // far less often than they're viewed, so a long TTL pays off, but (unlike the renewal
@@ -587,6 +610,7 @@ export class AnnouncementsService {
       create: { saleId: id, editionId, sortOrder: (maxOrder._max.sortOrder ?? -1) + 1 },
       update: {},
     });
+    void this.notifySeriesContinuation(id, [editionId]);
     return this.findById(id);
   }
 
@@ -789,6 +813,7 @@ export class AnnouncementsService {
             })),
             skipDuplicates: true,
           });
+          void this.notifySeriesContinuation(id, toAdd);
         }
         // Update sort order for all editions to match new ordering
         await Promise.all(
