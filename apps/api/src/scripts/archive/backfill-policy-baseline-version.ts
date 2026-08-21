@@ -13,26 +13,30 @@
  * written either — only users who already have a non-null accepted-at are touched; brand-new/
  * never-consented users are left alone and still correctly get sent through /consent).
  *
- * Fetches the CURRENT version straight from Ghost's Content API — no manual curl/copy-paste of
- * the version string needed. Wired unconditionally into docker-entrypoint.sh (runs on every
- * deploy) and made safe to do so via a one-time-per-doc guard: an `AppSetting` marker row
+ * Fetched the CURRENT version straight from Ghost's Content API — no manual curl/copy-paste of
+ * the version string needed. Was wired unconditionally into docker-entrypoint.sh (ran on every
+ * deploy), made safe to do so via a one-time-per-doc guard: an `AppSetting` marker row
  * (policyBaselineTermsBackfilledAt / policyBaselinePrivacyBackfilledAt) is written the first
  * time a doc is successfully backfilled, and checked before doing any work on every subsequent
- * run. This is what makes "just fetch whatever Ghost currently has" safe long-term: a doc is
- * only ever retagged the very first time it's found published — a *later*, genuine content
- * change is never retroactively backfilled, so the feature keeps working as intended for real
- * future ToS/Privacy updates. If a doc isn't published in Ghost yet, its half is silently
- * skipped and retried on the next deploy. Per-doc failures don't affect the other doc.
+ * run. This is what made "just fetch whatever Ghost currently has" safe: a doc is only ever
+ * retagged the very first time it's found published — a *later*, genuine content change is
+ * never retroactively backfilled, so the feature keeps working as intended for real future
+ * ToS/Privacy updates.
  *
- * Manual/local testing:
- *   node dist/scripts/backfill-policy-baseline-version.js [--dry-run]
- *   node dist/scripts/backfill-policy-baseline-version.js --terms-version="..." --dry-run
+ * Both docs were confirmed backfilled successfully in production (deploy 2026-08-20), so this
+ * is archived rather than wired into docker-entrypoint.sh anymore — same pattern as the other
+ * scripts in this folder. Kept for history and for manually backfilling a doc that gets
+ * re-migrated to a different Ghost instance later. The AppSetting markers already written in
+ * production mean re-running this against prod is a no-op for both docs regardless; re-running
+ * elsewhere (e.g. a fresh environment) still works as before:
+ *   node dist/scripts/archive/backfill-policy-baseline-version.js [--dry-run]
+ *   node dist/scripts/archive/backfill-policy-baseline-version.js --terms-version="..." --dry-run
  * (--terms-version=/--privacy-version= override the Ghost fetch entirely for a given doc — the
  * AppSetting guard still applies, so this only does something the first time.)
  */
-import { runScript } from './run-script'
-import { PrismaService } from '../prisma/prisma.service'
-import { BugReportsService } from '../modules/bug-reports/bug-reports.service'
+import { runScript } from '../run-script'
+import { PrismaService } from '../../prisma/prisma.service'
+import { BugReportsService } from '../../modules/bug-reports/bug-reports.service'
 
 const DRY_RUN = process.argv.includes('--dry-run')
 
