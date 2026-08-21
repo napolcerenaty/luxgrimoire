@@ -162,8 +162,8 @@ export default async function TermsPage() {
           <h3 className="text-base font-semibold text-navy-200 mt-6 mb-2">6b. Official Brand &amp; Promotional Imagery</h3>
           <p>
             Where a company or subscription page displays official promotional materials, LuxGrimoire has
-            received permission from the relevant publisher, subscription company, or rights-holder to use
-            them, as indicated by a &ldquo;✓ Images used with brand permission&rdquo; badge. This badge does not
+            received permission from the relevant company or rights-holder to use them, as indicated by a
+            &ldquo;✓ Images used with brand permission&rdquo; badge. This badge does not
             mean that the company sponsors, endorses, or is otherwise affiliated with LuxGrimoire — see
             Section 2. Full details on how and why materials are used this way, including image credits and
             how to request removal, are available on our{' '}
