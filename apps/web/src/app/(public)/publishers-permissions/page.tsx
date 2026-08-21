@@ -131,11 +131,11 @@ export default async function PublishersPermissionsPage() {
             artists, and designers.
           </p>
           <p className="mt-2">
-            Whenever possible, official promotional materials are displayed only with permission
-            from the publisher, subscription company, or the relevant rights-holder.
+            Official promotional materials are displayed only with permission from the publisher,
+            subscription company, or relevant rights-holder.
           </p>
           <p className="mt-2">
-            Images remain the property of their respective owners and are used solely for
+            Images remain the property of their respective rights-holders and are used solely for
             presenting books, subscriptions, and companies within LuxGrimoire.
           </p>
         </section>
@@ -189,8 +189,8 @@ export default async function PublishersPermissionsPage() {
           <p className="mt-2">
             Every submitted image is reviewed before publication. These are always personal photos
             of a collector&apos;s own copy — they are never treated as official promotional material.
-            Official images are added directly by our team once permission has been granted by the
-            company, following the process described above.
+            Official promotional materials are added directly by the LuxGrimoire team once permission
+            has been granted, following the process described above.
           </p>
         </section>
 
@@ -212,11 +212,14 @@ export default async function PublishersPermissionsPage() {
         <section>
           <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">Companies Granting Permission</h2>
           <p className="mb-4">
-            The following publishers and subscription companies have kindly granted LuxGrimoire
-            permission to display their official promotional materials. This list is updated as
-            new permissions are received.
+            The following companies have kindly granted LuxGrimoire permission to display their
+            official promotional materials. This list is updated as new permissions are received.
           </p>
           <PublishersList companies={companies} />
+          <p className="mt-4 text-sm text-navy-500">
+            Permissions are granted directly to LuxGrimoire and may be subject to conditions
+            specified by each company or rights-holder.
+          </p>
         </section>
 
         <section>
