@@ -436,7 +436,10 @@ export class AnnouncementsService {
     });
     if (liveOrUpcoming.length === 0) return empty;
 
-    if (userId) {
+    // Personalization is scoped to a specific company's hero (CompanySaleAnnouncementsSection) —
+    // the homepage banner calls this with no companyId and must show the true global soonest
+    // sale to every visitor alike, logged in or not, so it never applies here without a companyId.
+    if (userId && companyId) {
       const interest = await this.prisma.userSaleInterest.findFirst({
         where: { userId, announcementId: { in: liveOrUpcoming.map(a => a.id) } },
         select: { tierId: true, announcementId: true },

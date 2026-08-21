@@ -80,6 +80,26 @@ describe('AnnouncementsService.getNextSale', () => {
     expect(result.date).toBe(generalSaleDate.toISOString());
   });
 
+  it('ignores the user\'s interest and returns the true global soonest when companyId is omitted (homepage banner)', async () => {
+    (prisma.saleAnnouncement.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: 'sale-near',
+        title: 'Near Sale',
+        tiers: [
+          { id: 't-near-fa', name: 'First Access', date: daysFromNow(3) },
+          { id: 't-near-gs', name: 'General Sale', date: daysFromNow(10) },
+        ],
+      },
+    ]);
+    (prisma.userSaleInterest.findFirst as jest.Mock).mockResolvedValue({ tierId: 't-near-gs', announcementId: 'sale-near' });
+
+    const result = await service.getNextSale(undefined, 'user-1');
+
+    expect(result.personalized).toBe(false);
+    expect(result.tier).toBe('First Access');
+    expect(prisma.userSaleInterest.findFirst).not.toHaveBeenCalled();
+  });
+
   it('falls back to the aggregate when the user\'s interest tier date has already passed', async () => {
     // The real query filters tiers to date >= today, so a past tier the user picked won't be
     // in ann.tiers at all — the service re-fetches it directly via saleTier.findUnique to
