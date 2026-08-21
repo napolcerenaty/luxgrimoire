@@ -165,14 +165,14 @@ export default async function PublishersPermissionsPage() {
           </p>
           <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
             <li>
-              📷 <strong>photo by @handle</strong> — an Instagram credit. Where the company&apos;s own
-              promotional materials name a specific photographer or artist, both their Instagram and
-              the company&apos;s own Instagram are shown; if no artist is named, only the company&apos;s
-              Instagram appears.
+              📷 <strong>photo by @artist, @company</strong> — credits shown below the image. When a
+              photographer or artist is credited by the company, their Instagram is included alongside
+              the company&apos;s Instagram. If no photographer or artist is credited, only the
+              company&apos;s Instagram is shown.
             </li>
             <li>
-              <strong>courtesy of {'{'}Company Name{'}'}</strong> — shown alongside official images,
-              linking to the company&apos;s official website.
+              <strong>courtesy of {'{'}Company Name{'}'}</strong> — identifies the company as the source
+              of the official promotional material and links to its official website.
             </li>
           </ul>
           <p className="mt-3">
