@@ -266,7 +266,7 @@ export default async function SubscriptionPage({ params, searchParams }: Props) 
               </span>
             )}
             {(sub.company as unknown as { hasOfficialImagePermission?: boolean })?.hasOfficialImagePermission && (
-              <Link href="/publishers-permissions">
+              <Link href="/companies-permissions">
                 <Badge variant="outline">✓ Images used with brand permission</Badge>
               </Link>
             )}

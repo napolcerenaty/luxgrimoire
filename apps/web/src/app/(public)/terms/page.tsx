@@ -167,8 +167,8 @@ export default async function TermsPage() {
             mean that the company sponsors, endorses, or is otherwise affiliated with LuxGrimoire — see
             Section 2. Full details on how and why materials are used this way, including image credits and
             how to request removal, are available on our{' '}
-            <Link href="/publishers-permissions" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
-              Publishers &amp; Permissions
+            <Link href="/companies-permissions" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
+              Companies &amp; Permissions
             </Link>{' '}
             page.
           </p>

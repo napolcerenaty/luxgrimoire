@@ -7,7 +7,7 @@ import BlogPostContent from '@/components/blog/BlogPostContent'
 export const revalidate = 300
 
 export const metadata: Metadata = {
-  title: 'Publishers & Permissions – LuxGrimoire',
+  title: 'Companies & Permissions – LuxGrimoire',
   description: 'How LuxGrimoire displays official promotional materials from publishers and subscription companies, and which companies have granted permission.',
 }
 
@@ -16,9 +16,9 @@ const CONTACT_EMAIL = 'contact@luxgrimoire.com'
 /** Marker an editor types as its own paragraph in the Ghost body to control where the live
  * companies list renders. Same token is embedded at the equivalent spot in the fallback copy
  * below, so behaviour is identical whether or not the page has been migrated to Ghost yet. */
-const PUBLISHERS_LIST_TOKEN = '[[PUBLISHERS_LIST]]'
-const PUBLISHERS_LIST_PARAGRAPH_RE = new RegExp(
-  `<p>\\s*${PUBLISHERS_LIST_TOKEN.replace(/[[\]]/g, '\\$&')}\\s*<\\/p>`,
+const COMPANIES_LIST_TOKEN = '[[COMPANIES_LIST]]'
+const COMPANIES_LIST_PARAGRAPH_RE = new RegExp(
+  `<p>\\s*${COMPANIES_LIST_TOKEN.replace(/[[\]]/g, '\\$&')}\\s*<\\/p>`,
   'i',
 )
 
@@ -28,8 +28,8 @@ interface GrantedCompany {
   website: string | null
 }
 
-function splitOnPublishersListToken(html: string): { before: string; after: string; found: boolean } {
-  const match = PUBLISHERS_LIST_PARAGRAPH_RE.exec(html)
+function splitOnCompaniesListToken(html: string): { before: string; after: string; found: boolean } {
+  const match = COMPANIES_LIST_PARAGRAPH_RE.exec(html)
   if (!match) return { before: html, after: '', found: false }
   return {
     before: html.slice(0, match.index),
@@ -50,7 +50,7 @@ async function getGrantedCompanies(): Promise<GrantedCompany[]> {
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 }
 
-function PublishersList({ companies }: { companies: GrantedCompany[] }) {
+function GrantedCompaniesList({ companies }: { companies: GrantedCompany[] }) {
   if (companies.length === 0) {
     return (
       <p className="text-navy-500 text-sm italic">
@@ -87,21 +87,21 @@ function PublishersList({ companies }: { companies: GrantedCompany[] }) {
   )
 }
 
-function GhostContentWithPublishersList({ html, companies }: { html: string; companies: GrantedCompany[] }) {
-  const { before, after, found } = splitOnPublishersListToken(html)
+function GhostContentWithCompaniesList({ html, companies }: { html: string; companies: GrantedCompany[] }) {
+  const { before, after, found } = splitOnCompaniesListToken(html)
   if (!found) return <BlogPostContent html={html} />
   return (
     <>
       <BlogPostContent html={before} />
-      <PublishersList companies={companies} />
+      <GrantedCompaniesList companies={companies} />
       <BlogPostContent html={after} />
     </>
   )
 }
 
-export default async function PublishersPermissionsPage() {
+export default async function CompaniesPermissionsPage() {
   const [ghostPage, companies] = await Promise.all([
-    getPage('publishers-permissions'),
+    getPage('companies-permissions'),
     getGrantedCompanies(),
   ])
 
@@ -111,7 +111,7 @@ export default async function PublishersPermissionsPage() {
         <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">
           {ghostPage.title}
         </h1>
-        <GhostContentWithPublishersList html={ghostPage.html} companies={companies} />
+        <GhostContentWithCompaniesList html={ghostPage.html} companies={companies} />
       </div>
     )
   }
@@ -119,7 +119,7 @@ export default async function PublishersPermissionsPage() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16">
       <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">
-        Publishers &amp; Permissions
+        Companies &amp; Permissions
       </h1>
 
       <div className="prose prose-invert prose-stone max-w-none space-y-10 text-navy-300 leading-relaxed">
@@ -215,7 +215,7 @@ export default async function PublishersPermissionsPage() {
             The following companies have kindly granted LuxGrimoire permission to display their
             official promotional materials. This list is updated as new permissions are received.
           </p>
-          <PublishersList companies={companies} />
+          <GrantedCompaniesList companies={companies} />
           <p className="mt-4 text-sm text-navy-500">
             Permissions are granted directly to LuxGrimoire and may be subject to conditions
             specified by each company or rights-holder.

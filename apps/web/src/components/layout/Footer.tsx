@@ -34,7 +34,7 @@ const LINKS = {
     { href: '/report',                  label: 'Report Abuse / DMCA' },
     { href: '/privacy',                 label: 'Privacy Policy' },
     { href: '/terms',                   label: 'Terms of Use' },
-    { href: '/publishers-permissions',  label: 'Publishers & Permissions' },
+    { href: '/companies-permissions',   label: 'Companies & Permissions' },
   ],
 }
 
@@ -174,7 +174,7 @@ export function Footer() {
             LuxGrimoire is an independent, fan-made database of book subscription boxes and special editions.
             We are not affiliated with or endorsed by any listed companies.
             Some brands featured on LuxGrimoire are displayed with{' '}
-            <Link href="/publishers-permissions" className="underline underline-offset-2 hover:text-navy-200 transition-colors">
+            <Link href="/companies-permissions" className="underline underline-offset-2 hover:text-navy-200 transition-colors">
               permission
             </Link>{' '}
             from their respective owners.
