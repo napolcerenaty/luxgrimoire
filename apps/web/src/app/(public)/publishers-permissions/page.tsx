@@ -164,24 +164,32 @@ export default async function PublishersPermissionsPage() {
             edition&apos;s photos, you may see:
           </p>
           <ul className="list-disc list-inside mt-3 space-y-1.5 text-navy-400">
-            <li>📷 <strong>photo by @handle</strong> — a link to the photographer or artist&apos;s Instagram.</li>
-            <li><strong>courtesy of {'{'}Company Name{'}'}</strong> — a link to the company&apos;s official website.</li>
+            <li>
+              📷 <strong>photo by @handle</strong> — an Instagram credit. Where the company&apos;s own
+              promotional materials name a specific photographer or artist, this links to their
+              Instagram; otherwise it links to the company&apos;s own Instagram.
+            </li>
+            <li>
+              <strong>courtesy of {'{'}Company Name{'}'}</strong> — shown alongside official images,
+              linking to the company&apos;s official website.
+            </li>
           </ul>
           <p className="mt-3">
-            Whenever available, photographer/artist credits are preserved, publisher attribution is
-            provided, and links point back to official websites or credited creators.
+            Whenever available, credits are preserved and link back to their original source.
           </p>
         </section>
 
         <section>
           <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">User Submitted Photos</h2>
           <p>
-            When official promotional materials cannot be displayed, collectors can upload their
-            own photographs of their physical copy.
+            When official promotional materials aren&apos;t available for an edition, collectors can
+            upload their own photograph of their physical copy.
           </p>
           <p className="mt-2">
-            Every submitted image is reviewed before publication. Official promotional materials
-            may not be uploaded by users unless permission has been granted.
+            Every submitted image is reviewed before publication. These are always personal photos
+            of a collector&apos;s own copy — they are never treated as official promotional material.
+            Official images are added directly by our team once permission has been granted by the
+            company, following the process described above.
           </p>
         </section>
 
