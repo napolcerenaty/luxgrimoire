@@ -22,6 +22,7 @@ import {
   ScrollText,
   BarChart3,
   Image,
+  Images,
   Menu,
   X,
   Tags,
@@ -111,6 +112,7 @@ const ADMIN_GROUPS: NavGroup[] = [
       { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
       { href: '/admin/audit-logs', label: 'Audit Log', icon: ScrollText },
       { href: '/admin/company-image-purge', label: 'Image Purge', icon: Image },
+      { href: '/admin/media-library', label: 'Media Library', icon: Images },
     ],
   },
 ]
