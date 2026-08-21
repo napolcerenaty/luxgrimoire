@@ -31,9 +31,10 @@ const LINKS = {
     { href: '/faq',     label: 'FAQ' },
   ],
   legal: [
-    { href: '/report',       label: 'Report Abuse / DMCA' },
-    { href: '/privacy',      label: 'Privacy Policy' },
-    { href: '/terms',        label: 'Terms of Use' },
+    { href: '/report',                  label: 'Report Abuse / DMCA' },
+    { href: '/privacy',                 label: 'Privacy Policy' },
+    { href: '/terms',                   label: 'Terms of Use' },
+    { href: '/companies-permissions',   label: 'Companies & Permissions' },
   ],
 }
 
@@ -172,7 +173,11 @@ export function Footer() {
           <p className="text-xs text-navy-400 text-center sm:text-right max-w-xl leading-relaxed">
             LuxGrimoire is an independent, fan-made database of book subscription boxes and special editions.
             We are not affiliated with or endorsed by any listed companies.
-            Some brands featured on LuxGrimoire are displayed with permission from their respective owners.
+            Some brands featured on LuxGrimoire are displayed with{' '}
+            <Link href="/companies-permissions" className="underline underline-offset-2 hover:text-navy-200 transition-colors">
+              permission
+            </Link>{' '}
+            from their respective owners.
             All trademarks, cover images, logos, and brand materials belong to their respective owners.
           </p>
         </div>

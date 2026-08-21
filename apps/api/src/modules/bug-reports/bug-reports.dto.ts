@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
 
 export class CreateBugReportDto {
   @IsString()
@@ -20,4 +20,10 @@ export class CreateBugReportDto {
   @IsString()
   @MaxLength(50)
   category?: string;
+
+  /** Set by the Contact Us page only — triggers an email to the contact inbox (replyTo this address). */
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(255)
+  contactEmail?: string;
 }

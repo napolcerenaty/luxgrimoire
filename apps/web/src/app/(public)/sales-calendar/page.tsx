@@ -64,6 +64,12 @@ function SalesCalendarContent() {
   const lightMode = theme === 'light'
   const searchParams = useSearchParams()
 
+  // Known low-risk hydration edge case: this initializer runs independently on the
+  // SSR pass and the client hydration pass, so if a request straddles midnight on
+  // the last day of a month, the two could disagree on "this month" and produce a
+  // brief text/layout mismatch. Deferred — fixing it for real means passing a
+  // server-computed initialYear/initialMonth down from a Server Component wrapper
+  // (this whole page is currently 'use client'). Revisit if it shows up in Sentry.
   const today = new Date()
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')

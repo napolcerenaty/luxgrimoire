@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { useRef, memo } from 'react'
@@ -29,7 +29,15 @@ function daysUntil(dateStr: string | null | undefined): number | null {
 }
 
 function DaysBadge({ dateStr }: { dateStr: string | null | undefined }) {
-  const days = daysUntil(dateStr)
+  // Computed post-mount, not during render: `daysUntil` compares against `new
+  // Date()` at render time, which diverges between the SSR pass and the client
+  // hydration pass (different "now"), flipping this badge in/out and its
+  // label/color — causes Sentry Hydration Error on the home page. Starting at
+  // null on both passes keeps the first client render identical to SSR.
+  const [days, setDays] = useState<number | null>(null)
+  useEffect(() => {
+    setDays(daysUntil(dateStr))
+  }, [dateStr])
   if (days === null) return null
   const label = days <= 0 ? 'Today!' : days === 1 ? '1 day' : `${days} days`
   const color = days <= 0

@@ -86,7 +86,15 @@ export default function CalendarGrid({
   onSaleInterestToggle,
   showHighlightLegend = false,
 }: CalendarGridProps) {
-  const today = new Date()
+  // Computed post-mount, not during render: comparing against `new Date()` at
+  // render time diverges between the SSR pass and the client hydration pass
+  // (different "now"), flipping the "today" ring/highlight class and causing
+  // Sentry Hydration Error. Starting at null on both passes (isToday() always
+  // false) keeps the first client render identical to SSR.
+  const [today, setToday] = useState<Date | null>(null)
+  useEffect(() => {
+    setToday(new Date())
+  }, [])
 
   const [tooltip, setTooltip] = useState<{
     label: string
@@ -135,7 +143,7 @@ export default function CalendarGrid({
   }, [year, month0])
 
   const isToday = (day: number) =>
-    day === today.getDate() && month0 === today.getMonth() && year === today.getFullYear()
+    today !== null && day === today.getDate() && month0 === today.getMonth() && year === today.getFullYear()
 
   const openTooltip = (e: React.MouseEvent, label: string, hue: number, type: 'renewal' | 'sale', subtitle?: string) => {
     if (tooltipTimer.current) clearTimeout(tooltipTimer.current)

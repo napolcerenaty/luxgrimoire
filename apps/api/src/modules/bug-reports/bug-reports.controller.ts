@@ -29,6 +29,7 @@ export class BugReportsController {
       description: body.description,
       pageUrl: body.pageUrl,
       category: body.category,
+      contactEmail: body.contactEmail,
     });
   }
 

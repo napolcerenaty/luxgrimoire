@@ -10,14 +10,17 @@ export class MailService {
   private readonly brevoFrom: { name: string; email: string };
 
   constructor() {
-    // Nodemailer SMTP — fallback when Brevo template IDs are not configured
+    // Nodemailer SMTP — fallback when Brevo template IDs are not configured. Reads the
+    // BREVO_SMTP_* names actually set in .env(.example)/Coolify — this used to read
+    // SMTP_HOST/SMTP_USER/SMTP_PASS, which nothing ever set, so every email relying on this
+    // fallback (verification, password reset, and now the contact form) silently failed.
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST ?? 'smtp.brevo.com',
-      port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+      host: process.env.BREVO_SMTP_HOST ?? process.env.SMTP_HOST ?? 'smtp-relay.brevo.com',
+      port: parseInt(process.env.BREVO_SMTP_PORT ?? process.env.SMTP_PORT ?? '587', 10),
       secure: false,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: process.env.BREVO_SMTP_USER ?? process.env.SMTP_USER,
+        pass: process.env.BREVO_SMTP_KEY ?? process.env.SMTP_PASS,
       },
     });
 
@@ -137,6 +140,20 @@ export class MailService {
     }
   }
 
+  /**
+   * Contact form submission — sent to the fixed inbox with the submitter set as `replyTo` so
+   * hitting reply goes straight to them. The `From` address stays the verified sending domain
+   * (SMTP_FROM) rather than the submitter's own address: most providers reject or spam-flag mail
+   * whose From doesn't match a domain with valid SPF/DKIM for the sending server, so forging it
+   * to an arbitrary user-supplied address would just get the message dropped.
+   */
+  async sendContactMessage(params: { email: string; subject: string; message: string }): Promise<void> {
+    const to = process.env.CONTACT_INBOX ?? 'contact@luxgrimoire.com';
+    const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = `<p style="white-space:pre-wrap;">${escape(params.message)}</p>`;
+    await this.sendViaSMTP(to, `Contact form: ${params.subject}`, html, 'Contact form message', params.email);
+  }
+
   // ── Private helpers ──────────────────────────────────────────────────────────
 
   /**
@@ -166,10 +183,10 @@ export class MailService {
     }
   }
 
-  private async sendViaSMTP(to: string, subject: string, html: string, label: string): Promise<void> {
+  private async sendViaSMTP(to: string, subject: string, html: string, label: string, replyTo?: string): Promise<void> {
     const from = process.env.SMTP_FROM ?? '"LuxGrimoire" <noreply@luxgrimoire.com>';
     try {
-      await this.transporter.sendMail({ from, to, subject, html });
+      await this.transporter.sendMail({ from, to, subject, html, ...(replyTo ? { replyTo } : {}) });
       this.logger.log(`${label} sent via SMTP`);
     } catch (err) {
       this.logger.error(`Failed to send ${label} via SMTP`, err);
