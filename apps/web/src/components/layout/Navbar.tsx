@@ -60,8 +60,10 @@ export function Navbar() {
     setDropdownOpen(false)
   }
 
+  // Boundary-aware: startsWith alone would match "/companies-permissions" against "/companies",
+  // wrongly highlighting the Book Boxes tab there. Only an exact match or a real sub-path counts.
   const isActive = (href: string) =>
-    href === '/' ? pathname === '/' : pathname.startsWith(href)
+    href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')
 
   const isBlog = pathname.startsWith('/blog')
 
@@ -248,7 +250,7 @@ export function Navbar() {
                 href="/calendar"
                 className={`
                   flex items-center gap-1.5 px-3 lg:px-4 py-3 text-xs font-serif uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap shrink-0
-                  ${['/collection', '/calendar', '/wishlist', '/my-subscriptions', '/statistics', '/sold'].some(p => pathname.startsWith(p))
+                  ${['/collection', '/calendar', '/wishlist', '/my-subscriptions', '/statistics', '/sold'].some(p => pathname === p || pathname.startsWith(p + '/'))
                     ? 'border-brand-400 text-brand-400'
                     : 'border-transparent text-navy-400 hover:text-navy-200 hover:border-navy-600'}
                 `}

@@ -141,7 +141,7 @@ function NavContent({
             <div className="flex flex-col gap-0.5">
               {group.items.map(({ href, label, icon: Icon }) => {
                 const isActive =
-                  href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
+                  href === '/admin' ? pathname === '/admin' : pathname === href || pathname.startsWith(href + '/')
                 return (
                   <Link
                     key={href}
