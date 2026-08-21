@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
@@ -39,7 +40,7 @@ const STATUS_STYLES: Record<PermissionStatus, string> = {
   PENDING: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
   GRANTED: 'text-green-400 bg-green-500/10 border-green-500/30',
   REVOKED: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
-  DENIED: 'text-navy-400 bg-navy-700/30 border-navy-600/30',
+  DENIED: 'text-red-400 bg-red-500/10 border-red-500/30',
 }
 
 const STATUS_OPTIONS: PermissionStatus[] = ['PENDING', 'GRANTED', 'REVOKED', 'DENIED']
@@ -272,6 +273,7 @@ function PermissionModal({ row, onClose }: { row: PermissionRow; onClose: () => 
 
 export default function ImagePermissionsPage() {
   const { user } = useAuth()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const preselectSlug = searchParams.get('company')
   const [search, setSearch] = useState('')
@@ -281,6 +283,7 @@ export default function ImagePermissionsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'image-permissions'],
     queryFn: () => authFetch<PermissionRow[]>('/admin/image-permissions'),
+    enabled: user?.role === 'ADMIN',
   })
 
   const rows = data ?? []
@@ -295,7 +298,23 @@ export default function ImagePermissionsPage() {
     }
   }, [preselectSlug, rows])
 
-  if (user?.role !== 'ADMIN') {
+  // Not signed in at all — offer a way to sign in, don't force a redirect.
+  if (!user) {
+    return (
+      <div className="text-navy-400 py-12 text-center text-sm space-y-3">
+        <p>You need to sign in to view this section.</p>
+        <Link
+          href={`/login?returnTo=${encodeURIComponent(pathname)}`}
+          className="inline-block px-4 py-2 rounded-lg bg-brand-500 text-navy-950 text-sm font-semibold hover:bg-brand-400 transition-colors"
+        >
+          Sign in
+        </Link>
+      </div>
+    )
+  }
+
+  // Signed in, but the wrong role — just say so, never bounce them to login.
+  if (user.role !== 'ADMIN') {
     return (
       <div className="text-navy-400 py-12 text-center text-sm">
         This section is restricted to admins.

@@ -504,12 +504,14 @@ export default function AdminCompaniesPage() {
                   : 'Not granted'}
               </p>
             </div>
-            <Link
-              href={`/admin/image-permissions?company=${editCompany.slug}`}
-              className="shrink-0 text-sm text-brand-400 hover:text-brand-300 underline underline-offset-2 transition-colors"
-            >
-              Manage →
-            </Link>
+            {user?.role === 'ADMIN' && (
+              <Link
+                href={`/admin/image-permissions?company=${editCompany.slug}`}
+                className="shrink-0 text-sm text-brand-400 hover:text-brand-300 underline underline-offset-2 transition-colors"
+              >
+                Manage →
+              </Link>
+            )}
           </div>
 
           <CompanyForm
