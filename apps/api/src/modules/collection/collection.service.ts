@@ -190,11 +190,17 @@ export class CollectionService {
             },
           },
         },
+        // Ties are common (bulk-imported subscription entries often share the same createdAt with
+        // null acquiredAt/purchaseGroup) — without a final unique tiebreaker, Postgres doesn't
+        // guarantee a stable order among tied rows, and an UPDATE (e.g. an ownership status
+        // change) creates a new physical row version that can shift a tied row's position on
+        // the next fetch even though none of its sort-key values changed. `id` breaks every tie
+        // deterministically so an unrelated field update can never reorder the list.
         orderBy: ownershipStatus === 'SOLD' || ownershipStatus === 'GIFTED_AWAY'
-          ? { saleDate: 'desc' as const }
+          ? [{ saleDate: 'desc' as const }, { id: 'desc' as const }]
           : sortBy === 'DATE_ASC'
-            ? [{ purchaseGroup: { purchasedAt: 'asc' as const } }, { acquiredAt: 'asc' as const }, { createdAt: 'asc' as const }]
-            : [{ purchaseGroup: { purchasedAt: 'desc' as const } }, { acquiredAt: 'desc' as const }, { createdAt: 'desc' as const }],
+            ? [{ purchaseGroup: { purchasedAt: 'asc' as const } }, { acquiredAt: 'asc' as const }, { createdAt: 'asc' as const }, { id: 'asc' as const }]
+            : [{ purchaseGroup: { purchasedAt: 'desc' as const } }, { acquiredAt: 'desc' as const }, { createdAt: 'desc' as const }, { id: 'desc' as const }],
         skip,
         take: pageSize,
       }),
