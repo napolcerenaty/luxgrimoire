@@ -23,7 +23,7 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
   const { user, loading, isLoggingOut } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
-  const { needsConsent } = useConsentStatus()
+  const { needsConsent, isLoading: consentLoading } = useConsentStatus()
 
   useEffect(() => {
     if (!loading && !user && !isLoggingOut.current) {
@@ -34,12 +34,17 @@ export function PrivateShell({ children }: { children: React.ReactNode }) {
   // Catches the case where a new ToS/Privacy version is published while the user already
   // has an active session — the login/callback checks alone only cover fresh sign-ins.
   useEffect(() => {
-    if (!loading && user && needsConsent) {
+    if (!loading && user && !consentLoading && needsConsent) {
       router.push(`/consent?returnTo=${encodeURIComponent(pathname)}`)
     }
-  }, [user, loading, needsConsent, router, pathname])
+  }, [user, loading, consentLoading, needsConsent, router, pathname])
 
-  if (loading || !user || needsConsent) {
+  // consentLoading must gate rendering too, not just the redirect effect above — otherwise a
+  // user who owes re-consent sees the protected page for a moment before the version check
+  // resolves and the effect fires. That's an easy click-through bypass (e.g. nav to the public
+  // homepage then straight into a private route) since the redirect only happens after the
+  // fact instead of before anything renders.
+  if (loading || !user || consentLoading || needsConsent) {
     return (
       <div className="min-h-screen bg-navy-950 flex items-center justify-center">
         <div className="text-navy-400 font-serif text-lg animate-pulse">Loading…</div>

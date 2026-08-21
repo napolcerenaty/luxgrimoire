@@ -16,6 +16,7 @@ import { CommunityImageSection } from '@/components/editions/CommunityImageSecti
 import { EditionCommunityStats } from '@/components/editions/EditionCommunityStats'
 import type { ApiAuthor, ApiArtist } from '@luxgrimoire/shared-types'
 import type { CommunityImage } from '@/types/community'
+import { buildPhotoCredits } from '@/lib/photoCredit'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -106,7 +107,7 @@ interface EditionDetail {
   artists?: EditionArtist[]
   monthBooks?: EditionMonthBook[]
   saleEditions?: EditionSaleEdition[]
-  bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null; website: string | null } | null
+  bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null; website: string | null; instagram: string | null } | null
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
   previousEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   nextEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
@@ -271,33 +272,32 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 />
               )}
 
-              {/* Photo credit */}
-              {edition.photoCredit && (() => {
-                // Parse "@handle1 (role1), @handle2, @handle3 (role3)"
-                // Each @handle on its own line with role in parens if present.
-                const credits: { handle: string; role: string | null }[] = []
-                const regex = /@([\w.]+)(?:\s*\(([^)]+)\))?/g
-                let m: RegExpExecArray | null
-                while ((m = regex.exec(edition.photoCredit!)) !== null) {
-                  credits.push({ handle: m[1], role: m[2] ?? null })
-                }
-                if (credits.length === 0) return null
+              {/* Photo credit — merges the manually-typed photoCredit with the company's own
+                  IG handle (deduped) so admins don't have to type it in by hand when there's
+                  no dedicated photographer/artist. */}
+              {(() => {
                 const company = edition.bookBoxCompany
+                const credits = buildPhotoCredits(edition.photoCredit, company?.instagram)
                 // Only credit the company when we're showing its own official images —
                 // hasOfficialImagePermission is company-wide and can be true even for
                 // editions (e.g. subscriptions) where we only have community photos.
                 const showCompanyCredit = allImages.length > 0 && !!company?.website
+                if (credits.length === 0 && !showCompanyCredit) return null
                 return (
                   <div className="text-xs text-navy-400 mt-1 text-center leading-5 w-full">
-                    <span>📷 photo by</span>
-                    {credits.map(({ handle, role }) => (
-                      <div key={handle}>
-                        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
-                          @{handle}<ExternalLink size={10} className="shrink-0" />
-                        </a>
-                        {role && <span className="text-navy-500"> ({role})</span>}
-                      </div>
-                    ))}
+                    {credits.length > 0 && (
+                      <>
+                        <span>📷 photo by</span>
+                        {credits.map(({ handle, role }) => (
+                          <div key={handle}>
+                            <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
+                              @{handle}<ExternalLink size={10} className="shrink-0" />
+                            </a>
+                            {role && <span className="text-navy-500"> ({role})</span>}
+                          </div>
+                        ))}
+                      </>
+                    )}
                     {showCompanyCredit && (
                       <div>
                         courtesy of{' '}
@@ -622,42 +622,45 @@ export default async function EditionPage({ params, searchParams }: Props) {
                 const photoUrl = cloudinaryUrl(artist.photoUrl ?? null, 'w_64,h_64,c_fill,q_auto,f_auto')
                 const studio = artist.studio
                 return (
-                  <div key={artist.id} className="flex items-center gap-2">
-                    <Link href={`/artists/${artist.slug}`} className="flex items-center gap-3 group">
+                  <div key={artist.id} className="group flex items-center gap-3">
+                    <Link href={`/artists/${artist.slug}`} className="shrink-0">
                       {/* Avatar */}
                       {photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={photoUrl}
                           alt={cleanName}
-                          className="w-10 h-10 rounded-full object-cover ring-1 ring-navy-700 group-hover:ring-brand-500/50 transition-all shrink-0"
+                          className="w-10 h-10 rounded-full object-cover ring-1 ring-navy-700 group-hover:ring-brand-500/50 transition-all"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-navy-800 flex items-center justify-center text-navy-400 font-serif text-base shrink-0 ring-1 ring-navy-700 group-hover:ring-brand-500/50 transition-all">
+                        <div className="w-10 h-10 rounded-full bg-navy-800 flex items-center justify-center text-navy-400 font-serif text-base ring-1 ring-navy-700 group-hover:ring-brand-500/50 transition-all">
                           {cleanName[0]?.toUpperCase()}
                         </div>
                       )}
-
-                      {/* Name + roles */}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-navy-200 group-hover:text-brand-400 transition-colors leading-tight truncate max-w-[160px]">
-                          {cleanName}
-                        </p>
-                        {roles.map((role) => (
-                          <p key={role} className="text-sm text-navy-400">{normDisplay(role)}</p>
-                        ))}
-                      </div>
                     </Link>
 
-                    {/* Studio/collective the artist publishes under */}
-                    {studio?.name && (
-                      <Link
-                        href={`/artists/${studio.slug}`}
-                        className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full leading-tight bg-navy-800/90 text-navy-300 border border-navy-600 hover:border-brand-500/50 hover:text-brand-400 transition-colors shrink-0 max-w-[100px] truncate"
-                      >
-                        {studio.name}
-                      </Link>
-                    )}
+                    {/* Name (+ studio badge right after it) + roles */}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Link
+                          href={`/artists/${artist.slug}`}
+                          className="text-sm font-medium text-navy-200 group-hover:text-brand-400 transition-colors leading-tight truncate max-w-[130px]"
+                        >
+                          {cleanName}
+                        </Link>
+                        {studio?.name && (
+                          <Link
+                            href={`/artists/${studio.slug}`}
+                            className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full leading-tight bg-navy-800/90 text-navy-300 border border-navy-600 hover:border-brand-500/50 hover:text-brand-400 transition-colors whitespace-nowrap"
+                          >
+                            {studio.name}
+                          </Link>
+                        )}
+                      </div>
+                      {roles.map((role) => (
+                        <p key={role} className="text-sm text-navy-400">{normDisplay(role)}</p>
+                      ))}
+                    </div>
                   </div>
                 )
               })}

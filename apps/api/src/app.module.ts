@@ -39,6 +39,7 @@ import { PurchaseGroupsModule } from './modules/purchase-groups/purchase-groups.
 import { BookBoxCollectionsModule } from './modules/book-box-collections/book-box-collections.module';
 import { SubscriptionSeriesModule } from './modules/subscription-series/subscription-series.module';
 import { BugReportsModule } from './modules/bug-reports/bug-reports.module';
+import { ImagePermissionsModule } from './modules/image-permissions/image-permissions.module';
 import { FeatureRequestsModule } from './modules/feature-requests/feature-requests.module';
 import { DataRequestsModule } from './modules/data-requests/data-requests.module';
 import { SaleAnnouncementRequestsModule } from './modules/sale-announcement-requests/sale-announcement-requests.module';
@@ -157,6 +158,7 @@ import { SitemapModule } from './modules/sitemap/sitemap.module';
     BookBoxCollectionsModule,
     SubscriptionSeriesModule,
     BugReportsModule,
+    ImagePermissionsModule,
     FeatureRequestsModule,
     DataRequestsModule,
     SaleAnnouncementRequestsModule,

@@ -871,7 +871,7 @@ export class EditionsService {
             },
           },
         },
-        bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true, website: true } },
+        bookBoxCompany: { select: { id: true, slug: true, name: true, logoUrl: true, website: true, instagram: true } },
         collection: { select: { id: true, slug: true, name: true } },
         monthBooks: {
           select: {

@@ -823,7 +823,7 @@ export function EditionFieldsSection({
 
       {/* Photo credit + Images */}
       <div>
-        <label className={LBL}>Photo by (IG handle)</label>
+        <label className={LBL}>Photo by (IG handle) <span className="text-navy-600 font-normal normal-case tracking-normal">(leave blank if there's no dedicated photographer — the company's own handle is credited automatically)</span></label>
         <input value={photoCredit} onChange={e => onPhotoCreditChange(e.target.value)}
           placeholder="@username" className={INP} />
       </div>

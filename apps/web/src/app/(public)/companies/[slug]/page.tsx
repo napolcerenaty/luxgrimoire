@@ -206,7 +206,9 @@ export default async function CompanyPage({ params }: Props) {
           <div className="flex items-center gap-3 flex-wrap mb-2">
             <p className="text-xs text-brand-600 uppercase tracking-widest font-medium">Company</p>
             {company.hasOfficialImagePermission && (
-              <Badge variant="outline">✓ Images used with brand permission</Badge>
+              <Link href="/companies-permissions">
+                <Badge variant="outline">✓ Images used with brand permission</Badge>
+              </Link>
             )}
           </div>
           <h1 className="text-4xl font-serif font-bold text-navy-100 mb-3">{company.name}</h1>

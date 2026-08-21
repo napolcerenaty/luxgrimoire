@@ -108,7 +108,6 @@ export class CompaniesService {
         x: dto.x,
         bluesky: dto.bluesky,
         iossImplemented: dto.iossImplemented ?? false,
-        hasOfficialImagePermission: dto.hasOfficialImagePermission ?? false,
       },
     });
     await this.indexCompany(company);

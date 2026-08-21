@@ -379,8 +379,40 @@ model BookBoxCompany {
   subscriptions     Subscription[]
   managers          User[]                @relation("CompanyManagers")
   logoAsset         MediaAsset?           @relation("CompanyLogo", fields: [logoAssetId], references: [id], onDelete: SetNull)
+  imagePermission   CompanyImagePermission?
+  permissionCommunications CompanyPermissionCommunication[]
   @@index([country])
   @@map("book_box_companies")
+}
+
+model CompanyImagePermission {
+  id            String                @id @default(uuid())
+  companyId     String                @unique
+  status        ImagePermissionStatus @default(PENDING)
+  grantedByName String? // contact person at the publisher/company who granted permission
+  grantedAt     DateTime?
+  conditions    String[] // short bullet-point terms of the grant
+  emailContent  String? // full text of the permission email, kept for reference/proof
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  company       BookBoxCompany        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("company_image_permissions")
+}
+
+model CompanyPermissionCommunication {
+  id        String         @id @default(uuid())
+  companyId String
+  sentAt    DateTime
+  channel   ContactChannel
+  subject   String
+  responded Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  company   BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("company_permission_communications")
 }
 
 model BookBoxCollection {
@@ -1743,6 +1775,19 @@ enum UserImageStatus {
   PENDING
   APPROVED
   REMOVED
+}
+
+enum ImagePermissionStatus {
+  PENDING
+  GRANTED
+  REVOKED
+  DENIED
+}
+
+enum ContactChannel {
+  EMAIL
+  CONTACT_FORM
+  OTHER
 }
 
 model UserEditionImage {

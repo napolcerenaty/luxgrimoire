@@ -395,9 +395,9 @@ export default function CalendarPage() {
                         <p className="text-xs opacity-70">{i.announcement.company.name}</p>
                       )}
                     </div>
-                    <div className="text-right shrink-0 self-start">
-                      <p className="text-xs font-semibold opacity-95">{i.saleTier?.name ?? 'General Sale'}</p>
-                      <p className="text-xs opacity-75">{label}{time !== '00:00' ? ` · ${time}` : ''}</p>
+                    <div className="text-right shrink-0 self-start max-w-[40%]">
+                      <p className="text-xs font-semibold opacity-95 whitespace-normal break-words">{i.saleTier?.name ?? 'General Sale'}</p>
+                      <p className="text-xs opacity-75 whitespace-nowrap">{label}{time !== '00:00' ? ` · ${time}` : ''}</p>
                     </div>
                   </Link>
                 )

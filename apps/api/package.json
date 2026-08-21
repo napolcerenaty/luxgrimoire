@@ -19,7 +19,8 @@
     "typesense:reindex": "node dist/scripts/typesense-reindex.js",
     "backfill:edition-sale-dates": "node dist/scripts/archive/backfill-edition-sale-dates.js",
     "backfill:first-box-month": "node dist/scripts/archive/backfill-first-box-month.js",
-    "backfill:policy-baseline-version": "node dist/scripts/backfill-policy-baseline-version.js"
+    "backfill:policy-baseline-version": "node dist/scripts/archive/backfill-policy-baseline-version.js",
+    "backfill:company-image-permissions": "node dist/scripts/archive/backfill-company-image-permissions.js"
   },
   "dependencies": {
     "@fastify/compress": "^8.3.1",

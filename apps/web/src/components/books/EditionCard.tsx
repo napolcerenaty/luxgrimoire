@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
@@ -55,8 +56,16 @@ export function EditionCard({
   const cover = cloudinaryUrl(coverImage, 'w_400,h_600,c_fill,q_auto,f_auto')
   const altText = title ?? companyName ?? 'Edition'
   const fullTitle = title && variantLabel ? `${title} (${variantLabel})` : title
-  const isUpcoming = generalSaleDate ? new Date(generalSaleDate) > new Date() : false
   const highlightClass = highlight ? (HIGHLIGHT_CLASS[highlight] ?? '') : ''
+
+  // Computed post-mount, not during render: comparing generalSaleDate against
+  // `new Date()` at render time diverges between the SSR pass and the client
+  // hydration pass (different "now"), which flips this badge in/out and
+  // triggers hydration mismatches (Sentry: Hydration Error on book pages).
+  const [isUpcoming, setIsUpcoming] = useState(false)
+  useEffect(() => {
+    setIsUpcoming(generalSaleDate ? new Date(generalSaleDate) > new Date() : false)
+  }, [generalSaleDate])
 
   return (
     <Link

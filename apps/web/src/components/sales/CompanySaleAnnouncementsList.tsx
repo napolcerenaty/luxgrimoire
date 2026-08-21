@@ -88,6 +88,11 @@ export function CompanySaleAnnouncementsList({ companyId, companyName }: Props) 
     }
   }, [])
 
+  // Known low-risk hydration edge case: this fallback runs independently on the SSR
+  // pass and the client hydration pass, so a request straddling midnight on the last
+  // day of a month (with no ?year=/?month= in the URL) could make the two disagree.
+  // Deferred — fixing it for real means passing a server-computed "now" in as a prop
+  // from this component's Server Component parent. Revisit if it shows up in Sentry.
   const today = new Date()
   const yearParam = parseInt(searchParams.get('year') ?? '', 10)
   const monthParam = parseInt(searchParams.get('month') ?? '', 10)
