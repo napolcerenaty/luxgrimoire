@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
 import { API_BASE } from '@/lib/authFetch'
+import { fetchLegalVersions, computeConsentGap } from '@/lib/consent'
 
 function LoginForm() {
   const router = useRouter()
@@ -49,8 +50,15 @@ function LoginForm() {
         .then(r => r.ok ? r.json() : null)
         .catch(() => null)
 
-      auth.login(me ?? data)
-      router.push(returnTo && returnTo.startsWith('/') ? returnTo : '/')
+      const user = me ?? data
+      auth.login(user)
+
+      const versions = await fetchLegalVersions()
+      if (computeConsentGap(user, versions).needsConsent) {
+        router.push('/consent')
+      } else {
+        router.push(returnTo && returnTo.startsWith('/') ? returnTo : '/')
+      }
     } catch {
       setError('Network error. Please try again.')
     } finally {

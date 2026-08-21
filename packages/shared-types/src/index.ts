@@ -131,6 +131,10 @@ export interface ApiArtist {
   twitter: string | null;
   facebook: string | null;
   tiktok: string | null;
+  isCollective?: boolean;
+  studioId?: string | null;
+  studio?: { id: string; name: string; slug: string; instagram?: string | null; photoUrl?: string | null } | null;
+  studioMembers?: Array<{ id: string; name: string; slug: string; photoUrl: string | null }>;
 }
 
 export interface ApiBookEdition {
@@ -710,7 +714,7 @@ export interface ApiSaleAnnouncement {
   sourceUrl: string | null;
   createdAt: string;
   updatedAt: string;
-  company?: { name: string; slug?: string | null; brandColors?: string[]; website?: string | null } | null;
+  company?: { name: string; slug?: string | null; brandColors?: string[]; website?: string | null; instagram?: string | null } | null;
   editions?: Array<{
     id: string;
     edition: (ApiBookEdition & { book: ApiBook }) | null;

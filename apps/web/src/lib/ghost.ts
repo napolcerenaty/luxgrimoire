@@ -69,8 +69,14 @@ async function ghostFetch<T>(
   try {
     const res = await fetch(url.toString(), { next: { revalidate: 60 } })
     if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      console.error(`[ghost] ${res.status} ${res.statusText} for ${GHOST_URL}/ghost/api/content/${resource}/ — ${body.slice(0, 300)}`)
+      // 404 is a normal, expected outcome for a slug lookup (post/page/tag doesn't exist yet,
+      // or a bad user-typed URL) — not a Ghost integration problem, so don't log it as an error.
+      // Next.js dev mode pipes server-side console.error into the browser's error overlay, so
+      // logging every not-found lookup as an error made routine 404s look like real crashes.
+      if (res.status !== 404) {
+        const body = await res.text().catch(() => '')
+        console.error(`[ghost] ${res.status} ${res.statusText} for ${GHOST_URL}/ghost/api/content/${resource}/ — ${body.slice(0, 300)}`)
+      }
       return null
     }
     return (await res.json()) as T

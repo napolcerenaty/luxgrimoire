@@ -1,5 +1,5 @@
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatsService } from '../stats/stats.service';
 import { PurchaseGroupsService } from './purchase-groups.service';
@@ -105,6 +105,60 @@ describe('PurchaseGroupsService', () => {
       const dto = makeCreateDto({ editionIds: [] });
       await expect(service.createGroup('user-1', dto)).rejects.toThrow(BadRequestException);
     });
+
+    it('rejects when an edition ID does not exist (count mismatch against bookEdition.findMany)', async () => {
+      (prisma.bookEdition.findMany as jest.Mock).mockResolvedValueOnce(EDITIONS.slice(0, 2)); // ed-c missing
+      const dto = makeCreateDto({ editionIds: ['ed-a', 'ed-b', 'ed-c'] });
+
+      await expect(service.createGroup('user-1', dto)).rejects.toThrow(BadRequestException);
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects when saleAnnouncementId does not exist', async () => {
+      (prisma.saleAnnouncement.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      const dto = makeCreateDto({ saleAnnouncementId: 'sale-missing' });
+
+      await expect(service.createGroup('user-1', dto)).rejects.toThrow(BadRequestException);
+      expect(prisma.userPurchaseGroup.create).not.toHaveBeenCalled();
+    });
+
+    it('CUSTOM distribution where ALL editions are priced but the sum is below totalAmount: rejects (no remaining edition to absorb the leftover)', async () => {
+      const dto = makeCreateDto({
+        totalAmount: 30,
+        priceDistribution: 'CUSTOM',
+        editionPrices: { 'ed-a': 10, 'ed-b': 10, 'ed-c': 5 }, // sums to 25, leaves 5 unaccounted
+      });
+
+      await expect(service.createGroup('user-1', dto)).rejects.toThrow(BadRequestException);
+      expect(prisma.userBookEntry.create).not.toHaveBeenCalled();
+    });
+
+    it('applies per-edition signatureType and saleAnnouncementEditionId overrides alongside the price split', async () => {
+      const dto = makeCreateDto({
+        totalAmount: 30,
+        editionSignatureTypes: { 'ed-a': 'signed' },
+        editionSaleAnnouncementEditionIds: { 'ed-b': 'sae-1' },
+      });
+      const { bookEntries } = await service.createGroup('user-1', dto);
+
+      const byEdition = Object.fromEntries(bookEntries.map((be: any) => [be.editionId, be]));
+      expect(byEdition['ed-a'].signatureType).toBe('signed');
+      expect(byEdition['ed-b'].saleAnnouncementEditionId).toBe('sae-1');
+      // isOriginalPrint reflects whether the edition is tied to a specific sale-announcement print run.
+      expect(byEdition['ed-a'].isOriginalPrint).toBe(true);
+      expect(byEdition['ed-b'].isOriginalPrint).toBe(false);
+      // Price split is untouched by these overrides — still an even 3-way split of 30.
+      for (const be of bookEntries) {
+        expect((be as any).basePrice).toBe(10);
+      }
+    });
+
+    it('marks stats stale for the purchase year after creating the group', async () => {
+      const dto = makeCreateDto({ totalAmount: 30, purchasedAt: '2025-03-10' });
+      await service.createGroup('user-1', dto);
+
+      expect(statsService.markStatsStale).toHaveBeenCalledWith('user-1', [2025]);
+    });
   });
 
   // ── updateGroup ──────────────────────────────────────────────────────────────
@@ -177,6 +231,47 @@ describe('PurchaseGroupsService', () => {
       await service.updateGroup('user-1', 'pg-1', dto);
 
       expect(prisma.userBookEntry.update).not.toHaveBeenCalled();
+    });
+
+    it('changing only shippingAmount (no totalAmount/entryPrices change): persists the new shipping cost without touching book entry prices', async () => {
+      mockExistingGroup();
+      const dto: UpdatePurchaseGroupDto = { shippingAmount: 15 };
+      await service.updateGroup('user-1', 'pg-1', dto);
+
+      expect(prisma.userBookEntry.update).not.toHaveBeenCalled();
+      expect(prisma.userPurchaseGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ shippingAmount: 15 }) }),
+      );
+    });
+
+    it('partial entryPrices on update: priced entries get their exact price, unpriced entries split the remainder', async () => {
+      mockExistingGroup();
+      const dto: UpdatePurchaseGroupDto = { entryPrices: { 'ube-a': 20 } }; // ube-b/ube-c unpriced, total stays 30
+      await service.updateGroup('user-1', 'pg-1', dto);
+
+      const byId = Object.fromEntries(
+        (prisma.userBookEntry.update as jest.Mock).mock.calls.map((c: any) => [c[0].where.id, c[0].data.basePrice]),
+      );
+      expect(byId).toEqual({ 'ube-a': 20, 'ube-b': 5, 'ube-c': 5 });
+    });
+
+    it('throws NotFoundException when the group does not exist', async () => {
+      (prisma.userPurchaseGroup.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      await expect(service.updateGroup('user-1', 'pg-missing', { totalAmount: 60 })).rejects.toThrow(NotFoundException);
+      expect(prisma.userBookEntry.update).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException when the group belongs to another user (cannot edit someone else\'s collection costs)', async () => {
+      mockExistingGroup({ userId: 'other-user' });
+      await expect(service.updateGroup('user-1', 'pg-1', { totalAmount: 60 })).rejects.toThrow(ForbiddenException);
+      expect(prisma.userBookEntry.update).not.toHaveBeenCalled();
+    });
+
+    it('marks stats stale after updating the group', async () => {
+      mockExistingGroup();
+      await service.updateGroup('user-1', 'pg-1', { totalAmount: 60 });
+
+      expect(statsService.markStatsStale).toHaveBeenCalledWith('user-1');
     });
   });
 

@@ -160,6 +160,17 @@ export class AnnouncementsService {
     return { OR: activeSaleCondition };
   }
 
+  /** Count of currently live/upcoming sales, using the same "active" definition as findAll's
+   *  `upcoming` filter and getNextSale — used by the homepage stats counter. Do NOT count via
+   *  the legacy top-level `generalSaleDate` column: every sale created/edited since the dynamic
+   *  tier redesign leaves that column null, which made the counter stuck on old backfilled sales. */
+  async getActiveSaleCount(): Promise<number> {
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    return this.prisma.saleAnnouncement.count({ where: this.buildActiveSaleCondition(now, today, null) });
+  }
+
   /** The logical negation of buildActiveSaleCondition, written as direct positive terms rather
    *  than `NOT: buildActiveSaleCondition(...)`. Confirmed against real data that wrapping the
    *  whole nested AND/OR/relation-filter structure in `NOT:` crashes the Prisma query engine
@@ -302,7 +313,7 @@ export class AnnouncementsService {
         items: { orderBy: { sortOrder: 'asc' as const } },
         regions: regionsInclude,
         tiers: { orderBy: { date: 'asc' as const } },
-        company: { select: { name: true, slug: true, brandColors: true, website: true } },
+        company: { select: { name: true, slug: true, brandColors: true, website: true, instagram: true } },
       },
     });
     if (!announcement) throw new NotFoundException('Sale announcement not found');
@@ -338,7 +349,6 @@ export class AnnouncementsService {
             id: true,
             title: true,
             imageUrl: true,
-            saleType: true,
             company: { select: { id: true, name: true, slug: true, brandColors: true } },
           },
         },

@@ -13,7 +13,7 @@ import Link from 'next/link'
 interface DashboardCounts {
   communityImagesPending: number
   dataRequestsPending: number
-  dataRequestsAdded: number
+  dataRequestsInProgress: number
   saleRequestsPending: number
   bugReportsOpen: number
   featureRequestsPending: number
@@ -169,7 +169,7 @@ export default function AdminDashboard() {
             icon="📦"
             label="Data Requests"
             count={counts?.dataRequestsPending ?? 0}
-            countLabel={counts ? `${counts.dataRequestsPending} pending · ${counts.dataRequestsAdded} added` : '…'}
+            countLabel={counts ? `${counts.dataRequestsPending} pending · ${counts.dataRequestsInProgress} in progress` : '…'}
             accent="blue"
           />
           <CountCard

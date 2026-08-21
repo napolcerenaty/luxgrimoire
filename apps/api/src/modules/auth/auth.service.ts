@@ -17,12 +17,10 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   ChangePasswordDto,
+  ConsentDto,
 } from './auth.dto';
 import { MailService } from '../mail/mail.service';
 import { randomBytes, createHash } from 'crypto';
-
-/** Version string for T&C / Privacy Policy consent records — update when docs change */
-const CONSENT_VERSION = '2026-05-05';
 
 /** Constant-time hash for password reset tokens — prevents timing attacks on DB lookup */
 function hashResetToken(token: string): string {
@@ -69,16 +67,25 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const now = new Date();
-    const user = await this.prisma.user.create({
-      data: {
-        username: dto.username,
-        email: normalizedEmail,
-        passwordHash,
-        termsAcceptedAt: now,
-        termsVersion: CONSENT_VERSION,
-        privacyAcceptedAt: now,
-        privacyVersion: CONSENT_VERSION,
-      },
+    const user = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          username: dto.username,
+          email: normalizedEmail,
+          passwordHash,
+          termsAcceptedAt: now,
+          termsVersion: dto.termsVersion,
+          privacyAcceptedAt: now,
+          privacyVersion: dto.privacyVersion,
+        },
+      });
+      await tx.policyAcceptance.createMany({
+        data: [
+          { userId: created.id, docType: 'TERMS', version: dto.termsVersion, acceptedAt: now },
+          { userId: created.id, docType: 'PRIVACY', version: dto.privacyVersion, acceptedAt: now },
+        ],
+      });
+      return created;
     });
 
     const token = randomBytes(32).toString('hex');
@@ -296,11 +303,17 @@ export class AuthService {
         shippingCountry: true,
         createdAt: true,
         termsAcceptedAt: true,
+        termsVersion: true,
+        privacyAcceptedAt: true,
+        privacyVersion: true,
         onboardingCompletedAt: true,
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return { ...user, needsConsent: !user.termsAcceptedAt };
+    // Cheap fallback for "never consented at all" — the authoritative check (does the
+    // stored version match the currently published doc) happens client-side, since only
+    // the web layer knows the current Ghost-sourced version.
+    return { ...user, needsConsent: !user.termsAcceptedAt || !user.privacyAcceptedAt };
   }
 
   async setOnboarding(userId: string, completed: boolean) {
@@ -311,16 +324,25 @@ export class AuthService {
     });
   }
 
-  async saveConsent(userId: string) {
+  /** Only updates the doc(s) actually included in dto — a doc the user's already current on keeps its original acceptedAt */
+  async saveConsent(userId: string, dto: ConsentDto) {
+    if (!dto.termsVersion && !dto.privacyVersion) {
+      throw new BadRequestException('No consent version provided');
+    }
     const now = new Date();
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        termsAcceptedAt: now,
-        termsVersion: CONSENT_VERSION,
-        privacyAcceptedAt: now,
-        privacyVersion: CONSENT_VERSION,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          ...(dto.termsVersion && { termsAcceptedAt: now, termsVersion: dto.termsVersion }),
+          ...(dto.privacyVersion && { privacyAcceptedAt: now, privacyVersion: dto.privacyVersion }),
+        },
+      });
+      const rows = [
+        ...(dto.termsVersion ? [{ userId, docType: 'TERMS', version: dto.termsVersion, acceptedAt: now }] : []),
+        ...(dto.privacyVersion ? [{ userId, docType: 'PRIVACY', version: dto.privacyVersion, acceptedAt: now }] : []),
+      ];
+      await tx.policyAcceptance.createMany({ data: rows });
     });
   }
 

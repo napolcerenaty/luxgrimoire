@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, MaxLength, IsBoolean, Equals, IsNotEmpty, Matches } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsBoolean, Equals, IsNotEmpty, IsOptional, Matches } from 'class-validator';
 
 /** bcrypt silently truncates inputs at 72 bytes — cap passwords there to prevent DoS via long inputs */
 const BCRYPT_MAX = 72;
@@ -28,6 +28,12 @@ export class RegisterDto {
   @IsBoolean()
   @Equals(true, { message: 'You must accept the Terms of Service and Privacy Policy to register.' })
   termsAccepted!: boolean;
+
+  @IsString()
+  termsVersion!: string;
+
+  @IsString()
+  privacyVersion!: string;
 }
 
 export class LoginDto {
@@ -72,4 +78,15 @@ export class VerifyEmailDto {
 export class ResendVerificationDto {
   @IsEmail()
   email!: string;
+}
+
+/** Only the doc(s) actually outdated for this user are sent — see AuthService.saveConsent */
+export class ConsentDto {
+  @IsOptional()
+  @IsString()
+  termsVersion?: string;
+
+  @IsOptional()
+  @IsString()
+  privacyVersion?: string;
 }

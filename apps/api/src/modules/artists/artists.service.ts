@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -43,6 +43,8 @@ export class ArtistsService {
         twitter: dto.twitter,
         facebook: dto.facebook,
         tiktok: dto.tiktok,
+        isCollective: dto.isCollective ?? false,
+        studioId: dto.studioId || null,
       },
     });
     await this.indexArtist(artist);
@@ -79,6 +81,9 @@ export class ArtistsService {
           twitter: true,
           facebook: true,
           tiktok: true,
+          isCollective: true,
+          studioId: true,
+          studio: { select: { id: true, name: true, slug: true, instagram: true } },
           createdAt: true,
           updatedAt: true,
         },
@@ -119,6 +124,10 @@ export class ArtistsService {
         twitter: true,
         facebook: true,
         tiktok: true,
+        isCollective: true,
+        studioId: true,
+        studio: { select: { id: true, name: true, slug: true, instagram: true, photoUrl: true } },
+        studioMembers: { select: { id: true, name: true, slug: true, photoUrl: true } },
       },
     });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
@@ -250,7 +259,13 @@ export class ArtistsService {
     if (dto.photoUrl !== undefined && dto.photoUrl !== existing.photoUrl) {
       await this.uploadService.deleteImages([existing.photoUrl]);
     }
+    if (dto.studioId && dto.studioId === existing.id) {
+      throw new BadRequestException('An artist cannot be linked to themselves as a studio');
+    }
     const data: Record<string, unknown> = { ...dto };
+    if (dto.studioId !== undefined) {
+      data.studioId = dto.studioId || null;
+    }
     if (dto.photoUrl !== undefined) {
       const photoAsset = dto.photoUrl ? await this.mediaAssetsService.ensureForPublicId(dto.photoUrl) : null;
       data.photoAssetId = photoAsset?.id ?? null;

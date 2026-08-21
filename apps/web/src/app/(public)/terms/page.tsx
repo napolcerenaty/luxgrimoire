@@ -1,5 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { getPage } from '@/lib/ghost'
+import BlogPostContent from '@/components/blog/BlogPostContent'
+
+export const revalidate = 60
 
 export const metadata: Metadata = {
   title: 'Terms of Use – LuxGrimoire',
@@ -9,7 +13,27 @@ export const metadata: Metadata = {
 const EFFECTIVE_DATE = 'May 1, 2025'
 const CONTACT_EMAIL = 'contact@luxgrimoire.com'
 
-export default function TermsPage() {
+function formatEffectiveDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+export default async function TermsPage() {
+  // Once the Terms are published as a Ghost Page (slug "terms-of-use"), that becomes the
+  // source of truth — its updated_at is the version used for re-consent enforcement, and
+  // custom_excerpt is the "what changed" summary shown on /consent. Until then, fall back
+  // to the hardcoded copy below (same pattern as the FAQ page).
+  const ghostPage = await getPage('terms-of-use')
+
+  if (ghostPage?.html) {
+    return (
+      <div className="container mx-auto max-w-3xl px-4 py-16">
+        <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">{ghostPage.title}</h1>
+        <p className="text-navy-500 text-sm mb-12">Effective date: {formatEffectiveDate(ghostPage.updated_at)}</p>
+        <BlogPostContent html={ghostPage.html} />
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16">
       <h1 className="text-4xl font-serif font-bold text-brand-400 mb-3 tracking-wide">Terms of Use</h1>
@@ -224,9 +248,10 @@ export default function TermsPage() {
         <section>
           <h2 className="text-xl font-serif font-semibold text-navy-100 mb-3">13. Changes to Terms</h2>
           <p>
-            We may update these Terms from time to time. We will notify registered users of material changes by
-            email and by posting the updated Terms with a new effective date. Your continued use of the Service
-            after the effective date constitutes acceptance of the revised Terms.
+            We may update these Terms from time to time. When we make a material change, registered users will be
+            shown a summary of what changed and asked to review and accept the updated Terms the next time they log
+            in — access to the Service is paused until you do. If you do not accept, you will not be able to
+            continue using the Service.
           </p>
         </section>
 

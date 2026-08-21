@@ -67,6 +67,7 @@ model User {
   saleAnnouncementRequests SaleAnnouncementRequest[]
   managedCompany           BookBoxCompany?             @relation("CompanyManagers", fields: [managedCompanyId], references: [id])
   uploadedAssets           MediaAsset[]                @relation("MediaAssetUploads")
+  policyAcceptances        PolicyAcceptance[]
 
   @@index([shippingCountry])
   @@map("users")
@@ -253,12 +254,17 @@ model Artist {
   tiktok        String?
   twitter       String?
   website       String?
+  isCollective  Boolean              @default(false)
+  studioId      String?
+  studio        Artist?              @relation("ArtistStudio", fields: [studioId], references: [id], onDelete: SetNull)
+  studioMembers Artist[]             @relation("ArtistStudio")
   contributions ArtistContribution[]
   cardArtistMonths SubscriptionMonth[]
   photoAsset    MediaAsset?          @relation("ArtistPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
 
   @@index([specialty])
   @@index([name])
+  @@index([studioId])
   @@map("artists")
 }
 
@@ -1322,6 +1328,20 @@ model AuditLog {
   @@index([userId, createdAt])
   @@index([entityType, entityId, createdAt])
   @@map("audit_logs")
+}
+
+model PolicyAcceptance {
+  id         String   @id @default(uuid())
+  userId     String
+  docType    String // 'TERMS' | 'PRIVACY'
+  version    String // source doc's updated_at (ISO) at the moment of acceptance
+  acceptedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([docType])
+  @@index([userId, docType, acceptedAt])
+  @@map("policy_acceptances")
 }
 
 model BugReport {

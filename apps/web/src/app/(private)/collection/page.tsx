@@ -1175,7 +1175,7 @@ export default function CollectionPage() {
                                 {fmtStatus(entry.ownershipStatus)}
                               </span>
                               {openDropdown === `${entry.id}-ownership` && (
-                                <div className="absolute bottom-full left-0 mb-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl w-28 overflow-hidden">
+                                <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl w-28 overflow-hidden">
                                   {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => (
                                     <button
                                       key={val}
@@ -1216,7 +1216,7 @@ export default function CollectionPage() {
                                 {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : entry.readingStatus === 'READING' ? 'READING' : 'UNREAD'}
                               </span>
                               {openDropdown === `${entry.id}-reading` && (
-                                <div className="absolute bottom-full left-0 mb-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
+                                <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
                                   {(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => (
                                     <button
                                       key={val}

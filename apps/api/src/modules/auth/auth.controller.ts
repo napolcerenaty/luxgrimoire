@@ -10,6 +10,7 @@ import {
   ChangePasswordDto,
   VerifyEmailDto,
   ResendVerificationDto,
+  ConsentDto,
 } from './auth.dto';
 import { Public, OptionalAuth } from '../../common/decorators/auth.decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -110,8 +111,8 @@ export class AuthController {
   }
 
   @Post('consent')
-  saveConsent(@CurrentUser() user: { id: string }) {
-    return this.authService.saveConsent(user.id);
+  saveConsent(@CurrentUser() user: { id: string }, @Body() dto: ConsentDto) {
+    return this.authService.saveConsent(user.id, dto);
   }
 
   @ApiBearerAuth()
