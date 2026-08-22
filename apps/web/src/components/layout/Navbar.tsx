@@ -10,7 +10,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import {
   Search, ChevronDown, User, BookOpen, BarChart2,
   Settings, LogOut, LayoutDashboard, Sun, Moon, CalendarDays, Menu, X,
-  Heart, BookMarked, Banknote, Library, Bell,
+  Heart, BookMarked, Banknote, Library, Bell, Rss,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SearchDropdown } from '@/components/search/SearchDropdown'
@@ -30,8 +30,10 @@ const USER_NAV_LINKS = [
   { href: '/sold',             label: 'Sold Books',    icon: Banknote },
   { href: '/my-subscriptions', label: 'Subscriptions', icon: BookMarked },
   { href: '/wishlist',         label: 'Wishlist',      icon: Heart },
+  { href: '/settings/follows', label: 'Follows',       icon: Rss },
   { href: '/statistics',       label: 'Statistics',    icon: BarChart2 },
   { href: '/profile',          label: 'Profile',       icon: User },
+  { href: '/settings/notifications', label: 'Notification Settings', icon: Bell },
 ]
 
 export function Navbar() {
@@ -162,6 +164,7 @@ export function Navbar() {
                       { href: '/sold',              icon: Banknote,     label: 'Sold Books' },
                       { href: '/my-subscriptions',  icon: BookMarked,   label: 'Subscriptions' },
                       { href: '/wishlist',          icon: Heart,        label: 'Wishlist' },
+                      { href: '/settings/follows',  icon: Rss,          label: 'Follows' },
                     ].map(({ href, icon: Icon, label }) => (
                       <Link
                         key={href}
@@ -177,6 +180,7 @@ export function Navbar() {
                     {/* Finance & Account */}
                     {[
                       { href: '/statistics', icon: BarChart2, label: 'Statistics' },
+                      { href: '/settings/notifications', icon: Bell, label: 'Notification Settings' },
                       { href: '/profile',  icon: Settings,   label: 'Settings' },
                     ].map(({ href, icon: Icon, label }) => (
                       <Link
