@@ -350,6 +350,46 @@ describe('buildPartialPrepayBillingBatch', () => {
     expect(batch.baseAmount).toBe(60) // still falls back to prepayOption.price
     expect(typeof batch.billedAt).toBe('string')
   })
+
+  // entryFees: linked fee templates (e.g. postage, VAT) — the entered amount is the full period
+  // total the user paid in one go, same as basePrice/shippingCost, so it must ride along as
+  // batch.fees for the backend's existing "divide by monthsCovered" logic to pick up.
+  it('includes entryFees as batch.fees, converted to numbers', () => {
+    const batch = buildPartialPrepayBillingBatch(
+      joinPayload, prepayOption, ['aug'], 'USD',
+      [{ name: 'Poczta Polska', amount: '9.00', currency: 'GBP' }],
+    )
+    expect(batch.fees).toEqual([{ name: 'Poczta Polska', amount: 9, currency: 'GBP' }])
+  })
+
+  it('includes multiple entryFees', () => {
+    const batch = buildPartialPrepayBillingBatch(
+      joinPayload, prepayOption, ['aug'], 'USD',
+      [
+        { name: 'Poczta Polska', amount: '9.00', currency: 'GBP' },
+        { name: 'VAT przy odbiorze', amount: '13', currency: 'GBP' },
+      ],
+    )
+    expect(batch.fees).toHaveLength(2)
+    expect(batch.fees).toContainEqual({ name: 'VAT przy odbiorze', amount: 13, currency: 'GBP' })
+  })
+
+  it('omits fees entirely when entryFees is empty or absent (no key sent, matching current DTO behavior)', () => {
+    expect(buildPartialPrepayBillingBatch(joinPayload, prepayOption, ['aug'], 'USD', []).fees).toBeUndefined()
+    expect(buildPartialPrepayBillingBatch(joinPayload, prepayOption, ['aug'], 'USD').fees).toBeUndefined()
+  })
+
+  it('filters out incomplete fee rows (missing name or amount)', () => {
+    const batch = buildPartialPrepayBillingBatch(
+      joinPayload, prepayOption, ['aug'], 'USD',
+      [
+        { name: 'Poczta Polska', amount: '9.00', currency: 'GBP' },
+        { name: '', amount: '5', currency: 'GBP' },
+        { name: 'Empty amount', amount: '', currency: 'GBP' },
+      ],
+    )
+    expect(batch.fees).toEqual([{ name: 'Poczta Polska', amount: 9, currency: 'GBP' }])
+  })
 })
 
 // ── computeFirstBillingMonth ──────────────────────────────────────────────────

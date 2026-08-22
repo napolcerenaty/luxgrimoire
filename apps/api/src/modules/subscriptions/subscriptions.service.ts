@@ -3720,16 +3720,19 @@ export class SubscriptionsService {
       }
     }
 
-    // Fee templates once per purchase group
+    // Fee templates once per purchase group — for a prepaid entry, the linked amount is the
+    // FULL period total the user paid in one go (same lump sum as basePrice/shippingCost), so it
+    // divides the same way; a non-prepaid entry keeps the full per-month amount.
     for (const link of feeTemplateLinks) {
       const template = link.feeTemplate;
       const amount = link.customAmount ?? template.defaultAmount;
       if (!amount) continue;
+      const fullAmount = parseFloat(amount.toString());
       feesToCreate.push({
         userId,
         feeTemplateId: template.id,
         name: template.name,
-        amount: parseFloat(amount.toString()),
+        amount: isPrepaid ? Math.round((fullAmount / monthsCovered) * 100) / 100 : fullAmount,
         currency: link.customCurrency ?? template.defaultCurrency,
         date: purchaseDate,
         category: template.category,

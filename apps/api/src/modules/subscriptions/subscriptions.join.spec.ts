@@ -864,6 +864,22 @@ describe('SubscriptionsService — joinSubscription', () => {
       );
     });
 
+    it('divides linked fee-template amounts by prepaidMonths — the entered amount is the full period total, same lump sum as basePrice/shippingCost', async () => {
+      setupPrepaidJoin();
+      (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValueOnce([
+        { customAmount: null, customCurrency: null, feeTemplate: { id: 'ft-1', name: 'Poczta Polska', defaultAmount: '9.00', defaultCurrency: 'GBP', category: 'SHIPPING' } },
+      ]);
+      (prisma.userPurchaseFee.createMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+
+      expect(prisma.userPurchaseFee.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [expect.objectContaining({ name: 'Poczta Polska', amount: 3 })], // 9.00 / 3
+        }),
+      );
+    });
+
     it('regression: prepaidMonths=1 (monthly) does not create a billing period or divide the price', async () => {
       setupPrepaidJoin({ prepaidMonths: 1, scheduledPrepayOptionId: null });
 
@@ -877,6 +893,22 @@ describe('SubscriptionsService — joinSubscription', () => {
       );
       const groupCallData = (prisma.userPurchaseGroup.create as jest.Mock).mock.calls[0][0].data;
       expect(groupCallData.billingPeriodId).toBeUndefined();
+    });
+
+    it('regression: prepaidMonths=1 (monthly) keeps linked fee-template amounts full, undivided', async () => {
+      setupPrepaidJoin({ prepaidMonths: 1, scheduledPrepayOptionId: null });
+      (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValueOnce([
+        { customAmount: null, customCurrency: null, feeTemplate: { id: 'ft-1', name: 'Poczta Polska', defaultAmount: '9.00', defaultCurrency: 'GBP', category: 'SHIPPING' } },
+      ]);
+      (prisma.userPurchaseFee.createMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+
+      expect(prisma.userPurchaseFee.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [expect.objectContaining({ name: 'Poczta Polska', amount: 9 })],
+        }),
+      );
     });
 
     it('integration: the renewal cron reuses the SAME period for the next month in the window instead of creating a second one', async () => {

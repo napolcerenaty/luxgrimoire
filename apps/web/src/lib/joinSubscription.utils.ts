@@ -292,6 +292,7 @@ export interface PartialPrepayBillingBatch {
   currency: string
   monthIds: string[]
   shippingAmount?: number
+  fees?: { name: string; amount: number; currency: string }[]
 }
 
 /**
@@ -308,21 +309,32 @@ export interface PartialPrepayBillingBatch {
  * recordFirstMonthAsPreorder just created for the same month(s), since this backfill call runs
  * afterward and wins the final book price. Building this batch explicitly routes it through the
  * same (now-fixed) division + period-reuse logic every other backfill path uses.
+ *
+ * entryFees (the entry's linked fee templates, e.g. postage/VAT) are included as batch.fees —
+ * same as the full Step3 auto-path already does (autoBatchOverrides pre-fills fees from
+ * entryFees) — so the backend's existing "divide batch.fees by monthsCovered" logic picks them
+ * up too: the user enters one combined total (base price, shipping, AND any recurring fee) for
+ * the whole prepaid period in one payment, so all of it needs splitting the same way.
  */
 export function buildPartialPrepayBillingBatch(
   joinPayload: { startDate?: string; costCurrency?: string; basePrice?: string; shippingCost?: string } | null,
   prepayOption: { months: number; price: number | string },
   selectedMonthIds: string[],
   fallbackCurrency: string,
+  entryFees: { name: string; amount: string; currency: string }[] = [],
 ): PartialPrepayBillingBatch {
   const baseAmount = parseDecimalInput(resolveBackfillFallbackPrice(joinPayload?.basePrice, prepayOption.price))
   const shippingAmount = joinPayload?.shippingCost ? parseDecimalInput(joinPayload.shippingCost) : undefined
+  const fees = entryFees
+    .filter(f => f.name && f.amount)
+    .map(f => ({ name: f.name, amount: parseDecimalInput(f.amount), currency: f.currency }))
   return {
     billedAt: joinPayload?.startDate ?? new Date().toISOString().slice(0, 10),
     baseAmount,
     monthsCovered: prepayOption.months,
     currency: joinPayload?.costCurrency ?? fallbackCurrency,
     monthIds: selectedMonthIds,
+    ...(fees.length > 0 && { fees }),
     ...(shippingAmount !== undefined && { shippingAmount }),
   }
 }

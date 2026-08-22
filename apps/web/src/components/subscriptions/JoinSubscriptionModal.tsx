@@ -830,6 +830,14 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
             <p className="text-xs text-navy-600 mt-1">
               Selected fees are tracked independently and auto-applied on backfill.
             </p>
+            {selectedPrepayOptionId && linkedFees.length > 0 && (() => {
+              const opt = activePrepayOptions?.find(o => o.id === selectedPrepayOptionId)
+              return (
+                <p className="text-xs text-brand-400/90 mt-1">
+                  ℹ️ Prepay selected — enter the full amount you paid for {opt ? `all ${opt.months} months` : 'the whole period'} at once; we&apos;ll divide it across the months automatically, same as the price and shipping above.
+                </p>
+              )
+            })()}
           </div>
         ) : templatesLoaded ? (
           <p className="text-xs text-navy-500 mb-2">
@@ -2421,6 +2429,7 @@ export default function JoinSubscriptionModal({
                       step1SelectedPrepayOption,
                       data.selectedMonthIds,
                       subscriptionCurrency,
+                      step1Fees,
                     )]
                     const doJoinAndBackfill = async () => {
                       if (step1JoinPayload) {
