@@ -1254,8 +1254,8 @@ function NotificationsTab() {
         <div>
           <h3 className="text-sm font-semibold text-navy-300 uppercase tracking-wide">New Editions from Follows</h3>
           <p className={TOGGLE_SUBLABEL}>
-            When a new edition appears for an artist, author, or book you follow. Following is itself the
-            opt-in, so pick at least one channel below.
+            When a new edition appears for an artist, author, or book you follow. Turn both channels off
+            to mute these without unfollowing.
           </p>
         </div>
         <div className="flex items-center gap-4 pt-1">
