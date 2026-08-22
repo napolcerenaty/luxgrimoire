@@ -2315,9 +2315,18 @@ export class SubscriptionsService {
           referenceDate,
           entry.startDate,
         );
+        const currentPrepayPrice = parseFloat(scheduledPrepayOption.price.toString());
         // Fully discontinued with nothing to replace it — fall back to the last known price
         // rather than showing nothing; this mirrors the renewal cron's own fallback.
-        nextBase = resolvedPrepay ? parseFloat(resolvedPrepay.price.toString()) : parseFloat(scheduledPrepayOption.price.toString());
+        if (resolvedPrepay) {
+          nextBase = parseFloat(resolvedPrepay.price.toString());
+          if (nextBase !== currentPrepayPrice) {
+            nextRenewalPriceChanged = true;
+            nextRenewalNewPrice = nextBase.toFixed(2);
+          }
+        } else {
+          nextBase = currentPrepayPrice;
+        }
       } else if (storedRenewalDate) {
         const renewalYear = storedRenewalDate.getUTCFullYear();
         const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
