@@ -239,17 +239,20 @@ describe('ArtistsService', () => {
       expect(where.OR).toEqual([{ name: { contains: 'Maggie', mode: 'insensitive' } }]);
     });
 
-    it('does a plain name search when the query is only an @handle with no name', async () => {
+    it('adds a bare-handle clause for an @handle-only query, on top of the raw match', async () => {
       (prisma.artist.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.artist.count as jest.Mock).mockResolvedValue(0);
 
       await service.findAll({ search: '@the.butterfly.bookclub' } as any);
 
       const where = (prisma.artist.findMany as jest.Mock).mock.calls[0][0].where;
-      expect(where.OR).toEqual([{ name: { contains: '@the.butterfly.bookclub', mode: 'insensitive' } }]);
+      expect(where.OR).toEqual([
+        { name: { contains: '@the.butterfly.bookclub', mode: 'insensitive' } },
+        { name: { contains: 'the.butterfly.bookclub', mode: 'insensitive' } },
+      ]);
     });
 
-    it('adds a personal-handle clause and a studio-member clause for a compound "Name @handle" query', async () => {
+    it('adds a bare-handle clause plus a personal-handle and a studio-member clause for a compound "Name @handle" query', async () => {
       (prisma.artist.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.artist.count as jest.Mock).mockResolvedValue(0);
 
@@ -258,6 +261,7 @@ describe('ArtistsService', () => {
       const where = (prisma.artist.findMany as jest.Mock).mock.calls[0][0].where;
       expect(where.OR).toEqual([
         { name: { contains: 'Maggie @the.butterfly.bookclub', mode: 'insensitive' } },
+        { name: { contains: 'the.butterfly.bookclub', mode: 'insensitive' } },
         {
           AND: [
             { name: { contains: 'Maggie', mode: 'insensitive' } },
@@ -278,6 +282,23 @@ describe('ArtistsService', () => {
           ],
         },
       ]);
+    });
+
+    it('matches an artist whose stored name IS the bare handle instead of finding nothing for "Name @handle" — the dominant real data shape (990/1016 artists have name = "@handle", only 2 have instagram filled)', async () => {
+      (prisma.artist.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'artist-3', slug: 'jankowalskiart', name: '@jankowalskiart', photoUrl: null, photoAsset: null,
+          specialty: null, website: null, instagram: null, twitter: null, facebook: null, tiktok: null,
+          isCollective: false, studioId: null, studio: null,
+          createdAt: new Date(), updatedAt: new Date(),
+        },
+      ]);
+      (prisma.artist.count as jest.Mock).mockResolvedValue(1);
+
+      const result = await service.findAll({ search: 'Jan Kowalski @jankowalskiart' } as any);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].name).toBe('@jankowalskiart');
     });
 
     it('matches an existing artist by their own instagram handle instead of finding nothing for "Name @personalhandle"', async () => {

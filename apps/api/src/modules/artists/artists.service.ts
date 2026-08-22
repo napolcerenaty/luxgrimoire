@@ -62,32 +62,42 @@ export class ArtistsService {
   /**
    * Builds the OR clauses for an artist name search. Handles the common case where source text
    * (and the AI parser's faithful extraction of it) credits an artist alongside a handle in one
-   * string, e.g. "Maggie @the.butterfly.bookclub" or "Jane Doe @janedoeart" — a plain `name
-   * contains <raw query>` match finds nothing for that, since the stored artist record is just
-   * the plain name. When the query contains both a name portion and an @handle, also match:
-   * (a) an artist whose own name contains the name portion AND whose OWN instagram field
-   *     contains the handle — covers a personal handle, e.g. "Jane Doe @janedoeart";
-   * (b) an artist whose own name contains the name portion AND whose STUDIO's name/instagram
-   *     contains the handle — covers a studio member credited alongside their studio's handle,
-   *     e.g. "Maggie @the.butterfly.bookclub".
-   * Both are tried; whichever actually has a matching row wins (an unmatched clause on a
-   * relation that doesn't exist, e.g. no studio, simply contributes no rows, same as the other
-   * clause contributing no rows when the artist's own instagram doesn't match). If neither
-   * matches anything — e.g. the credited handle isn't stored anywhere yet — the search
-   * legitimately finds nothing and the admin's "+ Create" path creates a new artist, same as
-   * before this change; this only widens matching for handles that ARE already on file, it
-   * never invents a match. This only affects matching either way; it never creates or links a
-   * studio.
+   * string, e.g. "Maggie @the.butterfly.bookclub" or "Jan Kowalski @jankowalskiart" — a plain
+   * `name contains <raw query>` match finds nothing for that, since the stored artist record
+   * doesn't contain the full compound string.
+   *
+   * Checked against the actual data (2026-08-22): 990 of 1016 artist rows have their handle
+   * AS the `name` field itself (e.g. name = "@jankowalskiart") — a separate personal name is
+   * essentially never stored. The `instagram` field is populated on only 2 rows, and `studioId`
+   * on only 1. So the dominant, highest-value match by far is the simplest one: does an existing
+   * artist's `name` contain the bare handle, full stop — independent of whether a name portion
+   * was also present in the query. That's added unconditionally whenever an @handle is found.
+   *
+   * When the query ALSO has a name portion, two more (much rarer in today's data, but cheap and
+   * harmless to keep) clauses are tried: (a) own name contains the name portion AND own
+   * `instagram` contains the handle — the rare row where that field IS populated separately;
+   * (b) own name contains the name portion AND the artist's STUDIO's name/instagram contains the
+   * handle — a studio member credited alongside their studio's handle, where the member's own
+   * `name` is a real display name distinct from the studio's.
+   *
+   * If nothing matches — the handle isn't on file anywhere — the search legitimately finds
+   * nothing and the admin's "+ Create" path creates a new artist, same as before any of this.
+   * This only widens matching for handles that already exist; it never invents a match, and it
+   * never creates or links a studio.
    */
   private buildArtistSearchClauses(rawSearch: string): Record<string, unknown>[] {
     const raw = rawSearch.trim();
     const handleMatches = raw.match(/@[\w.]+/g) ?? [];
     const namePart = raw.replace(/@[\w.]+/g, '').trim();
+    const [firstHandle] = handleMatches;
 
     const clauses: Record<string, unknown>[] = [{ name: { contains: raw, mode: 'insensitive' } }];
-    const [firstHandle] = handleMatches;
-    if (firstHandle && namePart) {
-      const handle = firstHandle.replace(/^@/, '');
+    if (!firstHandle) return clauses;
+
+    const handle = firstHandle.replace(/^@/, '');
+    clauses.push({ name: { contains: handle, mode: 'insensitive' } });
+
+    if (namePart) {
       clauses.push({
         AND: [
           { name: { contains: namePart, mode: 'insensitive' } },
