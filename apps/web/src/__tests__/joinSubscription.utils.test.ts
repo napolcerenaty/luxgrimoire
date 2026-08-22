@@ -58,8 +58,8 @@ function pc(year: number, month: number, price: string, currency = 'USD', grandf
   return { effectiveYear: year, effectiveMonth: month, newBasePrice: price, currency, grandfatheredPrice }
 }
 
-function prepayOpt(months: number, price: number | string, currency = 'USD', validFrom?: string, validUntil?: string) {
-  return { months, price, currency, validFrom: validFrom ?? null, validUntil: validUntil ?? null }
+function prepayOpt(months: number, price: number | string, currency = 'USD', validFrom?: string, validUntil?: string, grandfatheredPrice?: boolean) {
+  return { months, price, currency, validFrom: validFrom ?? null, validUntil: validUntil ?? null, grandfatheredPrice: grandfatheredPrice ?? false }
 }
 
 function month(id: string, year: number, m: number) {
@@ -147,6 +147,53 @@ describe('lookupPrepayPriceAt', () => {
   it('12. empty billingDateStr → fallback', () => {
     const opts = [prepayOpt(6, 149.99, 'USD')]
     expect(lookupPrepayPriceAt('', opts, 6, 'USD', '99.00')).toBe('99.00')
+  })
+
+  // ── grandfathering-aware (backfill) ─────────────────────────────────────────
+  // Real bug: backfilling a batch dated after a grandfathered price increase used to
+  // resolve to the new price for everyone, even a subscriber who joined before the
+  // increase and is entitled to keep the old one — matching the live resolveEffectivePrepayOption
+  // behavior now that activeEntryStartDate is threaded through.
+
+  it('13a. batch dated after a grandfathered increase — subscriber who joined before it keeps the old price', () => {
+    const opts = [
+      prepayOpt(3, 84, 'GBP', undefined, '2026-08-01'),
+      prepayOpt(3, 111, 'GBP', '2026-08-01', undefined, true),
+    ]
+    // Batch billed Aug 15 (within the new option's window) for a subscriber who joined Jan 1.
+    expect(lookupPrepayPriceAt('2026-08-15', opts, 3, 'GBP', '0', '2026-01-01')).toBe('84')
+  })
+
+  it('13b. batch dated after a grandfathered increase — subscriber who joined after it gets the new price', () => {
+    const opts = [
+      prepayOpt(3, 84, 'GBP', undefined, '2026-08-01'),
+      prepayOpt(3, 111, 'GBP', '2026-08-01', undefined, true),
+    ]
+    expect(lookupPrepayPriceAt('2026-08-15', opts, 3, 'GBP', '0', '2026-08-10')).toBe('111')
+  })
+
+  it('13c. non-grandfathered increase applies to everyone regardless of when they joined', () => {
+    const opts = [
+      prepayOpt(3, 84, 'GBP', undefined, '2026-08-01'),
+      prepayOpt(3, 111, 'GBP', '2026-08-01', undefined, false),
+    ]
+    expect(lookupPrepayPriceAt('2026-08-15', opts, 3, 'GBP', '0', '2026-01-01')).toBe('111')
+  })
+
+  it('13d. omitting activeEntryStartDate falls back to the old (non-grandfathering-aware) behavior', () => {
+    const opts = [
+      prepayOpt(3, 84, 'GBP', undefined, '2026-08-01'),
+      prepayOpt(3, 111, 'GBP', '2026-08-01', undefined, true),
+    ]
+    expect(lookupPrepayPriceAt('2026-08-15', opts, 3, 'GBP', '0')).toBe('111')
+  })
+
+  it('13e. a batch dated BEFORE the increase is unaffected — the old option was simply the only one open then', () => {
+    const opts = [
+      prepayOpt(3, 84, 'GBP', undefined, '2026-08-01'),
+      prepayOpt(3, 111, 'GBP', '2026-08-01', undefined, true),
+    ]
+    expect(lookupPrepayPriceAt('2026-03-01', opts, 3, 'GBP', '0', '2026-01-01')).toBe('84')
   })
 })
 
@@ -268,6 +315,41 @@ describe('computeAutoBatches', () => {
     expect(batches).toHaveLength(2)
     expect(batches[0].amount).toBe('79.99')  // Jan 2025 batch → old price still valid
     expect(batches[1].amount).toBe('89.99')  // Apr 2025 batch → new price
+  })
+
+  it('27. grandfathered increase: a subscriber who started before it keeps the old price on every later batch too', () => {
+    const months = [
+      month('m1', 2025, 1), month('m2', 2025, 2), month('m3', 2025, 3),
+      month('m4', 2025, 4), month('m5', 2025, 5), month('m6', 2025, 6),
+    ]
+    const opts = [
+      prepayOpt(3, 79.99, 'USD', '2024-01-01', '2025-04-01'),
+      prepayOpt(3, 89.99, 'USD', '2025-04-01', undefined, true), // grandfathered increase
+    ]
+    const selected = months.map(m => m.id)
+    // startDate (2025-01-01) is threaded through as the grandfathering reference for EVERY
+    // batch, not just the first — so even the second batch (billed April, after the increase)
+    // must still resolve to the old price for this subscriber.
+    const batches = computeAutoBatches(months, selected, 3, 1, 'USD', opts, '89.99', '2025-01-01')
+    expect(batches).toHaveLength(2)
+    expect(batches[0].amount).toBe('79.99')
+    expect(batches[1].amount).toBe('79.99') // grandfathered — NOT the new 89.99
+  })
+
+  it('28. grandfathered increase: a subscriber who started after it gets the new price on every batch', () => {
+    const months = [
+      month('m1', 2025, 4), month('m2', 2025, 5), month('m3', 2025, 6),
+      month('m4', 2025, 7), month('m5', 2025, 8), month('m6', 2025, 9),
+    ]
+    const opts = [
+      prepayOpt(3, 79.99, 'USD', '2024-01-01', '2025-04-01'),
+      prepayOpt(3, 89.99, 'USD', '2025-04-01', undefined, true),
+    ]
+    const selected = months.map(m => m.id)
+    const batches = computeAutoBatches(months, selected, 3, 1, 'USD', opts, '89.99', '2025-04-15')
+    expect(batches).toHaveLength(2)
+    expect(batches[0].amount).toBe('89.99')
+    expect(batches[1].amount).toBe('89.99')
   })
 })
 

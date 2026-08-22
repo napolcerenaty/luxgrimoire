@@ -143,7 +143,7 @@ interface Props {
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
   userDefaultCurrency?: string | null
-  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null; grandfatheredPrice?: boolean }[]
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
   signupIncludesCurrentMonth?: boolean
@@ -221,7 +221,7 @@ interface Step1Props {
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
   userDefaultCurrency?: string | null
-  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null; grandfatheredPrice?: boolean }[]
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
   signupIncludesCurrentMonth?: boolean
@@ -1517,7 +1517,7 @@ export interface Step3Props {
   backfillOwnershipStatus?: 'OWNED' | 'PREORDER'
   choicePicks: Record<string, string[]>
   selectedPrepayOption: { id: string; months: number; price: number | string; label: string | null } | null
-  allPrepayOptions: { id: string; months: number; price: number | string; currency: string; validFrom?: string | null; validUntil?: string | null }[]
+  allPrepayOptions: { id: string; months: number; price: number | string; currency: string; validFrom?: string | null; validUntil?: string | null; grandfatheredPrice?: boolean }[]
   subscriptionSlug: string
   entryFees: { name: string; amount: string; currency: string }[]
   entry: JoinResult['entry']

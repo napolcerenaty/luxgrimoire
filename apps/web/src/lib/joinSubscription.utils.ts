@@ -23,6 +23,7 @@ export interface PrepayOptionRecord {
   currency: string
   validFrom?: string | null
   validUntil?: string | null
+  grandfatheredPrice?: boolean
 }
 
 export interface SubscriptionMonthRef {
@@ -69,6 +70,14 @@ export function lookupPriceAt(
  * Find the prepay option price valid at the given billing date for a specific
  * (months, currency) combination.
  *
+ * `activeEntryStartDate` (the subscriber's actual join date, YYYY-MM-DD) makes this
+ * grandfathering-aware, mirroring the backend's resolveEffectivePrepayOption
+ * (apps/api/.../prepay-option.util.ts): a batch dated after a grandfathered price
+ * increase still resolves to the pre-increase price for a subscriber who joined before
+ * it, walking back through the same "excluded -> try the next-oldest option" chain.
+ * Omit it (or pass null) for the old, non-grandfathering-aware behavior — just the most
+ * recent option that had started by the billing date.
+ *
  * Returns `fallbackPrice` when no matching option is found.
  */
 export function lookupPrepayPriceAt(
@@ -77,21 +86,35 @@ export function lookupPrepayPriceAt(
   targetMonths: number,
   targetCurrency: string,
   fallbackPrice: string,
+  activeEntryStartDate?: string | null,
 ): string {
   if (!billingDateStr) return fallbackPrice
-  const matching = options
+  const started = options
     .filter(o => o.months === targetMonths && o.currency === targetCurrency)
     .filter(o => {
       const from = o.validFrom ? o.validFrom.slice(0, 10) : null
-      const until = o.validUntil ? o.validUntil.slice(0, 10) : null
-      return (!from || from <= billingDateStr) && (!until || until > billingDateStr)
+      return !from || from <= billingDateStr
     })
     .sort((a, b) => {
       const af = a.validFrom ?? ''
       const bf = b.validFrom ?? ''
       return bf > af ? 1 : bf < af ? -1 : 0
     })
-  return matching.length > 0 ? String(matching[0].price) : fallbackPrice
+
+  let fellThroughViaExclusion = false
+  for (const o of started) {
+    const from = o.validFrom ? o.validFrom.slice(0, 10) : null
+    const excluded = !!o.grandfatheredPrice && !!activeEntryStartDate && activeEntryStartDate < (from ?? '')
+    if (excluded) {
+      fellThroughViaExclusion = true
+      continue
+    }
+    const until = o.validUntil ? o.validUntil.slice(0, 10) : null
+    const isOpenAtBillingDate = !until || until > billingDateStr
+    if (isOpenAtBillingDate || fellThroughViaExclusion) return String(o.price)
+    return fallbackPrice // closed as of this billing date, and nothing excluded us into it
+  }
+  return fallbackPrice
 }
 
 // ── resolveBackfillFallbackPrice ──────────────────────────────────────────────
@@ -219,7 +242,11 @@ export function computeAutoBatches(
     (a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month,
   )
 
-  // Parse the subscription start date for first batch billing date
+  // Parse the subscription start date for first batch billing date — also doubles as the
+  // grandfathering reference date passed to lookupPrepayPriceAt below, so it must be a full
+  // YYYY-MM-DD (a bare YYYY-MM would otherwise string-compare as "before" any same-month
+  // validFrom, e.g. "2026-08" < "2026-08-01", incorrectly grandfathering a user who actually
+  // joined after that day).
   let firstBatchDate: string | null = null
   if (startDate) {
     if (startDate.length === 7) {
@@ -244,7 +271,7 @@ export function computeAutoBatches(
         const dateStr = isFirst && firstBatchDate
           ? firstBatchDate
           : `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        const batchAmount = parseDecimalInput(lookupPrepayPriceAt(dateStr, allPrepayOptions, prepayN, currency, fallbackPrice)).toFixed(2)
+        const batchAmount = parseDecimalInput(lookupPrepayPriceAt(dateStr, allPrepayOptions, prepayN, currency, fallbackPrice, firstBatchDate)).toFixed(2)
         batches.push({ billingDate: dateStr, monthIds: [...currentBatch], amount: batchAmount, currency })
         batchStart = null
         currentBatch = []
