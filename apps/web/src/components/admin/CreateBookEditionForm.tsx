@@ -47,6 +47,11 @@ export interface CreateBookEditionFormProps {
   bookOnly?: boolean
   /** If provided, skip step 1 and start at edition creation for an existing book */
   existingBookId?: string
+  /** Prefills step 1 on mount from a source other than the in-form GoodreadsParser/AI-parse
+   *  buttons — e.g. a series-discovery suggestion the admin chose to turn into a book. Same
+   *  shape and field mapping as applyGoodreadsResult, just seeded as initial state instead of
+   *  applied via a button click. */
+  initialGoodreadsResult?: AiBookResult
   /** When set, the created edition is linked into this edition's variant group (e.g. "Duplicate as variant"). */
   sourceEditionId?: string
   defaultVariantLabel?: string
@@ -67,6 +72,7 @@ export default function CreateBookEditionForm({
   monthYear, monthMonth, existingBookId, bookOnly, sourceEditionId, defaultVariantLabel, defaultSaleDates,
   willLinkToAnnouncement,
   defaultPublisher, defaultCollectionId, defaultPhotoCredit, defaultArtists, defaultFeatureTags,
+  initialGoodreadsResult,
   onSuccess, onBookCreated, onCancel,
 }: CreateBookEditionFormProps) {
   const qc = useQueryClient()
@@ -77,13 +83,23 @@ export default function CreateBookEditionForm({
   const [busy, setBusy] = useState(false)
 
   // ── Step 1: Book ─────────────────────────────────────────────────────────
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [authors, setAuthors] = useState<PersonEntry[]>([])
-  const [seriesEntries, setSeriesEntries] = useState<SeriesEntryFormState[]>([])
+  const [title, setTitle] = useState(initialGoodreadsResult?.title ?? '')
+  const [description, setDescription] = useState(initialGoodreadsResult?.description ?? '')
+  const [authors, setAuthors] = useState<PersonEntry[]>(
+    () => initialGoodreadsResult?.authors?.map(a => ({ name: a.name })) ?? [],
+  )
+  const [seriesEntries, setSeriesEntries] = useState<SeriesEntryFormState[]>(() =>
+    initialGoodreadsResult?.seriesName
+      ? [{
+          seriesName: initialGoodreadsResult.seriesName,
+          volumeNumbers: initialGoodreadsResult.volumeNumber != null ? String(initialGoodreadsResult.volumeNumber) : '',
+          isPrimary: true,
+        }]
+      : [],
+  )
   const [isOmnibus, setIsOmnibus] = useState(false)
   const [stagedComponents, setStagedComponents] = useState<StagedComponent[]>([])
-  const [genres, setGenres] = useState<string[]>([])
+  const [genres, setGenres] = useState<string[]>(() => initialGoodreadsResult?.genres?.slice(0, 5) ?? [])
   const [createdBookId, setCreatedBookId] = useState(existingBookId ?? '')
   const [createdBookSlug, setCreatedBookSlug] = useState('')
   const [saved, setSaved] = useState(false)
