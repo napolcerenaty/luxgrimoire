@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FollowsService } from './follows.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -9,10 +9,33 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 export class FollowsController {
   constructor(private readonly service: FollowsService) {}
 
-  /** Combined listing for the "My follows" settings page. */
-  @Get()
-  findAll(@CurrentUser() user: { id: string }) {
-    return this.service.findAll(user.id);
+  /** Paginated per-type listings for the "My follows" settings page — each type loads and
+   *  "load more"s independently, so one section growing large never drags the others along. */
+  @Get('artists')
+  findArtistFollows(
+    @CurrentUser() user: { id: string },
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.service.findArtistFollows(user.id, page ? Number(page) : 1, pageSize ? Number(pageSize) : 20);
+  }
+
+  @Get('authors')
+  findAuthorFollows(
+    @CurrentUser() user: { id: string },
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.service.findAuthorFollows(user.id, page ? Number(page) : 1, pageSize ? Number(pageSize) : 20);
+  }
+
+  @Get('books')
+  findBookFollows(
+    @CurrentUser() user: { id: string },
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.service.findBookFollows(user.id, page ? Number(page) : 1, pageSize ? Number(pageSize) : 20);
   }
 
   @Get('artists/:artistId')

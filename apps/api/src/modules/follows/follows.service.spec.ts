@@ -146,55 +146,83 @@ describe('FollowsService', () => {
     });
   });
 
-  // ─── findAll (My Follows page) ──────────────────────────────────────────────
+  // ─── per-type paginated listings (My Follows page) ──────────────────────────
 
-  describe('findAll', () => {
-    it('unwraps each join row down to the followed entity, per type', async () => {
+  describe('findArtistFollows', () => {
+    it('unwraps each join row down to the followed artist and paginates', async () => {
       (prisma.userArtistFollow.findMany as jest.Mock).mockResolvedValue([
         { artist: { id: 'artist-1', slug: 'artist-1', name: 'Artist One' } },
       ]);
-      (prisma.userAuthorFollow.findMany as jest.Mock).mockResolvedValue([
-        { author: { id: 'author-1', slug: 'author-1', name: 'Author One' } },
-      ]);
-      (prisma.userBookFollow.findMany as jest.Mock).mockResolvedValue([
-        { book: { id: 'book-1', slug: 'book-1', title: 'Book One' } },
-      ]);
+      (prisma.userArtistFollow.count as jest.Mock).mockResolvedValue(1);
 
-      const result = await service.findAll(USER_ID);
+      const result = await service.findArtistFollows(USER_ID, 1, 20);
 
       expect(result).toEqual({
-        artists: [{ id: 'artist-1', slug: 'artist-1', name: 'Artist One' }],
-        authors: [{ id: 'author-1', slug: 'author-1', name: 'Author One' }],
-        books: [{ id: 'book-1', slug: 'book-1', title: 'Book One' }],
+        data: [{ id: 'artist-1', slug: 'artist-1', name: 'Artist One' }],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
       });
     });
 
-    it('returns empty arrays for a user following nothing', async () => {
+    it('scopes to the given userId and applies skip/take from the requested page', async () => {
       (prisma.userArtistFollow.findMany as jest.Mock).mockResolvedValue([]);
-      (prisma.userAuthorFollow.findMany as jest.Mock).mockResolvedValue([]);
-      (prisma.userBookFollow.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.userArtistFollow.count as jest.Mock).mockResolvedValue(0);
 
-      const result = await service.findAll(USER_ID);
-
-      expect(result).toEqual({ artists: [], authors: [], books: [] });
-    });
-
-    it('scopes every lookup to the given userId', async () => {
-      (prisma.userArtistFollow.findMany as jest.Mock).mockResolvedValue([]);
-      (prisma.userAuthorFollow.findMany as jest.Mock).mockResolvedValue([]);
-      (prisma.userBookFollow.findMany as jest.Mock).mockResolvedValue([]);
-
-      await service.findAll(USER_ID);
+      await service.findArtistFollows(USER_ID, 2, 20);
 
       expect(prisma.userArtistFollow.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { userId: USER_ID } }),
+        expect.objectContaining({ where: { userId: USER_ID }, skip: 20, take: 20 }),
       );
-      expect(prisma.userAuthorFollow.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { userId: USER_ID } }),
-      );
-      expect(prisma.userBookFollow.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { userId: USER_ID } }),
-      );
+      expect(prisma.userArtistFollow.count).toHaveBeenCalledWith({ where: { userId: USER_ID } });
+    });
+  });
+
+  describe('findAuthorFollows', () => {
+    it('unwraps each join row down to the followed author and paginates', async () => {
+      (prisma.userAuthorFollow.findMany as jest.Mock).mockResolvedValue([
+        { author: { id: 'author-1', slug: 'author-1', name: 'Author One' } },
+      ]);
+      (prisma.userAuthorFollow.count as jest.Mock).mockResolvedValue(1);
+
+      const result = await service.findAuthorFollows(USER_ID, 1, 20);
+
+      expect(result).toEqual({
+        data: [{ id: 'author-1', slug: 'author-1', name: 'Author One' }],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+    });
+  });
+
+  describe('findBookFollows', () => {
+    it('unwraps each join row down to the followed book and paginates', async () => {
+      (prisma.userBookFollow.findMany as jest.Mock).mockResolvedValue([
+        { book: { id: 'book-1', slug: 'book-1', title: 'Book One' } },
+      ]);
+      (prisma.userBookFollow.count as jest.Mock).mockResolvedValue(1);
+
+      const result = await service.findBookFollows(USER_ID, 1, 20);
+
+      expect(result).toEqual({
+        data: [{ id: 'book-1', slug: 'book-1', title: 'Book One' }],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+    });
+
+    it('returns an empty page for a user following nothing, without erroring', async () => {
+      (prisma.userBookFollow.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.userBookFollow.count as jest.Mock).mockResolvedValue(0);
+
+      const result = await service.findBookFollows(USER_ID, 1, 20);
+
+      expect(result).toEqual({ data: [], total: 0, page: 1, pageSize: 20, totalPages: 0 });
     });
   });
 });

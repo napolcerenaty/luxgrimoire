@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { parsePagination, buildPageMeta } from '../../common/pagination';
 
 @Injectable()
 export class FollowsService {
@@ -71,31 +72,50 @@ export class FollowsService {
     return { following: !!follow };
   }
 
-  // ─── "My follows" page ──────────────────────────────────────────────────
+  // ─── "My follows" page — each type paginated independently ──────────────
 
-  async findAll(userId: string) {
-    const [artists, authors, books] = await Promise.all([
+  async findArtistFollows(userId: string, page: number, pageSize: number) {
+    const { skip, take, page: p, pageSize: ps } = parsePagination({ page, pageSize });
+    const [rows, total] = await Promise.all([
       this.prisma.userArtistFollow.findMany({
         where: { userId },
         include: { artist: { select: { id: true, slug: true, name: true, photoUrl: true, specialty: true } } },
         orderBy: { createdAt: 'desc' },
+        skip,
+        take,
       }),
+      this.prisma.userArtistFollow.count({ where: { userId } }),
+    ]);
+    return { data: rows.map((r) => r.artist), ...buildPageMeta(total, p, ps) };
+  }
+
+  async findAuthorFollows(userId: string, page: number, pageSize: number) {
+    const { skip, take, page: p, pageSize: ps } = parsePagination({ page, pageSize });
+    const [rows, total] = await Promise.all([
       this.prisma.userAuthorFollow.findMany({
         where: { userId },
         include: { author: { select: { id: true, slug: true, name: true, photoUrl: true } } },
         orderBy: { createdAt: 'desc' },
+        skip,
+        take,
       }),
+      this.prisma.userAuthorFollow.count({ where: { userId } }),
+    ]);
+    return { data: rows.map((r) => r.author), ...buildPageMeta(total, p, ps) };
+  }
+
+  async findBookFollows(userId: string, page: number, pageSize: number) {
+    const { skip, take, page: p, pageSize: ps } = parsePagination({ page, pageSize });
+    const [rows, total] = await Promise.all([
       this.prisma.userBookFollow.findMany({
         where: { userId },
         include: { book: { select: { id: true, slug: true, title: true, seriesName: true } } },
         orderBy: { createdAt: 'desc' },
+        skip,
+        take,
       }),
+      this.prisma.userBookFollow.count({ where: { userId } }),
     ]);
-
-    return {
-      artists: artists.map((f) => f.artist),
-      authors: authors.map((f) => f.author),
-      books: books.map((f) => f.book),
-    };
+    return { data: rows.map((r) => r.book), ...buildPageMeta(total, p, ps) };
   }
 }
