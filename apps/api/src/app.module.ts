@@ -30,6 +30,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ProfileModule } from './modules/profile/profile.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { SaleInterestsModule } from './modules/sale-interests/sale-interests.module';
+import { FollowsModule } from './modules/follows/follows.module';
 import { SkipPolicyModule } from './modules/skip-policy/skip-policy.module';
 import { CurrencyModule } from './modules/currency/currency.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -148,6 +149,7 @@ import { SitemapModule } from './modules/sitemap/sitemap.module';
     ProfileModule,
     AnnouncementsModule,
     SaleInterestsModule,
+    FollowsModule,
     SkipPolicyModule,
     CurrencyModule,
     AiModule,

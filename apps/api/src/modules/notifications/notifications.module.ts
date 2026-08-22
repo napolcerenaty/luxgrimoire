@@ -12,6 +12,6 @@ import { ReminderSettingsController } from './reminder-settings.controller';
 @Module({
   controllers: [NotificationsController, PushController, NotificationPreferencesController, ReminderSettingsController],
   providers: [NotificationsService, PushService, NotificationRemindersCron, ScheduledRemindersService, ReminderSettingsService],
-  exports: [NotificationsService, ScheduledRemindersService],
+  exports: [NotificationsService, ScheduledRemindersService, PushService],
 })
 export class NotificationsModule {}

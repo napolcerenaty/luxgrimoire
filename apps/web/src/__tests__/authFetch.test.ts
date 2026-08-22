@@ -73,7 +73,7 @@ describe('authFetch', () => {
     expect(window.location.href).toBe('/login')
   })
 
-  it('redirects and throws on 403', async () => {
+  it('throws on 403 without redirecting', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 403,
@@ -81,7 +81,7 @@ describe('authFetch', () => {
       text: () => Promise.resolve('Forbidden'),
     })
     await expect(authFetch('/test')).rejects.toThrow('Forbidden')
-    expect(window.location.href).toBe('/login')
+    expect(window.location.href).not.toBe('/login')
   })
 
   it('throws on 500 without redirecting', async () => {

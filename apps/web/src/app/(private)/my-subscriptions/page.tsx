@@ -53,6 +53,8 @@ interface MySubscriptionEntry {
   nextRenewalDate: string | null
   nextRenewalAmount: string | null
   nextRenewalCurrency: string | null
+  nextRenewalPriceChanged: boolean
+  nextRenewalNewPrice: string | null
   nextBoxMonth: { year: number; month: number } | null
   subscription: {
     slug: string
@@ -113,6 +115,19 @@ function formatMoney(amount: string | number | null, currency: string | null) {
   const n = typeof amount === 'string' ? parseFloat(amount) : amount
   if (isNaN(n)) return null
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(n)
+}
+
+function PriceChangeBadge({ entry }: { entry: MySubscriptionEntry }) {
+  if (!entry.nextRenewalPriceChanged || !entry.nextRenewalNewPrice) return null
+  const newAmount = formatMoney(entry.nextRenewalNewPrice, entry.nextRenewalCurrency ?? entry.subscription.currency)
+  return (
+    <span
+      className="ml-1 text-amber-400"
+      title={`Price changes to ${newAmount ?? entry.nextRenewalNewPrice} from next renewal`}
+    >
+      ⚠️
+    </span>
+  )
 }
 
 function formatDate(iso: string | null) {
@@ -303,12 +318,9 @@ function InlineCostsEditor({
               className="bg-navy-800 border border-navy-700 rounded-lg px-2 py-1.5 text-xs text-navy-100 focus:outline-none focus:border-brand-400 transition-colors"
             >
               <option value="">Monthly</option>
-              {prepayOptions.filter(o => {
-                const now = new Date()
-                if (o.validFrom && new Date(o.validFrom) > now) return false
-                if (o.validUntil && new Date(o.validUntil) <= now) return false
-                return true
-              }).map(o => (
+              {/* prepayOptions already comes back grandfathering-resolved from GET :slug/prepay-options
+                  for this user — no client-side validFrom/validUntil filtering needed here. */}
+              {prepayOptions.map(o => (
                 <option key={o.id} value={o.id}>
                   {o.label ?? `${o.months} months`} — {o.price} {o.currency}
                 </option>
@@ -1134,6 +1146,7 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
                 <p className="text-sm font-medium text-navy-200">
                   {renewalLabel}
                   {renewalAmount && <span className="ml-2 text-brand-400">{renewalAmount}</span>}
+                  <PriceChangeBadge entry={entry} />
                 </p>
               </div>
             )}
@@ -1208,7 +1221,10 @@ function SubscriptionTile({ entry }: { entry: MySubscriptionEntry }) {
         <p className="truncate text-[10px] text-navy-500">{sub.company.name}</p>
         <p className="break-words text-sm font-semibold leading-tight text-navy-100">{sub.name}</p>
         {entry.active && renewalLabel && (
-          <p className="text-[10px] text-navy-400">{renewalLabel}{renewalAmount ? ` · ${renewalAmount}` : ''}</p>
+          <p className="text-[10px] text-navy-400">
+            {renewalLabel}{renewalAmount ? ` · ${renewalAmount}` : ''}
+            <PriceChangeBadge entry={entry} />
+          </p>
         )}
         {!entry.active && (
           <div className="flex gap-3">
@@ -1425,6 +1441,7 @@ function SubscriptionCard({ entry }: { entry: MySubscriptionEntry }) {
                   <p className="text-sm font-medium text-navy-200">
                     {renewalLabel}
                     {renewalAmount && <span className="ml-2 text-brand-400">{renewalAmount}</span>}
+                    <PriceChangeBadge entry={entry} />
                   </p>
                 </div>
               )}

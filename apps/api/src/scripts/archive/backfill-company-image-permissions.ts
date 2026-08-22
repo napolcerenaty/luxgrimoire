@@ -8,15 +8,20 @@
  * Idempotent — skips any company that already has a CompanyImagePermission row (upsert semantics
  * via findFirst + create, not blind create). Safe to re-run.
  *
+ * Confirmed run against production after the image-permissions feature deployed (PR #33,
+ * 2026-08-21) — archived rather than wired into docker-entrypoint.sh anymore, same pattern as
+ * the other backfills in this folder. Kept for history and for manually backfilling a company
+ * created directly against the database (bypassing the admin form) elsewhere.
+ *
  * Run manually with:
- *   node dist/scripts/backfill-company-image-permissions.js [--dry-run]
+ *   node dist/scripts/archive/backfill-company-image-permissions.js [--dry-run]
  *
  * Per-company errors are caught individually (never crash the rest of the batch) and filed as a
  * BugReport (category 'data-migration') for manual follow-up, deduped by title.
  */
-import { runScript } from './run-script'
-import { PrismaService } from '../prisma/prisma.service'
-import { BugReportsService } from '../modules/bug-reports/bug-reports.service'
+import { runScript } from '../run-script'
+import { PrismaService } from '../../prisma/prisma.service'
+import { BugReportsService } from '../../modules/bug-reports/bug-reports.service'
 
 const DRY_RUN = process.argv.includes('--dry-run')
 

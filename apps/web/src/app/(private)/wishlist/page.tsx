@@ -16,6 +16,7 @@ import { brandGradientStyle } from '@/lib/brandGradient'
 import { useBrandColors } from '@/lib/useBrandColors'
 import { AddToCollectionButton, type SaleEditionData } from '@/app/(public)/sale-announcements/[id]/AddToCollectionButton'
 import { CollectionFormModal, type CollectionFormData } from '@/components/collection/CollectionFormModal'
+import { resolveInterestDate, getInterestOpenState } from '@/lib/saleTiers'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
 
 interface CollectionEntry {
@@ -70,10 +71,11 @@ interface SaleInterestItem {
   }
 }
 
+// getEffectiveDate/isOpen logic now lives in @/lib/saleTiers (resolveInterestDate,
+// getInterestOpenState) — shared with the calendar page so both agree on the tracked tier's
+// opening date instead of maintaining two independently-drifting implementations.
 function getEffectiveDate(interest: SaleInterestItem): string | null {
-  // OPEN_PREORDER has no tier "opens at" moment — the relevant date is the closing deadline.
-  if (interest.announcement.saleType === 'OPEN_PREORDER') return interest.announcement.endsAt
-  return interest.saleTier?.date ?? null
+  return resolveInterestDate(interest)
 }
 
 const OWNERSHIP_OPTIONS = [
@@ -510,15 +512,12 @@ export default function WishlistPage() {
                 {filteredInterests.map((interest) => {
                   const { announcement: sa } = interest
                   const coverSrc = sa.imageUrl ? cloudinaryUrl(sa.imageUrl, 'w_400,h_600,c_fill,q_auto,f_auto') : null
-                  const effectiveDate = getEffectiveDate(interest)
-                  // effectiveDate is a closing deadline for OPEN_PREORDER (endsAt), not an
-                  // opens-at date like FA/EA/GS — "open" means not yet past that deadline,
-                  // the opposite comparison from every other sale type.
-                  const isOpen = sa.saleType === 'OPEN_PREORDER'
-                    ? !effectiveDate || new Date(effectiveDate) > new Date()
-                    : !!effectiveDate && new Date(effectiveDate) <= new Date()
-                  const dateLabel = effectiveDate
-                    ? new Date(effectiveDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                  const { openDate, closesDate, isOpen, hasClosed } = getInterestOpenState(interest)
+                  const dateLabel = openDate
+                    ? new Date(openDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                    : null
+                  const closesLabel = closesDate
+                    ? new Date(closesDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
                     : null
                   const tl = interest.saleTier?.name ?? 'General Sale'
 
@@ -559,7 +558,15 @@ export default function WishlistPage() {
                         {dateLabel && (
                           <p className="text-xs text-navy-500 flex items-center gap-1">
                             <Tag size={10} />
-                            <span className={isOpen ? 'text-green-400' : ''}>{tl}{isOpen ? ' (open)' : ''}: {dateLabel}</span>
+                            {hasClosed ? (
+                              <span>{tl} (closed): {dateLabel}</span>
+                            ) : isOpen ? (
+                              <span className="text-green-400">
+                                {tl} (open){closesLabel ? ` · closes ${closesLabel}` : ''}
+                              </span>
+                            ) : (
+                              <span>{tl} opens: {dateLabel}</span>
+                            )}
                           </p>
                         )}
                         <div className="flex flex-col gap-1.5 pt-1">
