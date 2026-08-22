@@ -7,7 +7,8 @@ export interface EditionFollowReason {
   name: string;
 }
 
-const DEBOUNCE_MS = 5 * 60 * 1000;
+// TODO(temp): dropped to 1 min for manual testing — revert to 5 * 60 * 1000 before merging to master.
+export const DEBOUNCE_MS = 1 * 60 * 1000;
 
 /**
  * Queues "new edition matches a follow" events into PendingEditionNotification, one row per

@@ -6,11 +6,13 @@
  */
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
-import { FollowNotificationsService } from './follow-notifications.service';
+import { FollowNotificationsService, DEBOUNCE_MS } from './follow-notifications.service';
 
 const EDITION_ID = 'edition-1';
 const BOOK_ID = 'book-1';
 const ARTIST_ID = 'artist-1';
+const NOW = new Date('2026-01-01T00:00:00.000Z');
+const DEBOUNCED_AT = new Date(NOW.getTime() + DEBOUNCE_MS);
 
 describe('FollowNotificationsService', () => {
   let service: FollowNotificationsService;
@@ -22,7 +24,7 @@ describe('FollowNotificationsService', () => {
       async (fn: (tx: typeof prisma) => Promise<unknown>) => fn(prisma),
     );
     service = new FollowNotificationsService(prisma);
-    jest.useFakeTimers().setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    jest.useFakeTimers().setSystemTime(NOW);
   });
 
   afterEach(() => {
@@ -56,7 +58,7 @@ describe('FollowNotificationsService', () => {
           userId: 'user-1',
           editionId: EDITION_ID,
           reasons: [{ type: 'book', id: BOOK_ID, name: 'The Hollows' }],
-          scheduledFor: new Date('2026-01-01T00:05:00.000Z'),
+          scheduledFor: DEBOUNCED_AT,
         },
       });
     });
@@ -78,7 +80,7 @@ describe('FollowNotificationsService', () => {
           userId: 'user-1',
           editionId: EDITION_ID,
           reasons: [{ type: 'author', id: 'author-1', name: 'Ilona Andrews' }],
-          scheduledFor: new Date('2026-01-01T00:05:00.000Z'),
+          scheduledFor: DEBOUNCED_AT,
         },
       });
     });
@@ -155,7 +157,7 @@ describe('FollowNotificationsService', () => {
           userId: 'user-2',
           editionId: EDITION_ID,
           reasons: [{ type: 'artist', id: ARTIST_ID, name: 'Maggie' }],
-          scheduledFor: new Date('2026-01-01T00:05:00.000Z'),
+          scheduledFor: DEBOUNCED_AT,
         },
       });
     });
@@ -164,7 +166,7 @@ describe('FollowNotificationsService', () => {
   // ─── enqueue (debounce merge behavior) ───────────────────────────────────
 
   describe('debounce merge behavior', () => {
-    it('sets scheduledFor to 5 minutes from now on first insert', async () => {
+    it('sets scheduledFor to now + the debounce window on first insert', async () => {
       (prisma.artist.findUnique as jest.Mock).mockResolvedValue({
         name: 'Maggie',
         followers: [{ userId: 'user-1' }],
@@ -174,12 +176,12 @@ describe('FollowNotificationsService', () => {
       await service.notifyOnArtistAdded(EDITION_ID, ARTIST_ID);
 
       expect(prisma.pendingEditionNotification.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ scheduledFor: new Date('2026-01-01T00:05:00.000Z') }) }),
+        expect.objectContaining({ data: expect.objectContaining({ scheduledFor: DEBOUNCED_AT }) }),
       );
     });
 
     it('merges a new reason into an existing pending row WITHOUT resetting scheduledFor', async () => {
-      const existingScheduledFor = new Date('2026-01-01T00:03:00.000Z'); // set 2 min ago, 3 min still left
+      const existingScheduledFor = new Date('2026-01-01T00:03:00.000Z'); // arbitrary — value shouldn't matter, it must stay untouched
       (prisma.artist.findUnique as jest.Mock).mockResolvedValue({
         name: 'Maggie',
         followers: [{ userId: 'user-1' }],
