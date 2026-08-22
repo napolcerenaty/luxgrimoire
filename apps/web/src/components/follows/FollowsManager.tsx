@@ -81,7 +81,11 @@ function FollowSection({ type }: { type: FollowType }) {
     onSuccess: (_data, id) => {
       setItems((prev) => prev.filter((i) => i.id !== id))
       setTotal((prev) => (prev != null ? prev - 1 : prev))
-      void queryClient.invalidateQueries({ queryKey: ['follows', config.segment] })
+      // refetchType: 'none' — mark the cached pages stale without an immediate active refetch.
+      // The list here is already accurate via the local filter above; auto-refetching the
+      // currently-loaded page(s) would re-append server data whose pagination window just
+      // shifted by one, producing a duplicate id (and a duplicate React key) for any page > 1.
+      void queryClient.invalidateQueries({ queryKey: ['follows', config.segment], refetchType: 'none' })
     },
   })
 
