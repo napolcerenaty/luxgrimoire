@@ -47,7 +47,7 @@ export class EditionFollowNotificationsCron {
 
     const edition = await this.prisma.bookEdition.findUnique({
       where: { id: editionId },
-      select: { book: { select: { slug: true, title: true } } },
+      select: { slug: true, book: { select: { title: true } } },
     });
     if (!edition) return;
 
@@ -60,13 +60,13 @@ export class EditionFollowNotificationsCron {
         'new_edition_follow',
         title,
         body,
-        'books',
-        edition.book.slug,
+        'editions',
+        edition.slug,
         { skipPush: true },
       );
     }
     if (pushEnabled) {
-      await this.sendPush(userId, title, body, edition.book.slug);
+      await this.sendPush(userId, title, body, edition.slug);
     }
   }
 
@@ -79,9 +79,9 @@ export class EditionFollowNotificationsCron {
 
   /** Mirrors NotificationRemindersCron.sendPush — gated by the device-level push preference,
    *  independent of whether the in-app notification was also created. */
-  private async sendPush(userId: string, title: string, body: string, bookSlug: string) {
+  private async sendPush(userId: string, title: string, body: string, editionSlug: string) {
     const pref = await this.prisma.userNotificationPreference.findUnique({ where: { userId } });
     if (!pref?.pushEnabled) return;
-    await this.pushService.sendToUser(userId, { title, body, link: `/books/${bookSlug}`, type: 'new_edition_follow' });
+    await this.pushService.sendToUser(userId, { title, body, link: `/editions/${editionSlug}`, type: 'new_edition_follow' });
   }
 }

@@ -21,7 +21,7 @@ const makeRow = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const EDITION = { book: { slug: 'this-poison-heart', title: 'This Poison Heart' } };
+const EDITION = { slug: 'this-poison-heart', book: { title: 'This Poison Heart' } };
 
 describe('EditionFollowNotificationsCron', () => {
   let cron: EditionFollowNotificationsCron;
@@ -73,7 +73,7 @@ describe('EditionFollowNotificationsCron', () => {
       'new_edition_follow',
       'New edition: This Poison Heart',
       'You follow This Poison Heart',
-      'books',
+      'editions',
       'this-poison-heart',
       { skipPush: true },
     );
@@ -94,7 +94,7 @@ describe('EditionFollowNotificationsCron', () => {
     expect(pushService.sendToUser).toHaveBeenCalledWith(USER_ID, {
       title: 'New edition: This Poison Heart',
       body: 'You follow This Poison Heart',
-      link: '/books/this-poison-heart',
+      link: '/editions/this-poison-heart',
       type: 'new_edition_follow',
     });
   });
