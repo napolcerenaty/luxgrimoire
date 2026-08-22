@@ -43,6 +43,7 @@ import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
 import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 import { resolveEffectivePrepayOption, getSelectablePrepayOptions } from './prepay-option.util';
+import { ensurePrepayBillingPeriod, findReusableBillingPeriod } from './prepay-billing-period.util';
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
 import { resolveMonthBooksForEntry, persistMonthChoice, computeChoiceDeadline, materializeChoiceGroupBooks } from './subscription-month-choice.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
@@ -3589,7 +3590,10 @@ export class SubscriptionsService {
     userId: string,
     subscriptionId: string,
     startDateObj: Date,
-    entry: { id: string; renewalDay: number | null; basePrice: unknown; shippingCost: unknown; costCurrency: string | null; feeTemplates?: unknown[] },
+    entry: {
+      id: string; renewalDay: number | null; basePrice: unknown; shippingCost: unknown; costCurrency: string | null; feeTemplates?: unknown[];
+      prepaidMonths?: number | null; scheduledPrepayOptionId?: string | null;
+    },
     signupIncludesCurrentMonth = false,
     subRenewalDay: number | null = null,
     renewalMonthOffset = 0,
@@ -3651,19 +3655,51 @@ export class SubscriptionsService {
       currency: string; date: Date; category: any; purchaseGroupId: string;
     }[] = [];
 
+    // Prepaid entries pay for N months upfront in one lump sum — entry.basePrice/shippingCost
+    // is the FULL N-month total, not this month's cost. Divide it and anchor a
+    // UserSubBillingPeriod (monthsCovered=N) at this first box so the renewal cron can later
+    // find and extend the SAME period for months 2..N instead of re-deriving N from whatever
+    // subset of months it happens to know about — see prepay-billing-period.util.ts.
+    const fullBase = entry.basePrice ? parseFloat((entry.basePrice as any).toString()) : 0;
+    const fullShipping = entry.shippingCost ? parseFloat((entry.shippingCost as any).toString()) : null;
+    const monthsCovered = entry.prepaidMonths ?? 1;
+    const isPrepaid = monthsCovered > 1 && !!entry.scheduledPrepayOptionId;
+
+    let billingPeriodId: string | null = null;
+    let totalAmount = fullBase;
+    let shippingAmount = fullShipping;
+    if (isPrepaid) {
+      const { periodId } = await ensurePrepayBillingPeriod(this.prisma, entryId, firstMonth.year, firstMonth.month, purchaseDate, {
+        id: entry.scheduledPrepayOptionId!,
+        months: monthsCovered,
+        price: fullBase,
+        currency: entry.costCurrency ?? 'USD',
+      });
+      billingPeriodId = periodId;
+      totalAmount = Math.round((fullBase / monthsCovered) * 100) / 100;
+      shippingAmount = fullShipping != null ? Math.round((fullShipping / monthsCovered) * 100) / 100 : null;
+    }
+
     // Create ONE purchase group for this billing period
     const group = await this.prisma.userPurchaseGroup.create({
       data: {
         userId,
         fromSubscription: true,
         subscriptionEntryId: entryId,
-        totalAmount: entry.basePrice ? parseFloat((entry.basePrice as any).toString()) : 0,
-        shippingAmount: entry.shippingCost ? parseFloat((entry.shippingCost as any).toString()) : null,
+        totalAmount,
+        shippingAmount,
         currency: entry.costCurrency ?? 'USD',
         purchasedAt: purchaseDate,
         title: `Subscription – ${firstMonth.year}/${String(firstMonth.month).padStart(2, '0')}`,
+        ...(billingPeriodId && { billingPeriodId }),
       },
     });
+
+    // Per-book price allocation — mirrors backfillSubscription's own unit loop (resolvePerBookPrices
+    // with allowGrowth) so a book's basePrice never silently falls back to the subscription's
+    // current monthly price when displayed later.
+    const editionIds = monthBooks.map(mb => mb.editionId!).filter(Boolean);
+    const { prices: perBookPrices } = resolvePerBookPrices(editionIds, new Map(), totalAmount, { allowGrowth: true });
 
     for (const mb of monthBooks) {
       try {
@@ -3676,6 +3712,7 @@ export class SubscriptionsService {
           signatureType: mb.signatureType ?? firstMonth.signatureType ?? null,
           changedAt: startDateObj,
           ownershipStatus: 'PREORDER',
+          basePrice: perBookPrices.get(mb.editionId!),
         });
 
       } catch {
@@ -4277,21 +4314,32 @@ export class SubscriptionsService {
           const lastMonthId = sortedMonths[sortedMonths.length - 1];
           const lastMonthRec = monthRecords.find(m => m.id === lastMonthId) ?? monthRecord;
 
-          const period = await this.prisma.userSubBillingPeriod.create({
-            data: {
-              entryId: entry.id,
-              baseAmount: batch.baseAmount,
-              shipping: batch.shippingAmount ?? null,
-              monthsCovered: n,
-              coveredFromYear: firstMonthRec.year,
-              coveredFromMonth: firstMonthRec.month,
-              coveredToYear: lastMonthRec.year,
-              coveredToMonth: lastMonthRec.month,
-              paidCurrency: batch.currency,
-              billedAt: new Date(batch.billedAt),
-            },
-          });
-          periodId = period.id;
+          // This batch's months may already be covered by a period created elsewhere for the
+          // same window (most commonly: the join-time first-box preorder, since the join
+          // modal's own follow-up backfill step routinely re-submits that same first month as
+          // part of a batch). Reuse it instead of creating a duplicate period covering the same
+          // window twice — see prepay-billing-period.util.ts.
+          const reusableId = await findReusableBillingPeriod(this.prisma, entry.id, firstMonthRec.year, firstMonthRec.month, n);
+
+          if (reusableId) {
+            periodId = reusableId;
+          } else {
+            const period = await this.prisma.userSubBillingPeriod.create({
+              data: {
+                entryId: entry.id,
+                baseAmount: batch.baseAmount,
+                shipping: batch.shippingAmount ?? null,
+                monthsCovered: n,
+                coveredFromYear: firstMonthRec.year,
+                coveredFromMonth: firstMonthRec.month,
+                coveredToYear: lastMonthRec.year,
+                coveredToMonth: lastMonthRec.month,
+                paidCurrency: batch.currency,
+                billedAt: new Date(batch.billedAt),
+              },
+            });
+            periodId = period.id;
+          }
           billingPeriodIdByBatch.set(batchIdx, periodId);
         }
         await this.prisma.userPurchaseGroup.update({

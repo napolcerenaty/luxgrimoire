@@ -14,6 +14,7 @@ import { groupIntoBundles } from '@/lib/bundleHelpers'
 import {
   computeAutoBatches,
   resolveBackfillFallbackPrice,
+  resolveBatchMonthsCovered,
   computeFirstBillingMonth,
   isGrandfatheredExcluded,
   buildFirstBoxCandidates,
@@ -1598,13 +1599,18 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
 
   // ── "Yes" path: user-provided dates ──────────────────────────────────────
   type YesFee = { name: string; amount: string; currency: string; isCustom?: boolean }
-  type YesRow = { date: string; amount: string; shipping: string; fees: YesFee[]; discounts: { name: string; amount: string; currency: string }[] }
+  // monthsCovered: how many months THIS payment actually covers — left blank by default so it
+  // falls back to however many months got bucketed into this row by date. Only needs to be set
+  // explicitly when a row (typically the last one) covers months that haven't been announced yet
+  // as real SubscriptionMonth rows, so fewer months bucket into it than were actually paid for.
+  type YesRow = { date: string; amount: string; shipping: string; monthsCovered: string; fees: YesFee[]; discounts: { name: string; amount: string; currency: string }[] }
   const [yesRows, setYesRows] = useState<YesRow[]>(() => {
     const expected = Math.ceil(selectedMonthIds.length / (selectedPrepayOption?.months ?? 1))
     return Array.from({ length: Math.max(expected, 1) }, () => ({
       date: '',
       amount: '',
       shipping: '',
+      monthsCovered: '',
       fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })),
       discounts: [],
     }))
@@ -1625,9 +1631,9 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
     })))
   }, [feeTemplates])
 
-  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })), discounts: [] }]) }
+  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', monthsCovered: '', fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })), discounts: [] }]) }
   function removeRow(i: number) { setYesRows(prev => prev.filter((_, j) => j !== i)) }
-  function updateRow(i: number, field: 'date' | 'amount' | 'shipping', val: string) {
+  function updateRow(i: number, field: 'date' | 'amount' | 'shipping' | 'monthsCovered', val: string) {
     setYesRows(prev => prev.map((r, j) => j === i ? { ...r, [field]: val } : r))
   }
   function updateRowFee(rowIdx: number, feeIdx: number, field: 'name' | 'amount' | 'currency', val: string) {
@@ -1704,7 +1710,11 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
         return {
           billedAt: b.billingDate,
           baseAmount,
-          monthsCovered: b.monthIds.length,
+          // prepayMonths (not b.monthIds.length) — the amount is always the FULL N-month price
+          // (see computeAutoBatches: "Partial last batch — always use full period price"), so
+          // the trailing batch, which may have fewer SubscriptionMonth rows than N because later
+          // months haven't been announced yet, must still be divided by the true N.
+          monthsCovered: prepayMonths,
           currency: b.currency,
           monthIds: b.monthIds,
           ...(shippingAmt !== null && { shippingAmount: shippingAmt }),
@@ -1757,10 +1767,11 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           const shippingAmt = b.row.shipping ? parseDecimalInput(b.row.shipping) : null
           const rowFees = b.row.fees.filter(f => f.name && f.amount)
           const rowDiscounts = b.row.discounts.filter(d => d.name && d.amount)
+          const monthsCovered = resolveBatchMonthsCovered(b.row.monthsCovered, b.months.length)
           return {
             billedAt: b.row.date,
             baseAmount,
-            monthsCovered: b.months.length,
+            monthsCovered,
             currency,
             monthIds: b.months.map(m => m.id),
             ...(shippingAmt !== null && { shippingAmount: shippingAmt }),
@@ -2027,6 +2038,8 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           const autoAmount = row.date
             ? parseFloat(prepayPriceStr).toFixed(2)
             : null
+          const isLastRow = i === yesRows.length - 1
+          const looksIncomplete = isLastRow && !!selectedPrepayOption && batchMonths.length > 0 && batchMonths.length < selectedPrepayOption.months
           return (
             <div key={i} className="border border-navy-700 rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
@@ -2062,6 +2075,24 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                 />
                 <span className="text-xs text-navy-500">{currency}</span>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-navy-500 w-16 shrink-0">Months</span>
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  value={row.monthsCovered}
+                  onChange={e => updateRow(i, 'monthsCovered', e.target.value)}
+                  placeholder={String(batchMonths.length || 1)}
+                  className="w-24 bg-navy-800 border border-navy-600 rounded px-2 py-1 text-navy-100 text-xs"
+                />
+                <span className="text-xs text-navy-500">covered by this payment</span>
+              </div>
+              {looksIncomplete && !row.monthsCovered && (
+                <p className="text-[10px] text-amber-400 pl-18">
+                  Only {batchMonths.length} of this payment&apos;s boxes exist yet — if you paid for {selectedPrepayOption?.months}, set Months above so the price divides correctly.
+                </p>
+              )}
               {batchMonths.length > 0 && (
                 <p className="text-[10px] text-navy-500 pl-18">
                   Boxes: {batchMonths.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}

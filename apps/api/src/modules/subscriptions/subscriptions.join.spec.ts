@@ -11,6 +11,7 @@ import { ConflictException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionsService } from './subscriptions.service';
+import { RenewalCronService } from './renewal.cron';
 import { JoinSubscriptionDto } from './subscriptions.dto';
 
 const SUB_ID = 'sub-join-1';
@@ -771,6 +772,141 @@ describe('SubscriptionsService — joinSubscription', () => {
           data: expect.objectContaining({ editionId: 'ed-aug', bookId: 'book-aug', ownershipStatus: 'PREORDER' }),
         }),
       );
+    });
+  });
+
+  // ── recordFirstMonthAsPreorder — prepaid pricing ──
+  //
+  // Bug: the join-time preorder wrote entry.basePrice/shippingCost straight onto the purchase
+  // group with no division by entry.prepaidMonths (that field is the FULL N-month total the user
+  // paid upfront, not one month's cost), and never set UserBookEntry.basePrice at all — so a
+  // book's price silently fell back to the subscription's current MONTHLY price wherever it was
+  // later displayed. Fixed by routing prepaid entries through the same ensurePrepayBillingPeriod
+  // mechanism the renewal cron already used, dividing by prepaidMonths, and allocating the
+  // divided total across the month's books via resolvePerBookPrices (see subscriptions.service.ts
+  // recordFirstMonthAsPreorder / prepay-billing-period.util.ts).
+  describe('recordFirstMonthAsPreorder — prepaid pricing', () => {
+    function setupPrepaidJoin(entryOverrides: Record<string, unknown> = {}) {
+      jest.clearAllMocks();
+      const sub = makeSub({ paymentOnStartup: true, signupIncludesCurrentMonth: true, renewalDay: 15, renewalMonthOffset: 0 });
+      jest.spyOn(service, 'findBySlug').mockResolvedValueOnce(sub as any);
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.userSubscriptionEntry.create as jest.Mock).mockResolvedValueOnce(
+        makeEntry({
+          startDate: '2026-06-01',
+          renewalDay: null,
+          basePrice: '90.00',
+          shippingCost: '30.00',
+          prepaidMonths: 3,
+          scheduledPrepayOptionId: 'opt-1',
+          ...entryOverrides,
+        }),
+      );
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionSettingsHistory.findMany as jest.Mock).mockResolvedValue([]);
+
+      const augustMonth = { id: 'august-month', year: 2026, month: 8, signatureType: null, books: [{ editionId: 'ed-1', bookId: 'book-1', signatureType: null }] };
+      (prisma.subscriptionMonth.findFirst as jest.Mock).mockResolvedValue(augustMonth);
+      (prisma.userSubscriptionEntryFeeTemplate.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce({ billingPeriods: [] });
+      (prisma.userSubBillingPeriod.create as jest.Mock).mockResolvedValueOnce({ id: 'bp-join-1' });
+      (prisma.userPurchaseGroup.create as jest.Mock).mockResolvedValue({ id: 'group-1' });
+      (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'be-1' });
+      (prisma.ownershipStatusHistory.create as jest.Mock).mockResolvedValue({});
+    }
+
+    it('creates a UserSubBillingPeriod with monthsCovered = entry.prepaidMonths', async () => {
+      setupPrepaidJoin();
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+
+      expect(prisma.userSubBillingPeriod.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            monthsCovered: 3,
+            coveredFromYear: 2026,
+            coveredFromMonth: 8,
+            coveredToYear: 2026,
+            coveredToMonth: 10,
+            prepayOptionId: 'opt-1',
+          }),
+        }),
+      );
+    });
+
+    it('divides totalAmount and shippingAmount by prepaidMonths and links billingPeriodId', async () => {
+      setupPrepaidJoin();
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+
+      expect(prisma.userPurchaseGroup.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            totalAmount: 30, // 90.00 / 3
+            shippingAmount: 10, // 30.00 / 3
+            billingPeriodId: 'bp-join-1',
+          }),
+        }),
+      );
+    });
+
+    it('sets the divided price as the book entry basePrice (not left null)', async () => {
+      setupPrepaidJoin();
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+
+      // Single book in the month → its equal share of the divided 30.00 total is the full 30.00.
+      expect(prisma.userBookEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ basePrice: 30 }),
+        }),
+      );
+    });
+
+    it('regression: prepaidMonths=1 (monthly) does not create a billing period or divide the price', async () => {
+      setupPrepaidJoin({ prepaidMonths: 1, scheduledPrepayOptionId: null });
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+
+      expect(prisma.userSubBillingPeriod.create).not.toHaveBeenCalled();
+      expect(prisma.userPurchaseGroup.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ totalAmount: 90, shippingAmount: 30 }),
+        }),
+      );
+      const groupCallData = (prisma.userPurchaseGroup.create as jest.Mock).mock.calls[0][0].data;
+      expect(groupCallData.billingPeriodId).toBeUndefined();
+    });
+
+    it('integration: the renewal cron reuses the SAME period for the next month in the window instead of creating a second one', async () => {
+      setupPrepaidJoin();
+
+      await service.joinSubscription(USER_ID, SUB_SLUG, makeJoinDto({ startDate: '2026-06-01' }));
+      expect(prisma.userSubBillingPeriod.create).toHaveBeenCalledTimes(1);
+
+      // Simulate the cron processing September (month 2 of the same 3-month window). The period
+      // created by join above (Aug–Oct, monthsCovered=3) already has 1 slot filled (August).
+      const cronService = new RenewalCronService(prisma, { markStatsStale: jest.fn() } as any);
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce({
+        billingPeriods: [{
+          id: 'bp-join-1',
+          coveredFromYear: 2026,
+          coveredFromMonth: 8,
+          coveredToYear: 2026,
+          coveredToMonth: 10,
+          monthsCovered: 3,
+        }],
+      });
+      (prisma.userPurchaseGroup.count as jest.Mock).mockResolvedValueOnce(1);
+
+      await (cronService as any).ensurePrepayBillingPeriod(
+        ENTRY_ID, 2026, 9, new Date(Date.UTC(2026, 8, 15)),
+        { id: 'opt-1', months: 3, price: { toString: () => '90.00' }, currency: 'GBP' },
+      );
+
+      // Still only the one period created (by join) — the cron found and reused it.
+      expect(prisma.userSubBillingPeriod.create).toHaveBeenCalledTimes(1);
     });
   });
 

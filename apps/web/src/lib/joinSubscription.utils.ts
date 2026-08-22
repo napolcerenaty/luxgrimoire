@@ -264,6 +264,25 @@ export function computeAutoBatches(
   return batches
 }
 
+// ── resolveBatchMonthsCovered ──────────────────────────────────────────────────
+
+/**
+ * Resolves how many months a manual ("yes" path) backfill row actually covers, for the
+ * billingBatches payload sent to the backend.
+ *
+ * A row's months are normally bucketed automatically by date (bucketedMonthCount — how many
+ * SubscriptionMonth rows happen to fall between this row's date and the next one's). That
+ * undercounts a row that covers months which haven't been announced yet as real
+ * SubscriptionMonth rows (typically the last row) — the row still covers however many months
+ * were actually paid for, just fewer of them currently exist to bucket into it. The user can
+ * override the count explicitly per row; an empty/invalid override falls back to the bucketed
+ * count, preserving today's behavior for every row that doesn't need one.
+ */
+export function resolveBatchMonthsCovered(rowMonthsCovered: string, bucketedMonthCount: number): number {
+  const parsed = parseInt(rowMonthsCovered, 10)
+  return rowMonthsCovered !== '' && !Number.isNaN(parsed) && parsed > 0 ? parsed : bucketedMonthCount
+}
+
 // ── First-box picker (previous / current / next) ─────────────────────────────
 
 export interface BoxUnitMonth {

@@ -44,6 +44,7 @@ import {
   lookupPrepayPriceAt,
   resolveBackfillFallbackPrice,
   computeAutoBatches,
+  resolveBatchMonthsCovered,
   computeFirstBillingMonth,
   isGrandfatheredExcluded,
   buildFirstBoxCandidates,
@@ -266,6 +267,32 @@ describe('computeAutoBatches', () => {
     expect(batches).toHaveLength(2)
     expect(batches[0].amount).toBe('79.99')  // Jan 2025 batch → old price still valid
     expect(batches[1].amount).toBe('89.99')  // Apr 2025 batch → new price
+  })
+})
+
+// ── resolveBatchMonthsCovered ──────────────────────────────────────────────────
+
+describe('resolveBatchMonthsCovered', () => {
+  it('falls back to the bucketed month count when no override is given', () => {
+    expect(resolveBatchMonthsCovered('', 2)).toBe(2)
+  })
+
+  it('uses the user-provided override when present', () => {
+    // Last row: paid for 3 months, but only 2 exist as SubscriptionMonth rows yet.
+    expect(resolveBatchMonthsCovered('3', 2)).toBe(3)
+  })
+
+  it('falls back to the bucketed count for a non-numeric override', () => {
+    expect(resolveBatchMonthsCovered('abc', 2)).toBe(2)
+  })
+
+  it('falls back to the bucketed count for a zero or negative override', () => {
+    expect(resolveBatchMonthsCovered('0', 2)).toBe(2)
+    expect(resolveBatchMonthsCovered('-1', 2)).toBe(2)
+  })
+
+  it('a full (non-trailing) row with no override keeps using its own bucketed count', () => {
+    expect(resolveBatchMonthsCovered('', 3)).toBe(3)
   })
 })
 

@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { refreshNextRenewalDate, renewalMonthFromBoxMonth } from '../../common/utils/renewal-date.util';
 import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
 import { resolveEffectivePrepayOption, PrepayOptionCandidate } from './prepay-option.util';
+import { ensurePrepayBillingPeriod as ensurePrepayBillingPeriodUtil } from './prepay-billing-period.util';
 import { recordOwnershipHistory } from '../../common/utils/ownership-history.util';
 import { StatsService } from '../stats/stats.service';
 import { ScheduledRemindersService } from '../notifications/scheduled-reminders.service';
@@ -272,44 +273,7 @@ export class RenewalCronService {
     renewalDate: Date,
     option: { id: string; months: number; price: { toString(): string }; currency: string },
   ): Promise<void> {
-    const fullEntry = await this.prisma.userSubscriptionEntry.findUnique({
-      where: { id: entryId },
-      select: { billingPeriods: { orderBy: { billedAt: 'asc' } } },
-    });
-
-    const cur = year * 12 + month;
-    for (const period of fullEntry?.billingPeriods ?? []) {
-      const fromY = period.coveredFromYear, fromM = period.coveredFromMonth;
-      const toY = period.coveredToYear ?? fromY, toM = period.coveredToMonth ?? fromM;
-      if (cur >= fromY * 12 + fromM && cur <= toY * 12 + toM) {
-        const slotsFilled = await this.prisma.userPurchaseGroup.count({
-          where: { subscriptionEntryId: entryId, billingPeriodId: period.id },
-        });
-        if (slotsFilled < period.monthsCovered) {
-          return; // Active period with slots available already exists
-        }
-      }
-    }
-
-    // No active period covers this month — create one for the next N months
-    const endAbsMonth = month + option.months - 1;
-    const coveredToYear = year + Math.floor((endAbsMonth - 1) / 12);
-    const coveredToMonth = ((endAbsMonth - 1) % 12) + 1;
-
-    await this.prisma.userSubBillingPeriod.create({
-      data: {
-        entryId,
-        baseAmount: option.price.toString(),
-        monthsCovered: option.months,
-        paidCurrency: option.currency,
-        coveredFromYear: year,
-        coveredFromMonth: month,
-        coveredToYear,
-        coveredToMonth,
-        billedAt: renewalDate,
-        prepayOptionId: option.id,
-      },
-    });
+    await ensurePrepayBillingPeriodUtil(this.prisma, entryId, year, month, renewalDate, option);
   }
 
   /**
