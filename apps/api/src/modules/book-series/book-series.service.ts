@@ -25,7 +25,11 @@ function compareVolumeNumbers(a: number[], b: number[]): number {
  * (e.g. straight ' vs curly ’, hyphen - vs en dash – vs em dash —) plus repeated whitespace, so
  * two names differing only by that are recognised as the same series instead of silently
  * creating a duplicate. A real instance of this (apostrophes) split one series' books across
- * two rows — see migration 20260721100000_merge_duplicate_dragons_gift_trilogy_series. */
+ * two rows — see migration 20260721100000_merge_duplicate_dragons_gift_trilogy_series.
+ *
+ * Also strips a single leading article ("the"/"a"/"an") — different sources are inconsistent
+ * about including it (e.g. "The Ashes of Thezmarr" vs "Ashes of Thezmarr"), and without this a
+ * series can end up duplicated across two rows differing only by that leading word. */
 function normalizeSeriesName(name: string): string {
   return name
     .normalize('NFKC')
@@ -34,7 +38,8 @@ function normalizeSeriesName(name: string): string {
     .replace(/[‐‑‒–—―−]/g, '-')
     .replace(/\s+/g, ' ')
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/^(the|an?)\s+/, '');
 }
 
 @Injectable()
