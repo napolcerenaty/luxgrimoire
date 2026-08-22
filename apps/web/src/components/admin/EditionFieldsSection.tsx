@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle, type Ref } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { Trash2 } from 'lucide-react'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
@@ -823,7 +823,7 @@ export function EditionFieldsSection({
 
       {/* Photo credit + Images */}
       <div>
-        <label className={LBL}>Photo by (IG handle)</label>
+        <label className={LBL}>Photo by (IG handle) <span className="text-navy-600 font-normal normal-case tracking-normal">(leave blank if there's no dedicated photographer — the company's own handle is credited automatically)</span></label>
         <input value={photoCredit} onChange={e => onPhotoCreditChange(e.target.value)}
           placeholder="@username" className={INP} />
       </div>
@@ -856,13 +856,13 @@ export function EditionFieldsSection({
                   {art.id ? (
                     <div className="flex items-center gap-1.5 bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-sm text-navy-200">
                       {!art.existing && art.id && <span className="text-brand-400 text-[9px] font-semibold uppercase">new</span>}
-                      <span className="flex-1">{art.name}</span>
+                      <span className="flex-1 truncate">{art.name}</span>
                       <button
                         onClick={() => {
                           if (art.existing && art.id) onRemoveExistingArtist?.(art.id)
                           onArtistsChange?.(artists.map((x, j) => j === i ? { ...x, id: undefined, name: '', existing: false, contributionId: undefined } : x))
                         }}
-                        className="text-navy-500 hover:text-red-400 text-xs">×</button>
+                        className="text-navy-500 hover:text-red-400 text-xs shrink-0">×</button>
                     </div>
                   ) : art.name ? (
                     <div className="flex items-center gap-1.5 bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-sm text-navy-200">

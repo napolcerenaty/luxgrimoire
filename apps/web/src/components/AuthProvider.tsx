@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { API_BASE } from '@/lib/authFetch'
 
-interface AuthUser {
+export interface AuthUser {
   id: string
   email: string
   username: string
@@ -19,6 +19,10 @@ interface AuthUser {
   shippingCountry?: string | null
   bio?: string | null
   onboardingCompletedAt?: string | null
+  termsAcceptedAt?: string | null
+  termsVersion?: string | null
+  privacyAcceptedAt?: string | null
+  privacyVersion?: string | null
   statsSettings?: {
     spending: boolean
     sales: boolean

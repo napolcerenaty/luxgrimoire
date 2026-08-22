@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Bell, RefreshCw, X } from 'lucide-react'
-import { hexLuminance, pillStyle, withHighlightGlow, highlightDotShadow } from '@/lib/calendarPills'
+import { hexLuminance, pillStyle, withHighlightGlow, highlightDotShadow, GLOW_GOLD, GLOW_RED } from '@/lib/calendarPills'
 import { SalePillBell } from '@/components/calendar/SalePillBell'
 
 // Max pills (renewals + sales combined) rendered inline per desktop day cell before the rest
@@ -62,6 +62,11 @@ interface CalendarGridProps {
    *  the producer can update its own "mine" highlight state immediately, instead of waiting on
    *  a query refetch that may lag behind (or never visibly land, if the click also navigates). */
   onSaleInterestToggle?: (tierId: string, isInterested: boolean) => void
+  /** Shows a small legend explaining the gold/red highlight ring — only meaningful for embeds
+   *  whose renewalsForDay/salesForDay actually set `highlight` (the public global calendar).
+   *  Off by default so embeds that never highlight anything (the private per-user calendar,
+   *  the single-sale mini calendar) don't show an explanation for a color that never appears. */
+  showHighlightLegend?: boolean
 }
 
 /** Shared month-nav + 7x6 day grid + mobile tap-agenda, reused by the private per-user
@@ -79,8 +84,17 @@ export default function CalendarGrid({
   salesForDay,
   interestEnabled = false,
   onSaleInterestToggle,
+  showHighlightLegend = false,
 }: CalendarGridProps) {
-  const today = new Date()
+  // Computed post-mount, not during render: comparing against `new Date()` at
+  // render time diverges between the SSR pass and the client hydration pass
+  // (different "now"), flipping the "today" ring/highlight class and causing
+  // Sentry Hydration Error. Starting at null on both passes (isToday() always
+  // false) keeps the first client render identical to SSR.
+  const [today, setToday] = useState<Date | null>(null)
+  useEffect(() => {
+    setToday(new Date())
+  }, [])
 
   const [tooltip, setTooltip] = useState<{
     label: string
@@ -129,7 +143,7 @@ export default function CalendarGrid({
   }, [year, month0])
 
   const isToday = (day: number) =>
-    day === today.getDate() && month0 === today.getMonth() && year === today.getFullYear()
+    today !== null && day === today.getDate() && month0 === today.getMonth() && year === today.getFullYear()
 
   const openTooltip = (e: React.MouseEvent, label: string, hue: number, type: 'renewal' | 'sale', subtitle?: string) => {
     if (tooltipTimer.current) clearTimeout(tooltipTimer.current)
@@ -163,6 +177,19 @@ export default function CalendarGrid({
           <ChevronRight size={18} />
         </button>
       </div>
+
+      {showHighlightLegend && (
+        <div className="flex items-center gap-4 text-[10px] text-navy-500 -mt-2">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ boxShadow: `0 0 0 1.5px ${GLOW_GOLD}` }} />
+            Yours
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ boxShadow: `0 0 0 1.5px ${GLOW_RED}` }} />
+            You&apos;ll skip this one
+          </span>
+        </div>
+      )}
 
       {/* Calendar grid */}
       <div className="bg-navy-900 border border-navy-800 rounded-xl overflow-hidden">
@@ -306,7 +333,15 @@ export default function CalendarGrid({
                             <Bell size={9} className="shrink-0" />
                           )}
                           <span className="truncate">{s.label}</span>
-                          {s.stageBadge && <span className="opacity-50 text-[8px] shrink-0">{s.stageBadge}</span>}
+                          {s.stageBadge && (
+                            <span
+                              className="opacity-50 text-[8px] shrink-0"
+                              title={`Sale stage: ${s.stageBadge}`}
+                              aria-label={`Sale stage: ${s.stageBadge}`}
+                            >
+                              {s.stageBadge}
+                            </span>
+                          )}
                         </span>
                         {s.companyName && totalEvents <= 3 && (
                           <span className="truncate opacity-60 pl-3">{s.companyName}</span>
@@ -379,6 +414,7 @@ export default function CalendarGrid({
               </h3>
               <button
                 onClick={() => setSelectedDay(null)}
+                aria-label="Close day details"
                 className="p-1 text-navy-500 hover:text-navy-300 transition-colors shrink-0"
               >
                 <X size={14} />
@@ -430,7 +466,16 @@ export default function CalendarGrid({
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium leading-snug">
-                          {s.label}{s.stageBadge && <span className="opacity-50 text-xs ml-1">{s.stageBadge}</span>}
+                          {s.label}
+                          {s.stageBadge && (
+                            <span
+                              className="opacity-50 text-xs ml-1"
+                              title={`Sale stage: ${s.stageBadge}`}
+                              aria-label={`Sale stage: ${s.stageBadge}`}
+                            >
+                              {s.stageBadge}
+                            </span>
+                          )}
                         </p>
                         <p className="text-xs opacity-70">
                           {s.tierName}{s.time ? ` · ${s.time}` : ''}{s.companyName ? ` · ${s.companyName}` : ''}

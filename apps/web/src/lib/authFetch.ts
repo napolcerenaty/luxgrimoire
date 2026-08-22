@@ -17,7 +17,13 @@ export async function authFetch<T>(path: string, options?: RequestInit): Promise
   })
   if (!res.ok) {
     const err = await res.text()
-    if ((res.status === 401 || res.status === 403) && typeof window !== 'undefined') {
+    // 401 means the session itself is invalid/expired -- bounce to login. 403 means the user
+    // IS authenticated but lacks permission for this specific action (wrong role, doesn't own
+    // the resource, etc.) -- that must surface as an error for the caller to show, never a
+    // forced logout. Thrown across the app by RolesGuard and many ownership checks
+    // (assert-ownership.util.ts, assert-company-access.util.ts, service-level checks), so this
+    // distinction matters everywhere, not just one page.
+    if (res.status === 401 && typeof window !== 'undefined') {
       window.location.href = '/login'
     }
     throw new Error(err)

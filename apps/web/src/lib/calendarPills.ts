@@ -85,8 +85,8 @@ export function pillStyle(
 // Same color language as the site-wide edition-glow-gold/red classes (globals.css) — 'mine'
 // (subscribed / tracked interest) and 'skipped' (subscribed but not renewing/attending this
 // occurrence), adapted to a thin ring since calendar pills are far smaller than a card.
-const GLOW_GOLD = 'rgba(212,175,55,0.9)'
-const GLOW_RED = 'rgba(220,38,38,0.9)'
+export const GLOW_GOLD = 'rgba(212,175,55,0.9)'
+export const GLOW_RED = 'rgba(220,38,38,0.9)'
 
 export function withHighlightGlow(
   style: CSSProperties,

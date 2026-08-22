@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authFetch, API_BASE } from '@/lib/authFetch'
 import Image from 'next/image'
@@ -422,6 +423,84 @@ function savePrefs(prefs: { filter: FilterMode; sortOrder: SortOrder; viewMode: 
   try { localStorage.setItem(COLLECTION_PREFS_KEY, JSON.stringify(prefs)) } catch { /* ignore */ }
 }
 
+// Status badges live inside a whole-card <Link>/<a>, so an absolutely-positioned
+// menu anchored to the badge can overlap the card's own title (same-card nav) or
+// the next card/row (wrong-card nav) once the menu is taller than the remaining
+// space. Rendering the menu through a portal removes it from that Link's DOM
+// subtree entirely, so a click on it can never resolve to a card's navigation.
+function StatusBadgeDropdown({
+  id,
+  openDropdown,
+  setOpenDropdown,
+  badgeClassName,
+  badgeTitle,
+  children,
+  options,
+}: {
+  id: string
+  openDropdown: string | null
+  setOpenDropdown: (updater: string | null | ((prev: string | null) => string | null)) => void
+  badgeClassName: string
+  badgeTitle?: string
+  children: React.ReactNode
+  options: { value: string; label: React.ReactNode; onSelect: () => void }[]
+}) {
+  const triggerRef = useRef<HTMLSpanElement>(null)
+  const isOpen = openDropdown === id
+  const [pos, setPos] = useState<{ left: number; top: number; openUp: boolean } | null>(null)
+
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const estimatedHeight = options.length * 28 + 8
+    const openUp = window.innerHeight - rect.bottom < estimatedHeight && rect.top > estimatedHeight
+    setPos({ left: rect.left, top: openUp ? rect.top - 4 : rect.bottom + 4, openUp })
+  }, [isOpen, options.length])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const close = () => setOpenDropdown(null)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [isOpen, setOpenDropdown])
+
+  return (
+    <div className="relative" data-dropdown>
+      <span
+        ref={triggerRef}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === id ? null : id) }}
+        className={badgeClassName}
+        title={badgeTitle}
+      >
+        {children}
+      </span>
+      {isOpen && pos && typeof document !== 'undefined' && createPortal(
+        <div
+          data-dropdown
+          style={{ position: 'fixed', left: pos.left, top: pos.top, transform: pos.openUp ? 'translateY(-100%)' : undefined }}
+          className="z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden"
+        >
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); opt.onSelect(); setOpenDropdown(null) }}
+              className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </div>
+  )
+}
+
 export default function CollectionPage() {
   const queryClient = useQueryClient()
   const getBrandColors = useBrandColors()
@@ -580,6 +659,25 @@ export default function CollectionPage() {
       setLoadingMore(false)
     }
   }
+
+  // Grouped views (by book/series/year/author/company) only group what's currently loaded —
+  // with the collection paginated at 100/page, an item past page 1 silently disappears from
+  // its group (or from the whole view) until "Show more" is clicked. Auto-load the rest of
+  // the collection while a grouped mode is active so grouping always reflects everything.
+  const isGroupedFilterMode = filter === 'BOOK' || filter === 'SERIES' || filter === 'YEAR' || filter === 'AUTHOR' || filter === 'COMPANY'
+  useEffect(() => {
+    if (!isGroupedFilterMode) return
+    if (hasActiveFilters) {
+      if (!loadingMoreFiltered && filteredEntries.length > 0 && filteredEntries.length < filteredTotal) {
+        void loadMoreFiltered()
+      }
+    } else {
+      if (!loadingMore && allEntries.length > 0 && allEntries.length < collectionTotal) {
+        void loadMoreCollection()
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGroupedFilterMode, hasActiveFilters, allEntries.length, collectionTotal, loadingMore, filteredEntries.length, filteredTotal, loadingMoreFiltered])
 
   const { data: allUserTags = [] } = useQuery({
     queryKey: ['collection-tags'],
@@ -830,7 +928,7 @@ export default function CollectionPage() {
     return [sorted]
   })()
 
-  const isGroupedView = filter === 'BOOK' || filter === 'SERIES' || filter === 'YEAR' || filter === 'AUTHOR' || filter === 'COMPANY'
+  const isGroupedView = isGroupedFilterMode
 
   // Most groups only ever have one entry — giving each of those its own header + near-empty
   // row produces a long, sparse list (same rationale as the "boxes by month" grouping). Only
@@ -1158,98 +1256,81 @@ export default function CollectionPage() {
                         <div className="flex flex-col gap-1 mt-1">
                           <div className="flex items-center gap-1 flex-wrap">
                             {/* Ownership status badge */}
-                            <div
-                              className="relative"
-                              data-dropdown
+                            <StatusBadgeDropdown
+                              id={`${entry.id}-ownership`}
+                              openDropdown={openDropdown}
+                              setOpenDropdown={setOpenDropdown}
+                              badgeClassName={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
+                                entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
+                                entry.ownershipStatus === 'PREORDER' ? 'text-brand-600 bg-brand-500/20 border-brand-500/40' :
+                                entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
+                                (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
+                                'text-navy-500 bg-navy-500/10 border-navy-500/30'
+                              }`}
+                              options={(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => ({
+                                value: val,
+                                label: fmtStatus(val),
+                                onSelect: () => {
+                                  void authFetch(`/collection/${entry.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ ownershipStatus: val }),
+                                  }).then(() => void invalidateCollectionQueries())
+                                },
+                              }))}
                             >
-                              <span
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-ownership` ? null : `${entry.id}-ownership`) }}
-                                className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
-                                  entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
-                                  entry.ownershipStatus === 'PREORDER' ? 'text-brand-600 bg-brand-500/20 border-brand-500/40' :
-                                  entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
-                                  (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
-                                  'text-navy-500 bg-navy-500/10 border-navy-500/30'
-                                }`}
-                              >
-                                {fmtStatus(entry.ownershipStatus)}
-                              </span>
-                              {openDropdown === `${entry.id}-ownership` && (
-                                <div className="absolute bottom-full left-0 mb-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl w-28 overflow-hidden">
-                                  {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => (
-                                    <button
-                                      key={val}
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault()
-                                        e.stopPropagation()
-                                        void authFetch(`/collection/${entry.id}`, {
-                                          method: 'PATCH',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({ ownershipStatus: val }),
-                                        }).then(() => void invalidateCollectionQueries())
-                                        setOpenDropdown(null)
-                                      }}
-                                      className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
-                                    >
-                                      {fmtStatus(val)}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                              {fmtStatus(entry.ownershipStatus)}
+                            </StatusBadgeDropdown>
 
                             {/* Reading status badge */}
-                            <div
-                              className="relative"
-                              data-dropdown
+                            <StatusBadgeDropdown
+                              id={`${entry.id}-reading`}
+                              openDropdown={openDropdown}
+                              setOpenDropdown={setOpenDropdown}
+                              badgeClassName={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
+                                entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
+                                entry.readingStatus === 'READING' ? 'text-brand-400 bg-brand-500/10 border-brand-500/30' :
+                                entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
+                                'text-navy-500 bg-navy-500/10 border-navy-500/30'
+                              }`}
+                              options={(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => ({
+                                value: val,
+                                label: val,
+                                onSelect: () => {
+                                  void authFetch(`/collection/${entry.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ readingStatus: val }),
+                                  }).then(() => void invalidateCollectionQueries())
+                                },
+                              }))}
                             >
-                              <span
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-reading` ? null : `${entry.id}-reading`) }}
-                                className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
-                                  entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
-                                  entry.readingStatus === 'READING' ? 'text-brand-400 bg-brand-500/10 border-brand-500/30' :
-                                  entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
-                                  'text-navy-500 bg-navy-500/10 border-navy-500/30'
-                                }`}
-                              >
-                                {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : entry.readingStatus === 'READING' ? 'READING' : 'UNREAD'}
-                              </span>
-                              {openDropdown === `${entry.id}-reading` && (
-                                <div className="absolute bottom-full left-0 mb-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                  {(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => (
-                                    <button
-                                      key={val}
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault()
-                                        e.stopPropagation()
-                                        void authFetch(`/collection/${entry.id}`, {
-                                          method: 'PATCH',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({ readingStatus: val }),
-                                        }).then(() => void invalidateCollectionQueries())
-                                        setOpenDropdown(null)
-                                      }}
-                                      className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
-                                    >
-                                      {val}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                              {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : entry.readingStatus === 'READING' ? 'READING' : 'UNREAD'}
+                            </StatusBadgeDropdown>
 
                             {entry.condition && (
                               <Badge variant={CONDITION_COLORS[entry.condition] ?? 'default'}>
                                 {entry.condition.replace('_', ' ')}
                               </Badge>
                             )}
-                            {entry.signatureType && entry.signatureType !== 'unsigned' && (
-                              <div className="relative" data-dropdown>
-                                <span
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-sig-grid` ? null : `${entry.id}-sig-grid`) }}
-                                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
+                            {(() => {
+                              const sigOptions = (['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => ({
+                                value: val,
+                                label: val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed',
+                                onSelect: () => {
+                                  void authFetch(`/collection/${entry.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ signatureType: val }),
+                                  }).then(() => void invalidateCollectionQueries())
+                                },
+                              }))
+                              return entry.signatureType && entry.signatureType !== 'unsigned' ? (
+                                <StatusBadgeDropdown
+                                  id={`${entry.id}-sig-grid`}
+                                  openDropdown={openDropdown}
+                                  setOpenDropdown={setOpenDropdown}
+                                  badgeClassName={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
                                     entry.signatureType === 'signed'
                                       ? 'text-purple-400 bg-purple-500/10 border-purple-500/30'
                                       : entry.signatureType === 'signed_bookplate'
@@ -1260,38 +1341,23 @@ export default function CollectionPage() {
                                       ? 'text-teal-400 bg-teal-500/10 border-teal-500/30'
                                       : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
                                   }`}
+                                  options={sigOptions}
                                 >
                                   {entry.signatureType === 'signed' ? '✍️ SIGNED' : entry.signatureType === 'signed_bookplate' ? '🏷️ BOOKPLATE' : entry.signatureType === 'autopen' ? '✒️ AUTOPEN' : entry.signatureType === 'stamped' ? '🕹️ STAMPED' : '🖨️ DIGITALLY SIGNED'}
-                                </span>
-                                {openDropdown === `${entry.id}-sig-grid` && (
-                                  <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                    {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
-                                      <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
-                                        className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
-                                      >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            {(!entry.signatureType || entry.signatureType === 'unsigned') && (
-                              <div className="relative" data-dropdown>
-                                <span
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-sig-grid` ? null : `${entry.id}-sig-grid`) }}
-                                  className="text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none text-navy-600 bg-navy-800 border-navy-700"
-                                  title="Set signature type"
-                                >UNSIGNED</span>
-                                {openDropdown === `${entry.id}-sig-grid` && (
-                                  <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                    {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
-                                      <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
-                                        className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
-                                      >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                                </StatusBadgeDropdown>
+                              ) : (
+                                <StatusBadgeDropdown
+                                  id={`${entry.id}-sig-grid`}
+                                  openDropdown={openDropdown}
+                                  setOpenDropdown={setOpenDropdown}
+                                  badgeClassName="text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none text-navy-600 bg-navy-800 border-navy-700"
+                                  badgeTitle="Set signature type"
+                                  options={sigOptions}
+                                >
+                                  UNSIGNED
+                                </StatusBadgeDropdown>
+                              )
+                            })()}
                             {entry.saleAnnouncementEdition?.isReprint && (
                               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border text-brand-400 bg-brand-500/10 border-brand-500/30">
                                 🔁 REPRINT
@@ -1473,72 +1539,78 @@ export default function CollectionPage() {
                         {/* Badges */}
                         <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
                           {/* Ownership */}
-                          <div className="relative" data-dropdown>
-                            <span
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-ownership` ? null : `${entry.id}-ownership`) }}
-                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
-                                entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
-                                entry.ownershipStatus === 'PREORDER' ? 'text-brand-600 bg-brand-500/20 border-brand-500/40' :
-                                entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
-                                (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
-                                'text-navy-500 bg-navy-500/10 border-navy-500/30'
-                              }`}
-                            >
-                              {fmtStatus(entry.ownershipStatus)}
-                            </span>
-                            {openDropdown === `${entry.id}-ownership` && (
-                              <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl w-28 overflow-hidden">
-                                {(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => (
-                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownershipStatus: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
-                                    className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
-                                  >{fmtStatus(val)}</button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                          <StatusBadgeDropdown
+                            id={`${entry.id}-ownership`}
+                            openDropdown={openDropdown}
+                            setOpenDropdown={setOpenDropdown}
+                            badgeClassName={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
+                              entry.ownershipStatus === 'OWNED' ? 'text-green-700 bg-green-500/20 border-green-500/40' :
+                              entry.ownershipStatus === 'PREORDER' ? 'text-brand-600 bg-brand-500/20 border-brand-500/40' :
+                              entry.ownershipStatus === 'TO_SELL' ? 'text-purple-600 bg-purple-500/20 border-purple-500/40' :
+                              (entry.ownershipStatus === 'SHIPPING' || entry.ownershipStatus === 'SHIPPED') ? 'text-blue-600 bg-blue-500/20 border-blue-500/40' :
+                              'text-navy-500 bg-navy-500/10 border-navy-500/30'
+                            }`}
+                            options={(['PREORDER', 'SHIPPING', 'OWNED', 'BORROWED', 'LENDED', 'TO_SELL', 'SOLD'] as const).map((val) => ({
+                              value: val,
+                              label: fmtStatus(val),
+                              onSelect: () => {
+                                void authFetch(`/collection/${entry.id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ ownershipStatus: val }),
+                                }).then(() => void invalidateCollectionQueries())
+                              },
+                            }))}
+                          >
+                            {fmtStatus(entry.ownershipStatus)}
+                          </StatusBadgeDropdown>
 
                           {/* Reading status */}
-                          <div className="relative" data-dropdown>
-                            <span
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-reading` ? null : `${entry.id}-reading`) }}
-                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
-                                entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
-                                entry.readingStatus === 'READING' ? 'text-brand-400 bg-brand-500/10 border-brand-500/30' :
-                                entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
-                                'text-navy-500 bg-navy-500/10 border-navy-500/30'
-                              }`}
-                            >
-                              {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : entry.readingStatus === 'READING' ? 'READING' : 'UNREAD'}
-                            </span>
-                            {openDropdown === `${entry.id}-reading` && (
-                              <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                {(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => (
-                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ readingStatus: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
-                                    className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
-                                  >{val}</button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                          <StatusBadgeDropdown
+                            id={`${entry.id}-reading`}
+                            openDropdown={openDropdown}
+                            setOpenDropdown={setOpenDropdown}
+                            badgeClassName={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${
+                              entry.readingStatus === 'READ' ? 'text-teal-600 bg-teal-500/20 border-teal-500/40' :
+                              entry.readingStatus === 'READING' ? 'text-brand-400 bg-brand-500/10 border-brand-500/30' :
+                              entry.readingStatus === 'DNF' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
+                              'text-navy-500 bg-navy-500/10 border-navy-500/30'
+                            }`}
+                            options={(['READ', 'READING', 'UNREAD', 'DNF'] as const).map((val) => ({
+                              value: val,
+                              label: val,
+                              onSelect: () => {
+                                void authFetch(`/collection/${entry.id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ readingStatus: val }),
+                                }).then(() => void invalidateCollectionQueries())
+                              },
+                            }))}
+                          >
+                            {entry.readingStatus === 'DNF' ? 'DNF' : entry.readingStatus === 'READ' ? 'READ' : entry.readingStatus === 'READING' ? 'READING' : 'UNREAD'}
+                          </StatusBadgeDropdown>
 
                           {/* Signature type */}
-                          <div className="relative" data-dropdown>
-                            <span
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(prev => prev === `${entry.id}-sig` ? null : `${entry.id}-sig`) }}
-                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${entry.signatureType && entry.signatureType !== 'unsigned' ? (entry.signatureType === 'signed' ? 'text-purple-400 bg-purple-500/10 border-purple-500/30' : entry.signatureType === 'stamped' ? 'text-teal-400 bg-teal-500/10 border-teal-500/30' : 'text-navy-400 bg-navy-500/10 border-navy-500/30') : 'text-navy-600 bg-navy-800 border-navy-700'}`}
-                            >
-                              {entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : entry.signatureType === 'digitally_signed' ? '🖨️' : entry.signatureType === 'stamped' ? '🕹️' : '—'}
-                            </span>
-                            {openDropdown === `${entry.id}-sig` && (
-                              <div className="absolute top-full left-0 mt-1 z-50 bg-navy-900 border border-navy-700 rounded-lg shadow-xl min-w-max overflow-hidden">
-                                {(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => (
-                                  <button key={val} type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void authFetch(`/collection/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureType: val }) }).then(() => void invalidateCollectionQueries()); setOpenDropdown(null) }}
-                                    className="w-full text-left text-xs px-2 py-1 hover:bg-navy-700 text-navy-200 transition-colors"
-                                  >{val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed'}</button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                          <StatusBadgeDropdown
+                            id={`${entry.id}-sig`}
+                            openDropdown={openDropdown}
+                            setOpenDropdown={setOpenDropdown}
+                            badgeClassName={`text-[10px] font-medium px-1.5 py-0.5 rounded border cursor-pointer select-none ${entry.signatureType && entry.signatureType !== 'unsigned' ? (entry.signatureType === 'signed' ? 'text-purple-400 bg-purple-500/10 border-purple-500/30' : entry.signatureType === 'stamped' ? 'text-teal-400 bg-teal-500/10 border-teal-500/30' : 'text-navy-400 bg-navy-500/10 border-navy-500/30') : 'text-navy-600 bg-navy-800 border-navy-700'}`}
+                            options={(['unsigned', 'signed', 'signed_bookplate', 'autopen', 'digitally_signed', 'stamped'] as const).map((val) => ({
+                              value: val,
+                              label: val === 'unsigned' ? 'No signature' : val === 'signed' ? '✍️ Signed' : val === 'signed_bookplate' ? '🏷️ Bookplate' : val === 'autopen' ? '✒️ Autopen' : val === 'stamped' ? '🕹️ Stamped' : '🖨️ Digitally Signed',
+                              onSelect: () => {
+                                void authFetch(`/collection/${entry.id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ signatureType: val }),
+                                }).then(() => void invalidateCollectionQueries())
+                              },
+                            }))}
+                          >
+                            {entry.signatureType === 'signed' ? '✍️' : entry.signatureType === 'signed_bookplate' ? '🏷️' : entry.signatureType === 'autopen' ? '✒️' : entry.signatureType === 'digitally_signed' ? '🖨️' : entry.signatureType === 'stamped' ? '🕹️' : '—'}
+                          </StatusBadgeDropdown>
                         </div>
 
                         {/* Date & cost */}

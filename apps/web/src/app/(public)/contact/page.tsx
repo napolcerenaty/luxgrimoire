@@ -23,6 +23,7 @@ export default function ContactPage() {
             description: `Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`,
             category: 'OTHER',
             pageUrl: typeof window !== 'undefined' ? window.location.href : undefined,
+            contactEmail: form.email,
           }),
         },
       )

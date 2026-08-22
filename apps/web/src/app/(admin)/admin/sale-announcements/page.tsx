@@ -1189,7 +1189,7 @@ function SaleAnnouncementForm({ initial, onSubmit, submitting, submitLabel, isCr
 
       {/* Photo Credit */}
       <div>
-        <label className={LBL}>Photo by (IG handler)</label>
+        <label className={LBL}>Photo by (IG handler) <span className="text-navy-600 font-normal">(leave blank if there's no dedicated photographer — the company's own handle is credited automatically)</span></label>
         <input className={INP} value={form.photoCredit} onChange={set('photoCredit')} placeholder="@photographer" />
       </div>
 

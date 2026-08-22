@@ -116,6 +116,11 @@ function matchesSearch(item: BookByMonthItem, query: string): boolean {
 
 export function BooksByMonthClient() {
   const { user } = useAuth()
+  // Known low-risk hydration edge case: this initializer runs independently on the
+  // SSR pass and the client hydration pass, so if a request straddles midnight on
+  // the last day of a month, the two could disagree on "this month". Deferred —
+  // fixing it for real means passing a server-computed initialYear/initialMonth
+  // down from this component's Server Component parent. Revisit if it shows up in Sentry.
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)

@@ -7,6 +7,7 @@ import { ImageCarousel } from '@/components/ui/ImageCarousel'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { SaleAnnouncementContent } from '@/components/sales/SaleAnnouncementContent'
 import { ExternalLink } from 'lucide-react'
+import { buildPhotoCredits } from '@/lib/photoCredit'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -56,26 +57,25 @@ export default async function SaleAnnouncementPage({ params }: Props) {
               </p>
             </div>
           )}
-          {sale.photoCredit && (() => {
-            const credits: { handle: string; role: string | null }[] = []
-            const regex = /@([\w.]+)(?:\s*\(([^)]+)\))?/g
-            let m: RegExpExecArray | null
-            while ((m = regex.exec(sale.photoCredit!)) !== null) {
-              credits.push({ handle: m[1], role: m[2] ?? null })
-            }
-            if (credits.length === 0) return null
+          {(() => {
+            const credits = buildPhotoCredits(sale.photoCredit, sale.company?.instagram)
             const website = sale.company?.website
+            if (credits.length === 0 && !website) return null
             return (
               <div className="text-xs text-navy-500 mt-2 text-center leading-5">
-                <span>📷 photo by</span>
-                {credits.map(({ handle, role }) => (
-                  <div key={handle}>
-                    <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
-                      @{handle}<ExternalLink size={10} className="shrink-0" />
-                    </a>
-                    {role && <span className="text-navy-600"> ({role})</span>}
-                  </div>
-                ))}
+                {credits.length > 0 && (
+                  <>
+                    <span>📷 photo by</span>
+                    {credits.map(({ handle, role }) => (
+                      <div key={handle}>
+                        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-600 hover:text-brand-400 transition-colors">
+                          @{handle}<ExternalLink size={10} className="shrink-0" />
+                        </a>
+                        {role && <span className="text-navy-600"> ({role})</span>}
+                      </div>
+                    ))}
+                  </>
+                )}
                 {website && (
                   <div>
                     courtesy of{' '}

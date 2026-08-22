@@ -18,7 +18,8 @@
     "cloudinary:migrate:dry": "node scripts/cloudinary-migrate.js --dry-run",
     "typesense:reindex": "node dist/scripts/typesense-reindex.js",
     "backfill:edition-sale-dates": "node dist/scripts/archive/backfill-edition-sale-dates.js",
-    "backfill:first-box-month": "node dist/scripts/archive/backfill-first-box-month.js"
+    "backfill:first-box-month": "node dist/scripts/archive/backfill-first-box-month.js",
+    "backfill:policy-baseline-version": "node dist/scripts/archive/backfill-policy-baseline-version.js"
   },
   "dependencies": {
     "@fastify/compress": "^8.3.1",
