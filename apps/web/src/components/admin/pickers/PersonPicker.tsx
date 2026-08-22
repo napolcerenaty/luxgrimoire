@@ -21,7 +21,7 @@ export function PersonPicker({ endpoint, placeholder, onAdd, initialQuery }: {
 
   const { data, isFetching } = useQuery({
     queryKey: [endpoint + '-search', dq],
-    queryFn: () => authFetch<{ data: { id: string; name: string; slug: string }[] }>(
+    queryFn: () => authFetch<{ data: { id: string; name: string; slug: string; studio?: { name: string } | null }[] }>(
       `/${endpoint}?search=${encodeURIComponent(dq)}&pageSize=8`
     ),
     enabled: dq.length >= 2,
@@ -68,6 +68,7 @@ export function PersonPicker({ endpoint, placeholder, onAdd, initialQuery }: {
             <button key={r.id} type="button" onClick={() => pick(r)}
               className="w-full text-left px-3 py-2 text-sm text-navy-200 hover:bg-navy-700 transition-colors">
               {r.name}
+              {r.studio?.name && <span className="text-navy-500"> — {r.studio.name}</span>}
             </button>
           ))}
           {!exactMatch && (

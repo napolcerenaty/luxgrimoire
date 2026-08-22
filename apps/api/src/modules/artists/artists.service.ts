@@ -59,12 +59,50 @@ export class ArtistsService {
     };
   }
 
+  /**
+   * Builds the OR clauses for an artist name search. Handles the common case where source text
+   * (and the AI parser's faithful extraction of it) credits an artist alongside their studio's
+   * handle in one string, e.g. "Maggie @the.butterfly.bookclub" — a plain `name contains <raw
+   * query>` match finds nothing for that, since the stored artist record is just "Maggie" and
+   * the studio's handle lives on a separate Artist row. When the query contains both a name
+   * portion and an @handle, also match artists whose own name contains the name portion AND
+   * whose studio's name/instagram contains the handle, so the search (and the picker that uses
+   * it, including when prefilled from an AI-parsed credit) resolves to the existing studio
+   * member instead of finding no match — which otherwise leads to a duplicate artist getting
+   * created. This only affects matching; it never creates or links a studio.
+   */
+  private buildArtistSearchClauses(rawSearch: string): Record<string, unknown>[] {
+    const raw = rawSearch.trim();
+    const handleMatches = raw.match(/@[\w.]+/g) ?? [];
+    const namePart = raw.replace(/@[\w.]+/g, '').trim();
+
+    const clauses: Record<string, unknown>[] = [{ name: { contains: raw, mode: 'insensitive' } }];
+    const [firstHandle] = handleMatches;
+    if (firstHandle && namePart) {
+      const handle = firstHandle.replace(/^@/, '');
+      clauses.push({
+        AND: [
+          { name: { contains: namePart, mode: 'insensitive' } },
+          {
+            studio: {
+              OR: [
+                { name: { contains: handle, mode: 'insensitive' } },
+                { instagram: { contains: handle, mode: 'insensitive' } },
+              ],
+            },
+          },
+        ],
+      });
+    }
+    return clauses;
+  }
+
   async findAll(query: ArtistQueryDto) {
     const { skip, take: pageSize, page } = parsePagination(query);
 
     const where: Record<string, unknown> = {};
     if (query.search) {
-      where.name = { contains: query.search, mode: 'insensitive' };
+      where.OR = this.buildArtistSearchClauses(query.search);
     }
 
     const [data, total] = await Promise.all([

@@ -228,6 +228,69 @@ describe('ArtistsService', () => {
         studio: expect.objectContaining({ name: '@TheStudio_artists' }),
       }));
     });
+
+    it('does a plain name search when the query has no @handle', async () => {
+      (prisma.artist.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.artist.count as jest.Mock).mockResolvedValue(0);
+
+      await service.findAll({ search: 'Maggie' } as any);
+
+      const where = (prisma.artist.findMany as jest.Mock).mock.calls[0][0].where;
+      expect(where.OR).toEqual([{ name: { contains: 'Maggie', mode: 'insensitive' } }]);
+    });
+
+    it('does a plain name search when the query is only an @handle with no name', async () => {
+      (prisma.artist.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.artist.count as jest.Mock).mockResolvedValue(0);
+
+      await service.findAll({ search: '@the.butterfly.bookclub' } as any);
+
+      const where = (prisma.artist.findMany as jest.Mock).mock.calls[0][0].where;
+      expect(where.OR).toEqual([{ name: { contains: '@the.butterfly.bookclub', mode: 'insensitive' } }]);
+    });
+
+    it('adds a studio-member match clause for a compound "Name @handle" query', async () => {
+      (prisma.artist.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.artist.count as jest.Mock).mockResolvedValue(0);
+
+      await service.findAll({ search: 'Maggie @the.butterfly.bookclub' } as any);
+
+      const where = (prisma.artist.findMany as jest.Mock).mock.calls[0][0].where;
+      expect(where.OR).toEqual([
+        { name: { contains: 'Maggie @the.butterfly.bookclub', mode: 'insensitive' } },
+        {
+          AND: [
+            { name: { contains: 'Maggie', mode: 'insensitive' } },
+            {
+              studio: {
+                OR: [
+                  { name: { contains: 'the.butterfly.bookclub', mode: 'insensitive' } },
+                  { instagram: { contains: 'the.butterfly.bookclub', mode: 'insensitive' } },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('matches an existing studio member instead of finding nothing for a compound query', async () => {
+      (prisma.artist.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'artist-1', slug: 'maggie-abcd1234', name: 'Maggie', photoUrl: null, photoAsset: null,
+          specialty: null, website: null, instagram: null, twitter: null, facebook: null, tiktok: null,
+          isCollective: false, studioId: 'studio-1',
+          studio: { id: 'studio-1', name: '@the.butterfly.bookclub', slug: 'the-butterfly-bookclub', instagram: null },
+          createdAt: new Date(), updatedAt: new Date(),
+        },
+      ]);
+      (prisma.artist.count as jest.Mock).mockResolvedValue(1);
+
+      const result = await service.findAll({ search: 'Maggie @the.butterfly.bookclub' } as any);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].name).toBe('Maggie');
+    });
   });
 
   describe('findStudioContributions', () => {
