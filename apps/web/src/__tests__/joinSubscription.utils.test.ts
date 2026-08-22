@@ -45,6 +45,7 @@ import {
   resolveBackfillFallbackPrice,
   computeAutoBatches,
   resolveBatchMonthsCovered,
+  buildPartialPrepayBillingBatch,
   computeFirstBillingMonth,
   isGrandfatheredExcluded,
   buildFirstBoxCandidates,
@@ -293,6 +294,61 @@ describe('resolveBatchMonthsCovered', () => {
 
   it('a full (non-trailing) row with no override keeps using its own bucketed count', () => {
     expect(resolveBatchMonthsCovered('', 3)).toBe(3)
+  })
+})
+
+// ── buildPartialPrepayBillingBatch ──────────────────────────────────────────────
+
+describe('buildPartialPrepayBillingBatch', () => {
+  // Reproduces the real bug: join in July, first box August, prepaid quarterly (3 months) —
+  // only August exists as a SubscriptionMonth so far, so the join modal's "partial prepay
+  // period" shortcut fires with a single selected month.
+  const joinPayload = { startDate: '2026-07-22', costCurrency: 'GBP', basePrice: '60', shippingCost: '45' }
+  const prepayOption = { months: 3, price: 60 }
+
+  it('uses the FULL entered period price/shipping, not divided — division happens server-side', () => {
+    const batch = buildPartialPrepayBillingBatch(joinPayload, prepayOption, ['aug'], 'USD')
+    expect(batch.baseAmount).toBe(60)
+    expect(batch.shippingAmount).toBe(45)
+  })
+
+  it('sends monthsCovered = the true prepay period length, not the number of selected months', () => {
+    const batch = buildPartialPrepayBillingBatch(joinPayload, prepayOption, ['aug'], 'USD')
+    expect(batch.monthsCovered).toBe(3)
+    expect(batch.monthIds).toEqual(['aug'])
+  })
+
+  it('uses the join payload currency and start date', () => {
+    const batch = buildPartialPrepayBillingBatch(joinPayload, prepayOption, ['aug'], 'USD')
+    expect(batch.currency).toBe('GBP')
+    expect(batch.billedAt).toBe('2026-07-22')
+  })
+
+  it('falls back to the prepay option price when the join payload has no basePrice', () => {
+    const batch = buildPartialPrepayBillingBatch(
+      { startDate: '2026-07-22', costCurrency: 'GBP' },
+      prepayOption,
+      ['aug'],
+      'USD',
+    )
+    expect(batch.baseAmount).toBe(60)
+  })
+
+  it('omits shippingAmount when the join payload has no shippingCost', () => {
+    const batch = buildPartialPrepayBillingBatch(
+      { startDate: '2026-07-22', costCurrency: 'GBP', basePrice: '60' },
+      prepayOption,
+      ['aug'],
+      'USD',
+    )
+    expect(batch.shippingAmount).toBeUndefined()
+  })
+
+  it('falls back to the given currency and today\'s date when joinPayload is null', () => {
+    const batch = buildPartialPrepayBillingBatch(null, prepayOption, ['aug'], 'EUR')
+    expect(batch.currency).toBe('EUR')
+    expect(batch.baseAmount).toBe(60) // still falls back to prepayOption.price
+    expect(typeof batch.billedAt).toBe('string')
   })
 })
 

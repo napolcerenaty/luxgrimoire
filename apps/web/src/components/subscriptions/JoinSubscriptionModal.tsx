@@ -15,6 +15,7 @@ import {
   computeAutoBatches,
   resolveBackfillFallbackPrice,
   resolveBatchMonthsCovered,
+  buildPartialPrepayBillingBatch,
   computeFirstBillingMonth,
   isGrandfatheredExcluded,
   buildFirstBoxCandidates,
@@ -2404,10 +2405,23 @@ export default function JoinSubscriptionModal({
               ? (data) => {
                   setStep2Data(data)
                   if (step1SelectedPrepayOption && data.selectedMonthIds.length < step1SelectedPrepayOption.months) {
-                    // Partial prepay period — skip step 3, backfill months+skips without billing batches
+                    // Partial prepay period — skip the Step3 batches UI (nothing meaningful to
+                    // ask when there's only ever going to be one batch), but still send that one
+                    // batch explicitly. Sending NO billingBatches here used to make the backend
+                    // fall through to its plain-monthly "no batch" path — which ignores prepay
+                    // entirely (undivided price/shipping, wrong currently-effective monthly price
+                    // instead of what was actually paid) and clobbers the correctly-divided
+                    // preorder that join's own recordFirstMonthAsPreorder just created for the
+                    // same month(s), since it runs afterward and wins the final book price.
                     const skippedMonthIds = (finalEligibleMonths ?? [])
                       .filter(m => !data.selectedMonthIds.includes(m.id))
                       .map(m => m.id)
+                    const billingBatches = [buildPartialPrepayBillingBatch(
+                      step1JoinPayload,
+                      step1SelectedPrepayOption,
+                      data.selectedMonthIds,
+                      subscriptionCurrency,
+                    )]
                     const doJoinAndBackfill = async () => {
                       if (step1JoinPayload) {
                         await performRealJoin(step1JoinPayload)
@@ -2416,7 +2430,7 @@ export default function JoinSubscriptionModal({
                       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ selectedMonthIds: data.selectedMonthIds, skippedMonthIds, backfillOwnershipStatus: data.backfillOwnershipStatus }),
+                      body: JSON.stringify({ selectedMonthIds: data.selectedMonthIds, skippedMonthIds, backfillOwnershipStatus: data.backfillOwnershipStatus, billingBatches }),
                       })
                     }
                     doJoinAndBackfill()

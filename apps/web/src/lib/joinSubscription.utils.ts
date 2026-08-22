@@ -283,6 +283,50 @@ export function resolveBatchMonthsCovered(rowMonthsCovered: string, bucketedMont
   return rowMonthsCovered !== '' && !Number.isNaN(parsed) && parsed > 0 ? parsed : bucketedMonthCount
 }
 
+// ── buildPartialPrepayBillingBatch ─────────────────────────────────────────────
+
+export interface PartialPrepayBillingBatch {
+  billedAt: string
+  baseAmount: number
+  monthsCovered: number
+  currency: string
+  monthIds: string[]
+  shippingAmount?: number
+}
+
+/**
+ * Builds the single billingBatches entry for the "partial prepay period" join shortcut — when
+ * a new joiner has fewer eligible months to backfill than their chosen prepay period length
+ * (e.g. joining mid-quarter with only the current month announced so far), the modal skips the
+ * Step3 batches UI (nothing meaningful to ask when there's only ever going to be one batch) and
+ * calls /join/backfill directly.
+ *
+ * Sending NO billingBatches in that case used to make the backend fall through to its plain-
+ * monthly "no batch" path, which is completely prepay-unaware: undivided price/shipping, and the
+ * subscription's currently-effective MONTHLY price instead of what was actually paid for the
+ * whole prepaid period. It also clobbers the correctly-divided preorder that join's own
+ * recordFirstMonthAsPreorder just created for the same month(s), since this backfill call runs
+ * afterward and wins the final book price. Building this batch explicitly routes it through the
+ * same (now-fixed) division + period-reuse logic every other backfill path uses.
+ */
+export function buildPartialPrepayBillingBatch(
+  joinPayload: { startDate?: string; costCurrency?: string; basePrice?: string; shippingCost?: string } | null,
+  prepayOption: { months: number; price: number | string },
+  selectedMonthIds: string[],
+  fallbackCurrency: string,
+): PartialPrepayBillingBatch {
+  const baseAmount = parseDecimalInput(resolveBackfillFallbackPrice(joinPayload?.basePrice, prepayOption.price))
+  const shippingAmount = joinPayload?.shippingCost ? parseDecimalInput(joinPayload.shippingCost) : undefined
+  return {
+    billedAt: joinPayload?.startDate ?? new Date().toISOString().slice(0, 10),
+    baseAmount,
+    monthsCovered: prepayOption.months,
+    currency: joinPayload?.costCurrency ?? fallbackCurrency,
+    monthIds: selectedMonthIds,
+    ...(shippingAmount !== undefined && { shippingAmount }),
+  }
+}
+
 // ── First-box picker (previous / current / next) ─────────────────────────────
 
 export interface BoxUnitMonth {
