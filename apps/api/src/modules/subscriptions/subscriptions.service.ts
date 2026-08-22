@@ -2204,6 +2204,16 @@ export class SubscriptionsService {
         scheduledPrepayOption: {
           select: { price: true, currency: true, months: true },
         },
+        // Most recent billing period's frozen baseAmount — the actual price this entry is
+        // currently committed to for its live prepaid window. Comparing the resolved NEXT-renewal
+        // price against this (not scheduledPrepayOption.price, which is just whichever option the
+        // FK happens to reference and can be stale/mismatched) is what correctly answers "is the
+        // price actually about to change" — see resolveEffectivePrepayOption usage below.
+        billingPeriods: {
+          orderBy: { billedAt: 'desc' },
+          take: 1,
+          select: { baseAmount: true },
+        },
         skipRecords: {
           where: { undoneAt: null },
           include: { month: { select: { year: true, month: true } } },
@@ -2315,7 +2325,17 @@ export class SubscriptionsService {
           referenceDate,
           entry.startDate,
         );
-        const currentPrepayPrice = parseFloat(scheduledPrepayOption.price.toString());
+        // The live billing period's own frozen baseAmount is what this entry is actually
+        // committed to paying right now — scheduledPrepayOption.price is just whichever option
+        // the FK happens to reference, which can be stale/mismatched (e.g. after a manual billing
+        // mode change with no new period created yet). Comparing against the FK's price instead
+        // of the real frozen amount is exactly backwards: it can flag "changing" for a
+        // grandfathered subscriber whose price is actually staying put, and miss a genuine
+        // increase for someone whose FK already points at the new option.
+        const currentPeriodBaseAmount = ((entry as any).billingPeriods as Array<{ baseAmount: { toString(): string } | null }> | undefined)?.[0]?.baseAmount;
+        const currentPrepayPrice = currentPeriodBaseAmount != null
+          ? parseFloat(currentPeriodBaseAmount.toString())
+          : parseFloat(scheduledPrepayOption.price.toString());
         // Fully discontinued with nothing to replace it — fall back to the last known price
         // rather than showing nothing; this mirrors the renewal cron's own fallback.
         if (resolvedPrepay) {
@@ -2373,7 +2393,7 @@ export class SubscriptionsService {
         nextBoxMonth = { year: by, month: bm };
       }
 
-      const { skipRecords: _sr, feeTemplates: _ft, scheduledPrepayOption: _spo, purchaseGroups: _pg, ...entryWithoutExtras } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown; purchaseGroups: unknown[] };
+      const { skipRecords: _sr, feeTemplates: _ft, scheduledPrepayOption: _spo, purchaseGroups: _pg, billingPeriods: _bp, ...entryWithoutExtras } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown; purchaseGroups: unknown[]; billingPeriods: unknown[] };
       return {
         ...entryWithoutExtras,
         subscription: { ...sub },
@@ -2401,6 +2421,11 @@ export class SubscriptionsService {
         shippingCost: true,
         scheduledPrepayOption: {
           select: { price: true, currency: true, months: true },
+        },
+        billingPeriods: {
+          orderBy: { billedAt: 'desc' },
+          take: 1,
+          select: { baseAmount: true },
         },
         feeTemplates: {
           select: {
@@ -2511,7 +2536,7 @@ export class SubscriptionsService {
 
       const nextRenewalAmount = nextBase !== null ? (nextBase + (shipping ?? 0) + sameCurrencyFees) : null;
 
-      const { skipRecords, feeTemplates: _ft, scheduledPrepayOption: _spo, purchaseGroups: _pg, ...rest } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown; purchaseGroups: unknown[] };
+      const { skipRecords, feeTemplates: _ft, scheduledPrepayOption: _spo, purchaseGroups: _pg, billingPeriods: _bp, ...rest } = entry as typeof entry & { feeTemplates: unknown[]; scheduledPrepayOption: unknown; purchaseGroups: unknown[]; billingPeriods: unknown[] };
       return {
         id: rest.id,
         active: true,

@@ -246,6 +246,52 @@ describe('SubscriptionsService — query methods', () => {
         expect(result[0].nextRenewalPriceChanged).toBe(false);
         expect(parseFloat(result[0].nextRenewalAmount ?? '0')).toBe(84);
       });
+
+      // Real bug found in production testing: comparing against scheduledPrepayOption.price (the
+      // FK's own option) instead of the live billing period's frozen baseAmount gets this exactly
+      // backwards whenever the FK is stale/mismatched — e.g. an entry whose FK already points at
+      // the new option (set some other way than a fresh resolve) while the currently-paid period
+      // was actually billed at the old price, or vice versa.
+      it('does not flag a change when the FK points at a grandfathered-excluded option, even though its own price differs from the resolved one', async () => {
+        const GRANDFATHERED_NEW = { ...NEW_OPTION, grandfatheredPrice: true };
+        const entry = makeEntryRow({
+          startDate: '2026-07-22', // predates the change -> grandfathered onto OLD regardless of the FK
+          nextRenewalDate: new Date('2026-11-01'),
+          costCurrency: 'GBP',
+          basePrice: null,
+          shippingCost: null,
+          scheduledPrepayOptionId: GRANDFATHERED_NEW.id, // stale/mismatched FK — points at the NEW option
+          scheduledPrepayOption: { price: GRANDFATHERED_NEW.price, currency: GRANDFATHERED_NEW.currency, months: GRANDFATHERED_NEW.months },
+          billingPeriods: [{ baseAmount: { toString: () => '84.00' } }], // what they're actually currently paying
+          subscription: makeSub({ prepayOptions: [OLD_OPTION, GRANDFATHERED_NEW] }),
+        });
+        (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
+
+        const result = await service.getMySubscriptions(USER_ID);
+
+        expect(result[0].nextRenewalPriceChanged).toBe(false);
+        expect(parseFloat(result[0].nextRenewalAmount ?? '0')).toBe(84);
+      });
+
+      it('flags a real change even when the stale FK price already happens to match the resolved one', async () => {
+        const entry = makeEntryRow({
+          startDate: '2026-07-22',
+          nextRenewalDate: new Date('2026-11-01'),
+          costCurrency: 'GBP',
+          basePrice: null,
+          shippingCost: null,
+          scheduledPrepayOptionId: NEW_OPTION.id, // FK already points at the new (non-grandfathered) option
+          scheduledPrepayOption: { price: NEW_OPTION.price, currency: NEW_OPTION.currency, months: NEW_OPTION.months },
+          billingPeriods: [{ baseAmount: { toString: () => '84.00' } }], // but they're still actually paying the old price
+          subscription: makeSub({ prepayOptions: [OLD_OPTION, NEW_OPTION] }),
+        });
+        (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
+
+        const result = await service.getMySubscriptions(USER_ID);
+
+        expect(result[0].nextRenewalPriceChanged).toBe(true);
+        expect(result[0].nextRenewalNewPrice).toBe('111.00');
+      });
     });
   });
 
