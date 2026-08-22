@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import type { ApiArtist } from '@luxgrimoire/shared-types'
 import { ArtistContributionsSection } from './ArtistContributionsSection'
 import { FollowButton } from '@/components/follows/FollowButton'
+import { StudioTabs } from './StudioTabs'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ export default async function ArtistPage({ params }: Props) {
   }
 
   const photoUrl = cloudinaryUrl(artist.photoUrl, 'w_600,h_600,c_fill,q_auto,f_auto')
+  const isStudioView = Boolean(artist.isCollective && artist.studioMembers && artist.studioMembers.length > 0)
 
   // Build social links list
   const socials: { href: string; label: string; icon: React.ReactNode }[] = []
@@ -162,34 +164,6 @@ export default async function ArtistPage({ params }: Props) {
                 </div>
               )}
 
-              {/* Members, if this artist is a studio/collective */}
-              {artist.isCollective && artist.studioMembers && artist.studioMembers.length > 0 && (
-                <div className="mt-6">
-                  <p className="text-xs text-navy-500 uppercase tracking-widest mb-2">Members</p>
-                  <div className="flex flex-wrap gap-3">
-                    {artist.studioMembers.map((member) => {
-                      const memberPhoto = cloudinaryUrl(member.photoUrl, 'w_64,h_64,c_fill,q_auto,f_auto')
-                      return (
-                        <Link
-                          key={member.id}
-                          href={`/artists/${member.slug}`}
-                          className="flex items-center gap-2 group border border-navy-700 hover:border-brand-700/60 rounded-full pl-1 pr-3 py-1 transition-colors"
-                        >
-                          {memberPhoto ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={memberPhoto} alt={member.name} className="w-6 h-6 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-navy-800 flex items-center justify-center text-[10px] text-navy-500">
-                              {member.name[0]?.toUpperCase()}
-                            </div>
-                          )}
-                          <span className="text-sm text-navy-300 group-hover:text-brand-400 transition-colors">{member.name}</span>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -200,7 +174,17 @@ export default async function ArtistPage({ params }: Props) {
         <div className="flex items-center gap-3 mb-6">
           <h2 className="text-2xl font-serif font-semibold text-navy-100">Artwork &amp; Contributions</h2>
         </div>
-        <ArtistContributionsSection artistSlug={artist.slug} />
+        {isStudioView ? (
+          <StudioTabs
+            studioSlug={artist.slug}
+            studioId={artist.id}
+            studioName={artist.name}
+            studioPhotoUrl={artist.photoUrl}
+            members={artist.studioMembers ?? []}
+          />
+        ) : (
+          <ArtistContributionsSection artistSlug={artist.slug} />
+        )}
       </div>
     </div>
   )

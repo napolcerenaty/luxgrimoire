@@ -10,11 +10,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TypesenseService } from '../typesense/typesense.service';
 import { UploadService } from '../upload/upload.service';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
+import { EditionsService } from '../editions/editions.service';
 import { ArtistsService } from './artists.service';
 
 describe('ArtistsService', () => {
   let service: ArtistsService;
   let prisma: DeepMockProxy<PrismaService>;
+  let editionsService: DeepMockProxy<EditionsService>;
   let cache: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
 
   beforeEach(() => {
@@ -22,8 +24,9 @@ describe('ArtistsService', () => {
     const typesense = mockDeep<TypesenseService>();
     const uploadService = mockDeep<UploadService>();
     const mediaAssetsService = mockDeep<MediaAssetsService>();
+    editionsService = mockDeep<EditionsService>();
     cache = { get: jest.fn(), set: jest.fn(), del: jest.fn() };
-    service = new ArtistsService(prisma, typesense, uploadService, mediaAssetsService, cache as any);
+    service = new ArtistsService(prisma, typesense, uploadService, mediaAssetsService, editionsService, cache as any);
   });
 
   describe('create', () => {
@@ -224,6 +227,231 @@ describe('ArtistsService', () => {
         studioId: 'studio-1',
         studio: expect.objectContaining({ name: '@TheStudio_artists' }),
       }));
+    });
+  });
+
+  describe('findStudioContributions', () => {
+    function mockStudio(memberIds: string[] = ['member-1']) {
+      (prisma.artist.findUnique as jest.Mock).mockResolvedValue({
+        id: 'studio-1',
+        studioMembers: memberIds.map((id) => ({ id })),
+      });
+    }
+
+    function contributionRow(editionId: string, artistId: string, artistName: string, artistSlug: string, role: string) {
+      return {
+        role,
+        artistId,
+        artist: { id: artistId, name: artistName, slug: artistSlug },
+        edition: {
+          id: editionId, slug: `${editionId}-slug`, additionalImages: [], variantLabel: null,
+          bookBoxCompany: null, communityImages: [],
+        },
+      };
+    }
+
+    beforeEach(() => {
+      cache.get.mockResolvedValue(undefined);
+    });
+
+    it('scopes the query to the studio itself plus every member, not just the members', async () => {
+      mockStudio(['member-1', 'member-2']);
+      (prisma.artistContribution.findMany as jest.Mock).mockResolvedValueOnce([]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(new Map());
+
+      await service.findStudioContributions('the-studio', undefined, 'newest', 1, 24);
+
+      const distinctCallArgs = (prisma.artistContribution.findMany as jest.Mock).mock.calls[0][0];
+      expect(distinctCallArgs.where.artistId.in).toEqual(['studio-1', 'member-1', 'member-2']);
+    });
+
+    it('rejects an artistId filter that does not belong to the studio', async () => {
+      mockStudio(['member-1']);
+
+      await expect(
+        service.findStudioContributions('the-studio', 'someone-elses-id', 'newest', 1, 24),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws NotFoundException when the studio slug does not exist', async () => {
+      (prisma.artist.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.findStudioContributions('missing-studio', undefined, 'newest', 1, 24),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('narrows the query to a single member when artistId is provided', async () => {
+      mockStudio(['member-1', 'member-2']);
+      (prisma.artistContribution.findMany as jest.Mock).mockResolvedValueOnce([]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(new Map());
+
+      await service.findStudioContributions('the-studio', 'member-1', 'newest', 1, 24);
+
+      const distinctCallArgs = (prisma.artistContribution.findMany as jest.Mock).mock.calls[0][0];
+      expect(distinctCallArgs.where.artistId.in).toEqual(['member-1']);
+    });
+
+    it('merges an edition credited to both the studio directly and a member into one result', async () => {
+      mockStudio(['member-1']);
+      (prisma.artistContribution.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ editionId: 'edition-1' }])
+        .mockResolvedValueOnce([
+          contributionRow('edition-1', 'studio-1', 'The Studio', 'the-studio', 'cover'),
+          contributionRow('edition-1', 'member-1', 'Jane', 'jane', 'colorist'),
+        ]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(
+        new Map([['edition-1', { label: 'General Sale', date: new Date('2026-01-01') }]]),
+      );
+
+      const result = await service.findStudioContributions('the-studio', undefined, 'newest', 1, 24);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].attributions).toEqual([
+        { artistId: 'studio-1', artistName: 'The Studio', artistSlug: 'the-studio', role: 'cover' },
+        { artistId: 'member-1', artistName: 'Jane', artistSlug: 'jane', role: 'colorist' },
+      ]);
+    });
+
+    it('merges an edition credited to two different members into one result', async () => {
+      mockStudio(['member-1', 'member-2']);
+      (prisma.artistContribution.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ editionId: 'edition-1' }])
+        .mockResolvedValueOnce([
+          contributionRow('edition-1', 'member-1', 'Jane', 'jane', 'cover'),
+          contributionRow('edition-1', 'member-2', 'Alex', 'alex', 'interior'),
+        ]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(
+        new Map([['edition-1', { label: 'General Sale', date: new Date('2026-01-01') }]]),
+      );
+
+      const result = await service.findStudioContributions('the-studio', undefined, 'newest', 1, 24);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].attributions.map((a: any) => a.artistId)).toEqual(['member-1', 'member-2']);
+    });
+
+    it('sorts editions by resolved release date, newest first', async () => {
+      mockStudio(['member-1']);
+      (prisma.artistContribution.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ editionId: 'older' }, { editionId: 'newer' }])
+        .mockResolvedValueOnce([]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(new Map([
+        ['older', { label: 'General Sale', date: new Date('2020-01-01') }],
+        ['newer', { label: 'General Sale', date: new Date('2026-01-01') }],
+      ]));
+
+      await service.findStudioContributions('the-studio', undefined, 'newest', 1, 24);
+
+      const cachedOrder = cache.set.mock.calls[0][1];
+      expect(cachedOrder).toEqual(['newer', 'older']);
+    });
+
+    it('sorts editions by resolved release date, oldest first', async () => {
+      mockStudio(['member-1']);
+      (prisma.artistContribution.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ editionId: 'older' }, { editionId: 'newer' }])
+        .mockResolvedValueOnce([]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(new Map([
+        ['older', { label: 'General Sale', date: new Date('2020-01-01') }],
+        ['newer', { label: 'General Sale', date: new Date('2026-01-01') }],
+      ]));
+
+      await service.findStudioContributions('the-studio', undefined, 'oldest', 1, 24);
+
+      const cachedOrder = cache.set.mock.calls[0][1];
+      expect(cachedOrder).toEqual(['older', 'newer']);
+    });
+
+    it('falls back to edition.createdAt when no sale date resolves', async () => {
+      mockStudio(['member-1']);
+      (prisma.artistContribution.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ editionId: 'no-sale-date' }, { editionId: 'has-sale-date' }])
+        .mockResolvedValueOnce([]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(new Map([
+        ['no-sale-date', null],
+        ['has-sale-date', { label: 'General Sale', date: new Date('2020-01-01') }],
+      ]));
+      (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
+        { id: 'no-sale-date', createdAt: new Date('2027-01-01') },
+      ]);
+
+      await service.findStudioContributions('the-studio', undefined, 'newest', 1, 24);
+
+      expect(prisma.bookEdition.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['no-sale-date'] } },
+        select: { id: true, createdAt: true },
+      });
+      const cachedOrder = cache.set.mock.calls[0][1];
+      // no-sale-date falls back to createdAt 2027, which is newer than has-sale-date's 2020
+      expect(cachedOrder).toEqual(['no-sale-date', 'has-sale-date']);
+    });
+
+    it('paginates the sorted edition-id list at page boundaries', async () => {
+      const sortedIds = ['a', 'b', 'c', 'd', 'e'];
+      mockStudio(['member-1']);
+      cache.get.mockResolvedValueOnce(sortedIds); // pre-sorted, cached
+      (prisma.artistContribution.findMany as jest.Mock).mockResolvedValueOnce(
+        ['c', 'd'].map((id) => contributionRow(id, 'member-1', 'Jane', 'jane', 'cover')),
+      );
+
+      const result = await service.findStudioContributions('the-studio', undefined, 'newest', 2, 2);
+
+      expect(result.total).toBe(5);
+      expect(result.data.map((d: any) => d.edition.id)).toEqual(['c', 'd']);
+    });
+
+    it('caches distinct id lists per filter+sort combination', async () => {
+      mockStudio(['member-1']);
+      (prisma.artistContribution.findMany as jest.Mock).mockResolvedValue([]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(new Map());
+
+      await service.findStudioContributions('the-studio', undefined, 'newest', 1, 24);
+      await service.findStudioContributions('the-studio', undefined, 'oldest', 1, 24);
+      await service.findStudioContributions('the-studio', 'member-1', 'newest', 1, 24);
+
+      const cacheKeys = cache.set.mock.calls.map((call: any[]) => call[0]);
+      expect(new Set(cacheKeys).size).toBe(3);
+    });
+  });
+
+  describe('findStudioCardMonths', () => {
+    function mockStudio(memberIds: string[] = ['member-1']) {
+      (prisma.artist.findUnique as jest.Mock).mockResolvedValue({
+        id: 'studio-1',
+        studioMembers: memberIds.map((id) => ({ id })),
+      });
+    }
+
+    it('scopes the query to the studio itself plus every member', async () => {
+      mockStudio(['member-1', 'member-2']);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionMonth.count as jest.Mock).mockResolvedValue(0);
+
+      await service.findStudioCardMonths('the-studio', undefined, 1, 24);
+
+      const findManyArgs = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls[0][0];
+      expect(findManyArgs.where.cardArtistId.in).toEqual(['studio-1', 'member-1', 'member-2']);
+      expect(findManyArgs.orderBy).toEqual([{ year: 'desc' }, { month: 'desc' }]);
+    });
+
+    it('narrows to a single member when artistId is provided', async () => {
+      mockStudio(['member-1', 'member-2']);
+      (prisma.subscriptionMonth.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.subscriptionMonth.count as jest.Mock).mockResolvedValue(0);
+
+      await service.findStudioCardMonths('the-studio', 'member-2', 1, 24);
+
+      const findManyArgs = (prisma.subscriptionMonth.findMany as jest.Mock).mock.calls[0][0];
+      expect(findManyArgs.where.cardArtistId.in).toEqual(['member-2']);
+    });
+
+    it('rejects an artistId filter that does not belong to the studio', async () => {
+      mockStudio(['member-1']);
+
+      await expect(
+        service.findStudioCardMonths('the-studio', 'someone-elses-id', 1, 24),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
