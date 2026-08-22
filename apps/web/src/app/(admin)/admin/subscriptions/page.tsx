@@ -1355,9 +1355,12 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
     return true
   }
 
+  // Admin-only raw list (not the customer-facing /prepay-options, which collapses rows down to
+  // one resolved winner per months+currency group) — the admin panel needs to see and edit
+  // every row, including ones auto-closed by a more recent option for the same group.
   const { data: options = [], isLoading } = useQuery<PrepayOption[]>({
-    queryKey: ['prepay-options', slug],
-    queryFn: () => authFetch<PrepayOption[]>(`/subscriptions/${slug}/prepay-options`),
+    queryKey: ['prepay-options-admin', slug],
+    queryFn: () => authFetch<PrepayOption[]>(`/subscriptions/${slug}/prepay-options/admin`),
   })
 
   const createMutation = useMutation({
@@ -1375,7 +1378,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prepay-options', slug] })
+      queryClient.invalidateQueries({ queryKey: ['prepay-options-admin', slug] })
       setNewForm({ months: '', price: '', currency: subscriptionCurrency, label: '', validFrom: '', validUntil: '' })
       setNewGrandfathered(false)
       setAdding(false)
@@ -1398,7 +1401,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prepay-options', slug] })
+      queryClient.invalidateQueries({ queryKey: ['prepay-options-admin', slug] })
       setEditingId(null)
     },
     onError: (err: Error) => alert(`Error: ${err.message}`),
@@ -1407,7 +1410,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       authFetch(`/subscriptions/${slug}/prepay-options/${id}`, { method: 'DELETE' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['prepay-options', slug] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['prepay-options-admin', slug] }),
     onError: (err: Error) => alert(`Error: ${err.message}`),
   })
 

@@ -697,6 +697,17 @@ export class SubscriptionsController {
     return this.subscriptionsService.getPrepayOptions(slug, req.user?.id ?? null);
   }
 
+  // Admin CRUD list — the raw, unfiltered rows (including closed/historical ones), so admins can
+  // see and edit everything. Deliberately separate from the customer-facing route above, which
+  // returns the grandfathering-*resolved* list (collapsed to one row per months+currency group) —
+  // reusing that route here would silently hide half of what the admin needs to manage.
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Get(':slug/prepay-options/admin')
+  getPrepayOptionsAdmin(@Param('slug') slug: string) {
+    return this.subscriptionsService.getPrepayOptionsAdmin(slug);
+  }
+
   @ApiBearerAuth()
   @Roles('ADMIN', 'MODERATOR')
   @Post(':slug/prepay-options')

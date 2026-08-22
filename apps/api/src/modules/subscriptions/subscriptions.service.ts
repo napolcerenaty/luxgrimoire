@@ -4893,6 +4893,19 @@ export class SubscriptionsService {
 
   // ── Prepay Options CRUD ──────────────────────────────────────────────────────
 
+  /** Raw, unfiltered list for the admin CRUD panel — every row, including closed/historical
+   *  ones, so admins can see and edit everything. Never apply getSelectablePrepayOptions here:
+   *  that collapses multiple rows per (months, currency) down to one resolved winner, which
+   *  would hide the very rows an admin needs to manage (e.g. right after auto-close creates a
+   *  second row for the same group). */
+  async getPrepayOptionsAdmin(slug: string) {
+    const sub = await findBySlugOrThrow(this.prisma.subscription, slug, 'Subscription');
+    return this.prisma.subscriptionPrepayOption.findMany({
+      where: { subscriptionId: sub.id },
+      orderBy: { months: 'asc' },
+    });
+  }
+
   async getPrepayOptions(slug: string, userId?: string | null) {
     const sub = await findBySlugOrThrow(this.prisma.subscription, slug, 'Subscription');
     const options = await this.prisma.subscriptionPrepayOption.findMany({

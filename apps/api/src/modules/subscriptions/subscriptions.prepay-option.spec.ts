@@ -129,6 +129,22 @@ describe('SubscriptionsService — prepay options', () => {
     });
   });
 
+  describe('getPrepayOptionsAdmin(slug) — raw, unfiltered list for admin CRUD', () => {
+    it('returns every row untouched, even multiple rows for the same months+currency group', async () => {
+      const OLD = { id: 'opt-old', months: 3, currency: 'USD', price: { toString: () => '50.00' }, validFrom: null, validUntil: '2026-08-01T00:00:00Z', grandfatheredPrice: false };
+      const NEW = { id: 'opt-new', months: 3, currency: 'USD', price: { toString: () => '60.00' }, validFrom: '2026-08-01T00:00:00Z', validUntil: null, grandfatheredPrice: false };
+      (prisma.subscriptionPrepayOption.findMany as jest.Mock).mockResolvedValueOnce([OLD, NEW]);
+
+      const result = await service.getPrepayOptionsAdmin(SUB_SLUG);
+
+      // Unlike getPrepayOptions (customer-facing), this must NOT collapse the group down to one
+      // resolved winner — an admin needs to see (and edit) the closed OLD row too, e.g. right
+      // after auto-close created NEW as its replacement.
+      expect(result).toEqual([OLD, NEW]);
+      expect(prisma.userSubscriptionEntry.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getPrepayOptions(slug, userId) — active-entry scoping', () => {
     const OPEN_OPTION = { id: 'opt-open', months: 6, currency: 'USD', price: { toString: () => '60.00' }, validFrom: null, validUntil: null, grandfatheredPrice: false };
 
