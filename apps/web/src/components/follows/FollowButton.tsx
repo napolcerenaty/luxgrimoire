@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { useAuth } from '@/components/AuthProvider'
-import { Heart } from 'lucide-react'
+import { Rss } from 'lucide-react'
 
 type FollowTargetType = 'artist' | 'author' | 'book'
 
@@ -65,7 +65,7 @@ export function FollowButton({ targetType, targetId }: FollowButtonProps) {
           : 'bg-navy-800 border-navy-700 text-navy-200 hover:bg-navy-700 hover:border-navy-600'
       }`}
     >
-      <Heart size={15} className={following ? 'fill-current' : ''} />
+      <Rss size={15} />
       {following ? 'Following' : 'Follow'}
     </button>
   )

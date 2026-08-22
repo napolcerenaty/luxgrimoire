@@ -123,7 +123,9 @@ function FollowSection({ type, items }: { type: FollowType; items: Followed[] })
   )
 }
 
-export default function FollowsPage() {
+/** Follow/unfollow management for artists, authors, and books — used as the "Follows" tab in
+ *  the profile settings page. */
+export function FollowsManager() {
   const { data, isLoading } = useQuery({
     queryKey: ['follows'],
     queryFn: () => authFetch<FollowsResponse>('/follows'),
@@ -131,22 +133,18 @@ export default function FollowsPage() {
 
   if (isLoading || !data) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-10 space-y-6">
-        <div className="h-8 bg-navy-800 rounded-lg w-48 animate-pulse" />
+      <div className="space-y-6">
+        <div className="h-32 bg-navy-800 rounded-2xl animate-pulse" />
         <div className="h-32 bg-navy-800 rounded-2xl animate-pulse" />
       </div>
     )
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10 space-y-8">
-      <div>
-        <h1 className="text-2xl font-serif text-navy-100">My Follows</h1>
-        <p className="text-sm text-navy-400 mt-1">
-          Get notified when a new edition appears for an artist, author, or book you follow.
-        </p>
-      </div>
-
+    <div className="space-y-6">
+      <p className="text-sm text-navy-400">
+        Get notified when a new edition appears for an artist, author, or book you follow.
+      </p>
       <FollowSection type="artist" items={data.artists} />
       <FollowSection type="author" items={data.authors} />
       <FollowSection type="book" items={data.books} />

@@ -7,7 +7,8 @@ import { authFetch, API_BASE } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import StatsSettingsPanel from '@/components/stats/StatsSettingsPanel'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle, Upload, BookMarked, Bell } from 'lucide-react'
+import { Camera, Loader2, Check, User, Settings, CreditCard, BookOpen, Trash2, AlertTriangle, Image, PlayCircle, Upload, BookMarked, Bell, Rss } from 'lucide-react'
+import { FollowsManager } from '@/components/follows/FollowsManager'
 import FeeTemplateManager from '@/components/fees/FeeTemplateManager'
 import WaitlistPanel from '@/components/subscriptions/WaitlistPanel'
 import { CURRENCIES_LABELED } from '@/lib/currencies'
@@ -47,7 +48,7 @@ interface UploadResponse {
   url: string
 }
 
-type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'notifications' | 'photos' | 'import'
+type Tab = 'profile' | 'account' | 'preferences' | 'subscriptions' | 'notifications' | 'follows' | 'photos' | 'import'
 
 const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -55,6 +56,7 @@ const TAB_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'preferences', label: 'Preferences', icon: CreditCard },
   { id: 'subscriptions', label: 'Taxes & Fees', icon: BookOpen },
   { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'follows', label: 'Follows', icon: Rss },
   { id: 'photos', label: 'My Photos', icon: Image },
   { id: 'import', label: 'Import', icon: Upload },
 ]
@@ -514,6 +516,9 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Follows tab */}
+      {activeTab === 'follows' && <FollowsManager />}
+
       {/* My Photos tab */}
       {activeTab === 'photos' && <MyCommunityPhotos />}
 
@@ -945,6 +950,8 @@ interface ReminderSettings {
   bookChoicePushEnabled: boolean
   bookChoiceDaysBefore: number
   appNotifPushEnabled: boolean
+  newEditionFollowInAppEnabled: boolean
+  newEditionFollowPushEnabled: boolean
 }
 
 interface PushNotifPreferences {
@@ -1018,6 +1025,7 @@ function NotificationsTab() {
     saleDaysBefore: 0, saleMinutesBefore: 180, saleDigest: false,
     bookChoiceEnabled: false, bookChoiceInAppEnabled: true, bookChoicePushEnabled: false, bookChoiceDaysBefore: 3,
     appNotifPushEnabled: false,
+    newEditionFollowInAppEnabled: true, newEditionFollowPushEnabled: true,
   }
 
   return (
@@ -1239,6 +1247,29 @@ function NotificationsTab() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* New Editions from Follows */}
+      <section className={SECTION}>
+        <div>
+          <h3 className="text-sm font-semibold text-navy-300 uppercase tracking-wide">New Editions from Follows</h3>
+          <p className={TOGGLE_SUBLABEL}>
+            When a new edition appears for an artist, author, or book you follow. Following is itself the
+            opt-in, so pick at least one channel below.
+          </p>
+        </div>
+        <div className="flex items-center gap-4 pt-1">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <Toggle checked={s.newEditionFollowInAppEnabled} onChange={(v) => update({ newEditionFollowInAppEnabled: v })} />
+            <span className={TOGGLE_LABEL}>In-app</span>
+          </label>
+          {isSupported && isSubscribed && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <Toggle checked={s.newEditionFollowPushEnabled} onChange={(v) => update({ newEditionFollowPushEnabled: v })} />
+              <span className={TOGGLE_LABEL}>Push</span>
+            </label>
+          )}
+        </div>
       </section>
     </div>
   )
