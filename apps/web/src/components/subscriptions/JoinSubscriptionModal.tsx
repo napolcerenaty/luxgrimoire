@@ -1502,7 +1502,7 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
 
 // ── Step 3: Billing batches (prepay) ─────────────────────────────────────────
 
-interface Step3Props {
+export interface Step3Props {
   selectedMonthIds: string[]
   bookPrices: Record<string, string>
   backfillOwnershipStatus?: 'OWNED' | 'PREORDER'
@@ -1520,7 +1520,9 @@ interface Step3Props {
   onBeforeBackfill?: () => Promise<void>
 }
 
-function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePicks, selectedPrepayOption, allPrepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, initiallyChanged, onDone, onBack, onBeforeBackfill }: Step3Props) {
+// Exported (not just used internally) so it can be mounted directly in tests without driving
+// the whole multi-step modal through steps 1–2 first — see JoinSubscriptionModal.step3.test.tsx.
+export function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePicks, selectedPrepayOption, allPrepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, initiallyChanged, onDone, onBack, onBeforeBackfill }: Step3Props) {
   const currency = entry.costCurrency ?? 'USD'
   const renewalDay = entry.renewalDay
 
