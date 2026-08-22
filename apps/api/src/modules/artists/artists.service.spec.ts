@@ -249,7 +249,7 @@ describe('ArtistsService', () => {
       expect(where.OR).toEqual([{ name: { contains: '@the.butterfly.bookclub', mode: 'insensitive' } }]);
     });
 
-    it('adds a studio-member match clause for a compound "Name @handle" query', async () => {
+    it('adds a personal-handle clause and a studio-member clause for a compound "Name @handle" query', async () => {
       (prisma.artist.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.artist.count as jest.Mock).mockResolvedValue(0);
 
@@ -258,6 +258,12 @@ describe('ArtistsService', () => {
       const where = (prisma.artist.findMany as jest.Mock).mock.calls[0][0].where;
       expect(where.OR).toEqual([
         { name: { contains: 'Maggie @the.butterfly.bookclub', mode: 'insensitive' } },
+        {
+          AND: [
+            { name: { contains: 'Maggie', mode: 'insensitive' } },
+            { instagram: { contains: 'the.butterfly.bookclub', mode: 'insensitive' } },
+          ],
+        },
         {
           AND: [
             { name: { contains: 'Maggie', mode: 'insensitive' } },
@@ -272,6 +278,23 @@ describe('ArtistsService', () => {
           ],
         },
       ]);
+    });
+
+    it('matches an existing artist by their own instagram handle instead of finding nothing for "Name @personalhandle"', async () => {
+      (prisma.artist.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'artist-3', slug: 'jane-doe-abcd1234', name: 'Jane Doe', photoUrl: null, photoAsset: null,
+          specialty: null, website: null, instagram: '@janedoeart', twitter: null, facebook: null, tiktok: null,
+          isCollective: false, studioId: null, studio: null,
+          createdAt: new Date(), updatedAt: new Date(),
+        },
+      ]);
+      (prisma.artist.count as jest.Mock).mockResolvedValue(1);
+
+      const result = await service.findAll({ search: 'Jane Doe @janedoeart' } as any);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].name).toBe('Jane Doe');
     });
 
     it('matches an existing studio member instead of finding nothing for a compound query', async () => {

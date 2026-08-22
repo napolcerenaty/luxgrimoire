@@ -61,15 +61,23 @@ export class ArtistsService {
 
   /**
    * Builds the OR clauses for an artist name search. Handles the common case where source text
-   * (and the AI parser's faithful extraction of it) credits an artist alongside their studio's
-   * handle in one string, e.g. "Maggie @the.butterfly.bookclub" — a plain `name contains <raw
-   * query>` match finds nothing for that, since the stored artist record is just "Maggie" and
-   * the studio's handle lives on a separate Artist row. When the query contains both a name
-   * portion and an @handle, also match artists whose own name contains the name portion AND
-   * whose studio's name/instagram contains the handle, so the search (and the picker that uses
-   * it, including when prefilled from an AI-parsed credit) resolves to the existing studio
-   * member instead of finding no match — which otherwise leads to a duplicate artist getting
-   * created. This only affects matching; it never creates or links a studio.
+   * (and the AI parser's faithful extraction of it) credits an artist alongside a handle in one
+   * string, e.g. "Maggie @the.butterfly.bookclub" or "Jane Doe @janedoeart" — a plain `name
+   * contains <raw query>` match finds nothing for that, since the stored artist record is just
+   * the plain name. When the query contains both a name portion and an @handle, also match:
+   * (a) an artist whose own name contains the name portion AND whose OWN instagram field
+   *     contains the handle — covers a personal handle, e.g. "Jane Doe @janedoeart";
+   * (b) an artist whose own name contains the name portion AND whose STUDIO's name/instagram
+   *     contains the handle — covers a studio member credited alongside their studio's handle,
+   *     e.g. "Maggie @the.butterfly.bookclub".
+   * Both are tried; whichever actually has a matching row wins (an unmatched clause on a
+   * relation that doesn't exist, e.g. no studio, simply contributes no rows, same as the other
+   * clause contributing no rows when the artist's own instagram doesn't match). If neither
+   * matches anything — e.g. the credited handle isn't stored anywhere yet — the search
+   * legitimately finds nothing and the admin's "+ Create" path creates a new artist, same as
+   * before this change; this only widens matching for handles that ARE already on file, it
+   * never invents a match. This only affects matching either way; it never creates or links a
+   * studio.
    */
   private buildArtistSearchClauses(rawSearch: string): Record<string, unknown>[] {
     const raw = rawSearch.trim();
@@ -80,6 +88,12 @@ export class ArtistsService {
     const [firstHandle] = handleMatches;
     if (firstHandle && namePart) {
       const handle = firstHandle.replace(/^@/, '');
+      clauses.push({
+        AND: [
+          { name: { contains: namePart, mode: 'insensitive' } },
+          { instagram: { contains: handle, mode: 'insensitive' } },
+        ],
+      });
       clauses.push({
         AND: [
           { name: { contains: namePart, mode: 'insensitive' } },
