@@ -437,10 +437,14 @@ export function CollectionEntryPanel({ editionId, initialEntryId, saleEditions =
   const [savingOrderNumber, setSavingOrderNumber] = useState(false)
   const [deletingOrderNumber, setDeletingOrderNumber] = useState(false)
 
-  // Tags — all tags across the user's collection, for autocomplete suggestions
+  // Tags — all tags across the user's collection, for autocomplete suggestions. Gated on `user`:
+  // this panel renders for anonymous visitors too (public edition page), and /collection/tags is
+  // a fully-authenticated-only endpoint — firing it unconditionally 401s and authFetch's global
+  // handler force-redirects to /login, kicking a logged-out visitor off the page entirely.
   const { data: allUserTags = [] } = useQuery({
     queryKey: ['collection-tags'],
     queryFn: () => authFetch<string[]>('/collection/tags'),
+    enabled: !!user,
   })
 
   // History
