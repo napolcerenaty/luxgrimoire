@@ -80,7 +80,10 @@ export class FollowsService {
       this.prisma.userArtistFollow.findMany({
         where: { userId },
         include: { artist: { select: { id: true, slug: true, name: true, photoUrl: true, specialty: true } } },
-        orderBy: { createdAt: 'desc' },
+        // artistId tiebreaker — createdAt alone isn't unique (rows created in the same
+        // millisecond), and without a stable secondary sort, skip/take pagination can return
+        // the same row on two different pages.
+        orderBy: [{ createdAt: 'desc' }, { artistId: 'asc' }],
         skip,
         take,
       }),
@@ -95,7 +98,7 @@ export class FollowsService {
       this.prisma.userAuthorFollow.findMany({
         where: { userId },
         include: { author: { select: { id: true, slug: true, name: true, photoUrl: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { authorId: 'asc' }],
         skip,
         take,
       }),
@@ -110,7 +113,7 @@ export class FollowsService {
       this.prisma.userBookFollow.findMany({
         where: { userId },
         include: { book: { select: { id: true, slug: true, title: true, seriesName: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { bookId: 'asc' }],
         skip,
         take,
       }),

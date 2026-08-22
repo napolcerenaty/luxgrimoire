@@ -53,7 +53,14 @@ function FollowSection({ type }: { type: FollowType }) {
 
   useEffect(() => {
     if (!res) return
-    setItems((prev) => (page === 1 ? res.data : [...prev, ...res.data]))
+    setItems((prev) => {
+      const base = page === 1 ? [] : prev
+      // Dedupe by id — a skip/take page can, in principle, overlap with what's already
+      // loaded (e.g. a tied sort key or a delete shifting the window mid-session), and a
+      // duplicate id here would otherwise crash React with a duplicate-key error.
+      const seen = new Set(base.map((i) => i.id))
+      return [...base, ...res.data.filter((i) => !seen.has(i.id))]
+    })
     setTotal(res.total)
   }, [res]) // eslint-disable-line react-hooks/exhaustive-deps
 
