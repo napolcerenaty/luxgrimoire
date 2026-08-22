@@ -13,7 +13,8 @@ CREATE INDEX IF NOT EXISTS "book_series_isCompleted_lastCheckedAt_idx" ON "book_
 
 CREATE TABLE IF NOT EXISTS "series_volume_suggestions" (
     "id"            TEXT NOT NULL,
-    "seriesId"      TEXT NOT NULL,
+    -- book_series.id is a native UUID column (unlike books.id, which is TEXT) — must match for the FK below.
+    "seriesId"      UUID NOT NULL,
     "title"         TEXT NOT NULL,
     "authorNames"   TEXT[] NOT NULL DEFAULT '{}',
     "volumeNumber"  DOUBLE PRECISION,
