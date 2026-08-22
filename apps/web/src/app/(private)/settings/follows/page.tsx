@@ -131,7 +131,7 @@ export default function FollowsPage() {
 
   if (isLoading || !data) {
     return (
-      <div className="max-w-xl mx-auto px-4 py-10 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-10 space-y-6">
         <div className="h-8 bg-navy-800 rounded-lg w-48 animate-pulse" />
         <div className="h-32 bg-navy-800 rounded-2xl animate-pulse" />
       </div>
@@ -139,7 +139,7 @@ export default function FollowsPage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-10 space-y-8">
+    <div className="max-w-2xl mx-auto px-4 py-10 space-y-8">
       <div>
         <h1 className="text-2xl font-serif text-navy-100">My Follows</h1>
         <p className="text-sm text-navy-400 mt-1">
