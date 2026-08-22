@@ -161,6 +161,97 @@ describe('FollowNotificationsService', () => {
         },
       });
     });
+
+    // ── Studio/collective propagation ──────────────────────────────────────
+    // Following a studio means caring about any of its members' individual credits, not just
+    // credits given directly to the studio's own Artist row.
+
+    it('also notifies followers of the credited member\'s studio', async () => {
+      (prisma.artist.findUnique as jest.Mock).mockResolvedValue({
+        name: 'Maggie',
+        followers: [{ userId: 'user-1' }],
+        studio: { id: 'studio-1', name: '@TheStudio_artists', followers: [{ userId: 'user-2' }] },
+      });
+      (prisma.pendingEditionNotification.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await service.notifyOnArtistAdded(EDITION_ID, ARTIST_ID);
+
+      expect(prisma.pendingEditionNotification.create).toHaveBeenCalledTimes(2);
+      expect(prisma.pendingEditionNotification.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-1',
+          editionId: EDITION_ID,
+          reasons: [{ type: 'artist', id: ARTIST_ID, name: 'Maggie' }],
+          scheduledFor: DEBOUNCED_AT,
+        },
+      });
+      expect(prisma.pendingEditionNotification.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-2',
+          editionId: EDITION_ID,
+          reasons: [{ type: 'artist', id: 'studio-1', name: '@TheStudio_artists' }],
+          scheduledFor: DEBOUNCED_AT,
+        },
+      });
+    });
+
+    it('notifies studio followers even when the credited member has no followers of their own', async () => {
+      (prisma.artist.findUnique as jest.Mock).mockResolvedValue({
+        name: 'Maggie',
+        followers: [],
+        studio: { id: 'studio-1', name: '@TheStudio_artists', followers: [{ userId: 'user-2' }] },
+      });
+      (prisma.pendingEditionNotification.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await service.notifyOnArtistAdded(EDITION_ID, ARTIST_ID);
+
+      expect(prisma.pendingEditionNotification.create).toHaveBeenCalledTimes(1);
+      expect(prisma.pendingEditionNotification.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-2',
+          editionId: EDITION_ID,
+          reasons: [{ type: 'artist', id: 'studio-1', name: '@TheStudio_artists' }],
+          scheduledFor: DEBOUNCED_AT,
+        },
+      });
+    });
+
+    it('gives one combined notification (two distinct reasons) to a user following both the member and the studio', async () => {
+      (prisma.artist.findUnique as jest.Mock).mockResolvedValue({
+        name: 'Maggie',
+        followers: [{ userId: 'user-1' }],
+        studio: { id: 'studio-1', name: '@TheStudio_artists', followers: [{ userId: 'user-1' }] },
+      });
+      (prisma.pendingEditionNotification.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await service.notifyOnArtistAdded(EDITION_ID, ARTIST_ID);
+
+      expect(prisma.pendingEditionNotification.create).toHaveBeenCalledTimes(1);
+      expect(prisma.pendingEditionNotification.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-1',
+          editionId: EDITION_ID,
+          reasons: [
+            { type: 'artist', id: ARTIST_ID, name: 'Maggie' },
+            { type: 'artist', id: 'studio-1', name: '@TheStudio_artists' },
+          ],
+          scheduledFor: DEBOUNCED_AT,
+        },
+      });
+    });
+
+    it('does not error and notifies only the member when the artist has no studio', async () => {
+      (prisma.artist.findUnique as jest.Mock).mockResolvedValue({
+        name: 'Maggie',
+        followers: [{ userId: 'user-1' }],
+        studio: null,
+      });
+      (prisma.pendingEditionNotification.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await service.notifyOnArtistAdded(EDITION_ID, ARTIST_ID);
+
+      expect(prisma.pendingEditionNotification.create).toHaveBeenCalledTimes(1);
+    });
   });
 
   // ─── enqueue (debounce merge behavior) ───────────────────────────────────

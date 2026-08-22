@@ -56,17 +56,32 @@ export class FollowNotificationsService {
    * Called from EditionsService.addArtist() ONLY when the contribution is genuinely new — the
    * caller is responsible for checking that beforehand (a role-only edit on an existing
    * contributor must never reach here).
+   *
+   * Also notifies followers of the credited artist's studio/collective (if they belong to one)
+   * — following a studio means caring about any of its members' individual credits, not just
+   * credits given directly to the studio's own Artist row. The reverse (studio credited on the
+   * edition → also notify followers of individual members) is intentionally NOT done: a studio
+   * credit doesn't imply any specific member worked on it.
    */
   async notifyOnArtistAdded(editionId: string, artistId: string) {
     const artist = await this.prisma.artist.findUnique({
       where: { id: artistId },
-      select: { name: true, followers: { select: { userId: true } } },
+      select: {
+        name: true,
+        followers: { select: { userId: true } },
+        studio: { select: { id: true, name: true, followers: { select: { userId: true } } } },
+      },
     });
-    if (!artist || artist.followers.length === 0) return;
+    if (!artist) return;
 
     const reasonsByUser = new Map<string, EditionFollowReason[]>();
     for (const f of artist.followers) {
       this.addReason(reasonsByUser, f.userId, { type: 'artist', id: artistId, name: artist.name });
+    }
+    if (artist.studio) {
+      for (const f of artist.studio.followers) {
+        this.addReason(reasonsByUser, f.userId, { type: 'artist', id: artist.studio.id, name: artist.studio.name });
+      }
     }
 
     await this.enqueueAll(editionId, reasonsByUser);
