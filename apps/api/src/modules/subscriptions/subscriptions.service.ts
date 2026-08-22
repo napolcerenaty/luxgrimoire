@@ -42,6 +42,7 @@ import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
 import { resolveEffectiveBasePrice, parseFirstBilledYearMonth } from './price-change.util';
+import { resolveEffectivePrepayOption, getSelectablePrepayOptions } from './prepay-option.util';
 import { resolveEffectiveSettings, SubscriptionSettings } from './subscription-settings.util';
 import { resolveMonthBooksForEntry, persistMonthChoice, computeChoiceDeadline, materializeChoiceGroupBooks } from './subscription-month-choice.util';
 import { CrowdStatsService } from '../crowd-stats/crowd-stats.service';
@@ -2226,6 +2227,7 @@ export class SubscriptionsService {
             logoAsset: { select: { id: true, publicId: true } },
             currency: true,
             priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
+            prepayOptions: true,
             isDiscontinued: true,
             paymentOnStartup: true,
             renewalDay: true,
@@ -2257,7 +2259,7 @@ export class SubscriptionsService {
     });
 
     return Promise.all(entries.map(async (entry) => {
-      const { priceChanges: subPriceChanges, ...subRest } = entry.subscription as any;
+      const { priceChanges: subPriceChanges, prepayOptions: subPrepayOptions, ...subRest } = entry.subscription as any;
       const sub = {
         ...this.mapSubscriptionAssets(subRest),
         price: this.computeCurrentPrice(subPriceChanges ?? [], subRest.currency),
@@ -2298,12 +2300,23 @@ export class SubscriptionsService {
       let nextRenewalPriceChanged = false;
       let nextRenewalNewPrice: string | null = null;
 
-      // For prepaid subscriptions, use the scheduled prepay option price as the renewal base
+      // For prepaid subscriptions, resolve the currently-effective prepay option's price fresh
+      // rather than trusting the stale scheduledPrepayOption FK — this is what makes a
+      // non-grandfathered price change actually show up in the "next renewal" preview, and keeps
+      // a grandfathered subscriber correctly seeing their old price (see prepay-option.util.ts).
       const scheduledPrepayOption = (entry as any).scheduledPrepayOption as { price: { toString(): string }; currency: string; months: number } | null;
       if (scheduledPrepayOption) {
-        // Use prepay option price directly — costCurrency is always set to the option's
-        // currency at join time, so the price is already in the user's cost currency.
-        nextBase = parseFloat(scheduledPrepayOption.price.toString());
+        const referenceDate = storedRenewalDate ?? new Date();
+        const resolvedPrepay = resolveEffectivePrepayOption(
+          subPrepayOptions ?? [],
+          scheduledPrepayOption.months,
+          scheduledPrepayOption.currency,
+          referenceDate,
+          entry.startDate,
+        );
+        // Fully discontinued with nothing to replace it — fall back to the last known price
+        // rather than showing nothing; this mirrors the renewal cron's own fallback.
+        nextBase = resolvedPrepay ? parseFloat(resolvedPrepay.price.toString()) : parseFloat(scheduledPrepayOption.price.toString());
       } else if (storedRenewalDate) {
         const renewalYear = storedRenewalDate.getUTCFullYear();
         const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
@@ -2406,6 +2419,7 @@ export class SubscriptionsService {
             renewalMonthOffset: true,
             startDate: true,
             priceChanges: { orderBy: [{ effectiveYear: 'asc' }, { effectiveMonth: 'asc' }] },
+            prepayOptions: true,
             company: {
               select: {
                 name: true,
@@ -2432,7 +2446,7 @@ export class SubscriptionsService {
     });
 
     return Promise.all(entries.map(async (entry) => {
-      const { priceChanges: subPriceChanges, ...subRest } = entry.subscription as any;
+      const { priceChanges: subPriceChanges, prepayOptions: subPrepayOptions, ...subRest } = entry.subscription as any;
       const sub = {
         ...this.mapSubscriptionAssets(subRest),
         price: this.computeCurrentPrice(subPriceChanges ?? [], subRest.currency),
@@ -2456,7 +2470,15 @@ export class SubscriptionsService {
 
       let nextBase = fallbackBase;
       if (scheduledPrepayOption) {
-        nextBase = parseFloat(scheduledPrepayOption.price.toString());
+        const referenceDate = storedRenewalDate ?? new Date();
+        const resolvedPrepay = resolveEffectivePrepayOption(
+          subPrepayOptions ?? [],
+          scheduledPrepayOption.months,
+          scheduledPrepayOption.currency,
+          referenceDate,
+          entry.startDate,
+        );
+        nextBase = resolvedPrepay ? parseFloat(resolvedPrepay.price.toString()) : parseFloat(scheduledPrepayOption.price.toString());
       } else if (storedRenewalDate) {
         const renewalYear = storedRenewalDate.getUTCFullYear();
         const renewalMonth = storedRenewalDate.getUTCMonth() + 1;
@@ -3213,14 +3235,17 @@ export class SubscriptionsService {
       };
     }
 
-    // Resolve prepay option (if provided) — sets prepaidMonths and scheduledPrepayOptionId atomically at join time
+    // Resolve prepay option (if provided) — sets prepaidMonths and scheduledPrepayOptionId atomically at join time.
+    // New entries always start "now", so grandfathering never applies here — this lookup only
+    // guards against a client requesting a stale/superseded/discontinued option id directly.
     let resolvedPrepayMonths: number | null = null;
     let resolvedPrepayOptionId: string | null = null;
     if (dto.selectedPrepayOptionId) {
-      const option = await this.prisma.subscriptionPrepayOption.findFirst({
-        where: { id: dto.selectedPrepayOptionId, subscriptionId: sub.id },
-      });
+      const allOptions = await this.prisma.subscriptionPrepayOption.findMany({ where: { subscriptionId: sub.id } });
+      const option = allOptions.find(o => o.id === dto.selectedPrepayOptionId);
       if (!option) throw new BadRequestException('Invalid prepay option');
+      const current = resolveEffectivePrepayOption(allOptions, option.months, option.currency, new Date());
+      if (!current || current.id !== option.id) throw new BadRequestException('Invalid prepay option');
       resolvedPrepayMonths = option.months;
       resolvedPrepayOptionId = option.id;
     }
@@ -4469,10 +4494,13 @@ export class SubscriptionsService {
 
     let prepaidMonths = 1;
     if (dto.scheduledPrepayOptionId) {
-      const option = await this.prisma.subscriptionPrepayOption.findFirst({
-        where: { id: dto.scheduledPrepayOptionId, subscriptionId: sub.id },
-      });
+      const allOptions = await this.prisma.subscriptionPrepayOption.findMany({ where: { subscriptionId: sub.id } });
+      const option = allOptions.find(o => o.id === dto.scheduledPrepayOptionId);
       if (!option) throw new BadRequestException('Invalid prepay option');
+      // Grandfathering-aware: this is an existing active entry re-selecting, so its own
+      // startDate decides whether it's still entitled to an older, closed option's price.
+      const current = resolveEffectivePrepayOption(allOptions, option.months, option.currency, new Date(), entry.startDate);
+      if (!current || current.id !== option.id) throw new BadRequestException('Invalid prepay option');
       prepaidMonths = option.months;
     }
 
@@ -4814,26 +4842,64 @@ export class SubscriptionsService {
 
   // ── Prepay Options CRUD ──────────────────────────────────────────────────────
 
-  async getPrepayOptions(slug: string) {
+  async getPrepayOptions(slug: string, userId?: string | null) {
     const sub = await findBySlugOrThrow(this.prisma.subscription, slug, 'Subscription');
-    return this.prisma.subscriptionPrepayOption.findMany({
+    const options = await this.prisma.subscriptionPrepayOption.findMany({
       where: { subscriptionId: sub.id },
       orderBy: { months: 'asc' },
     });
+
+    // Anonymous / no-entry callers (new-joiner browsing) get the plain "current" list, same as
+    // before this method took a userId. Only an ACTIVE entry's startDate is used for
+    // grandfathering eligibility — a cancelled historical entry must never be picked up here,
+    // since cancel+rejoin is precisely how a subscriber is meant to lose grandfathering.
+    let activeEntryStartDate: string | null = null;
+    if (userId) {
+      const activeEntry = await this.prisma.userSubscriptionEntry.findFirst({
+        where: { userId, subscriptionId: sub.id, active: true },
+        select: { startDate: true },
+      });
+      activeEntryStartDate = activeEntry?.startDate ?? null;
+    }
+
+    return getSelectablePrepayOptions(options, new Date(), activeEntryStartDate);
   }
 
   async createPrepayOption(slug: string, dto: CreatePrepayOptionDto) {
     const sub = await findBySlugOrThrow(this.prisma.subscription, slug, 'Subscription');
-    return this.prisma.subscriptionPrepayOption.create({
-      data: {
-        subscriptionId: sub.id,
-        months: dto.months,
-        price: dto.price,
-        currency: dto.currency,
-        label: dto.label ?? null,
-        validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
-        validUntil: dto.validUntil ? new Date(dto.validUntil) : null,
-      },
+    const newValidFrom = dto.validFrom ? new Date(dto.validFrom) : new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      // Auto-close: a new option for the same (subscriptionId, months, currency) supersedes
+      // whichever sibling is still open as of this option's start — closing it (validUntil)
+      // rather than leaving it open forever is what makes grandfathering meaningful (see
+      // prepay-option.util.ts). Only siblings that have themselves already started are closed,
+      // so a backdated insert never clobbers something scheduled further in the future.
+      await tx.subscriptionPrepayOption.updateMany({
+        where: {
+          subscriptionId: sub.id,
+          months: dto.months,
+          currency: dto.currency,
+          AND: [
+            { OR: [{ validFrom: null }, { validFrom: { lte: newValidFrom } }] }, // already started
+            { OR: [{ validUntil: null }, { validUntil: { gt: newValidFrom } }] }, // still open
+          ],
+        },
+        data: { validUntil: newValidFrom },
+      });
+
+      return tx.subscriptionPrepayOption.create({
+        data: {
+          subscriptionId: sub.id,
+          months: dto.months,
+          price: dto.price,
+          currency: dto.currency,
+          label: dto.label ?? null,
+          validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
+          validUntil: dto.validUntil ? new Date(dto.validUntil) : null,
+          grandfatheredPrice: dto.grandfatheredPrice ?? false,
+        },
+      });
     });
   }
 
@@ -4852,6 +4918,7 @@ export class SubscriptionsService {
         ...(dto.label !== undefined && { label: dto.label ?? null }),
         ...(dto.validFrom !== undefined && { validFrom: dto.validFrom ? new Date(dto.validFrom) : null }),
         ...(dto.validUntil !== undefined && { validUntil: dto.validUntil ? new Date(dto.validUntil) : null }),
+        ...(dto.grandfatheredPrice !== undefined && { grandfatheredPrice: dto.grandfatheredPrice }),
       },
     });
   }

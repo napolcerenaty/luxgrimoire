@@ -303,12 +303,9 @@ function InlineCostsEditor({
               className="bg-navy-800 border border-navy-700 rounded-lg px-2 py-1.5 text-xs text-navy-100 focus:outline-none focus:border-brand-400 transition-colors"
             >
               <option value="">Monthly</option>
-              {prepayOptions.filter(o => {
-                const now = new Date()
-                if (o.validFrom && new Date(o.validFrom) > now) return false
-                if (o.validUntil && new Date(o.validUntil) <= now) return false
-                return true
-              }).map(o => (
+              {/* prepayOptions already comes back grandfathering-resolved from GET :slug/prepay-options
+                  for this user — no client-side validFrom/validUntil filtering needed here. */}
+              {prepayOptions.map(o => (
                 <option key={o.id} value={o.id}>
                   {o.label ?? `${o.months} months`} — {o.price} {o.currency}
                 </option>

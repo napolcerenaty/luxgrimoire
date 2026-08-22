@@ -593,17 +593,27 @@ model UserSubscriptionSkipState {
   @@map("user_subscription_skip_states")
 }
 
+/// Uses validFrom/validUntil (an open date range) rather than SubscriptionPriceChange's single
+/// effectiveYear/effectiveMonth: the base monthly price is always in effect (exactly one row
+/// applies to any given month), but a prepay option is an optional upfront-payment offer that can
+/// be withdrawn while the underlying subscription keeps running on ordinary monthly billing — so
+/// its validity needs both a start and an end, not just a single "as of" month.
 model SubscriptionPrepayOption {
-  id               String                  @id @default(uuid())
-  subscriptionId   String
-  months           Int
-  price            Decimal                 @db.Decimal(10, 2)
-  currency         String                  @db.VarChar(3) @default("USD")
-  label            String?
-  validFrom        DateTime?
-  validUntil       DateTime?
-  subscription     Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  scheduledEntries UserSubscriptionEntry[] @relation("ScheduledPrepay")
+  id                 String                  @id @default(uuid())
+  subscriptionId     String
+  months             Int
+  price              Decimal                 @db.Decimal(10, 2)
+  currency           String                  @db.VarChar(3) @default("USD")
+  label              String?
+  validFrom          DateTime?
+  validUntil         DateTime?
+  /// Mirrors SubscriptionPriceChange.grandfatheredPrice: when true, subscribers whose active
+  /// entry's startDate predates this option's validFrom keep being resolved to whichever older
+  /// option they qualify for (see resolveEffectivePrepayOption) instead of rolling onto this price
+  /// at their next renewal. New joiners always get the current option regardless of this flag.
+  grandfatheredPrice Boolean                 @default(false)
+  subscription       Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  scheduledEntries   UserSubscriptionEntry[] @relation("ScheduledPrepay")
 
   @@map("subscription_prepay_options")
   @@index([subscriptionId])

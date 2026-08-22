@@ -691,10 +691,10 @@ export class SubscriptionsController {
 
   // ── Prepay Options ───────────────────────────────────────────────────────────
 
-  @Public()
+  @OptionalAuth()
   @Get(':slug/prepay-options')
-  getPrepayOptions(@Param('slug') slug: string) {
-    return this.subscriptionsService.getPrepayOptions(slug);
+  getPrepayOptions(@Param('slug') slug: string, @Request() req: any) {
+    return this.subscriptionsService.getPrepayOptions(slug, req.user?.id ?? null);
   }
 
   @ApiBearerAuth()
