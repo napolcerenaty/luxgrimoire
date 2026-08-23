@@ -292,6 +292,34 @@ describe('SubscriptionsService — query methods', () => {
         expect(result[0].nextRenewalPriceChanged).toBe(true);
         expect(result[0].nextRenewalNewPrice).toBe('111.00');
       });
+
+      // Real bug found in production: nextBoxMonth was derived from storedRenewalDate (the next
+      // BILLING date), which for a prepaid entry only fires once per multi-month period and can be
+      // months away mid-period. Boxes still ship every month within an already-paid period, so
+      // "Next Box" must be computed on the plain monthly cadence, independent of the prepay billing
+      // cycle — otherwise it skips straight to the box tied to the far-future re-bill instead of the
+      // next one actually shipping.
+      it('computes nextBoxMonth from the plain monthly cadence, not the far-future prepay renewal date', async () => {
+        jest.useFakeTimers().setSystemTime(new Date('2026-08-23T12:00:00Z'));
+        try {
+          const entry = makeEntryRow({
+            startDate: '2026-07-22',
+            renewalDay: 1,
+            nextRenewalDate: new Date('2026-11-01'), // next re-bill, 3-month prepay period just used up
+            scheduledPrepayOptionId: OLD_OPTION.id,
+            scheduledPrepayOption: { price: OLD_OPTION.price, currency: OLD_OPTION.currency, months: OLD_OPTION.months },
+            subscription: makeSub({ renewalDay: 1, prepayOptions: [OLD_OPTION] }),
+          });
+          (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
+
+          const result = await service.getMySubscriptions(USER_ID);
+
+          expect(result[0].nextRenewalDate).toBe(new Date('2026-11-01').toISOString());
+          expect(result[0].nextBoxMonth).toEqual({ year: 2026, month: 9 });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
     });
   });
 
