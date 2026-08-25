@@ -92,11 +92,13 @@ export default function AdminSeriesSuggestionsPage() {
           <button
             onClick={() => runNow.mutate()}
             disabled={runNow.isPending}
+            title="Manually check every non-completed series against Google Books, Open Library, and Wikidata right now, instead of waiting for the daily batch"
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-400 text-navy-950 hover:bg-brand-300 disabled:opacity-50 transition-colors"
           >
             {runNow.isPending ? 'Checking…' : 'Check now'}
           </button>
           <button onClick={() => qc.invalidateQueries({ queryKey: ['admin', 'series-volume-suggestions'] } )}
+            title="Reload this list"
             className="p-2 rounded-lg text-navy-400 hover:text-brand-400 hover:bg-navy-800 transition-colors">
             <RefreshCw size={16} />
           </button>
@@ -163,6 +165,7 @@ export default function AdminSeriesSuggestionsPage() {
                   {s.status === 'pending' && (
                     <button
                       onClick={() => setCreateFrom(s)}
+                      title="Open the book creation form, pre-filled with this suggestion's title/author/series/genres — nothing is created until you submit that form"
                       className="flex items-center gap-1 bg-brand-400/10 text-brand-400 border border-brand-400/20 px-3 py-1 rounded text-xs font-medium hover:bg-brand-400/20 transition-colors"
                     >
                       <BookPlus size={13} /> Create book
@@ -171,12 +174,14 @@ export default function AdminSeriesSuggestionsPage() {
                   {s.status === 'pending' && (
                     <button
                       onClick={() => updateStatus.mutate({ id: s.id, status: 'dismissed' })}
+                      title="Not a real/wanted volume — hides it from the pending list. It won't be suggested again on future checks."
                       className="bg-navy-800 text-navy-400 px-3 py-1 rounded text-xs hover:bg-navy-700 transition-colors"
                     >
                       Dismiss
                     </button>
                   )}
                   <button onClick={() => { if (confirm('Delete this suggestion?')) del.mutate(s.id) }}
+                    title="Permanently remove this row — unlike Dismiss, a future check could suggest it again if it's still not in your catalogue"
                     className="p-1.5 rounded-lg text-navy-600 hover:text-rose-400 hover:bg-rose-950/30 transition-colors">
                     <Trash2 size={13} />
                   </button>

@@ -271,6 +271,7 @@ export class AdminService {
       saleRequestsPending,
       bugReportsOpen,
       featureRequestsPending,
+      seriesSuggestionsPending,
       totalUsers,
       activeUsersLastWeek,
     ] = await this.prisma.$transaction([
@@ -280,6 +281,7 @@ export class AdminService {
       this.prisma.saleAnnouncementRequest.count({ where: { status: 'pending' } }),
       this.prisma.bugReport.count({ where: { status: 'open' } }),
       this.prisma.featureRequest.count({ where: { status: 'pending' } }),
+      this.prisma.seriesVolumeSuggestion.count({ where: { status: 'pending' } }),
       this.prisma.user.count(),
       this.prisma.user.count({ where: { lastLoginAt: { gte: oneWeekAgo } } }),
     ]);
@@ -291,6 +293,7 @@ export class AdminService {
       saleRequestsPending,
       bugReportsOpen,
       featureRequestsPending,
+      seriesSuggestionsPending,
       totalUsers,
       activeUsersLastWeek,
     };
