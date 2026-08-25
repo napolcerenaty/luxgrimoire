@@ -1,7 +1,6 @@
 import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
 import { paginatedQuery } from '../../common/prisma.utils';
 import { GoogleBooksClient } from './clients/google-books.client';
 import { OpenLibraryClient } from './clients/open-library.client';
@@ -126,7 +125,6 @@ export class SeriesDiscoveryService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService,
     private readonly googleBooks: GoogleBooksClient,
     private readonly openLibrary: OpenLibraryClient,
     private readonly wikidata: WikidataClient,
@@ -184,10 +182,6 @@ export class SeriesDiscoveryService {
       }
       // Be polite to free, rate-limited APIs — small gap between series.
       await new Promise((resolve) => setTimeout(resolve, 300));
-    }
-
-    if (suggestionsCreated > 0) {
-      await this.notifyAdmins(suggestionsCreated);
     }
 
     return { seriesChecked: series.length, suggestionsCreated, googleBooksRateLimited };
@@ -294,18 +288,6 @@ export class SeriesDiscoveryService {
     const names = new Set<string>();
     for (const entry of entries) for (const a of entry.book.authors) names.add(a.author.name);
     return Array.from(names);
-  }
-
-  private async notifyAdmins(count: number): Promise<void> {
-    const admins = await this.prisma.user.findMany({
-      where: { role: { in: ['ADMIN', 'MODERATOR'] } },
-      select: { id: true },
-    });
-    const title = 'New series volumes found';
-    const body = `${count} new possible volume${count === 1 ? '' : 's'} awaiting review`;
-    for (const admin of admins) {
-      await this.notifications.createNotification(admin.id, 'series_volume_suggestions', title, body).catch(() => {});
-    }
   }
 
   // ─── Admin CRUD for the suggestions queue ──────────────────────────────────

@@ -2,7 +2,6 @@ import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SeriesDiscoveryService } from './series-discovery.service';
-import { NotificationsService } from '../notifications/notifications.service';
 import { GoogleBooksClient } from './clients/google-books.client';
 import { OpenLibraryClient } from './clients/open-library.client';
 import { WikidataClient } from './clients/wikidata.client';
@@ -23,7 +22,6 @@ function makeSeries(overrides: Record<string, unknown> = {}) {
 describe('SeriesDiscoveryService', () => {
   let service: SeriesDiscoveryService;
   let prisma: DeepMockProxy<PrismaService>;
-  let notifications: { createNotification: jest.Mock };
   let googleBooks: { search: jest.Mock };
   let openLibrary: { search: jest.Mock };
   let wikidata: { resolveSeriesId: jest.Mock; fetchParts: jest.Mock };
@@ -31,7 +29,6 @@ describe('SeriesDiscoveryService', () => {
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    notifications = { createNotification: jest.fn().mockResolvedValue({ id: 'notif-1' }) };
     googleBooks = { search: jest.fn().mockResolvedValue({ candidates: [], seriesId: null }) };
     openLibrary = { search: jest.fn().mockResolvedValue([]) };
     wikidata = { resolveSeriesId: jest.fn().mockResolvedValue(null), fetchParts: jest.fn().mockResolvedValue([]) };
@@ -49,7 +46,6 @@ describe('SeriesDiscoveryService', () => {
 
     service = new SeriesDiscoveryService(
       prisma,
-      notifications as unknown as NotificationsService,
       googleBooks as unknown as GoogleBooksClient,
       openLibrary as unknown as OpenLibraryClient,
       wikidata as unknown as WikidataClient,
@@ -114,7 +110,6 @@ describe('SeriesDiscoveryService', () => {
       const result = await service.runCheck();
 
       expect(result).toEqual({ seriesChecked: 0, suggestionsCreated: 0, googleBooksRateLimited: false });
-      expect(notifications.createNotification).not.toHaveBeenCalled();
     });
 
     it('creates a suggestion for a new candidate and updates lastCheckedAt', async () => {
@@ -250,23 +245,6 @@ describe('SeriesDiscoveryService', () => {
       expect(result.seriesChecked).toBe(2);
       expect(prisma.bookSeries.update).toHaveBeenCalledTimes(1);
       expect(prisma.bookSeries.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'series-2' } }));
-    });
-
-    it('notifies admins/moderators when new suggestions were created', async () => {
-      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
-      (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'admin-1' }, { id: 'mod-1' }]);
-      googleBooks.search.mockResolvedValue({
-        candidates: [{ title: 'Test Saga Book 4', volumeNumber: 4, authorNames: [], genres: [], source: 'google_books', sourceId: 'gb-4' }],
-        seriesId: null,
-      });
-
-      await service.runCheck();
-
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { role: { in: ['ADMIN', 'MODERATOR'] } } }),
-      );
-      expect(notifications.createNotification).toHaveBeenCalledTimes(2);
-      expect(notifications.createNotification).toHaveBeenCalledWith('admin-1', 'series_volume_suggestions', expect.any(String), expect.any(String));
     });
 
     it('never checks a completed series (enforced by the where clause)', async () => {
