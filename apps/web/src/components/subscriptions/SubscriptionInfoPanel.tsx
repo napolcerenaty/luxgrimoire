@@ -866,12 +866,9 @@ function EditEntryCostsModal({
                 onChange={e => setScheduledPrepayOptionId(e.target.value || null)}
               >
                 <option value="">Standard (monthly)</option>
-                {prepayOptions?.filter(o => {
-                  const now = new Date()
-                  if (o.validFrom && new Date(o.validFrom) > now) return false
-                  if (o.validUntil && new Date(o.validUntil) <= now) return false
-                  return true
-                }).map(o => (
+                {/* prepayOptions already comes back grandfathering-resolved from GET :slug/prepay-options
+                    for this user — no client-side validFrom/validUntil filtering needed here. */}
+                {prepayOptions?.map(o => (
                   <option key={o.id} value={o.id}>
                     {o.label ?? `${o.months} months`} — {o.price} {o.currency}
                   </option>

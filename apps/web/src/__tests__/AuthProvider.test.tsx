@@ -33,11 +33,11 @@ describe('AuthProvider', () => {
     expect(result.current.user).toBeNull()
   })
 
-  it('sets user when /auth/me returns 200', async () => {
+  it('sets user when /auth/status returns isLoggedIn: true', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({ id: 'u1', email: 'x@x.com', username: 'x', role: 'USER' }),
+      json: () => Promise.resolve({ isLoggedIn: true, user: { id: 'u1', email: 'x@x.com', username: 'x', role: 'USER' } }),
     })
 
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider })
@@ -68,12 +68,12 @@ describe('AuthProvider', () => {
   })
 
   it('logout() calls /auth/logout with credentials:include and sets user to null', async () => {
-    // First call: /auth/me → logged in
+    // First call: /auth/status → logged in
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ id: 'u1', email: 'x@x.com', username: 'x', role: 'USER' }),
+        json: () => Promise.resolve({ isLoggedIn: true, user: { id: 'u1', email: 'x@x.com', username: 'x', role: 'USER' } }),
       })
       // Second call: /auth/logout → 204
       .mockResolvedValueOnce({ ok: true, status: 204, json: () => Promise.resolve(null) })

@@ -23,6 +23,7 @@ export interface PrepayOptionRecord {
   currency: string
   validFrom?: string | null
   validUntil?: string | null
+  grandfatheredPrice?: boolean
 }
 
 export interface SubscriptionMonthRef {
@@ -69,6 +70,14 @@ export function lookupPriceAt(
  * Find the prepay option price valid at the given billing date for a specific
  * (months, currency) combination.
  *
+ * `activeEntryStartDate` (the subscriber's actual join date, YYYY-MM-DD) makes this
+ * grandfathering-aware, mirroring the backend's resolveEffectivePrepayOption
+ * (apps/api/.../prepay-option.util.ts): a batch dated after a grandfathered price
+ * increase still resolves to the pre-increase price for a subscriber who joined before
+ * it, walking back through the same "excluded -> try the next-oldest option" chain.
+ * Omit it (or pass null) for the old, non-grandfathering-aware behavior — just the most
+ * recent option that had started by the billing date.
+ *
  * Returns `fallbackPrice` when no matching option is found.
  */
 export function lookupPrepayPriceAt(
@@ -77,21 +86,35 @@ export function lookupPrepayPriceAt(
   targetMonths: number,
   targetCurrency: string,
   fallbackPrice: string,
+  activeEntryStartDate?: string | null,
 ): string {
   if (!billingDateStr) return fallbackPrice
-  const matching = options
+  const started = options
     .filter(o => o.months === targetMonths && o.currency === targetCurrency)
     .filter(o => {
       const from = o.validFrom ? o.validFrom.slice(0, 10) : null
-      const until = o.validUntil ? o.validUntil.slice(0, 10) : null
-      return (!from || from <= billingDateStr) && (!until || until > billingDateStr)
+      return !from || from <= billingDateStr
     })
     .sort((a, b) => {
       const af = a.validFrom ?? ''
       const bf = b.validFrom ?? ''
       return bf > af ? 1 : bf < af ? -1 : 0
     })
-  return matching.length > 0 ? String(matching[0].price) : fallbackPrice
+
+  let fellThroughViaExclusion = false
+  for (const o of started) {
+    const from = o.validFrom ? o.validFrom.slice(0, 10) : null
+    const excluded = !!o.grandfatheredPrice && !!activeEntryStartDate && activeEntryStartDate < (from ?? '')
+    if (excluded) {
+      fellThroughViaExclusion = true
+      continue
+    }
+    const until = o.validUntil ? o.validUntil.slice(0, 10) : null
+    const isOpenAtBillingDate = !until || until > billingDateStr
+    if (isOpenAtBillingDate || fellThroughViaExclusion) return String(o.price)
+    return fallbackPrice // closed as of this billing date, and nothing excluded us into it
+  }
+  return fallbackPrice
 }
 
 // ── resolveBackfillFallbackPrice ──────────────────────────────────────────────
@@ -219,7 +242,11 @@ export function computeAutoBatches(
     (a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month,
   )
 
-  // Parse the subscription start date for first batch billing date
+  // Parse the subscription start date for first batch billing date — also doubles as the
+  // grandfathering reference date passed to lookupPrepayPriceAt below, so it must be a full
+  // YYYY-MM-DD (a bare YYYY-MM would otherwise string-compare as "before" any same-month
+  // validFrom, e.g. "2026-08" < "2026-08-01", incorrectly grandfathering a user who actually
+  // joined after that day).
   let firstBatchDate: string | null = null
   if (startDate) {
     if (startDate.length === 7) {
@@ -244,7 +271,7 @@ export function computeAutoBatches(
         const dateStr = isFirst && firstBatchDate
           ? firstBatchDate
           : `${batchStart.year}-${String(batchStart.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        const batchAmount = parseDecimalInput(lookupPrepayPriceAt(dateStr, allPrepayOptions, prepayN, currency, fallbackPrice)).toFixed(2)
+        const batchAmount = parseDecimalInput(lookupPrepayPriceAt(dateStr, allPrepayOptions, prepayN, currency, fallbackPrice, firstBatchDate)).toFixed(2)
         batches.push({ billingDate: dateStr, monthIds: [...currentBatch], amount: batchAmount, currency })
         batchStart = null
         currentBatch = []
@@ -262,6 +289,81 @@ export function computeAutoBatches(
     batches.push({ billingDate: dateStr, monthIds: [...currentBatch], amount: batchAmount, currency })
   }
   return batches
+}
+
+// ── resolveBatchMonthsCovered ──────────────────────────────────────────────────
+
+/**
+ * Resolves how many months a manual ("yes" path) backfill row actually covers, for the
+ * billingBatches payload sent to the backend.
+ *
+ * A row's months are normally bucketed automatically by date (bucketedMonthCount — how many
+ * SubscriptionMonth rows happen to fall between this row's date and the next one's). That
+ * undercounts a row that covers months which haven't been announced yet as real
+ * SubscriptionMonth rows (typically the last row) — the row still covers however many months
+ * were actually paid for, just fewer of them currently exist to bucket into it. The user can
+ * override the count explicitly per row; an empty/invalid override falls back to the bucketed
+ * count, preserving today's behavior for every row that doesn't need one.
+ */
+export function resolveBatchMonthsCovered(rowMonthsCovered: string, bucketedMonthCount: number): number {
+  const parsed = parseInt(rowMonthsCovered, 10)
+  return rowMonthsCovered !== '' && !Number.isNaN(parsed) && parsed > 0 ? parsed : bucketedMonthCount
+}
+
+// ── buildPartialPrepayBillingBatch ─────────────────────────────────────────────
+
+export interface PartialPrepayBillingBatch {
+  billedAt: string
+  baseAmount: number
+  monthsCovered: number
+  currency: string
+  monthIds: string[]
+  shippingAmount?: number
+  fees?: { name: string; amount: number; currency: string }[]
+}
+
+/**
+ * Builds the single billingBatches entry for the "partial prepay period" join shortcut — when
+ * a new joiner has fewer eligible months to backfill than their chosen prepay period length
+ * (e.g. joining mid-quarter with only the current month announced so far), the modal skips the
+ * Step3 batches UI (nothing meaningful to ask when there's only ever going to be one batch) and
+ * calls /join/backfill directly.
+ *
+ * Sending NO billingBatches in that case used to make the backend fall through to its plain-
+ * monthly "no batch" path, which is completely prepay-unaware: undivided price/shipping, and the
+ * subscription's currently-effective MONTHLY price instead of what was actually paid for the
+ * whole prepaid period. It also clobbers the correctly-divided preorder that join's own
+ * recordFirstMonthAsPreorder just created for the same month(s), since this backfill call runs
+ * afterward and wins the final book price. Building this batch explicitly routes it through the
+ * same (now-fixed) division + period-reuse logic every other backfill path uses.
+ *
+ * entryFees (the entry's linked fee templates, e.g. postage/VAT) are included as batch.fees —
+ * same as the full Step3 auto-path already does (autoBatchOverrides pre-fills fees from
+ * entryFees) — so the backend's existing "divide batch.fees by monthsCovered" logic picks them
+ * up too: the user enters one combined total (base price, shipping, AND any recurring fee) for
+ * the whole prepaid period in one payment, so all of it needs splitting the same way.
+ */
+export function buildPartialPrepayBillingBatch(
+  joinPayload: { startDate?: string; costCurrency?: string; basePrice?: string; shippingCost?: string } | null,
+  prepayOption: { months: number; price: number | string },
+  selectedMonthIds: string[],
+  fallbackCurrency: string,
+  entryFees: { name: string; amount: string; currency: string }[] = [],
+): PartialPrepayBillingBatch {
+  const baseAmount = parseDecimalInput(resolveBackfillFallbackPrice(joinPayload?.basePrice, prepayOption.price))
+  const shippingAmount = joinPayload?.shippingCost ? parseDecimalInput(joinPayload.shippingCost) : undefined
+  const fees = entryFees
+    .filter(f => f.name && f.amount)
+    .map(f => ({ name: f.name, amount: parseDecimalInput(f.amount), currency: f.currency }))
+  return {
+    billedAt: joinPayload?.startDate ?? new Date().toISOString().slice(0, 10),
+    baseAmount,
+    monthsCovered: prepayOption.months,
+    currency: joinPayload?.costCurrency ?? fallbackCurrency,
+    monthIds: selectedMonthIds,
+    ...(fees.length > 0 && { fees }),
+    ...(shippingAmount !== undefined && { shippingAmount }),
+  }
 }
 
 // ── First-box picker (previous / current / next) ─────────────────────────────

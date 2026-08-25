@@ -497,6 +497,162 @@ describe('SubscriptionsService — backfillSubscription full paths', () => {
     });
   });
 
+  // ── Prepaid — trailing incomplete window ──────────────────────────────────
+  //
+  // Bug: when the trailing prepay window isn't fully "real" yet (paid for N months, but fewer
+  // than N exist as SubscriptionMonth rows so far because later ones haven't been announced),
+  // the batch's baseAmount is still the FULL N-month price (see computeAutoBatches on the
+  // frontend: "Partial last batch — always use full period price"). monthsCovered must reflect
+  // that same true N, not monthIds.length — otherwise the division below inflates the price, and
+  // the persisted UserSubBillingPeriod.monthsCovered corrupts the cron's later slot-tracking
+  // (ensurePrepayBillingPeriod: slotsFilled < period.monthsCovered).
+
+  describe('prepaid — trailing incomplete window (monthsCovered reflects the true paid-for N)', () => {
+    it('divides the full N-month price by N, not by the number of months currently backfilled', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      // Paid for 3 months, but only 2 exist as SubscriptionMonth rows so far.
+      const months = [makeMonth('m-1', 2026, 8), makeMonth('m-2', 2026, 9)];
+      setupBackfill(prisma, skipMock, {
+        entry: makeEntry({ startDate: '2026-08-01' }),
+        months,
+        purchaseGroupIds: ['pg-1', 'pg-2'],
+        billingPeriodId: 'bp-1',
+      });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1', 'm-2'],
+        billingBatches: [{
+          billedAt: '2026-08-01',
+          baseAmount: 90, // full 3-month price
+          monthsCovered: 3, // true N — the frontend fix sends this, not monthIds.length (2)
+          currency: 'USD',
+          monthIds: ['m-1', 'm-2'],
+          shippingAmount: 30,
+        }],
+      } as any);
+
+      const calls = (prisma.userPurchaseGroup.create as jest.Mock).mock.calls;
+      expect(calls).toHaveLength(2);
+      for (const call of calls) {
+        expect(call[0].data.totalAmount).toBeCloseTo(30); // 90 / 3, not 90 / 2
+        expect(call[0].data.shippingAmount).toBeCloseTo(10); // 30 / 3, not 30 / 2
+      }
+    });
+
+    it('persists UserSubBillingPeriod.monthsCovered as the true N, not the number of months in this batch', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const months = [makeMonth('m-1', 2026, 8), makeMonth('m-2', 2026, 9)];
+      setupBackfill(prisma, skipMock, {
+        entry: makeEntry({ startDate: '2026-08-01' }),
+        months,
+        purchaseGroupIds: ['pg-1', 'pg-2'],
+        billingPeriodId: 'bp-1',
+      });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-1', 'm-2'],
+        billingBatches: [{
+          billedAt: '2026-08-01',
+          baseAmount: 90,
+          monthsCovered: 3,
+          currency: 'USD',
+          monthIds: ['m-1', 'm-2'],
+        }],
+      } as any);
+
+      expect(prisma.userSubBillingPeriod.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ monthsCovered: 3 }) }),
+      );
+    });
+
+    it('reuses an existing period (e.g. created by the join-time preorder) instead of creating a duplicate for the same window', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const months = [makeMonth('m-2', 2026, 9)];
+      setupBackfill(prisma, skipMock, {
+        entry: makeEntry({ startDate: '2026-08-01' }),
+        months,
+        purchaseGroupIds: ['pg-2'],
+        // no billingPeriodId — userSubBillingPeriod.create must NOT be called in this test
+      });
+
+      // An existing period already covers Aug–Oct (created earlier, e.g. by the join-time
+      // preorder for August), with 1 of 3 slots filled.
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce({
+        billingPeriods: [{
+          id: 'bp-existing',
+          coveredFromYear: 2026,
+          coveredFromMonth: 8,
+          coveredToYear: 2026,
+          coveredToMonth: 10,
+          monthsCovered: 3,
+        }],
+      });
+      (prisma.userPurchaseGroup.count as jest.Mock).mockResolvedValueOnce(1);
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-2'],
+        billingBatches: [{
+          billedAt: '2026-08-01',
+          baseAmount: 90,
+          monthsCovered: 3,
+          currency: 'USD',
+          monthIds: ['m-2'],
+        }],
+      } as any);
+
+      expect(prisma.userSubBillingPeriod.create).not.toHaveBeenCalled();
+      expect(prisma.userPurchaseGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { billingPeriodId: 'bp-existing' } }),
+      );
+    });
+
+    it('does NOT reuse an existing period whose monthsCovered does not match this batch', async () => {
+      const sub = makeSub();
+      jest.spyOn(service, 'findBySlug').mockResolvedValue(sub as any);
+
+      const months = [makeMonth('m-2', 2026, 9)];
+      setupBackfill(prisma, skipMock, {
+        entry: makeEntry({ startDate: '2026-08-01' }),
+        months,
+        purchaseGroupIds: ['pg-2'],
+        billingPeriodId: 'bp-new',
+      });
+
+      // Existing period covers the month but was a 6-month plan, not this batch's 3-month one.
+      (prisma.userSubscriptionEntry.findUnique as jest.Mock).mockResolvedValueOnce({
+        billingPeriods: [{
+          id: 'bp-mismatched',
+          coveredFromYear: 2026,
+          coveredFromMonth: 8,
+          coveredToYear: 2027,
+          coveredToMonth: 1,
+          monthsCovered: 6,
+        }],
+      });
+
+      await service.backfillSubscription(USER_ID, SUB_SLUG, {
+        selectedMonthIds: ['m-2'],
+        billingBatches: [{
+          billedAt: '2026-08-01',
+          baseAmount: 90,
+          monthsCovered: 3,
+          currency: 'USD',
+          monthIds: ['m-2'],
+        }],
+      } as any);
+
+      expect(prisma.userSubBillingPeriod.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ monthsCovered: 3 }) }),
+      );
+    });
+  });
+
   // ── Prepaid — yes path (manual billing batches) ───────────────────────────
 
   describe('prepaid — yes path (manually-provided batches)', () => {

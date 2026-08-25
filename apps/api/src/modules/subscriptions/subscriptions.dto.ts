@@ -324,6 +324,10 @@ export class CreatePrepayOptionDto {
   @IsOptional()
   @IsDateString()
   validUntil?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  grandfatheredPrice?: boolean;
 }
 
 export class UpdatePrepayOptionDto {
@@ -351,6 +355,10 @@ export class UpdatePrepayOptionDto {
   @IsOptional()
   @IsDateString()
   validUntil?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  grandfatheredPrice?: boolean;
 }
 
 export class YearMonthQueryDto {

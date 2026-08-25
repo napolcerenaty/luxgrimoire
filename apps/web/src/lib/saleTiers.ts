@@ -23,6 +23,39 @@ export function resolveInterestDate(interest: { saleTier?: { date: string } | nu
   return interest.saleTier?.date ?? null
 }
 
+export interface InterestOpenState {
+  /** The tracked tier's own opening date (same value as resolveInterestDate). */
+  openDate: string | null
+  /** The sale's closing deadline, if it has one (common for OPEN_PREORDER, optional for others). */
+  closesDate: string | null
+  /** True only once the tier has actually started AND (if there's a deadline) before it closes. */
+  isOpen: boolean
+  /** True once a closing deadline has passed — distinct from "never opened". */
+  hasClosed: boolean
+}
+
+/**
+ * Whether a user's tracked tier is currently open for purchase, plus both dates needed to label
+ * it unambiguously. Every sale type is treated the same way — started (openDate <= now) AND not
+ * past its closing deadline if one is set — mirroring AnnouncementCard's isSaleLive, just scoped
+ * to one specific tracked tier instead of "is any tier on this announcement live".
+ *
+ * Do not substitute endsAt for a not-yet-started tier's own date (a past bug did this for
+ * OPEN_PREORDER specifically): that conflates "opens at" and "closes at", making a sale look
+ * open before it starts and showing the wrong date next to the tier's name.
+ */
+export function getInterestOpenState(interest: {
+  saleTier?: { date: string } | null
+  announcement: { endsAt?: string | null }
+}): InterestOpenState {
+  const openDate = resolveInterestDate(interest)
+  const closesDate = interest.announcement.endsAt ?? null
+  const now = Date.now()
+  const hasStarted = !!openDate && new Date(openDate).getTime() <= now
+  const hasClosed = !!closesDate && new Date(closesDate).getTime() <= now
+  return { openDate, closesDate, isOpen: hasStarted && !hasClosed, hasClosed }
+}
+
 /** Earliest tier date for card/badge displays (homepage carousels, company lists, search results)
  *  that previously read the single fixed generalSaleDate column. Same "default region if flagged,
  *  else the announcement's own regionId:null tier set" precedence as getTiersForRegion/the backend

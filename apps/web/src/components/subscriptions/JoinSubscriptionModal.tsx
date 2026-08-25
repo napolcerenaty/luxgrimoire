@@ -14,6 +14,8 @@ import { groupIntoBundles } from '@/lib/bundleHelpers'
 import {
   computeAutoBatches,
   resolveBackfillFallbackPrice,
+  resolveBatchMonthsCovered,
+  buildPartialPrepayBillingBatch,
   computeFirstBillingMonth,
   isGrandfatheredExcluded,
   buildFirstBoxCandidates,
@@ -141,7 +143,7 @@ interface Props {
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
   userDefaultCurrency?: string | null
-  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null; grandfatheredPrice?: boolean }[]
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
   signupIncludesCurrentMonth?: boolean
@@ -219,7 +221,7 @@ interface Step1Props {
   subscriptionOriginalBasePrice?: string | null
   userDefaultTaxRate?: number | null
   userDefaultCurrency?: string | null
-  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null }[]
+  prepayOptions?: { id: string; months: number; price: number | string; currency: string; label: string | null; validFrom?: string | null; validUntil?: string | null; grandfatheredPrice?: boolean }[]
   isDiscontinued?: boolean
   subscriptionEndDate?: string | null
   signupIncludesCurrentMonth?: boolean
@@ -828,6 +830,14 @@ function Step1({ currency, subscriptionSlug, subscriptionRenewalDay, subscriptio
             <p className="text-xs text-navy-600 mt-1">
               Selected fees are tracked independently and auto-applied on backfill.
             </p>
+            {selectedPrepayOptionId && linkedFees.length > 0 && (() => {
+              const opt = activePrepayOptions?.find(o => o.id === selectedPrepayOptionId)
+              return (
+                <p className="text-xs text-brand-400/90 mt-1">
+                  ℹ️ Prepay selected — enter the full amount you paid for {opt ? `all ${opt.months} months` : 'the whole period'} at once; we&apos;ll divide it across the months automatically, same as the price and shipping above.
+                </p>
+              )
+            })()}
           </div>
         ) : templatesLoaded ? (
           <p className="text-xs text-navy-500 mb-2">
@@ -1501,13 +1511,13 @@ function MonthRow({ month, checked, onToggle, bookPrices, onPriceChange, choiceP
 
 // ── Step 3: Billing batches (prepay) ─────────────────────────────────────────
 
-interface Step3Props {
+export interface Step3Props {
   selectedMonthIds: string[]
   bookPrices: Record<string, string>
   backfillOwnershipStatus?: 'OWNED' | 'PREORDER'
   choicePicks: Record<string, string[]>
   selectedPrepayOption: { id: string; months: number; price: number | string; label: string | null } | null
-  allPrepayOptions: { id: string; months: number; price: number | string; currency: string; validFrom?: string | null; validUntil?: string | null }[]
+  allPrepayOptions: { id: string; months: number; price: number | string; currency: string; validFrom?: string | null; validUntil?: string | null; grandfatheredPrice?: boolean }[]
   subscriptionSlug: string
   entryFees: { name: string; amount: string; currency: string }[]
   entry: JoinResult['entry']
@@ -1519,7 +1529,9 @@ interface Step3Props {
   onBeforeBackfill?: () => Promise<void>
 }
 
-function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePicks, selectedPrepayOption, allPrepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, initiallyChanged, onDone, onBack, onBeforeBackfill }: Step3Props) {
+// Exported (not just used internally) so it can be mounted directly in tests without driving
+// the whole multi-step modal through steps 1–2 first — see JoinSubscriptionModal.step3.test.tsx.
+export function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePicks, selectedPrepayOption, allPrepayOptions, subscriptionSlug, entryFees, entry, eligibleMonths, initiallyChanged, onDone, onBack, onBeforeBackfill }: Step3Props) {
   const currency = entry.costCurrency ?? 'USD'
   const renewalDay = entry.renewalDay
 
@@ -1598,13 +1610,18 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
 
   // ── "Yes" path: user-provided dates ──────────────────────────────────────
   type YesFee = { name: string; amount: string; currency: string; isCustom?: boolean }
-  type YesRow = { date: string; amount: string; shipping: string; fees: YesFee[]; discounts: { name: string; amount: string; currency: string }[] }
+  // monthsCovered: how many months THIS payment actually covers — left blank by default so it
+  // falls back to however many months got bucketed into this row by date. Only needs to be set
+  // explicitly when a row (typically the last one) covers months that haven't been announced yet
+  // as real SubscriptionMonth rows, so fewer months bucket into it than were actually paid for.
+  type YesRow = { date: string; amount: string; shipping: string; monthsCovered: string; fees: YesFee[]; discounts: { name: string; amount: string; currency: string }[] }
   const [yesRows, setYesRows] = useState<YesRow[]>(() => {
     const expected = Math.ceil(selectedMonthIds.length / (selectedPrepayOption?.months ?? 1))
     return Array.from({ length: Math.max(expected, 1) }, () => ({
       date: '',
       amount: '',
       shipping: '',
+      monthsCovered: '',
       fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })),
       discounts: [],
     }))
@@ -1625,9 +1642,9 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
     })))
   }, [feeTemplates])
 
-  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })), discounts: [] }]) }
+  function addRow() { setYesRows(prev => [...prev, { date: '', amount: '', shipping: '', monthsCovered: '', fees: entryFees.map(f => ({ name: f.name, amount: f.amount, currency: f.currency, isCustom: false as const })), discounts: [] }]) }
   function removeRow(i: number) { setYesRows(prev => prev.filter((_, j) => j !== i)) }
-  function updateRow(i: number, field: 'date' | 'amount' | 'shipping', val: string) {
+  function updateRow(i: number, field: 'date' | 'amount' | 'shipping' | 'monthsCovered', val: string) {
     setYesRows(prev => prev.map((r, j) => j === i ? { ...r, [field]: val } : r))
   }
   function updateRowFee(rowIdx: number, feeIdx: number, field: 'name' | 'amount' | 'currency', val: string) {
@@ -1704,7 +1721,11 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
         return {
           billedAt: b.billingDate,
           baseAmount,
-          monthsCovered: b.monthIds.length,
+          // prepayMonths (not b.monthIds.length) — the amount is always the FULL N-month price
+          // (see computeAutoBatches: "Partial last batch — always use full period price"), so
+          // the trailing batch, which may have fewer SubscriptionMonth rows than N because later
+          // months haven't been announced yet, must still be divided by the true N.
+          monthsCovered: prepayMonths,
           currency: b.currency,
           monthIds: b.monthIds,
           ...(shippingAmt !== null && { shippingAmount: shippingAmt }),
@@ -1757,10 +1778,11 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           const shippingAmt = b.row.shipping ? parseDecimalInput(b.row.shipping) : null
           const rowFees = b.row.fees.filter(f => f.name && f.amount)
           const rowDiscounts = b.row.discounts.filter(d => d.name && d.amount)
+          const monthsCovered = resolveBatchMonthsCovered(b.row.monthsCovered, b.months.length)
           return {
             billedAt: b.row.date,
             baseAmount,
-            monthsCovered: b.months.length,
+            monthsCovered,
             currency,
             monthIds: b.months.map(m => m.id),
             ...(shippingAmt !== null && { shippingAmount: shippingAmt }),
@@ -2027,6 +2049,8 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
           const autoAmount = row.date
             ? parseFloat(prepayPriceStr).toFixed(2)
             : null
+          const isLastRow = i === yesRows.length - 1
+          const looksIncomplete = isLastRow && !!selectedPrepayOption && batchMonths.length > 0 && batchMonths.length < selectedPrepayOption.months
           return (
             <div key={i} className="border border-navy-700 rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
@@ -2062,6 +2086,24 @@ function Step3({ selectedMonthIds, bookPrices, backfillOwnershipStatus, choicePi
                 />
                 <span className="text-xs text-navy-500">{currency}</span>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-navy-500 w-16 shrink-0">Months</span>
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  value={row.monthsCovered}
+                  onChange={e => updateRow(i, 'monthsCovered', e.target.value)}
+                  placeholder={String(batchMonths.length || 1)}
+                  className="w-24 bg-navy-800 border border-navy-600 rounded px-2 py-1 text-navy-100 text-xs"
+                />
+                <span className="text-xs text-navy-500">covered by this payment</span>
+              </div>
+              {looksIncomplete && !row.monthsCovered && (
+                <p className="text-[10px] text-amber-400 pl-18">
+                  Only {batchMonths.length} of this payment&apos;s boxes exist yet — if you paid for {selectedPrepayOption?.months}, set Months above so the price divides correctly.
+                </p>
+              )}
               {batchMonths.length > 0 && (
                 <p className="text-[10px] text-navy-500 pl-18">
                   Boxes: {batchMonths.map(m => `${MONTH_NAMES[m.month - 1]} ${m.year}`).join(', ')}
@@ -2371,10 +2413,24 @@ export default function JoinSubscriptionModal({
               ? (data) => {
                   setStep2Data(data)
                   if (step1SelectedPrepayOption && data.selectedMonthIds.length < step1SelectedPrepayOption.months) {
-                    // Partial prepay period — skip step 3, backfill months+skips without billing batches
+                    // Partial prepay period — skip the Step3 batches UI (nothing meaningful to
+                    // ask when there's only ever going to be one batch), but still send that one
+                    // batch explicitly. Sending NO billingBatches here used to make the backend
+                    // fall through to its plain-monthly "no batch" path — which ignores prepay
+                    // entirely (undivided price/shipping, wrong currently-effective monthly price
+                    // instead of what was actually paid) and clobbers the correctly-divided
+                    // preorder that join's own recordFirstMonthAsPreorder just created for the
+                    // same month(s), since it runs afterward and wins the final book price.
                     const skippedMonthIds = (finalEligibleMonths ?? [])
                       .filter(m => !data.selectedMonthIds.includes(m.id))
                       .map(m => m.id)
+                    const billingBatches = [buildPartialPrepayBillingBatch(
+                      step1JoinPayload,
+                      step1SelectedPrepayOption,
+                      data.selectedMonthIds,
+                      subscriptionCurrency,
+                      step1Fees,
+                    )]
                     const doJoinAndBackfill = async () => {
                       if (step1JoinPayload) {
                         await performRealJoin(step1JoinPayload)
@@ -2383,7 +2439,7 @@ export default function JoinSubscriptionModal({
                       await authFetch(`/subscriptions/${subscriptionSlug}/join/backfill`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ selectedMonthIds: data.selectedMonthIds, skippedMonthIds, backfillOwnershipStatus: data.backfillOwnershipStatus }),
+                      body: JSON.stringify({ selectedMonthIds: data.selectedMonthIds, skippedMonthIds, backfillOwnershipStatus: data.backfillOwnershipStatus, billingBatches }),
                       })
                     }
                     doJoinAndBackfill()

@@ -44,6 +44,8 @@ import {
   lookupPrepayPriceAt,
   resolveBackfillFallbackPrice,
   computeAutoBatches,
+  resolveBatchMonthsCovered,
+  buildPartialPrepayBillingBatch,
   computeFirstBillingMonth,
   isGrandfatheredExcluded,
   buildFirstBoxCandidates,
@@ -56,8 +58,8 @@ function pc(year: number, month: number, price: string, currency = 'USD', grandf
   return { effectiveYear: year, effectiveMonth: month, newBasePrice: price, currency, grandfatheredPrice }
 }
 
-function prepayOpt(months: number, price: number | string, currency = 'USD', validFrom?: string, validUntil?: string) {
-  return { months, price, currency, validFrom: validFrom ?? null, validUntil: validUntil ?? null }
+function prepayOpt(months: number, price: number | string, currency = 'USD', validFrom?: string, validUntil?: string, grandfatheredPrice?: boolean) {
+  return { months, price, currency, validFrom: validFrom ?? null, validUntil: validUntil ?? null, grandfatheredPrice: grandfatheredPrice ?? false }
 }
 
 function month(id: string, year: number, m: number) {
@@ -145,6 +147,53 @@ describe('lookupPrepayPriceAt', () => {
   it('12. empty billingDateStr → fallback', () => {
     const opts = [prepayOpt(6, 149.99, 'USD')]
     expect(lookupPrepayPriceAt('', opts, 6, 'USD', '99.00')).toBe('99.00')
+  })
+
+  // ── grandfathering-aware (backfill) ─────────────────────────────────────────
+  // Real bug: backfilling a batch dated after a grandfathered price increase used to
+  // resolve to the new price for everyone, even a subscriber who joined before the
+  // increase and is entitled to keep the old one — matching the live resolveEffectivePrepayOption
+  // behavior now that activeEntryStartDate is threaded through.
+
+  it('13a. batch dated after a grandfathered increase — subscriber who joined before it keeps the old price', () => {
+    const opts = [
+      prepayOpt(3, 84, 'GBP', undefined, '2026-08-01'),
+      prepayOpt(3, 111, 'GBP', '2026-08-01', undefined, true),
+    ]
+    // Batch billed Aug 15 (within the new option's window) for a subscriber who joined Jan 1.
+    expect(lookupPrepayPriceAt('2026-08-15', opts, 3, 'GBP', '0', '2026-01-01')).toBe('84')
+  })
+
+  it('13b. batch dated after a grandfathered increase — subscriber who joined after it gets the new price', () => {
+    const opts = [
+      prepayOpt(3, 84, 'GBP', undefined, '2026-08-01'),
+      prepayOpt(3, 111, 'GBP', '2026-08-01', undefined, true),
+    ]
+    expect(lookupPrepayPriceAt('2026-08-15', opts, 3, 'GBP', '0', '2026-08-10')).toBe('111')
+  })
+
+  it('13c. non-grandfathered increase applies to everyone regardless of when they joined', () => {
+    const opts = [
+      prepayOpt(3, 84, 'GBP', undefined, '2026-08-01'),
+      prepayOpt(3, 111, 'GBP', '2026-08-01', undefined, false),
+    ]
+    expect(lookupPrepayPriceAt('2026-08-15', opts, 3, 'GBP', '0', '2026-01-01')).toBe('111')
+  })
+
+  it('13d. omitting activeEntryStartDate falls back to the old (non-grandfathering-aware) behavior', () => {
+    const opts = [
+      prepayOpt(3, 84, 'GBP', undefined, '2026-08-01'),
+      prepayOpt(3, 111, 'GBP', '2026-08-01', undefined, true),
+    ]
+    expect(lookupPrepayPriceAt('2026-08-15', opts, 3, 'GBP', '0')).toBe('111')
+  })
+
+  it('13e. a batch dated BEFORE the increase is unaffected — the old option was simply the only one open then', () => {
+    const opts = [
+      prepayOpt(3, 84, 'GBP', undefined, '2026-08-01'),
+      prepayOpt(3, 111, 'GBP', '2026-08-01', undefined, true),
+    ]
+    expect(lookupPrepayPriceAt('2026-03-01', opts, 3, 'GBP', '0', '2026-01-01')).toBe('84')
   })
 })
 
@@ -266,6 +315,162 @@ describe('computeAutoBatches', () => {
     expect(batches).toHaveLength(2)
     expect(batches[0].amount).toBe('79.99')  // Jan 2025 batch → old price still valid
     expect(batches[1].amount).toBe('89.99')  // Apr 2025 batch → new price
+  })
+
+  it('27. grandfathered increase: a subscriber who started before it keeps the old price on every later batch too', () => {
+    const months = [
+      month('m1', 2025, 1), month('m2', 2025, 2), month('m3', 2025, 3),
+      month('m4', 2025, 4), month('m5', 2025, 5), month('m6', 2025, 6),
+    ]
+    const opts = [
+      prepayOpt(3, 79.99, 'USD', '2024-01-01', '2025-04-01'),
+      prepayOpt(3, 89.99, 'USD', '2025-04-01', undefined, true), // grandfathered increase
+    ]
+    const selected = months.map(m => m.id)
+    // startDate (2025-01-01) is threaded through as the grandfathering reference for EVERY
+    // batch, not just the first — so even the second batch (billed April, after the increase)
+    // must still resolve to the old price for this subscriber.
+    const batches = computeAutoBatches(months, selected, 3, 1, 'USD', opts, '89.99', '2025-01-01')
+    expect(batches).toHaveLength(2)
+    expect(batches[0].amount).toBe('79.99')
+    expect(batches[1].amount).toBe('79.99') // grandfathered — NOT the new 89.99
+  })
+
+  it('28. grandfathered increase: a subscriber who started after it gets the new price on every batch', () => {
+    const months = [
+      month('m1', 2025, 4), month('m2', 2025, 5), month('m3', 2025, 6),
+      month('m4', 2025, 7), month('m5', 2025, 8), month('m6', 2025, 9),
+    ]
+    const opts = [
+      prepayOpt(3, 79.99, 'USD', '2024-01-01', '2025-04-01'),
+      prepayOpt(3, 89.99, 'USD', '2025-04-01', undefined, true),
+    ]
+    const selected = months.map(m => m.id)
+    const batches = computeAutoBatches(months, selected, 3, 1, 'USD', opts, '89.99', '2025-04-15')
+    expect(batches).toHaveLength(2)
+    expect(batches[0].amount).toBe('89.99')
+    expect(batches[1].amount).toBe('89.99')
+  })
+})
+
+// ── resolveBatchMonthsCovered ──────────────────────────────────────────────────
+
+describe('resolveBatchMonthsCovered', () => {
+  it('falls back to the bucketed month count when no override is given', () => {
+    expect(resolveBatchMonthsCovered('', 2)).toBe(2)
+  })
+
+  it('uses the user-provided override when present', () => {
+    // Last row: paid for 3 months, but only 2 exist as SubscriptionMonth rows yet.
+    expect(resolveBatchMonthsCovered('3', 2)).toBe(3)
+  })
+
+  it('falls back to the bucketed count for a non-numeric override', () => {
+    expect(resolveBatchMonthsCovered('abc', 2)).toBe(2)
+  })
+
+  it('falls back to the bucketed count for a zero or negative override', () => {
+    expect(resolveBatchMonthsCovered('0', 2)).toBe(2)
+    expect(resolveBatchMonthsCovered('-1', 2)).toBe(2)
+  })
+
+  it('a full (non-trailing) row with no override keeps using its own bucketed count', () => {
+    expect(resolveBatchMonthsCovered('', 3)).toBe(3)
+  })
+})
+
+// ── buildPartialPrepayBillingBatch ──────────────────────────────────────────────
+
+describe('buildPartialPrepayBillingBatch', () => {
+  // Reproduces the real bug: join in July, first box August, prepaid quarterly (3 months) —
+  // only August exists as a SubscriptionMonth so far, so the join modal's "partial prepay
+  // period" shortcut fires with a single selected month.
+  const joinPayload = { startDate: '2026-07-22', costCurrency: 'GBP', basePrice: '60', shippingCost: '45' }
+  const prepayOption = { months: 3, price: 60 }
+
+  it('uses the FULL entered period price/shipping, not divided — division happens server-side', () => {
+    const batch = buildPartialPrepayBillingBatch(joinPayload, prepayOption, ['aug'], 'USD')
+    expect(batch.baseAmount).toBe(60)
+    expect(batch.shippingAmount).toBe(45)
+  })
+
+  it('sends monthsCovered = the true prepay period length, not the number of selected months', () => {
+    const batch = buildPartialPrepayBillingBatch(joinPayload, prepayOption, ['aug'], 'USD')
+    expect(batch.monthsCovered).toBe(3)
+    expect(batch.monthIds).toEqual(['aug'])
+  })
+
+  it('uses the join payload currency and start date', () => {
+    const batch = buildPartialPrepayBillingBatch(joinPayload, prepayOption, ['aug'], 'USD')
+    expect(batch.currency).toBe('GBP')
+    expect(batch.billedAt).toBe('2026-07-22')
+  })
+
+  it('falls back to the prepay option price when the join payload has no basePrice', () => {
+    const batch = buildPartialPrepayBillingBatch(
+      { startDate: '2026-07-22', costCurrency: 'GBP' },
+      prepayOption,
+      ['aug'],
+      'USD',
+    )
+    expect(batch.baseAmount).toBe(60)
+  })
+
+  it('omits shippingAmount when the join payload has no shippingCost', () => {
+    const batch = buildPartialPrepayBillingBatch(
+      { startDate: '2026-07-22', costCurrency: 'GBP', basePrice: '60' },
+      prepayOption,
+      ['aug'],
+      'USD',
+    )
+    expect(batch.shippingAmount).toBeUndefined()
+  })
+
+  it('falls back to the given currency and today\'s date when joinPayload is null', () => {
+    const batch = buildPartialPrepayBillingBatch(null, prepayOption, ['aug'], 'EUR')
+    expect(batch.currency).toBe('EUR')
+    expect(batch.baseAmount).toBe(60) // still falls back to prepayOption.price
+    expect(typeof batch.billedAt).toBe('string')
+  })
+
+  // entryFees: linked fee templates (e.g. postage, VAT) — the entered amount is the full period
+  // total the user paid in one go, same as basePrice/shippingCost, so it must ride along as
+  // batch.fees for the backend's existing "divide by monthsCovered" logic to pick up.
+  it('includes entryFees as batch.fees, converted to numbers', () => {
+    const batch = buildPartialPrepayBillingBatch(
+      joinPayload, prepayOption, ['aug'], 'USD',
+      [{ name: 'Poczta Polska', amount: '9.00', currency: 'GBP' }],
+    )
+    expect(batch.fees).toEqual([{ name: 'Poczta Polska', amount: 9, currency: 'GBP' }])
+  })
+
+  it('includes multiple entryFees', () => {
+    const batch = buildPartialPrepayBillingBatch(
+      joinPayload, prepayOption, ['aug'], 'USD',
+      [
+        { name: 'Poczta Polska', amount: '9.00', currency: 'GBP' },
+        { name: 'VAT przy odbiorze', amount: '13', currency: 'GBP' },
+      ],
+    )
+    expect(batch.fees).toHaveLength(2)
+    expect(batch.fees).toContainEqual({ name: 'VAT przy odbiorze', amount: 13, currency: 'GBP' })
+  })
+
+  it('omits fees entirely when entryFees is empty or absent (no key sent, matching current DTO behavior)', () => {
+    expect(buildPartialPrepayBillingBatch(joinPayload, prepayOption, ['aug'], 'USD', []).fees).toBeUndefined()
+    expect(buildPartialPrepayBillingBatch(joinPayload, prepayOption, ['aug'], 'USD').fees).toBeUndefined()
+  })
+
+  it('filters out incomplete fee rows (missing name or amount)', () => {
+    const batch = buildPartialPrepayBillingBatch(
+      joinPayload, prepayOption, ['aug'], 'USD',
+      [
+        { name: 'Poczta Polska', amount: '9.00', currency: 'GBP' },
+        { name: '', amount: '5', currency: 'GBP' },
+        { name: 'Empty amount', amount: '', currency: 'GBP' },
+      ],
+    )
+    expect(batch.fees).toEqual([{ name: 'Poczta Polska', amount: 9, currency: 'GBP' }])
   })
 })
 

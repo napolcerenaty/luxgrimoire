@@ -16,6 +16,7 @@ import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { deleteCloudinaryImages } from '../../common/cloudinary.helper';
 import { FeatureTaggerService } from '../feature-categories/feature-tagger.service';
 import { MediaAssetsService } from '../media-assets/media-assets.service';
+import { FollowNotificationsService } from '../follows/follow-notifications.service';
 
 const companyEditionsAllCountKey = (slug: string) => `companies:slug:${slug}:editions:count`;
 const companyEditionsSubCountKey = (slug: string, subId: string) => `companies:slug:${slug}:editions:sub:${subId}:count`;
@@ -49,6 +50,7 @@ export class EditionsService {
     private readonly mediaAssetsService: MediaAssetsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly tagger: FeatureTaggerService,
+    private readonly followNotifications: FollowNotificationsService,
   ) {}
 
   private async syncEditionMediaAssets(editionId: string, additionalImages: string[]) {
@@ -529,6 +531,10 @@ export class EditionsService {
     if (companySlug) await this.invalidateEditionCountCaches(companySlug, dto.subscriptionId, dto.collectionId);
     // Tag features asynchronously (artist roles not yet available at create time)
     void this.retagEditionById(edition.id);
+    // Best-effort — notifies followers of the book/its authors, never blocks the create response
+    void this.followNotifications.notifyOnEditionCreated(edition.id, edition.bookId).catch((err) =>
+      this.logger.error(`Failed to queue edition-follow notifications for edition ${edition.id}: ${err}`),
+    );
     return edition;
   }
 
@@ -1037,6 +1043,12 @@ export class EditionsService {
   async addArtist(slug: string, dto: AddArtistDto) {
     const edition = await this.findBySlug(slug);
     const role = dto.role ?? 'cover';
+    // Notification-worthiness is keyed on (edition, artist) — an artist already credited on
+    // this edition under a different role isn't "new" to it, so adding a second role for them
+    // must not re-notify their followers about an edition they already know about.
+    const alreadyCredited = await this.prisma.artistContribution.findFirst({
+      where: { editionId: edition.id, artistId: dto.artistId },
+    });
     const result = await this.prisma.artistContribution.upsert({
       where: { editionId_artistId_role: { editionId: edition.id, artistId: dto.artistId, role } },
       create: {
@@ -1047,6 +1059,11 @@ export class EditionsService {
       },
       update: { artistName: dto.artistName },
     });
+    if (!alreadyCredited) {
+      void this.followNotifications.notifyOnArtistAdded(edition.id, dto.artistId).catch((err) =>
+        this.logger.error(`Failed to queue edition-follow notification for artist ${dto.artistId} on edition ${edition.id}: ${err}`),
+      );
+    }
     return result;
   }
 
