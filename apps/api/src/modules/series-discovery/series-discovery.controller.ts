@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { SeriesDiscoveryService } from './series-discovery.service';
-import { UpdateSeriesVolumeSuggestionStatusDto } from './series-discovery.dto';
+import { UpdateSeriesVolumeSuggestionStatusDto, AddExcludedKeywordDto } from './series-discovery.dto';
 
 @ApiTags('series-discovery')
 @Controller()
@@ -43,5 +43,27 @@ export class SeriesDiscoveryController {
   @Throttle({ default: { ttl: 60_000, limit: 1 } })
   run() {
     return this.service.runCheck();
+  }
+
+  @Get('admin/series-discovery/excluded-keywords')
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  listExcludedKeywords() {
+    return this.service.listExcludedKeywords();
+  }
+
+  @Post('admin/series-discovery/excluded-keywords')
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  addExcludedKeyword(@Body() body: AddExcludedKeywordDto) {
+    return this.service.addExcludedKeyword(body.keyword);
+  }
+
+  @Delete('admin/series-discovery/excluded-keywords/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  removeExcludedKeyword(@Param('id') id: string) {
+    return this.service.removeExcludedKeyword(id);
   }
 }

@@ -95,6 +95,26 @@ describe('WikidataClient', () => {
       }]);
     });
 
+    it('requires the P407 language-of-work triple when a languageQid is given', async () => {
+      fetchMock.mockResolvedValue(mockJsonResponse({ results: { bindings: [] } }));
+
+      await client.fetchParts('Q123', 'Q1860');
+
+      const calledUrl = fetchMock.mock.calls[0][0] as string;
+      const decodedQuery = decodeURIComponent(calledUrl);
+      expect(decodedQuery).toContain('wdt:P407 wd:Q1860');
+    });
+
+    it('omits the P407 filter entirely when no languageQid is given', async () => {
+      fetchMock.mockResolvedValue(mockJsonResponse({ results: { bindings: [] } }));
+
+      await client.fetchParts('Q123');
+
+      const calledUrl = fetchMock.mock.calls[0][0] as string;
+      const decodedQuery = decodeURIComponent(calledUrl);
+      expect(decodedQuery).not.toContain('P407');
+    });
+
     it('omits volumeNumber when no ordinal qualifier is present', async () => {
       fetchMock.mockResolvedValue(mockJsonResponse({
         results: {

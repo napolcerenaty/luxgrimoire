@@ -1,4 +1,5 @@
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SeriesDiscoveryService } from './series-discovery.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -26,6 +27,7 @@ describe('SeriesDiscoveryService', () => {
   let googleBooks: { search: jest.Mock };
   let openLibrary: { search: jest.Mock };
   let wikidata: { resolveSeriesId: jest.Mock; fetchParts: jest.Mock };
+  let config: { get: jest.Mock };
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
@@ -33,12 +35,17 @@ describe('SeriesDiscoveryService', () => {
     googleBooks = { search: jest.fn().mockResolvedValue({ candidates: [], seriesId: null }) };
     openLibrary = { search: jest.fn().mockResolvedValue([]) };
     wikidata = { resolveSeriesId: jest.fn().mockResolvedValue(null), fetchParts: jest.fn().mockResolvedValue([]) };
+    config = { get: jest.fn().mockReturnValue(undefined) };
 
     (prisma.bookSeriesEntry.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.seriesVolumeSuggestion.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.seriesVolumeSuggestion.create as jest.Mock).mockResolvedValue({ id: 'suggestion-1' });
     (prisma.bookSeries.update as jest.Mock).mockResolvedValue({});
     (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.seriesDiscoveryExcludedKeyword.findMany as jest.Mock).mockResolvedValue(
+      ['boxed set', 'box set', 'omnibus', 'bundle', 'trilogy', 'duology', 'quartet', 'complete series', 'complete collection', 'complete trilogy']
+        .map((keyword) => ({ keyword })),
+    );
 
     service = new SeriesDiscoveryService(
       prisma,
@@ -46,6 +53,7 @@ describe('SeriesDiscoveryService', () => {
       googleBooks as unknown as GoogleBooksClient,
       openLibrary as unknown as OpenLibraryClient,
       wikidata as unknown as WikidataClient,
+      config as unknown as ConfigService,
     );
   });
 
@@ -207,7 +215,7 @@ describe('SeriesDiscoveryService', () => {
       await service.runCheck();
 
       expect(wikidata.resolveSeriesId).toHaveBeenCalledWith('Test Saga');
-      expect(wikidata.fetchParts).toHaveBeenCalledWith('Q123');
+      expect(wikidata.fetchParts).toHaveBeenCalledWith('Q123', 'Q1860');
       expect(prisma.bookSeries.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ wikidataId: 'Q123' }) }),
       );
@@ -219,7 +227,97 @@ describe('SeriesDiscoveryService', () => {
       await service.runCheck();
 
       expect(wikidata.resolveSeriesId).not.toHaveBeenCalled();
-      expect(wikidata.fetchParts).toHaveBeenCalledWith('Q999');
+      expect(wikidata.fetchParts).toHaveBeenCalledWith('Q999', 'Q1860');
+    });
+
+    it('restricts each source to the configured language (defaulting to English)', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries({ wikidataId: 'Q999' })]);
+
+      await service.runCheck();
+
+      expect(googleBooks.search).toHaveBeenCalledWith('Test Saga', [], null, 'en');
+      expect(openLibrary.search).toHaveBeenCalledWith('Test Saga', [], 'eng');
+      expect(wikidata.fetchParts).toHaveBeenCalledWith('Q999', 'Q1860');
+    });
+
+    it('falls back to no language filter for a configured language with no verified mapping', async () => {
+      config.get.mockReturnValue('de');
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries({ wikidataId: 'Q999' })]);
+
+      await service.runCheck();
+
+      expect(googleBooks.search).toHaveBeenCalledWith('Test Saga', [], null, 'de');
+      expect(openLibrary.search).toHaveBeenCalledWith('Test Saga', [], undefined);
+      expect(wikidata.fetchParts).toHaveBeenCalledWith('Q999', undefined);
+    });
+
+    it('skips a bundle/omnibus listing whose title is just the series name plus an excluded keyword', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
+      openLibrary.search.mockResolvedValue([
+        { title: 'Test Saga Trilogy', authorNames: [], genres: [], source: 'open_library', sourceId: '/works/OL-trilogy' },
+        { title: 'The Test Saga Boxed Set', authorNames: [], genres: [], source: 'open_library', sourceId: '/works/OL-boxed' },
+      ]);
+
+      const result = await service.runCheck();
+
+      expect(prisma.seriesVolumeSuggestion.create).not.toHaveBeenCalled();
+      expect(result.suggestionsCreated).toBe(0);
+    });
+
+    it('does not filter bundle-word candidates when the excluded-keyword list is empty', async () => {
+      (prisma.seriesDiscoveryExcludedKeyword.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
+      openLibrary.search.mockResolvedValue([
+        { title: 'Test Saga Trilogy', authorNames: [], genres: [], source: 'open_library', sourceId: '/works/OL-trilogy' },
+      ]);
+
+      const result = await service.runCheck();
+
+      expect(result.suggestionsCreated).toBe(1);
+    });
+
+    it('does not exclude a real volume that merely contains an excluded keyword as part of a genuine subtitle', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
+      openLibrary.search.mockResolvedValue([
+        // Not just "series name + bundle word" — has its own distinct subtitle, so it survives.
+        { title: 'Test Saga: The Bundle Conspiracy', authorNames: [], genres: [], source: 'open_library', sourceId: '/works/OL-real' },
+      ]);
+
+      const result = await service.runCheck();
+
+      expect(result.suggestionsCreated).toBe(1);
+    });
+  });
+
+  describe('excluded-keyword list', () => {
+    it('lists keywords alphabetically', async () => {
+      (prisma.seriesDiscoveryExcludedKeyword.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.listExcludedKeywords();
+
+      expect(prisma.seriesDiscoveryExcludedKeyword.findMany).toHaveBeenCalledWith({ orderBy: { keyword: 'asc' } });
+    });
+
+    it('adds a keyword, lowercased and trimmed', async () => {
+      (prisma.seriesDiscoveryExcludedKeyword.create as jest.Mock).mockResolvedValue({ id: 'k1', keyword: 'box set' });
+
+      await service.addExcludedKeyword('  Box Set  ');
+
+      expect(prisma.seriesDiscoveryExcludedKeyword.create).toHaveBeenCalledWith({ data: { keyword: 'box set' } });
+    });
+
+    it('rejects adding a keyword that already exists', async () => {
+      (prisma.seriesDiscoveryExcludedKeyword.create as jest.Mock).mockRejectedValue(new Error('unique constraint'));
+
+      await expect(service.addExcludedKeyword('trilogy')).rejects.toThrow('already in the excluded-keyword list');
+    });
+
+    it('removes a keyword by id', async () => {
+      (prisma.seriesDiscoveryExcludedKeyword.delete as jest.Mock).mockResolvedValue({ id: 'k1' });
+
+      await service.removeExcludedKeyword('k1');
+
+      expect(prisma.seriesDiscoveryExcludedKeyword.delete).toHaveBeenCalledWith({ where: { id: 'k1' } });
     });
   });
 

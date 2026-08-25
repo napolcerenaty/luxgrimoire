@@ -39,11 +39,16 @@ export class GoogleBooksClient {
 
   /** Free tier works without an API key (lower quota); GOOGLE_BOOKS_API_KEY raises it if set.
    * Series data (`seriesInfo`) is well populated for comics/periodicals but sparse for novels —
-   * callers should treat every result as a loose candidate, not a confirmed series member. */
-  async search(seriesName: string, authorNames: string[], cachedSeriesId: string | null): Promise<GoogleBooksSearchResult> {
+   * callers should treat every result as a loose candidate, not a confirmed series member.
+   *
+   * `language`, when given, is a two-letter ISO-639-1 code passed straight through as
+   * `langRestrict` — filters out foreign-language editions of a book we already have, which
+   * would otherwise look like a "new volume". */
+  async search(seriesName: string, authorNames: string[], cachedSeriesId: string | null, language?: string): Promise<GoogleBooksSearchResult> {
     const author = authorNames[0];
     const q = author ? `${seriesName} inauthor:"${author}"` : seriesName;
     const params = new URLSearchParams({ q, maxResults: String(MAX_RESULTS) });
+    if (language) params.set('langRestrict', language);
     const apiKey = this.config.get<string>('GOOGLE_BOOKS_API_KEY');
     if (apiKey) params.set('key', apiKey);
 

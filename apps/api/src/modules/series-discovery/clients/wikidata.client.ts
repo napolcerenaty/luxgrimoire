@@ -56,11 +56,16 @@ export class WikidataClient {
   }
 
   /** P527 (has part) on the series item, with P1545 (series ordinal) qualifier on each part's
-   * P179 (part of the series) statement where available. */
-  async fetchParts(wikidataId: string): Promise<ExternalVolumeCandidate[]> {
+   * P179 (part of the series) statement where available.
+   *
+   * `languageQid`, when given, requires each part to have that Wikidata language item (Q1860
+   * for English, etc.) as its P407 "language of work or name" — filters out foreign-language
+   * editions, which would otherwise look like a "new volume" of a book already in the catalogue. */
+  async fetchParts(wikidataId: string, languageQid?: string): Promise<ExternalVolumeCandidate[]> {
+    const languageFilter = languageQid ? `wd:${wikidataId} wdt:P527 ?part . ?part wdt:P407 wd:${languageQid} .` : `wd:${wikidataId} wdt:P527 ?part .`;
     const sparql = `
       SELECT ?part ?partLabel ?ordinal ?pubDate WHERE {
-        wd:${wikidataId} wdt:P527 ?part .
+        ${languageFilter}
         OPTIONAL {
           ?part p:P179 ?stmt .
           ?stmt ps:P179 wd:${wikidataId} .

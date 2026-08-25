@@ -59,6 +59,61 @@ describe('OpenLibraryClient', () => {
     }]);
   });
 
+  it('cleans up raw LCSH/BISAC subject strings into deduplicated genre tags', async () => {
+    // Real values seen from Open Library for one book — regression test for a reported bug.
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      docs: [{
+        key: '/works/OL9W',
+        title: 'Some Book',
+        subject: [
+          'Death--Fiction.',
+          'Murder--Fiction.',
+          'Science fiction.',
+          'YOUNG ADULT FICTION / Science Fiction',
+          'Science fiction',
+        ],
+      }],
+    }));
+
+    const result = await client.search('Test Saga', []);
+
+    expect(result[0].genres).toEqual(['Science Fiction']);
+  });
+
+  it('requests the language field and drops a doc whose language does not match', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      docs: [
+        { key: '/works/OL1W', title: 'English Edition', language: ['eng'] },
+        { key: '/works/OL2W', title: 'Foreign Edition', language: ['fre'] },
+      ],
+    }));
+
+    const result = await client.search('Test Saga', [], 'eng');
+
+    expect(fetchMock.mock.calls[0][0] as string).toContain('fields=key%2Ctitle%2Cauthor_name%2Cfirst_publish_year%2Csubject%2Clanguage');
+    expect(result.map((c) => c.title)).toEqual(['English Edition']);
+  });
+
+  it('keeps a doc with no language field at all rather than dropping it (sparse data)', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      docs: [{ key: '/works/OL3W', title: 'Unknown Language Edition' }],
+    }));
+
+    const result = await client.search('Test Saga', [], 'eng');
+
+    expect(result.map((c) => c.title)).toEqual(['Unknown Language Edition']);
+  });
+
+  it('does not filter by language when none is requested', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      docs: [{ key: '/works/OL2W', title: 'Foreign Edition', language: ['fre'] }],
+    }));
+
+    const result = await client.search('Test Saga', []);
+
+    expect(result.map((c) => c.title)).toEqual(['Foreign Edition']);
+  });
+
   it('filters out docs with no title', async () => {
     fetchMock.mockResolvedValue(mockJsonResponse({ docs: [{ key: '/works/OL2W' }] }));
 

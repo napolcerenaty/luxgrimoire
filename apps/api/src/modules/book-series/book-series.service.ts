@@ -27,19 +27,22 @@ function compareVolumeNumbers(a: number[], b: number[]): number {
  * creating a duplicate. A real instance of this (apostrophes) split one series' books across
  * two rows — see migration 20260721100000_merge_duplicate_dragons_gift_trilogy_series.
  *
- * Also strips a single leading article ("the"/"a"/"an") — different sources are inconsistent
- * about including it (e.g. "The Ashes of Thezmarr" vs "Ashes of Thezmarr"), and without this a
- * series can end up duplicated across two rows differing only by that leading word. */
+ * Also strips every standalone "the"/"a"/"an", not just a leading one — different sources are
+ * inconsistent about including/wording articles anywhere in the name, not only at the start
+ * (e.g. "Arc of a Scythe" vs "Arc of the Scythe" — a real instance that split a series' books
+ * across two rows, caught 2026-08-25). "the"/"a"/"an" are close enough to interchangeable
+ * filler words in English titles that no two genuinely different series are expected to
+ * collide only over which one was used. */
 function normalizeSeriesName(name: string): string {
   return name
     .normalize('NFKC')
     .replace(/[‘’‛ʼ`´]/g, "'")
     .replace(/[“”]/g, '"')
     .replace(/[‐‑‒–—―−]/g, '-')
-    .replace(/\s+/g, ' ')
-    .trim()
     .toLowerCase()
-    .replace(/^(the|an?)\s+/, '');
+    .replace(/\b(the|an?)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 @Injectable()

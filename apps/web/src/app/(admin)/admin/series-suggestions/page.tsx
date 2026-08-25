@@ -2,11 +2,90 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookPlus, Trash2, RefreshCw, ExternalLink, Sparkles } from 'lucide-react'
+import { BookPlus, Trash2, RefreshCw, ExternalLink, Sparkles, SlidersHorizontal, X } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
 import { Pagination } from '@/components/admin/Pagination'
 import FormModal from '@/components/admin/FormModal'
 import CreateBookEditionForm from '@/components/admin/CreateBookEditionForm'
+
+interface ExcludedKeyword {
+  id: string
+  keyword: string
+}
+
+/** Admin-managed list of words (e.g. "boxed set", "trilogy") that mark a suggestion as a
+ * bundle/omnibus repackaging rather than a real new volume — see isBundleListing in
+ * series-discovery.service.ts. Collapsed by default since it's config, not the primary content. */
+function ExcludedKeywordsPanel() {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [newKeyword, setNewKeyword] = useState('')
+
+  const { data: keywords } = useQuery({
+    queryKey: ['admin', 'series-discovery-excluded-keywords'],
+    queryFn: () => authFetch<ExcludedKeyword[]>('/admin/series-discovery/excluded-keywords'),
+    enabled: open,
+  })
+
+  const add = useMutation({
+    mutationFn: (keyword: string) =>
+      authFetch('/admin/series-discovery/excluded-keywords', { method: 'POST', body: JSON.stringify({ keyword }) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'series-discovery-excluded-keywords'] }); setNewKeyword('') },
+    onError: (e: Error) => alert(`Error: ${e.message}`),
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => authFetch(`/admin/series-discovery/excluded-keywords/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'series-discovery-excluded-keywords'] }),
+  })
+
+  return (
+    <div className="bg-navy-900 border border-navy-800 rounded-xl">
+      <button
+        onClick={() => setOpen(o => !o)}
+        title="Titles containing one of these words (e.g. '{Series Name} Trilogy') are treated as a repackaging of books you already have, not a new volume, and never turn into a suggestion"
+        className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-navy-300 hover:text-navy-100 transition-colors"
+      >
+        <SlidersHorizontal size={14} />
+        Excluded bundle/omnibus keywords
+        <span className="text-navy-600 font-normal">{open ? '(hide)' : '(show)'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          <div className="flex flex-wrap gap-1.5">
+            {(keywords ?? []).map(k => (
+              <span key={k.id} className="flex items-center gap-1 bg-navy-800 border border-navy-700 text-navy-300 text-xs pl-2 pr-1 py-0.5 rounded-full">
+                {k.keyword}
+                <button onClick={() => remove.mutate(k.id)} title={`Remove "${k.keyword}"`} className="text-navy-500 hover:text-rose-400 p-0.5">
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+            {keywords?.length === 0 && <span className="text-xs text-navy-600 italic">No keywords — bundle filtering is off.</span>}
+          </div>
+          <form
+            onSubmit={e => { e.preventDefault(); if (newKeyword.trim()) add.mutate(newKeyword.trim()) }}
+            className="flex gap-2"
+          >
+            <input
+              value={newKeyword}
+              onChange={e => setNewKeyword(e.target.value)}
+              placeholder="e.g. anthology"
+              className="flex-1 max-w-xs bg-navy-800 border border-navy-700 rounded-lg px-3 py-1.5 text-xs text-navy-100 placeholder-navy-600 focus:outline-none focus:border-brand-400"
+            />
+            <button
+              type="submit"
+              disabled={!newKeyword.trim() || add.isPending}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-700 text-navy-200 hover:bg-navy-600 disabled:opacity-40 transition-colors"
+            >
+              Add
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const STATUS_OPTIONS = ['pending', 'approved', 'dismissed']
 const STATUS_STYLES: Record<string, string> = {
@@ -104,6 +183,8 @@ export default function AdminSeriesSuggestionsPage() {
           </button>
         </div>
       </div>
+
+      <ExcludedKeywordsPanel />
 
       <div className="flex gap-2 flex-wrap">
         {['', ...STATUS_OPTIONS].map(s => (

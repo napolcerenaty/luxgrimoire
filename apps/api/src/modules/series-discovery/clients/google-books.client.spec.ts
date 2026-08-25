@@ -42,6 +42,16 @@ describe('GoogleBooksClient', () => {
     expect(calledUrl).not.toContain('inauthor');
   });
 
+  it('adds langRestrict when a language is given, omits it otherwise', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({ items: [] }));
+
+    await client.search('Test Saga', [], null, 'en');
+    expect(fetchMock.mock.calls[0][0] as string).toContain('langRestrict=en');
+
+    await client.search('Test Saga', [], null);
+    expect(fetchMock.mock.calls[1][0] as string).not.toContain('langRestrict');
+  });
+
   it('appends the configured API key when set', async () => {
     config.get.mockReturnValue('my-key');
     fetchMock.mockResolvedValue(mockJsonResponse({ items: [] }));

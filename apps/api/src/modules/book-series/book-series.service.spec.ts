@@ -45,17 +45,18 @@ describe('BookSeriesService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('does not strip "the"/"a" from the middle of a name, only a leading article', async () => {
+    it('rejects a name differing from an existing series only by a mid-name article ("Arc of A Scythe" vs "Arc of The Scythe")', async () => {
       (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([
-        { id: 's1', slug: 'lord-of-the-rings', name: 'Lord of the Rings' },
+        { id: 's1', slug: 'arc-of-a-scythe', name: 'Arc of a Scythe' },
       ]);
-      (prisma.bookSeries.findUnique as jest.Mock).mockResolvedValue(null);
-      (prisma.bookSeries.create as jest.Mock).mockResolvedValue({ id: 's2', slug: 'lord-of-rings', name: 'Lord of Rings' });
 
-      // Differs by the middle "the", not a leading article — genuinely not the same normalized name.
+      // Regression test for a real bug: these ended up as two separate series rows, splitting
+      // "Thunderhead" (attached to "Arc of a Scythe") from "Gleanings" (attached to "Arc of the
+      // Scythe"), and series-discovery kept resuggesting books the catalogue already had because
+      // it was checking the wrong row.
       await expect(
-        service.create({ name: 'Lord of Rings' } as CreateBookSeriesDto),
-      ).resolves.toBeDefined();
+        service.create({ name: 'Arc of the Scythe' } as CreateBookSeriesDto),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('allows a genuinely different name', async () => {

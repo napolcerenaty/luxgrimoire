@@ -1825,6 +1825,18 @@ model SeriesVolumeSuggestion {
   @@map("series_volume_suggestions")
 }
 
+/// Admin-managed list of words/phrases that mark a series-discovery candidate as a bundle/omnibus
+/// listing (e.g. "Boxed Set", "Trilogy") rather than a real new volume — see isBundleListing in
+/// SeriesDiscoveryService. Seeded with the original hardcoded list; editable from admin without a
+/// deploy, since which bundle words a given source uses in practice is discovered empirically.
+model SeriesDiscoveryExcludedKeyword {
+  id        String   @id @default(uuid())
+  keyword   String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("series_discovery_excluded_keywords")
+}
+
 enum UserImageStatus {
   PENDING
   APPROVED
