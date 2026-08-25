@@ -77,7 +77,7 @@ describe('SeriesDiscoveryService', () => {
 
       const result = await service.runCheck();
 
-      expect(result).toEqual({ seriesChecked: 0, suggestionsCreated: 0 });
+      expect(result).toEqual({ seriesChecked: 0, suggestionsCreated: 0, googleBooksRateLimited: false });
       expect(notifications.createNotification).not.toHaveBeenCalled();
     });
 
@@ -101,7 +101,7 @@ describe('SeriesDiscoveryService', () => {
         where: { id: SERIES_ID },
         data: { lastCheckedAt: expect.any(Date), googleBooksSeriesId: 'gb-series-1', wikidataId: null },
       });
-      expect(result).toEqual({ seriesChecked: 1, suggestionsCreated: 1 });
+      expect(result).toEqual({ seriesChecked: 1, suggestionsCreated: 1, googleBooksRateLimited: false });
     });
 
     it('skips a candidate whose volumeNumber already exists in the series', async () => {
@@ -162,6 +162,27 @@ describe('SeriesDiscoveryService', () => {
       expect(prisma.seriesVolumeSuggestion.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ source: 'open_library', sourceId: '/works/OL5' }) }),
       );
+    });
+
+    it('stops calling Google Books for the rest of the run once it 429s, but keeps checking other sources/series', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([
+        makeSeries({ id: 'series-1', name: 'First Series' }),
+        makeSeries({ id: 'series-2', name: 'Second Series' }),
+      ]);
+      googleBooks.search.mockResolvedValue({ candidates: [], seriesId: null, rateLimited: true });
+      openLibrary.search.mockImplementation((seriesName: string) =>
+        Promise.resolve(
+          seriesName === 'Second Series'
+            ? [{ title: 'Second Series Book 2', authorNames: [], genres: [], source: 'open_library' as const, sourceId: '/works/OL2' }]
+            : [],
+        ),
+      );
+
+      const result = await service.runCheck();
+
+      expect(googleBooks.search).toHaveBeenCalledTimes(1); // not called again for series-2
+      expect(result.googleBooksRateLimited).toBe(true);
+      expect(result.suggestionsCreated).toBe(1); // Open Library still contributed for series-2
     });
 
     it('keeps checking the next series when one series errors entirely', async () => {

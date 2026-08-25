@@ -105,7 +105,7 @@ export class SeriesDiscoveryService {
    * trigger (no limit — whole non-completed catalog). A completed series is excluded entirely
    * (`isCompleted = false` in the where clause) — zero API calls for it until an admin
    * unmarks it. */
-  async runCheck(options: { limit?: number } = {}): Promise<{ seriesChecked: number; suggestionsCreated: number }> {
+  async runCheck(options: { limit?: number } = {}): Promise<{ seriesChecked: number; suggestionsCreated: number; googleBooksRateLimited: boolean }> {
     const series = await this.prisma.bookSeries.findMany({
       where: { isCompleted: false },
       orderBy: [{ lastCheckedAt: { sort: 'asc', nulls: 'first' } }],
@@ -115,11 +115,18 @@ export class SeriesDiscoveryService {
     // Fetched once per run, not per-series/per-candidate — this list rarely changes and isn't
     // worth a query per item.
     const excludedKeywords = (await this.prisma.seriesDiscoveryExcludedKeyword.findMany({ select: { keyword: true } })).map((k) => k.keyword);
+    // Mutable, shared across the loop below: once Google Books returns 429, every remaining
+    // series in this run skips it entirely instead of guaranteed-failing on each one — the
+    // unauthenticated quota doesn't reset mid-run, so retrying wastes a request and 300ms for
+    // no benefit. Open Library and Wikidata are unaffected and keep running normally.
+    let googleBooksRateLimited = false;
 
     let suggestionsCreated = 0;
     for (const s of series) {
       try {
-        suggestionsCreated += await this.checkSeries(s, excludedKeywords);
+        const result = await this.checkSeries(s, excludedKeywords, googleBooksRateLimited);
+        suggestionsCreated += result.created;
+        googleBooksRateLimited ||= result.googleBooksRateLimited;
       } catch (err) {
         this.logger.error(`series-discovery failed for "${s.name}" (${s.id}): ${err}`);
       }
@@ -131,10 +138,14 @@ export class SeriesDiscoveryService {
       await this.notifyAdmins(suggestionsCreated);
     }
 
-    return { seriesChecked: series.length, suggestionsCreated };
+    return { seriesChecked: series.length, suggestionsCreated, googleBooksRateLimited };
   }
 
-  private async checkSeries(series: SeriesForCheck, excludedKeywords: string[]): Promise<number> {
+  private async checkSeries(
+    series: SeriesForCheck,
+    excludedKeywords: string[],
+    skipGoogleBooks: boolean,
+  ): Promise<{ created: number; googleBooksRateLimited: boolean }> {
     const authorNames = await this.getAuthorNames(series.id);
     const language = this.getTargetLanguage();
 
@@ -144,16 +155,20 @@ export class SeriesDiscoveryService {
     }
 
     const [googleResult, openLibraryCandidates, wikidataCandidates] = await Promise.allSettled([
-      this.googleBooks.search(series.name, authorNames, series.googleBooksSeriesId, language),
+      skipGoogleBooks
+        ? Promise.resolve({ candidates: [] as ExternalVolumeCandidate[], seriesId: series.googleBooksSeriesId })
+        : this.googleBooks.search(series.name, authorNames, series.googleBooksSeriesId, language),
       this.openLibrary.search(series.name, authorNames, LANGUAGE_TO_OPEN_LIBRARY_CODE[language]),
       wikidataId ? this.wikidata.fetchParts(wikidataId, LANGUAGE_TO_WIKIDATA_QID[language]) : Promise.resolve([] as ExternalVolumeCandidate[]),
     ]);
 
     const candidates: ExternalVolumeCandidate[] = [];
     let googleBooksSeriesId = series.googleBooksSeriesId;
+    let googleBooksRateLimited = false;
     if (googleResult.status === 'fulfilled') {
       candidates.push(...googleResult.value.candidates);
       googleBooksSeriesId = googleResult.value.seriesId;
+      googleBooksRateLimited = 'rateLimited' in googleResult.value && googleResult.value.rateLimited === true;
     } else {
       this.logger.warn(`Google Books check errored for "${series.name}": ${googleResult.reason}`);
     }
@@ -167,7 +182,7 @@ export class SeriesDiscoveryService {
       data: { lastCheckedAt: new Date(), googleBooksSeriesId, wikidataId },
     });
 
-    return created;
+    return { created, googleBooksRateLimited };
   }
 
   private async createNewSuggestions(seriesId: string, seriesName: string, candidates: ExternalVolumeCandidate[], excludedKeywords: string[]): Promise<number> {

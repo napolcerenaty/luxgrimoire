@@ -133,10 +133,13 @@ export default function AdminSeriesSuggestionsPage() {
   })
 
   const runNow = useMutation({
-    mutationFn: () => authFetch<{ seriesChecked: number; suggestionsCreated: number }>('/admin/series-discovery/run', { method: 'POST' }),
+    mutationFn: () => authFetch<{ seriesChecked: number; suggestionsCreated: number; googleBooksRateLimited: boolean }>('/admin/series-discovery/run', { method: 'POST' }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['admin', 'series-volume-suggestions'] })
-      alert(`Checked ${res.seriesChecked} series, found ${res.suggestionsCreated} new suggestion(s).`)
+      const warning = res.googleBooksRateLimited
+        ? '\n\n⚠️ Google Books rate-limited (429) partway through this run — it was skipped for the rest of it. Set GOOGLE_BOOKS_API_KEY (free, no billing) to raise the unauthenticated quota.'
+        : ''
+      alert(`Checked ${res.seriesChecked} series, found ${res.suggestionsCreated} new suggestion(s).${warning}`)
     },
     onError: (e: Error) => alert(`Error: ${e.message}`),
   })

@@ -29,6 +29,11 @@ export interface GoogleBooksSearchResult {
   /** The Google Books seriesId this search resolved to, if any — caller persists it on
    * BookSeries so future searches can match on seriesInfo directly instead of guessing. */
   seriesId: string | null;
+  /** True on HTTP 429 — the unauthenticated quota is low enough in practice that even a single
+   * manual "Check now" run can exhaust it partway through (observed 2026-08-25). The caller
+   * uses this to stop calling Google Books for the rest of that run instead of guaranteed-
+   * failing on every remaining series — retrying won't help until the quota resets. */
+  rateLimited?: boolean;
 }
 
 @Injectable()
@@ -57,6 +62,14 @@ export class GoogleBooksClient {
         headers: { 'User-Agent': USER_AGENT },
         signal: AbortSignal.timeout(15_000),
       });
+      if (response.status === 429) {
+        this.logger.warn(
+          apiKey
+            ? 'Google Books rate-limited (429) despite a configured API key.'
+            : 'Google Books rate-limited (429) — set GOOGLE_BOOKS_API_KEY (free, no billing needed) to raise the unauthenticated quota.',
+        );
+        return { candidates: [], seriesId: cachedSeriesId, rateLimited: true };
+      }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const data = (await response.json()) as { items?: GoogleBooksVolume[] };

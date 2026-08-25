@@ -116,6 +116,14 @@ describe('GoogleBooksClient', () => {
     expect(result.seriesId).toBe('gb-cached-series');
   });
 
+  it('flags rateLimited on a 429 without treating it as a generic failure', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({}, false, 429));
+
+    const result = await client.search('Test Saga', [], 'gb-cached-series');
+
+    expect(result).toEqual({ candidates: [], seriesId: 'gb-cached-series', rateLimited: true });
+  });
+
   it('returns empty candidates and preserves the cached seriesId on a non-ok response', async () => {
     fetchMock.mockResolvedValue(mockJsonResponse({}, false, 500));
 
