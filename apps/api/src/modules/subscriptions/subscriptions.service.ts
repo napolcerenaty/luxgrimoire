@@ -2369,10 +2369,27 @@ export class SubscriptionsService {
           entry.costCurrency,
           userFirstBilledYearMonth,
         );
-        if (resolved.fromPriceChange && resolved.price !== fallbackBase) {
+        // "Is the price changing" must compare against what the user is EFFECTIVELY paying right
+        // now — not the raw fallbackBase (entry.basePrice), which stays null for anyone who's
+        // never had a custom override. Comparing a resolved number against null always reads as
+        // "changed", even when resolveEffectiveBasePrice would resolve to the exact same
+        // (correctly grandfathered) price for both "now" and the next renewal — real bug found in
+        // production: a subscriber who joined before a grandfathered price change saw a "price
+        // changing to £X" warning where £X was the price they were already paying.
+        const now = new Date();
+        const currentResolved = resolveEffectiveBasePrice(
+          subPriceChanges ?? [],
+          now.getUTCFullYear(),
+          now.getUTCMonth() + 1,
+          fallbackBase,
+          entry.costCurrency,
+          userFirstBilledYearMonth,
+        );
+        const currentEffectiveBase = currentResolved.price ?? fallbackBase;
+        if (resolved.fromPriceChange && resolved.price !== null && resolved.price !== currentEffectiveBase) {
           nextBase = resolved.price;
           nextRenewalPriceChanged = true;
-          nextRenewalNewPrice = resolved.price !== null ? resolved.price.toFixed(2) : null;
+          nextRenewalNewPrice = resolved.price.toFixed(2);
         } else {
           nextBase = resolved.price ?? fallbackBase;
         }
