@@ -203,77 +203,112 @@ export class ArtistsService {
     };
   }
 
-  async findContributions(slug: string, page = 1, pageSize = 24) {
+  /**
+   * Resolves the full, sorted list of distinct edition ids an artist (or a set of artists, see
+   * findStudioContributions) has ArtistContribution rows for, sorted by resolved release date
+   * (EditionsService.resolveEditionSaleDates — live-computed, never copied, so a later-linked
+   * sale announcement is reflected automatically without any sync step), falling back to
+   * edition.createdAt when no sale date resolves. Cached under `cacheKey` since the resolve step
+   * isn't a plain DB column to sort/paginate by — the full list is computed once and reused for
+   * every page of a given artist-set+sort combination.
+   */
+  private async resolveSortedEditionIds(
+    artistIds: string[],
+    sort: StudioSortDirection,
+    cacheKey: string,
+  ): Promise<string[]> {
+    const cached = await this.cache.get<string[]>(cacheKey);
+    if (cached) return cached;
+
+    const rows = await (this.prisma.artistContribution as any).findMany({
+      where: { artistId: { in: artistIds } },
+      select: { editionId: true },
+      distinct: ['editionId'],
+    });
+    const editionIds: string[] = rows.map((r: any) => r.editionId);
+
+    const resolvedDates = await this.editionsService.resolveEditionSaleDates(editionIds);
+    const missing = editionIds.filter((id) => !resolvedDates.get(id));
+    const fallbackRows = missing.length
+      ? await this.prisma.bookEdition.findMany({
+          where: { id: { in: missing } },
+          select: { id: true, createdAt: true },
+        })
+      : [];
+    const fallbackByEdition = new Map(fallbackRows.map((r) => [r.id, r.createdAt]));
+    const dateFor = (id: string): Date => resolvedDates.get(id)?.date ?? fallbackByEdition.get(id) ?? new Date(0);
+
+    const ordered = [...editionIds].sort((a, b) => {
+      const diff = dateFor(a).getTime() - dateFor(b).getTime();
+      return sort === 'oldest' ? diff : -diff;
+    });
+    await this.cache.set(cacheKey, ordered, ARTIST_CONTRIBUTIONS_TTL);
+    return ordered;
+  }
+
+  async findContributions(slug: string, page = 1, pageSize = 24, sort: StudioSortDirection = 'newest') {
     const { skip, take, page: p, pageSize: ps } = parsePagination({ page, pageSize });
-    const cacheKey = `${artistContributionsKey(slug)}:${p}:${ps}`;
+    const cacheKey = `${artistContributionsKey(slug)}:${sort}:${p}:${ps}`;
     const cached = await this.cache.get(cacheKey);
     if (cached) return cached as any;
 
     const artist = await this.prisma.artist.findUnique({ where: { slug }, select: { id: true } });
     if (!artist) throw new NotFoundException(`Artist '${slug}' not found`);
 
-    // Count & fetch distinct editions (paginated)
-    const [grouped, editionIdRows] = await Promise.all([
-      this.prisma.artistContribution.groupBy({
-        by: ['editionId'] as any,
-        where: { artistId: artist.id },
-      }),
-      (this.prisma.artistContribution as any).findMany({
-        where: { artistId: artist.id },
-        select: { editionId: true },
-        distinct: ['editionId'],
-        skip,
-        take,
-      }),
-    ]);
-    const total = grouped.length;
-    const editionIds: string[] = editionIdRows.map((r: any) => r.editionId);
+    const idsCacheKey = `${artistContributionsKey(slug)}:ids:${sort}`;
+    const orderedEditionIds = await this.resolveSortedEditionIds([artist.id], sort, idsCacheKey);
 
-    // Fetch all contributions for those editions (to collect roles)
-    const contributions = await this.prisma.artistContribution.findMany({
-      where: { artistId: artist.id, editionId: { in: editionIds } },
-      select: {
-        role: true,
-        edition: {
-          select: {
-            id: true,
-            slug: true,
-            additionalImages: true,
-            variantLabel: true,
-            bookBoxCompany: { select: { name: true, brandColors: true } },
-            communityImages: {
-              where: { status: 'APPROVED' },
-              orderBy: { sortOrder: 'asc' },
-              take: 1,
-              select: { url: true },
+    const total = orderedEditionIds.length;
+    const pageIds = orderedEditionIds.slice(skip, skip + take);
+
+    let data: unknown[] = [];
+    if (pageIds.length > 0) {
+      // Fetch all contributions for those editions (to collect roles)
+      const contributions = await this.prisma.artistContribution.findMany({
+        where: { artistId: artist.id, editionId: { in: pageIds } },
+        select: {
+          role: true,
+          edition: {
+            select: {
+              id: true,
+              slug: true,
+              additionalImages: true,
+              variantLabel: true,
+              bookBoxCompany: { select: { name: true, brandColors: true } },
+              communityImages: {
+                where: { status: 'APPROVED' },
+                orderBy: { sortOrder: 'asc' },
+                take: 1,
+                select: { url: true },
+              },
             },
           },
         },
-      },
-    });
+      });
 
-    // Group roles per edition, preserving paginated order
-    const editionMap = new Map<string, any>();
-    for (const c of contributions) {
-      const ed = c.edition as any;
-      const existing = editionMap.get(ed.id);
-      if (existing) {
-        existing.roles.push(c.role);
-      } else {
-        const { communityImages, ...editionRest } = ed;
-        editionMap.set(ed.id, {
-          roles: [c.role],
-          edition: {
-            ...editionRest,
-            communityPhotoCover:
-              (ed.additionalImages as string[]).length === 0
-                ? (communityImages?.[0]?.url ?? null)
-                : null,
-          },
-        });
+      // Group roles per edition, preserving sorted order
+      const editionMap = new Map<string, any>();
+      for (const c of contributions) {
+        const ed = c.edition as any;
+        const existing = editionMap.get(ed.id);
+        if (existing) {
+          existing.roles.push(c.role);
+        } else {
+          const { communityImages, ...editionRest } = ed;
+          editionMap.set(ed.id, {
+            roles: [c.role],
+            edition: {
+              ...editionRest,
+              communityPhotoCover:
+                (ed.additionalImages as string[]).length === 0
+                  ? (communityImages?.[0]?.url ?? null)
+                  : null,
+            },
+          });
+        }
       }
+      data = pageIds.map((id) => editionMap.get(id)).filter(Boolean);
     }
-    const data = editionIds.map((id) => editionMap.get(id)).filter(Boolean);
 
     const result = { data, ...buildPageMeta(total, p, ps) };
     await this.cache.set(cacheKey, result, ARTIST_CONTRIBUTIONS_TTL);
@@ -360,33 +395,7 @@ export class ArtistsService {
     const scopedIds = await this.resolveStudioScope(studioSlug, filterArtistId);
 
     const cacheKey = `${artistContributionsKey(studioSlug)}:studio:${filterArtistId ?? 'all'}:${sort}`;
-    let orderedEditionIds = await this.cache.get<string[]>(cacheKey);
-
-    if (!orderedEditionIds) {
-      const rows = await (this.prisma.artistContribution as any).findMany({
-        where: { artistId: { in: scopedIds } },
-        select: { editionId: true },
-        distinct: ['editionId'],
-      });
-      const editionIds: string[] = rows.map((r: any) => r.editionId);
-
-      const resolvedDates = await this.editionsService.resolveEditionSaleDates(editionIds);
-      const missing = editionIds.filter((id) => !resolvedDates.get(id));
-      const fallbackRows = missing.length
-        ? await this.prisma.bookEdition.findMany({
-            where: { id: { in: missing } },
-            select: { id: true, createdAt: true },
-          })
-        : [];
-      const fallbackByEdition = new Map(fallbackRows.map((r) => [r.id, r.createdAt]));
-      const dateFor = (id: string): Date => resolvedDates.get(id)?.date ?? fallbackByEdition.get(id) ?? new Date(0);
-
-      orderedEditionIds = [...editionIds].sort((a, b) => {
-        const diff = dateFor(a).getTime() - dateFor(b).getTime();
-        return sort === 'oldest' ? diff : -diff;
-      });
-      await this.cache.set(cacheKey, orderedEditionIds, ARTIST_CONTRIBUTIONS_TTL);
-    }
+    const orderedEditionIds = await this.resolveSortedEditionIds(scopedIds, sort, cacheKey);
 
     const total = orderedEditionIds.length;
     const pageIds = orderedEditionIds.slice(skip, skip + take);

@@ -37,8 +37,14 @@ export class ArtistsController {
     @Param('slug') slug: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('sort') sort?: string,
   ) {
-    return this.artistsService.findContributions(slug, page ? Number(page) : 1, pageSize ? Number(pageSize) : 24);
+    return this.artistsService.findContributions(
+      slug,
+      page ? Number(page) : 1,
+      pageSize ? Number(pageSize) : 24,
+      sort === 'oldest' ? 'oldest' : 'newest',
+    );
   }
 
   @Public()

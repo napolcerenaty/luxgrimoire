@@ -7,7 +7,7 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverUrl } from '@/lib/editionCover'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { API_BASE } from '@/lib/authFetch'
-import { LoadMoreButton, type EditionSnippet, type PagedResponse } from './ArtistTabs'
+import { LoadMoreButton, SortToggle, type EditionSnippet, type PagedResponse, type SortDirection } from './ArtistTabs'
 
 const PAGE_SIZE = 24
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -35,8 +35,6 @@ interface StudioCardMonth {
   cardArtist: { id: string; name: string; slug: string } | null
 }
 
-type SortDirection = 'newest' | 'oldest'
-
 // ─── Filter chip row ──────────────────────────────────────────────────────────
 
 function FilterChips({
@@ -45,7 +43,7 @@ function FilterChips({
   studioId: string; studioName: string; studioPhotoUrl: string | null
   members: StudioMember[]; activeId: string | undefined; onSelect: (id: string | undefined) => void
 }) {
-  function Chip({ id, label, photoUrl, linkSlug }: { id: string | undefined; label: string; photoUrl: string | null; linkSlug?: string }) {
+  function Chip({ id, label, photoUrl, linkSlug, noAvatar }: { id: string | undefined; label: string; photoUrl: string | null; linkSlug?: string; noAvatar?: boolean }) {
     const isActive = activeId === id
     const avatar = photoUrl ? cloudinaryUrl(photoUrl, 'w_48,h_48,c_fill,q_auto,f_auto') : null
     return (
@@ -54,17 +52,19 @@ function FilterChips({
       }`}>
         <button
           onClick={() => onSelect(id)}
-          className={`flex items-center gap-2 rounded-full pl-1 pr-2 py-0.5 text-sm transition-colors ${
+          className={`flex items-center gap-2 rounded-full ${noAvatar ? 'pl-3' : 'pl-1'} pr-2 py-0.5 text-sm transition-colors ${
             isActive ? 'text-brand-400' : 'text-navy-300 hover:text-navy-100'
           }`}
         >
-          {avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatar} alt={label} className="w-6 h-6 rounded-full object-cover" />
-          ) : (
-            <div className="w-6 h-6 rounded-full bg-navy-800 flex items-center justify-center text-[10px] text-navy-500">
-              {label[0]?.toUpperCase()}
-            </div>
+          {!noAvatar && (
+            avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatar} alt={label} className="w-6 h-6 rounded-full object-cover" />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-navy-800 flex items-center justify-center text-[10px] text-navy-500">
+                {label[0]?.toUpperCase()}
+              </div>
+            )
           )}
           <span className="whitespace-nowrap">{label}</span>
         </button>
@@ -85,32 +85,10 @@ function FilterChips({
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 mb-6">
-      <Chip id={undefined} label="Wszyscy" photoUrl={null} />
+      <Chip id={undefined} label="All" photoUrl={null} noAvatar />
       <Chip id={studioId} label={studioName} photoUrl={studioPhotoUrl} />
       {members.map((m) => (
         <Chip key={m.id} id={m.id} label={m.name} photoUrl={m.photoUrl} linkSlug={m.slug} />
-      ))}
-    </div>
-  )
-}
-
-// ─── Sort toggle ──────────────────────────────────────────────────────────────
-
-function SortToggle({ sort, onChange }: { sort: SortDirection; onChange: (s: SortDirection) => void }) {
-  return (
-    <div className="flex items-center gap-1 shrink-0">
-      {(['newest', 'oldest'] as const).map((s) => (
-        <button
-          key={s}
-          onClick={() => onChange(s)}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-            sort === s
-              ? 'border-brand-500 text-brand-400 bg-brand-900/20'
-              : 'border-navy-700 text-navy-400 hover:text-navy-200'
-          }`}
-        >
-          {s === 'newest' ? 'Najnowsze' : 'Od najstarszych'}
-        </button>
       ))}
     </div>
   )
@@ -198,11 +176,16 @@ function StudioEditionGrid({ studioSlug, artistId, sort }: { studioSlug: string;
                   </span>
                 )}
               </div>
-              <div className="p-3 flex flex-col gap-1 flex-1">
+              <div className="p-3 flex flex-col gap-2 flex-1">
                 {attributions.map((a, i) => (
-                  <p key={`${a.artistId}-${a.role}-${i}`} className="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-[var(--bg-raised)] border border-[var(--border)] text-[var(--text-dim)] line-clamp-1">
-                    {a.artistName} · {a.role}
-                  </p>
+                  <div key={`${a.artistId}-${a.role}-${i}`} className="px-2 py-1.5 rounded bg-[var(--bg-raised)] border border-[var(--border)]">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-dim)] leading-snug">
+                      {a.role}
+                    </p>
+                    <p className="text-[10px] text-navy-500 leading-snug mt-0.5">
+                      {a.artistName}
+                    </p>
+                  </div>
                 ))}
               </div>
             </Link>

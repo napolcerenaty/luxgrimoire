@@ -44,6 +44,30 @@ export interface PagedResponse<T> {
   totalPages: number
 }
 
+export type SortDirection = 'newest' | 'oldest'
+
+// ─── Sort toggle ──────────────────────────────────────────────────────────────
+
+export function SortToggle({ sort, onChange }: { sort: SortDirection; onChange: (s: SortDirection) => void }) {
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      {(['newest', 'oldest'] as const).map((s) => (
+        <button
+          key={s}
+          onClick={() => onChange(s)}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+            sort === s
+              ? 'border-brand-500 text-brand-400 bg-brand-900/20'
+              : 'border-navy-700 text-navy-400 hover:text-navy-200'
+          }`}
+        >
+          {s === 'newest' ? 'Newest' : 'Oldest'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── Load More button ─────────────────────────────────────────────────────────
 
 export function LoadMoreButton({ onClick, loading }: { onClick: () => void; loading: boolean }) {
@@ -62,15 +86,17 @@ export function LoadMoreButton({ onClick, loading }: { onClick: () => void; load
 
 // ─── Edition grid ─────────────────────────────────────────────────────────────
 
-function EditionGrid({ artistSlug }: { artistSlug: string }) {
+function EditionGrid({ artistSlug, sort }: { artistSlug: string; sort: SortDirection }) {
   const [page, setPage] = useState(1)
   const [items, setItems] = useState<GroupedEdition[]>([])
   const [totalPages, setTotalPages] = useState<number | null>(null)
 
+  useEffect(() => { setPage(1); setItems([]) }, [artistSlug, sort])
+
   const { data: res, isFetching } = useQuery<PagedResponse<GroupedEdition>>({
-    queryKey: ['artist-contributions', artistSlug, page],
+    queryKey: ['artist-contributions', artistSlug, sort, page],
     queryFn: () =>
-      fetch(`${API_BASE}/artists/${artistSlug}/contributions?page=${page}&pageSize=${PAGE_SIZE}`)
+      fetch(`${API_BASE}/artists/${artistSlug}/contributions?page=${page}&pageSize=${PAGE_SIZE}&sort=${sort}`)
         .then((r) => r.json()),
     staleTime: 5 * 60 * 1000,
   })
@@ -81,7 +107,7 @@ function EditionGrid({ artistSlug }: { artistSlug: string }) {
     setTotalPages(res.totalPages)
   }, [res]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isInitialLoading = isFetching && items.length === 0
+  const isInitialLoading = isFetching && items.length === 0 && page === 1
 
   if (isInitialLoading) {
     return (
@@ -245,6 +271,7 @@ type Tab = 'editions' | 'months'
 
 export function ArtistTabs({ artistSlug }: { artistSlug: string }) {
   const [activeTab, setActiveTab] = useState<Tab>('editions')
+  const [sort, setSort] = useState<SortDirection>('newest')
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'editions', label: 'Book Editions' },
@@ -253,23 +280,26 @@ export function ArtistTabs({ artistSlug }: { artistSlug: string }) {
 
   return (
     <div>
-      <div className="flex items-center gap-1 border-b border-navy-800 mb-8">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === tab.id
-                ? 'border-brand-500 text-brand-400'
-                : 'border-transparent text-navy-400 hover:text-navy-200'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-3 border-b border-navy-800 mb-8 flex-wrap">
+        <div className="flex items-center gap-1">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === tab.id
+                  ? 'border-brand-500 text-brand-400'
+                  : 'border-transparent text-navy-400 hover:text-navy-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {activeTab === 'editions' && <SortToggle sort={sort} onChange={setSort} />}
       </div>
 
-      {activeTab === 'editions' && <EditionGrid artistSlug={artistSlug} />}
+      {activeTab === 'editions' && <EditionGrid artistSlug={artistSlug} sort={sort} />}
       {activeTab === 'months'   && <CardMonthGrid artistSlug={artistSlug} />}
     </div>
   )

@@ -337,6 +337,101 @@ describe('ArtistsService', () => {
     });
   });
 
+  describe('findContributions', () => {
+    beforeEach(() => {
+      cache.get.mockResolvedValue(undefined);
+      (prisma.artist.findUnique as jest.Mock).mockResolvedValue({ id: 'artist-1' });
+    });
+
+    it('throws NotFoundException when the artist does not exist', async () => {
+      (prisma.artist.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.findContributions('missing-artist')).rejects.toThrow(NotFoundException);
+    });
+
+    it('sorts editions by resolved release date, newest first by default', async () => {
+      (prisma.artistContribution.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ editionId: 'older' }, { editionId: 'newer' }])
+        .mockResolvedValueOnce([
+          { role: 'cover', edition: { id: 'older', slug: 'older-slug', additionalImages: [], variantLabel: null, bookBoxCompany: null, communityImages: [] } },
+          { role: 'cover', edition: { id: 'newer', slug: 'newer-slug', additionalImages: [], variantLabel: null, bookBoxCompany: null, communityImages: [] } },
+        ]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(new Map([
+        ['older', { label: 'General Sale', date: new Date('2020-01-01') }],
+        ['newer', { label: 'General Sale', date: new Date('2026-01-01') }],
+      ]));
+
+      const result = await service.findContributions('maggie-abcd1234', 1, 24);
+
+      expect(result.data.map((d: any) => d.edition.id)).toEqual(['newer', 'older']);
+    });
+
+    it('sorts editions by resolved release date, oldest first when sort=oldest', async () => {
+      (prisma.artistContribution.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ editionId: 'older' }, { editionId: 'newer' }])
+        .mockResolvedValueOnce([
+          { role: 'cover', edition: { id: 'older', slug: 'older-slug', additionalImages: [], variantLabel: null, bookBoxCompany: null, communityImages: [] } },
+          { role: 'cover', edition: { id: 'newer', slug: 'newer-slug', additionalImages: [], variantLabel: null, bookBoxCompany: null, communityImages: [] } },
+        ]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(new Map([
+        ['older', { label: 'General Sale', date: new Date('2020-01-01') }],
+        ['newer', { label: 'General Sale', date: new Date('2026-01-01') }],
+      ]));
+
+      const result = await service.findContributions('maggie-abcd1234', 1, 24, 'oldest');
+
+      expect(result.data.map((d: any) => d.edition.id)).toEqual(['older', 'newer']);
+    });
+
+    it('falls back to edition.createdAt when no sale date resolves', async () => {
+      (prisma.artistContribution.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ editionId: 'no-sale-date' }, { editionId: 'has-sale-date' }])
+        .mockResolvedValueOnce([
+          { role: 'cover', edition: { id: 'no-sale-date', slug: 'a', additionalImages: [], variantLabel: null, bookBoxCompany: null, communityImages: [] } },
+          { role: 'cover', edition: { id: 'has-sale-date', slug: 'b', additionalImages: [], variantLabel: null, bookBoxCompany: null, communityImages: [] } },
+        ]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(new Map([
+        ['no-sale-date', null],
+        ['has-sale-date', { label: 'General Sale', date: new Date('2020-01-01') }],
+      ]));
+      (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
+        { id: 'no-sale-date', createdAt: new Date('2027-01-01') },
+      ]);
+
+      const result = await service.findContributions('maggie-abcd1234', 1, 24);
+
+      expect(result.data.map((d: any) => d.edition.id)).toEqual(['no-sale-date', 'has-sale-date']);
+    });
+
+    it('groups multiple roles for the same edition', async () => {
+      (prisma.artistContribution.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ editionId: 'edition-1' }])
+        .mockResolvedValueOnce([
+          { role: 'cover', edition: { id: 'edition-1', slug: 'a', additionalImages: [], variantLabel: null, bookBoxCompany: null, communityImages: [] } },
+          { role: 'interior', edition: { id: 'edition-1', slug: 'a', additionalImages: [], variantLabel: null, bookBoxCompany: null, communityImages: [] } },
+        ]);
+      editionsService.resolveEditionSaleDates.mockResolvedValue(
+        new Map([['edition-1', { label: 'General Sale', date: new Date('2020-01-01') }]]),
+      );
+
+      const result = await service.findContributions('maggie-abcd1234', 1, 24);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].roles).toEqual(['cover', 'interior']);
+    });
+
+    it('caches the full response per slug+sort+page+pageSize and serves from cache on a hit', async () => {
+      const cached = { data: [{ edition: { id: 'cached' }, roles: ['cover'] }], total: 1, page: 1, pageSize: 24, totalPages: 1 };
+      cache.get.mockResolvedValue(cached);
+
+      const result = await service.findContributions('maggie-abcd1234', 1, 24, 'newest');
+
+      expect(result).toBe(cached);
+      expect(cache.get).toHaveBeenCalledWith('artists:slug:maggie-abcd1234:contributions:newest:1:24');
+      expect(prisma.artist.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
   describe('findStudioContributions', () => {
     function mockStudio(memberIds: string[] = ['member-1']) {
       (prisma.artist.findUnique as jest.Mock).mockResolvedValue({
