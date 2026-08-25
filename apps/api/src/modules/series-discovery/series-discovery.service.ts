@@ -8,6 +8,8 @@ import { OpenLibraryClient } from './clients/open-library.client';
 import { WikidataClient } from './clients/wikidata.client';
 import type { ExternalVolumeCandidate } from './series-discovery.types';
 
+const DEFAULT_DAILY_BATCH = 20;
+
 /** ISO 639-1 -> Wikidata "language of work or name" (P407) QID. Only languages independently
  * verified against Wikidata are listed — an unlisted language simply skips the P407 filter
  * (Wikidata results come back unfiltered by language) rather than risk a wrong QID silently
@@ -139,15 +141,27 @@ export class SeriesDiscoveryService {
     return this.config.get<string>('SERIES_DISCOVERY_LANGUAGE') || 'en';
   }
 
-  /** Shared by the daily cron (bounded, oldest-checked-first batch) and the manual admin
-   * trigger (no limit — whole non-completed catalog). A completed series is excluded entirely
-   * (`isCompleted = false` in the where clause) — zero API calls for it until an admin
+  /** Env SERIES_DISCOVERY_DAILY_BATCH, default 20 — the single source of truth for both the
+   * cron and the manual "Check now" trigger, so they always agree on batch size. */
+  private getDailyBatchSize(): number {
+    const configured = Number(this.config.get<string>('SERIES_DISCOVERY_DAILY_BATCH'));
+    return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_DAILY_BATCH;
+  }
+
+  /** Shared by the daily cron and the manual admin "Check now" trigger — both process the same
+   * bounded, oldest-checked-first batch (`limit` defaults to the configured daily batch size
+   * when not given explicitly), so a manual click behaves exactly like the cron: it advances
+   * through the catalog 20 (by default) series at a time rather than re-checking the same ones
+   * or running the whole catalog at once. Each processed series' `lastCheckedAt` gets bumped to
+   * now, so the *next* click naturally picks up the next batch. A completed series is excluded
+   * entirely (`isCompleted = false` in the where clause) — zero API calls for it until an admin
    * unmarks it. */
   async runCheck(options: { limit?: number } = {}): Promise<{ seriesChecked: number; suggestionsCreated: number; googleBooksRateLimited: boolean }> {
+    const limit = options.limit ?? this.getDailyBatchSize();
     const series = await this.prisma.bookSeries.findMany({
       where: { isCompleted: false },
       orderBy: [{ lastCheckedAt: { sort: 'asc', nulls: 'first' } }],
-      take: options.limit,
+      take: limit,
       select: { id: true, name: true, googleBooksSeriesId: true, openLibraryId: true, wikidataId: true },
     });
     // Fetched once per run, not per-series/per-candidate — this list rarely changes and isn't

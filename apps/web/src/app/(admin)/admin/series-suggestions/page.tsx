@@ -174,7 +174,7 @@ export default function AdminSeriesSuggestionsPage() {
           <button
             onClick={() => runNow.mutate()}
             disabled={runNow.isPending}
-            title="Manually check every non-completed series against Google Books, Open Library, and Wikidata right now, instead of waiting for the daily batch"
+            title="Manually run the same batch the daily cron would (oldest-checked series first, same batch size) right now, instead of waiting until tomorrow. Click again later to advance to the next batch."
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-400 text-navy-950 hover:bg-brand-300 disabled:opacity-50 transition-colors"
           >
             {runNow.isPending ? 'Checking…' : 'Check now'}

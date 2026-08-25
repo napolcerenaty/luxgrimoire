@@ -72,6 +72,42 @@ describe('SeriesDiscoveryService', () => {
       );
     });
 
+    it('defaults the batch to the configured daily size when no limit is given — same default the cron uses, so "Check now" behaves identically to the cron', async () => {
+      config.get.mockImplementation((key: string) => (key === 'SERIES_DISCOVERY_DAILY_BATCH' ? '20' : undefined));
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.runCheck();
+
+      expect(prisma.bookSeries.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 20 }));
+    });
+
+    it('uses a configured non-default daily batch size when no limit is given explicitly', async () => {
+      config.get.mockImplementation((key: string) => (key === 'SERIES_DISCOVERY_DAILY_BATCH' ? '50' : undefined));
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.runCheck();
+
+      expect(prisma.bookSeries.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 50 }));
+    });
+
+    it('falls back to the default batch size of 20 for an invalid configured value', async () => {
+      config.get.mockImplementation((key: string) => (key === 'SERIES_DISCOVERY_DAILY_BATCH' ? 'not-a-number' : undefined));
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.runCheck();
+
+      expect(prisma.bookSeries.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 20 }));
+    });
+
+    it('an explicit limit still overrides the configured default (manual admin override path)', async () => {
+      config.get.mockImplementation((key: string) => (key === 'SERIES_DISCOVERY_DAILY_BATCH' ? '50' : undefined));
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.runCheck({ limit: 5 });
+
+      expect(prisma.bookSeries.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 5 }));
+    });
+
     it('does nothing further when there are no due series', async () => {
       (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([]);
 
