@@ -394,6 +394,41 @@ export class SkipPolicyEngine {
   }
 
   /**
+   * Recomputes windowKey on every skip record for a user's active entry on a subscription,
+   * self-healing any record whose stored windowKey is wrong or missing.
+   *
+   * Real bug found in production: bulk skip creation (subscriptions.service.ts manageSkips)
+   * writes records with windowKey: null — it has no policy-aware way to compute the right one
+   * per month. recomputeState (see below) determines the "current window" by trusting whatever
+   * windowKey is stamped on the record with the latest month, rather than computing it fresh —
+   * so a single null-windowKey record can silently become the trusted "current window", making
+   * the running total look like it reset to a fresh window and undercounting real usage against
+   * the policy's maxSkips. Call this before recomputeSkipState after any bulk write, so the
+   * state's own trust-the-stored-column logic isn't corrupted by an unstamped record. Reuses the
+   * same chronological windowKey walk already used for admin policy-type recomputes.
+   */
+  async recomputeEntryWindowKeys(userId: string, subscriptionId: string): Promise<void> {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      select: { intervalMonths: true, startingMonth: true, isBundleSubscription: true, skipPolicies: true },
+    });
+    if (!subscription) return;
+    const entry = await this.prisma.userSubscriptionEntry.findFirst({
+      where: { userId, subscriptionId, active: true },
+      select: { id: true, userId: true, subscriptionId: true, startDate: true, firstBoxYear: true, firstBoxMonth: true, prepaidMonths: true },
+    });
+    if (!entry) return;
+    const isPrepaid = (entry.prepaidMonths ?? 1) > 1;
+    const policy = this.selectApplicablePolicy(subscription.skipPolicies ?? [], isPrepaid);
+    if (!policy) return;
+    await this.recomputeEntryWindowsForPolicy(entry, policy, {
+      intervalMonths: (subscription as any).intervalMonths ?? 1,
+      startingMonth: (subscription as any).startingMonth ?? 1,
+      isBundleSubscription: (subscription as any).isBundleSubscription ?? false,
+    });
+  }
+
+  /**
    * Estimates how many active, previously-tracked users would have their skip window
    * boundaries change under a PROPOSED (not-yet-saved) policy config. Used by the admin UI to
    * show an impact count before committing a skip-policy type/windowMonths change.

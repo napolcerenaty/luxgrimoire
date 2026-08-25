@@ -5538,7 +5538,11 @@ export class SubscriptionsService {
       }
     }
 
-    // Recompute skip state + renewal date
+    // Recompute skip state + renewal date. Bulk-created skip records above have no
+    // policy-aware windowKey (see manageSkips's upsert), so recompute the real windowKey on
+    // every record first — otherwise recomputeSkipState's own "trust the latest record's
+    // stored windowKey" logic gets corrupted by the unstamped ones and undercounts real usage.
+    await this.skipPolicyEngine.recomputeEntryWindowKeys(userId, sub.id);
     await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
     await refreshNextRenewalDate(this.prisma, entry.id);
     backfillRenewalHistory(this.prisma, entry.id).catch(() => {});
