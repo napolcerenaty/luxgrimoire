@@ -23,6 +23,19 @@ interface SparqlBinding {
 export class WikidataClient {
   private readonly logger = new Logger(WikidataClient.name);
 
+  /** Wikidata's public endpoints (both the wbsearchentities API and the WDQS SPARQL endpoint)
+   * are known to be flaky under load — a 502/503/504 is usually transient and often clears on
+   * an immediate retry (observed a real 502 on the SPARQL endpoint, 2026-08-25). Anything else
+   * (4xx, network error, genuine timeout) is not retried — retrying a client-side timeout would
+   * just wait twice as long for the same likely outcome. */
+  private async fetchWithRetry(url: string, headers: Record<string, string>, timeoutMs: number): Promise<Response> {
+    const attempt = () => fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+    const first = await attempt();
+    if (first.ok || ![502, 503, 504].includes(first.status)) return first;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return attempt();
+  }
+
   /** Resolves a series name to a Wikidata QID once — caller caches the result on BookSeries so
    * this search (fuzzy, best-effort) never has to run again for the same series. */
   async resolveSeriesId(seriesName: string): Promise<string | null> {
@@ -36,10 +49,7 @@ export class WikidataClient {
     });
 
     try {
-      const response = await fetch(`https://www.wikidata.org/w/api.php?${params}`, {
-        headers: { 'User-Agent': USER_AGENT },
-        signal: AbortSignal.timeout(15_000),
-      });
+      const response = await this.fetchWithRetry(`https://www.wikidata.org/w/api.php?${params}`, { 'User-Agent': USER_AGENT }, 15_000);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const data = (await response.json()) as { search?: WikidataSearchEntity[] };
@@ -77,10 +87,11 @@ export class WikidataClient {
     `.trim();
 
     try {
-      const response = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(sparql)}`, {
-        headers: { 'User-Agent': USER_AGENT, Accept: 'application/sparql-results+json' },
-        signal: AbortSignal.timeout(20_000),
-      });
+      const response = await this.fetchWithRetry(
+        `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(sparql)}`,
+        { 'User-Agent': USER_AGENT, Accept: 'application/sparql-results+json' },
+        20_000,
+      );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const data = (await response.json()) as { results?: { bindings?: SparqlBinding[] } };

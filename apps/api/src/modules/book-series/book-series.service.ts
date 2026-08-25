@@ -32,13 +32,18 @@ function compareVolumeNumbers(a: number[], b: number[]): number {
  * (e.g. "Arc of a Scythe" vs "Arc of the Scythe" — a real instance that split a series' books
  * across two rows, caught 2026-08-25). "the"/"a"/"an" are close enough to interchangeable
  * filler words in English titles that no two genuinely different series are expected to
- * collide only over which one was used. */
+ * collide only over which one was used.
+ *
+ * "&" is folded to "and" (not stripped like the articles above — unlike "the", it's meaningful,
+ * e.g. "Pride and Prejudice" needs it to not become "Pride Prejudice") before the ampersand
+ * would otherwise just vanish as punctuation, so "X & Y" and "X and Y" compare equal. */
 function normalizeSeriesName(name: string): string {
   return name
     .normalize('NFKC')
     .replace(/[‘’‛ʼ`´]/g, "'")
     .replace(/[“”]/g, '"')
     .replace(/[‐‑‒–—―−]/g, '-')
+    .replace(/&/g, ' and ')
     .toLowerCase()
     .replace(/\b(the|an?)\b/g, ' ')
     .replace(/\s+/g, ' ')

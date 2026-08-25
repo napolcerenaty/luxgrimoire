@@ -59,6 +59,16 @@ describe('BookSeriesService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
+    it('rejects a name differing from an existing series only by "&" vs "and"', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([
+        { id: 's1', slug: 'fire-and-blood', name: 'Fire & Blood' },
+      ]);
+
+      await expect(
+        service.create({ name: 'Fire and Blood' } as CreateBookSeriesDto),
+      ).rejects.toThrow(ConflictException);
+    });
+
     it('allows a genuinely different name', async () => {
       (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([
         { id: 's1', slug: 'ashes-of-thezmarr', name: 'The Ashes of Thezmarr' },

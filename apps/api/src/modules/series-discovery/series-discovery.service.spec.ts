@@ -135,6 +135,20 @@ describe('SeriesDiscoveryService', () => {
       expect(result.suggestionsCreated).toBe(0);
     });
 
+    it('skips a candidate whose title differs from an existing book only by "&" vs "and"', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
+      (prisma.bookSeriesEntry.findMany as jest.Mock).mockResolvedValue([
+        { volumeNumbers: [], book: { title: 'Fire and Blood', authors: [] } },
+      ]);
+      openLibrary.search.mockResolvedValue([
+        { title: 'Fire & Blood', authorNames: [], genres: [], source: 'open_library', sourceId: '/works/OL-fireblood' },
+      ]);
+
+      const result = await service.runCheck();
+
+      expect(result.suggestionsCreated).toBe(0);
+    });
+
     it('does not duplicate a suggestion that was already created by a previous run', async () => {
       (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
       (prisma.seriesVolumeSuggestion.findUnique as jest.Mock).mockResolvedValue({ id: 'existing-suggestion' });
@@ -302,6 +316,68 @@ describe('SeriesDiscoveryService', () => {
       openLibrary.search.mockResolvedValue([
         // Not just "series name + bundle word" — has its own distinct subtitle, so it survives.
         { title: 'Test Saga: The Bundle Conspiracy', authorNames: [], genres: [], source: 'open_library', sourceId: '/works/OL-real' },
+      ]);
+
+      const result = await service.runCheck();
+
+      expect(result.suggestionsCreated).toBe(1);
+    });
+  });
+
+  describe('author matching', () => {
+    it('drops a candidate whose author matches none of the series\' known authors', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
+      (prisma.bookSeriesEntry.findMany as jest.Mock).mockResolvedValue([
+        { volumeNumbers: [1], book: { title: 'Test Saga Book 1', authors: [{ author: { name: 'Real Author' } }] } },
+      ]);
+      openLibrary.search.mockResolvedValue([
+        // A generic series name pulling in an unrelated book by someone else — the real bug report.
+        { title: 'Some Unrelated Book', authorNames: ['Someone Else'], genres: [], source: 'open_library', sourceId: '/works/OL-wrong' },
+      ]);
+
+      const result = await service.runCheck();
+
+      expect(prisma.seriesVolumeSuggestion.create).not.toHaveBeenCalled();
+      expect(result.suggestionsCreated).toBe(0);
+    });
+
+    it('keeps a candidate whose author matches despite "Last, First" vs "First Last" reordering', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
+      (prisma.bookSeriesEntry.findMany as jest.Mock).mockResolvedValue([
+        { volumeNumbers: [1], book: { title: 'Test Saga Book 1', authors: [{ author: { name: 'Jane Doe' } }] } },
+      ]);
+      openLibrary.search.mockResolvedValue([
+        { title: 'Test Saga Book 2', authorNames: ['Doe, Jane'], genres: [], source: 'open_library', sourceId: '/works/OL-right' },
+      ]);
+
+      const result = await service.runCheck();
+
+      expect(result.suggestionsCreated).toBe(1);
+    });
+
+    it('does not drop a same-word-fragment different author (e.g. known "Susanna Collins" vs candidate "Ann")', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
+      (prisma.bookSeriesEntry.findMany as jest.Mock).mockResolvedValue([
+        { volumeNumbers: [1], book: { title: 'Test Saga Book 1', authors: [{ author: { name: 'Susanna Collins' } }] } },
+      ]);
+      openLibrary.search.mockResolvedValue([
+        { title: 'Test Saga Book 2', authorNames: ['Ann'], genres: [], source: 'open_library', sourceId: '/works/OL-ann' },
+      ]);
+
+      const result = await service.runCheck();
+
+      // Must NOT match on the raw substring "ann" hiding inside "susANNa" — confirms the
+      // author check compares whole word tokens, not substrings.
+      expect(result.suggestionsCreated).toBe(0);
+    });
+
+    it('keeps a candidate with no author info at all (Wikidata never populates it) even when the series has known authors', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries({ wikidataId: 'Q999' })]);
+      (prisma.bookSeriesEntry.findMany as jest.Mock).mockResolvedValue([
+        { volumeNumbers: [1], book: { title: 'Test Saga Book 1', authors: [{ author: { name: 'Jane Doe' } }] } },
+      ]);
+      wikidata.fetchParts.mockResolvedValue([
+        { title: 'Test Saga Book 3', authorNames: [], genres: [], source: 'wikidata', sourceId: 'Q1000' },
       ]);
 
       const result = await service.runCheck();

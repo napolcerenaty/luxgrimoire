@@ -24,15 +24,20 @@ const LANGUAGE_TO_OPEN_LIBRARY_CODE: Record<string, string> = {
   en: 'eng',
 };
 
-/** Normalizes a title for loose duplicate-detection only (never stored) — same idea as
- * BookSeriesService's normalizeSeriesName (including stripping every standalone "the"/"a"/"an",
- * not just a leading one — see that function's docblock for why), but for comparing
- * external-API titles against titles/series names we already have, where punctuation/subtitle
- * differences are common. */
-function normalizeTitle(title: string): string {
+/** Normalizes a title or author name for loose duplicate-detection only (never stored) — same
+ * idea as BookSeriesService's normalizeSeriesName (including stripping every standalone
+ * "the"/"a"/"an", not just a leading one — see that function's docblock for why), but for
+ * comparing external-API titles/authors against what we already have, where punctuation/subtitle
+ * differences are common.
+ *
+ * "&" is folded to "and" before the generic punctuation strip below would otherwise just erase
+ * it — unlike "the"/"a"/"an", it's meaningful ("Fire and Blood" needs it to not become "Fire
+ * Blood"), so "X & Y" and "X and Y" need to end up equal, not both losing the word entirely. */
+function normalizeForMatch(title: string): string {
   return title
     .normalize('NFKC')
     .toLowerCase()
+    .replace(/&/g, ' and ')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .replace(/\b(the|an?)\b/g, ' ')
     .replace(/\s+/g, ' ')
@@ -40,8 +45,8 @@ function normalizeTitle(title: string): string {
 }
 
 function titlesLikelyMatch(a: string, b: string): boolean {
-  const na = normalizeTitle(a);
-  const nb = normalizeTitle(b);
+  const na = normalizeForMatch(a);
+  const nb = normalizeForMatch(b);
   if (!na || !nb) return false;
   return na === nb || na.includes(nb) || nb.includes(na);
 }
@@ -68,8 +73,41 @@ function isBundleListing(candidateTitle: string, seriesName: string, excludedKey
   const pattern = new RegExp(`\\b(${excludedKeywords.map(escapeRegExp).join('|')})\\b`, 'gi');
   const withoutBundleWord = candidateTitle.replace(pattern, ' ');
   if (withoutBundleWord === candidateTitle) return false; // no bundle word present at all
-  const normalizedRemainder = normalizeTitle(withoutBundleWord);
-  return normalizedRemainder !== '' && normalizedRemainder === normalizeTitle(seriesName);
+  const normalizedRemainder = normalizeForMatch(withoutBundleWord);
+  return normalizedRemainder !== '' && normalizedRemainder === normalizeForMatch(seriesName);
+}
+
+/** True unless the candidate clearly has a DIFFERENT author than every book we already have in
+ * this series — a generic/ambiguous series name (a common word or phrase) can pull in a flood
+ * of same-titled-ish but unrelated books from these full-text searches, none of which are
+ * actually written by the series' author (found in practice, 2026-08-25). Deliberately permissive
+ * when either side is unknown: `knownAuthors` is empty for a brand-new series with no books yet,
+ * and `candidateAuthors` is always empty from Wikidata (fetchParts never populates it) — treating
+ * "we can't tell" as a match avoids silently dropping every Wikidata result.
+ *
+ * Compares whole-word token sets rather than raw substrings — author names are often short
+ * (surnames especially), so a titlesLikelyMatch-style `includes()` check would false-positive
+ * on e.g. known author "Susanna Collins" matching candidate "Ann" (raw substring "ann" sits
+ * inside "susANNa"). Token sets sidestep that: a match requires one side's whole names to all
+ * appear as whole words on the other side (handles "Firstname Lastname" vs "Lastname,
+ * Firstname" reordering and a bare surname matching a full name), not a fragment of one word
+ * sitting inside a different word. */
+function authorsLikelyMatch(candidateAuthors: string[], knownAuthors: string[]): boolean {
+  if (candidateAuthors.length === 0 || knownAuthors.length === 0) return true;
+  const knownTokenSets = knownAuthors
+    .map((n) => normalizeForMatch(n).split(' ').filter(Boolean))
+    .filter((tokens) => tokens.length > 0)
+    .map((tokens) => new Set(tokens));
+
+  return candidateAuthors.some((a) => {
+    const candidateTokens = normalizeForMatch(a).split(' ').filter(Boolean);
+    if (candidateTokens.length === 0) return false;
+    return knownTokenSets.some(
+      (knownTokens) =>
+        candidateTokens.every((t) => knownTokens.has(t)) ||
+        [...knownTokens].every((t) => candidateTokens.includes(t)),
+    );
+  });
 }
 
 interface SeriesForCheck {
@@ -175,7 +213,7 @@ export class SeriesDiscoveryService {
     if (openLibraryCandidates.status === 'fulfilled') candidates.push(...openLibraryCandidates.value);
     if (wikidataCandidates.status === 'fulfilled') candidates.push(...wikidataCandidates.value);
 
-    const created = await this.createNewSuggestions(series.id, series.name, candidates, excludedKeywords);
+    const created = await this.createNewSuggestions(series.id, series.name, candidates, excludedKeywords, authorNames);
 
     await this.prisma.bookSeries.update({
       where: { id: series.id },
@@ -185,7 +223,13 @@ export class SeriesDiscoveryService {
     return { created, googleBooksRateLimited };
   }
 
-  private async createNewSuggestions(seriesId: string, seriesName: string, candidates: ExternalVolumeCandidate[], excludedKeywords: string[]): Promise<number> {
+  private async createNewSuggestions(
+    seriesId: string,
+    seriesName: string,
+    candidates: ExternalVolumeCandidate[],
+    excludedKeywords: string[],
+    knownAuthorNames: string[],
+  ): Promise<number> {
     if (candidates.length === 0) return 0;
 
     const existing = await this.prisma.bookSeriesEntry.findMany({
@@ -198,6 +242,7 @@ export class SeriesDiscoveryService {
     let created = 0;
     for (const candidate of candidates) {
       if (isBundleListing(candidate.title, seriesName, excludedKeywords)) continue;
+      if (!authorsLikelyMatch(candidate.authorNames, knownAuthorNames)) continue;
       // volumeNumber is the stronger signal (titles vary across translations/editions), so
       // check it first when available; fall back to loose title matching otherwise.
       if (candidate.volumeNumber !== undefined && existingVolumeNumbers.has(candidate.volumeNumber)) continue;

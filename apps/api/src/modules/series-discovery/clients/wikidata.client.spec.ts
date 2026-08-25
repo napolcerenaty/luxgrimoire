@@ -66,6 +66,49 @@ describe('WikidataClient', () => {
 
       expect(result).toBeNull();
     });
+
+    it('retries once after a transient 502 and succeeds on the second attempt', async () => {
+      jest.useFakeTimers();
+      try {
+        fetchMock
+          .mockResolvedValueOnce(mockJsonResponse({}, false, 502))
+          .mockResolvedValueOnce(mockJsonResponse({ search: [{ id: 'Q1', description: 'a series' }] }));
+
+        const resultPromise = client.resolveSeriesId('Test Saga');
+        await jest.advanceTimersByTimeAsync(1500);
+        const result = await resultPromise;
+
+        expect(result).toBe('Q1');
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('gives up after a single retry if still failing', async () => {
+      jest.useFakeTimers();
+      try {
+        fetchMock.mockResolvedValue(mockJsonResponse({}, false, 502));
+
+        const resultPromise = client.resolveSeriesId('Test Saga');
+        await jest.advanceTimersByTimeAsync(1500);
+        const result = await resultPromise;
+
+        expect(result).toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not retry a non-transient error status', async () => {
+      fetchMock.mockResolvedValue(mockJsonResponse({}, false, 404));
+
+      const result = await client.resolveSeriesId('Test Saga');
+
+      expect(result).toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('fetchParts', () => {
@@ -159,6 +202,24 @@ describe('WikidataClient', () => {
       const result = await client.fetchParts('Q123');
 
       expect(result).toEqual([]);
+    });
+
+    it('retries once on a transient 502 from the SPARQL endpoint (real-world case, 2026-08-25)', async () => {
+      jest.useFakeTimers();
+      try {
+        fetchMock
+          .mockResolvedValueOnce(mockJsonResponse({}, false, 502))
+          .mockResolvedValueOnce(mockJsonResponse({ results: { bindings: [] } }));
+
+        const resultPromise = client.fetchParts('Q12057445');
+        await jest.advanceTimersByTimeAsync(1500);
+        const result = await resultPromise;
+
+        expect(result).toEqual([]);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 });
