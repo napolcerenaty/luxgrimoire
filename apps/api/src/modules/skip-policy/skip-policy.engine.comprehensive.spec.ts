@@ -504,6 +504,27 @@ describe('SkipPolicyEngine — comprehensive', () => {
       expect(status.canSkip).toBe(true);
     });
 
+    // Real bug found in production: loadContext's `userEntries` include had no `active` filter
+    // and no `orderBy`, so `take: 1` picked whichever row the DB happened to return first for a
+    // rejoined subscriber (a user with both an old, inactive entry and a current, active one for
+    // the same subscription) — landing on the wrong entry. That entry's skipRecords then feed
+    // both getStatus's returned skippedMonths and recordSkip's target for creating new skips, so
+    // a skip taken there attaches to the WRONG (inactive) entry: the counter still looks right
+    // (UserSubscriptionSkipState is keyed by userId+subscriptionId, not by entry), but the skip
+    // never shows up in "manage skips" or the skipped-months list, both of which read the active
+    // entry's own skipRecords. This only asserts the query SHAPE (active-only, most-recent-first)
+    // since the mock returns a canned object regardless of args — it can't exercise real Prisma
+    // filtering, which is exactly how this slipped through originally.
+    it('resolves userEntries as active-only, most-recent-first (so a rejoined subscriber never resolves to an old inactive entry)', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-05-18T10:00:00Z'));
+      const prisma = makePrismaForGetStatus({ policyType: 'CALENDAR_YEAR', maxSkips: 3, state: null });
+      await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+
+      const call = (prisma.subscription.findUnique as jest.Mock).mock.calls[0][0];
+      expect(call.include.userEntries.where).toEqual({ userId: uid, active: true });
+      expect(call.include.userEntries.orderBy).toEqual({ startDate: 'desc' });
+    });
+
     it('1 of 3 used in current year → canSkip=true, no warnings', async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-05-18T10:00:00Z'));
       const prisma = makePrismaForGetStatus({

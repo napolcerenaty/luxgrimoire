@@ -1387,7 +1387,16 @@ export class SkipPolicyEngine {
         skipPolicies: true,
         comboComponents: { select: { componentId: true } },
         userEntries: {
-          where: { userId },
+          // active-only + most-recent-first: a user who cancelled and rejoined has multiple
+          // entries for the same subscription — without this, `take: 1` picks whatever row the
+          // DB returns first (no defined order), which can silently land on an old, inactive
+          // entry. Real bug found in production: a rejoined subscriber's skip landed on their
+          // 2023 cancelled entry instead of their current one, so it counted against the
+          // (entry-independent) UserSubscriptionSkipState counter but never showed up in
+          // "manage skips" or the skipped-months list, both of which read the active entry's
+          // own skipRecords.
+          where: { userId, active: true },
+          orderBy: { startDate: 'desc' },
           take: 1,
           include: {
             skipRecords: {
