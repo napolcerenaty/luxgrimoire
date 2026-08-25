@@ -57,26 +57,26 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Bundle/omnibus listings (box sets, "Trilogy" repackagings, etc.) show up in these free APIs
- * as their own "book" with the series name plus a bundle word for a title — they're not a new
- * volume, just existing ones repackaged, and would otherwise look like one. Matches only when
- * the title minus the bundle word normalizes to EXACTLY the series name (e.g. "Arc of a Scythe
- * Trilogy", "The Arc of a Scythe Boxed Set") — deliberately exact equality, not the same loose
- * substring check as titlesLikelyMatch: a real book titled e.g. "Test Saga: The Bundle
- * Conspiracy" also contains "bundle" and would otherwise get wrongly excluded, since its title
- * happens to start with the series name too (found via a real false-positive while testing this).
+/** Bundle/omnibus listings (box sets, "Trilogy" repackagings, multi-author marketing bundles
+ * like "BookTok Bestsellers Boxed Set", etc.) show up in these free APIs as their own "book" —
+ * they're not a new volume, just existing ones (sometimes not even from this series) repackaged.
+ * Unconditional whole-word match on the admin-managed keyword list: an earlier version only
+ * excluded when the title minus the keyword reduced to exactly the series name, to avoid
+ * excluding a real book that merely mentions a keyword in its own subtitle — but that missed
+ * real junk like "BookTok Bestsellers Boxed Set", which doesn't reduce to any specific series
+ * name at all since it's a generic multi-author bundle that only matched a series via a loose
+ * search-relevance hit (found in practice, 2026-08-25). A title genuinely needing one of these
+ * words for other reasons is the rarer case — remove the keyword from the admin list if that
+ * happens.
  *
  * `excludedKeywords` is the admin-managed list (SeriesDiscoveryExcludedKeyword) rather than a
  * hardcoded set — which bundle words a source actually uses in practice is discovered
  * empirically, so it needs to be editable without a deploy. An empty list disables this filter
  * entirely rather than matching everything. */
-function isBundleListing(candidateTitle: string, seriesName: string, excludedKeywords: string[]): boolean {
+function isBundleListing(candidateTitle: string, excludedKeywords: string[]): boolean {
   if (excludedKeywords.length === 0) return false;
-  const pattern = new RegExp(`\\b(${excludedKeywords.map(escapeRegExp).join('|')})\\b`, 'gi');
-  const withoutBundleWord = candidateTitle.replace(pattern, ' ');
-  if (withoutBundleWord === candidateTitle) return false; // no bundle word present at all
-  const normalizedRemainder = normalizeForMatch(withoutBundleWord);
-  return normalizedRemainder !== '' && normalizedRemainder === normalizeForMatch(seriesName);
+  const pattern = new RegExp(`\\b(${excludedKeywords.map(escapeRegExp).join('|')})\\b`, 'i');
+  return pattern.test(candidateTitle);
 }
 
 /** True unless the candidate clearly has a DIFFERENT author than every book we already have in
@@ -227,7 +227,7 @@ export class SeriesDiscoveryService {
     if (openLibraryCandidates.status === 'fulfilled') candidates.push(...openLibraryCandidates.value);
     if (wikidataCandidates.status === 'fulfilled') candidates.push(...wikidataCandidates.value);
 
-    const created = await this.createNewSuggestions(series.id, series.name, candidates, excludedKeywords, authorNames);
+    const created = await this.createNewSuggestions(series.id, candidates, excludedKeywords, authorNames);
 
     await this.prisma.bookSeries.update({
       where: { id: series.id },
@@ -239,7 +239,6 @@ export class SeriesDiscoveryService {
 
   private async createNewSuggestions(
     seriesId: string,
-    seriesName: string,
     candidates: ExternalVolumeCandidate[],
     excludedKeywords: string[],
     knownAuthorNames: string[],
@@ -255,7 +254,7 @@ export class SeriesDiscoveryService {
 
     let created = 0;
     for (const candidate of candidates) {
-      if (isBundleListing(candidate.title, seriesName, excludedKeywords)) continue;
+      if (isBundleListing(candidate.title, excludedKeywords)) continue;
       if (!authorsLikelyMatch(candidate.authorNames, knownAuthorNames)) continue;
       // volumeNumber is the stronger signal (titles vary across translations/editions), so
       // check it first when available; fall back to loose title matching otherwise.

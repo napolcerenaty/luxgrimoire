@@ -347,16 +347,28 @@ describe('SeriesDiscoveryService', () => {
       expect(result.suggestionsCreated).toBe(1);
     });
 
-    it('does not exclude a real volume that merely contains an excluded keyword as part of a genuine subtitle', async () => {
+    it('excludes any candidate containing an excluded keyword, even with its own distinct subtitle', async () => {
       (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
       openLibrary.search.mockResolvedValue([
-        // Not just "series name + bundle word" — has its own distinct subtitle, so it survives.
         { title: 'Test Saga: The Bundle Conspiracy', authorNames: [], genres: [], source: 'open_library', sourceId: '/works/OL-real' },
       ]);
 
       const result = await service.runCheck();
 
-      expect(result.suggestionsCreated).toBe(1);
+      expect(result.suggestionsCreated).toBe(0);
+    });
+
+    it('excludes a generic multi-author bundle that does not reduce to the series name at all (real bug: "BookTok Bestsellers Boxed Set")', async () => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([makeSeries()]);
+      openLibrary.search.mockResolvedValue([
+        // Doesn't contain "Test Saga" at all — an earlier version's "must reduce to exactly the
+        // series name" rule let this through, since a generic bundle title never does that.
+        { title: 'BookTok Bestsellers Boxed Set', authorNames: [], genres: [], source: 'open_library', sourceId: '/works/OL-booktok' },
+      ]);
+
+      const result = await service.runCheck();
+
+      expect(result.suggestionsCreated).toBe(0);
     });
   });
 
