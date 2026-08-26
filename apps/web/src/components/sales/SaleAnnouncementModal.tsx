@@ -107,8 +107,11 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
                   )}
                 </div>
                 {(() => {
-                  const credits = buildPhotoCredits(sale.photoCredit, sale.company?.instagram)
-                  const website = sale.company?.website
+                  // Only auto-credit the company's IG handle when we're showing its own official
+                  // sale images and it has granted permission to use them.
+                  const hasOfficialPhotos = allImages.length > 0 && !!sale.company?.hasOfficialImagePermission
+                  const credits = buildPhotoCredits(sale.photoCredit, hasOfficialPhotos ? sale.company?.instagram : null)
+                  const website = hasOfficialPhotos ? sale.company?.website : null
                   if (credits.length === 0 && !website) return null
                   return (
                     <div className="text-[10px] text-navy-500 mt-1 text-center leading-4">

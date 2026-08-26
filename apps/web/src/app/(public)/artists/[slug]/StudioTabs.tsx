@@ -7,103 +7,115 @@ import { cloudinaryUrl } from '@/lib/cloudinary'
 import { resolveEditionCoverUrl } from '@/lib/editionCover'
 import { brandGradientStyle } from '@/lib/brandGradient'
 import { API_BASE } from '@/lib/authFetch'
+import { LoadMoreButton, SortToggle, type EditionSnippet, type PagedResponse, type SortDirection } from './ArtistTabs'
 
 const PAGE_SIZE = 24
-
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
-const ROLE_COLORS: Record<string, string> = {}
-function roleColor(_role: string) {
-  return 'bg-[var(--bg-raised)] border border-[var(--border)] text-[var(--text-dim)]'
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface EditionSnippet {
-  id: string; slug: string; additionalImages: string[]
-  variantLabel?: string | null
-  bookBoxCompany: { name: string; brandColors?: string[] | null } | null; communityPhotoCover?: string | null
+export interface StudioMember {
+  id: string
+  name: string
+  slug: string
+  photoUrl: string | null
 }
 
-export interface GroupedEdition {
+interface Attribution { artistId: string; artistName: string; artistSlug: string; role: string }
+
+interface StudioEditionEntry {
   edition: EditionSnippet
-  roles: string[]
+  attributions: Attribution[]
 }
 
-export interface CardMonth {
+interface StudioCardMonth {
   id: string; year: number; month: number
   theme: string | null; coverImage: string | null; isSpoiler: boolean
   subscription: { id: string; name: string; slug: string }
+  cardArtist: { id: string; name: string; slug: string } | null
 }
 
-export interface PagedResponse<T> {
-  data: T[]
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
-}
+// ─── Filter chip row ──────────────────────────────────────────────────────────
 
-export type SortDirection = 'newest' | 'oldest'
-
-// ─── Sort toggle ──────────────────────────────────────────────────────────────
-
-export function SortToggle({ sort, onChange }: { sort: SortDirection; onChange: (s: SortDirection) => void }) {
-  return (
-    <div className="flex items-center gap-1 shrink-0">
-      {(['newest', 'oldest'] as const).map((s) => (
+function FilterChips({
+  studioId, studioName, studioPhotoUrl, members, activeId, onSelect,
+}: {
+  studioId: string; studioName: string; studioPhotoUrl: string | null
+  members: StudioMember[]; activeId: string | undefined; onSelect: (id: string | undefined) => void
+}) {
+  function Chip({ id, label, photoUrl, linkSlug, noAvatar }: { id: string | undefined; label: string; photoUrl: string | null; linkSlug?: string; noAvatar?: boolean }) {
+    const isActive = activeId === id
+    const avatar = photoUrl ? cloudinaryUrl(photoUrl, 'w_48,h_48,c_fill,q_auto,f_auto') : null
+    return (
+      <div className={`flex items-center gap-1 shrink-0 rounded-full pl-1 pr-1 py-1 border transition-colors ${
+        isActive ? 'border-brand-500 bg-brand-900/20' : 'border-navy-700'
+      }`}>
         <button
-          key={s}
-          onClick={() => onChange(s)}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-            sort === s
-              ? 'border-brand-500 text-brand-400 bg-brand-900/20'
-              : 'border-navy-700 text-navy-400 hover:text-navy-200'
+          onClick={() => onSelect(id)}
+          className={`flex items-center gap-2 rounded-full ${noAvatar ? 'pl-3' : 'pl-1'} pr-2 py-0.5 text-sm transition-colors ${
+            isActive ? 'text-brand-400' : 'text-navy-300 hover:text-navy-100'
           }`}
         >
-          {s === 'newest' ? 'Newest' : 'Oldest'}
+          {!noAvatar && (
+            avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatar} alt={label} className="w-6 h-6 rounded-full object-cover" />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-navy-800 flex items-center justify-center text-[10px] text-navy-500">
+                {label[0]?.toUpperCase()}
+              </div>
+            )
+          )}
+          <span className="whitespace-nowrap">{label}</span>
         </button>
-      ))}
-    </div>
-  )
-}
+        {linkSlug && (
+          <Link
+            href={`/artists/${linkSlug}`}
+            title={`Zobacz profil ${label}`}
+            className="text-navy-500 hover:text-brand-400 transition-colors px-1"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </Link>
+        )}
+      </div>
+    )
+  }
 
-// ─── Load More button ─────────────────────────────────────────────────────────
-
-export function LoadMoreButton({ onClick, loading }: { onClick: () => void; loading: boolean }) {
   return (
-    <div className="flex justify-center mt-10">
-      <button
-        onClick={onClick}
-        disabled={loading}
-        className="px-6 py-2.5 rounded-full border border-navy-700 text-navy-300 text-sm hover:border-brand-600 hover:text-brand-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        {loading ? 'Loading…' : 'Load more'}
-      </button>
+    <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 mb-6">
+      <Chip id={undefined} label="All" photoUrl={null} noAvatar />
+      <Chip id={studioId} label={studioName} photoUrl={studioPhotoUrl} />
+      {members.map((m) => (
+        <Chip key={m.id} id={m.id} label={m.name} photoUrl={m.photoUrl} linkSlug={m.slug} />
+      ))}
     </div>
   )
 }
 
 // ─── Edition grid ─────────────────────────────────────────────────────────────
 
-function EditionGrid({ artistSlug, sort }: { artistSlug: string; sort: SortDirection }) {
+function StudioEditionGrid({ studioSlug, artistId, sort }: { studioSlug: string; artistId: string | undefined; sort: SortDirection }) {
   const [page, setPage] = useState(1)
-  const [items, setItems] = useState<GroupedEdition[]>([])
+  const [items, setItems] = useState<StudioEditionEntry[]>([])
   const [totalPages, setTotalPages] = useState<number | null>(null)
 
-  useEffect(() => { setPage(1); setItems([]) }, [artistSlug, sort])
+  useEffect(() => { setPage(1); setItems([]) }, [studioSlug, artistId, sort])
 
-  const { data: res, isFetching } = useQuery<PagedResponse<GroupedEdition>>({
-    queryKey: ['artist-contributions', artistSlug, sort, page],
-    queryFn: () =>
-      fetch(`${API_BASE}/artists/${artistSlug}/contributions?page=${page}&pageSize=${PAGE_SIZE}&sort=${sort}`)
-        .then((r) => r.json()),
+  const { data: res, isFetching } = useQuery<PagedResponse<StudioEditionEntry>>({
+    queryKey: ['studio-contributions', studioSlug, artistId, sort, page],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sort })
+      if (artistId) params.set('artistId', artistId)
+      return fetch(`${API_BASE}/artists/${studioSlug}/studio-contributions?${params}`).then((r) => r.json())
+    },
     staleTime: 5 * 60 * 1000,
   })
 
   useEffect(() => {
     if (!res) return
-    setItems((prev) => page === 1 ? res.data : [...prev, ...res.data])
+    setItems((prev) => (page === 1 ? res.data : [...prev, ...res.data]))
     setTotalPages(res.totalPages)
   }, [res]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -126,7 +138,7 @@ function EditionGrid({ artistSlug, sort }: { artistSlug: string; sort: SortDirec
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-        {items.map(({ edition, roles }) => {
+        {items.map(({ edition, attributions }) => {
           const cover = resolveEditionCoverUrl(edition, 'w_400,h_600,c_fill,q_auto,f_auto')
           const company = edition.bookBoxCompany
           return (
@@ -164,11 +176,16 @@ function EditionGrid({ artistSlug, sort }: { artistSlug: string; sort: SortDirec
                   </span>
                 )}
               </div>
-              <div className="p-3 flex flex-col gap-1 flex-1">
-                {roles.map((role) => (
-                  <p key={role} className={`text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded ${roleColor(role)}`}>
-                    {role}
-                  </p>
+              <div className="p-3 flex flex-col gap-2 flex-1">
+                {attributions.map((a, i) => (
+                  <div key={`${a.artistId}-${a.role}-${i}`} className="px-2 py-1.5 rounded bg-[var(--bg-raised)] border border-[var(--border)]">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-dim)] leading-snug">
+                      {a.role}
+                    </p>
+                    <p className="text-[10px] text-navy-500 leading-snug mt-0.5">
+                      {a.artistName}
+                    </p>
+                  </div>
                 ))}
               </div>
             </Link>
@@ -184,26 +201,30 @@ function EditionGrid({ artistSlug, sort }: { artistSlug: string; sort: SortDirec
 
 // ─── Card month grid ──────────────────────────────────────────────────────────
 
-function CardMonthGrid({ artistSlug }: { artistSlug: string }) {
+function StudioCardMonthGrid({ studioSlug, artistId }: { studioSlug: string; artistId: string | undefined }) {
   const [page, setPage] = useState(1)
-  const [items, setItems] = useState<CardMonth[]>([])
+  const [items, setItems] = useState<StudioCardMonth[]>([])
   const [totalPages, setTotalPages] = useState<number | null>(null)
 
-  const { data: res, isFetching } = useQuery<PagedResponse<CardMonth>>({
-    queryKey: ['artist-card-months', artistSlug, page],
-    queryFn: () =>
-      fetch(`${API_BASE}/artists/${artistSlug}/months?page=${page}&pageSize=${PAGE_SIZE}`)
-        .then((r) => r.json()),
+  useEffect(() => { setPage(1); setItems([]) }, [studioSlug, artistId])
+
+  const { data: res, isFetching } = useQuery<PagedResponse<StudioCardMonth>>({
+    queryKey: ['studio-card-months', studioSlug, artistId, page],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
+      if (artistId) params.set('artistId', artistId)
+      return fetch(`${API_BASE}/artists/${studioSlug}/studio-months?${params}`).then((r) => r.json())
+    },
     staleTime: 5 * 60 * 1000,
   })
 
   useEffect(() => {
     if (!res) return
-    setItems((prev) => page === 1 ? res.data : [...prev, ...res.data])
+    setItems((prev) => (page === 1 ? res.data : [...prev, ...res.data]))
     setTotalPages(res.totalPages)
   }, [res]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isInitialLoading = isFetching && items.length === 0
+  const isInitialLoading = isFetching && items.length === 0 && page === 1
 
   if (isInitialLoading) {
     return (
@@ -253,6 +274,9 @@ function CardMonthGrid({ artistSlug }: { artistSlug: string }) {
               <div className="p-3 flex flex-col gap-1">
                 <p className="text-xs font-semibold text-brand-400">{label}</p>
                 {m.theme && <p className="text-xs text-navy-400 line-clamp-1">{m.theme}</p>}
+                {!artistId && m.cardArtist && (
+                  <p className="text-[11px] text-navy-500 line-clamp-1">{m.cardArtist.name}</p>
+                )}
               </div>
             </Link>
           )
@@ -269,8 +293,13 @@ function CardMonthGrid({ artistSlug }: { artistSlug: string }) {
 
 type Tab = 'editions' | 'months'
 
-export function ArtistTabs({ artistSlug }: { artistSlug: string }) {
+export function StudioTabs({
+  studioSlug, studioId, studioName, studioPhotoUrl, members,
+}: {
+  studioSlug: string; studioId: string; studioName: string; studioPhotoUrl: string | null; members: StudioMember[]
+}) {
   const [activeTab, setActiveTab] = useState<Tab>('editions')
+  const [filterArtistId, setFilterArtistId] = useState<string | undefined>(undefined)
   const [sort, setSort] = useState<SortDirection>('newest')
 
   const tabs: { id: Tab; label: string }[] = [
@@ -280,6 +309,15 @@ export function ArtistTabs({ artistSlug }: { artistSlug: string }) {
 
   return (
     <div>
+      <FilterChips
+        studioId={studioId}
+        studioName={studioName}
+        studioPhotoUrl={studioPhotoUrl}
+        members={members}
+        activeId={filterArtistId}
+        onSelect={setFilterArtistId}
+      />
+
       <div className="flex items-center justify-between gap-3 border-b border-navy-800 mb-8 flex-wrap">
         <div className="flex items-center gap-1">
           {tabs.map(tab => (
@@ -299,8 +337,8 @@ export function ArtistTabs({ artistSlug }: { artistSlug: string }) {
         {activeTab === 'editions' && <SortToggle sort={sort} onChange={setSort} />}
       </div>
 
-      {activeTab === 'editions' && <EditionGrid artistSlug={artistSlug} sort={sort} />}
-      {activeTab === 'months'   && <CardMonthGrid artistSlug={artistSlug} />}
+      {activeTab === 'editions' && <StudioEditionGrid studioSlug={studioSlug} artistId={filterArtistId} sort={sort} />}
+      {activeTab === 'months'   && <StudioCardMonthGrid studioSlug={studioSlug} artistId={filterArtistId} />}
     </div>
   )
 }

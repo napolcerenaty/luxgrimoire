@@ -37,7 +37,7 @@ import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/ut
 import { resolvePerBookPrices } from '../../common/utils/price-allocation.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
-import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, computeDateAnchoredFirstBoxMonth, computeJoinDateWindow, getPreviousBoxUnitStart, resolveFirstBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth, computeGlobalRenewalDay } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, computeDateAnchoredFirstBoxMonth, computeJoinDateWindow, getPreviousBoxUnitStart, resolveFirstBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth, computeGlobalRenewalDay, renewalMonthFromBoxMonth } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
@@ -2200,6 +2200,7 @@ export class SubscriptionsService {
         basePrice: true,
         shippingCost: true,
         isForwarding: true,
+        prepaidMonths: true,
         scheduledPrepayOptionId: true,
         scheduledPrepayOption: {
           select: { price: true, currency: true, months: true },
@@ -2368,10 +2369,27 @@ export class SubscriptionsService {
           entry.costCurrency,
           userFirstBilledYearMonth,
         );
-        if (resolved.fromPriceChange && resolved.price !== fallbackBase) {
+        // "Is the price changing" must compare against what the user is EFFECTIVELY paying right
+        // now — not the raw fallbackBase (entry.basePrice), which stays null for anyone who's
+        // never had a custom override. Comparing a resolved number against null always reads as
+        // "changed", even when resolveEffectiveBasePrice would resolve to the exact same
+        // (correctly grandfathered) price for both "now" and the next renewal — real bug found in
+        // production: a subscriber who joined before a grandfathered price change saw a "price
+        // changing to £X" warning where £X was the price they were already paying.
+        const now = new Date();
+        const currentResolved = resolveEffectiveBasePrice(
+          subPriceChanges ?? [],
+          now.getUTCFullYear(),
+          now.getUTCMonth() + 1,
+          fallbackBase,
+          entry.costCurrency,
+          userFirstBilledYearMonth,
+        );
+        const currentEffectiveBase = currentResolved.price ?? fallbackBase;
+        if (resolved.fromPriceChange && resolved.price !== null && resolved.price !== currentEffectiveBase) {
           nextBase = resolved.price;
           nextRenewalPriceChanged = true;
-          nextRenewalNewPrice = resolved.price !== null ? resolved.price.toFixed(2) : null;
+          nextRenewalNewPrice = resolved.price.toFixed(2);
         } else {
           nextBase = resolved.price ?? fallbackBase;
         }
@@ -2384,8 +2402,38 @@ export class SubscriptionsService {
       // Compute box month from renewal month by adding the renewalMonthOffset
       // e.g. renewal in Oct + offset=1 → box month = Nov
       let nextBoxMonth: { year: number; month: number } | null = null;
-      if (storedRenewalDate) {
-        const offset: number = (subRest as any).renewalMonthOffset ?? 0;
+      const offset: number = (subRest as any).renewalMonthOffset ?? 0;
+      const effectivePrepayMonths: number | null = scheduledPrepayOption?.months
+        ?? ((entry as any).prepaidMonths > 1 ? (entry as any).prepaidMonths : null);
+      if (effectivePrepayMonths && entry.startDate) {
+        // For a prepaid entry, storedRenewalDate is the next BILLING date — it only fires once
+        // per multi-month prepay period, so mid-period it can be months away from "now". Boxes
+        // still ship every month within an already-paid period, so the next BOX must be found
+        // via the plain monthly cadence, ignoring the prepay batching entirely (mirrors what
+        // storedRenewalDate itself would be for a non-prepaid entry with the same cadence).
+        const personalSkippedMonths = ((entry as any).skipRecords as Array<{ month: { year: number; month: number } }>).map((r) => {
+          const [ry, rm] = renewalMonthFromBoxMonth(r.month.year, r.month.month, offset);
+          return { year: ry, month: rm };
+        });
+        const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
+        const nextBoxRenewalDate = computeNextRenewalDate(
+          renewalDay,
+          1,
+          null,
+          entry.startDate,
+          personalSkippedMonths,
+          null,
+          null,
+          offset,
+        );
+        if (nextBoxRenewalDate) {
+          let bm = nextBoxRenewalDate.getUTCMonth() + 1 + offset;
+          let by = nextBoxRenewalDate.getUTCFullYear();
+          while (bm > 12) { bm -= 12; by += 1; }
+          while (bm < 1)  { bm += 12; by -= 1; }
+          nextBoxMonth = { year: by, month: bm };
+        }
+      } else if (storedRenewalDate) {
         let bm = storedRenewalDate.getUTCMonth() + 1 + offset; // 1-12 based
         let by = storedRenewalDate.getUTCFullYear();
         while (bm > 12) { bm -= 12; by += 1; }
@@ -5490,7 +5538,11 @@ export class SubscriptionsService {
       }
     }
 
-    // Recompute skip state + renewal date
+    // Recompute skip state + renewal date. Bulk-created skip records above have no
+    // policy-aware windowKey (see manageSkips's upsert), so recompute the real windowKey on
+    // every record first — otherwise recomputeSkipState's own "trust the latest record's
+    // stored windowKey" logic gets corrupted by the unstamped ones and undercounts real usage.
+    await this.skipPolicyEngine.recomputeEntryWindowKeys(userId, sub.id);
     await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
     await refreshNextRenewalDate(this.prisma, entry.id);
     backfillRenewalHistory(this.prisma, entry.id).catch(() => {});

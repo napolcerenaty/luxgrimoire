@@ -53,6 +53,7 @@ import { StatsModule } from './modules/stats/stats.module';
 import { ReadingImportModule } from './modules/reading-import/reading-import.module';
 import { MediaAssetsModule } from './modules/media-assets/media-assets.module';
 import { BookSeriesModule } from './modules/book-series/book-series.module';
+import { SeriesDiscoveryModule } from './modules/series-discovery/series-discovery.module';
 import { HomepageFeaturesModule } from './modules/homepage-features/homepage-features.module';
 import { BlogAdminModule } from './modules/blog-admin/blog-admin.module';
 import { SitemapModule } from './modules/sitemap/sitemap.module';
@@ -171,6 +172,7 @@ import { SitemapModule } from './modules/sitemap/sitemap.module';
     StatsModule,
     ReadingImportModule,
     BookSeriesModule,
+    SeriesDiscoveryModule,
     BlogAdminModule,
     SitemapModule,
   ],

@@ -107,7 +107,7 @@ interface EditionDetail {
   artists?: EditionArtist[]
   monthBooks?: EditionMonthBook[]
   saleEditions?: EditionSaleEdition[]
-  bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null; website: string | null; instagram: string | null } | null
+  bookBoxCompany?: { id: string; slug: string; name: string; logoUrl: string | null; website: string | null; instagram: string | null; hasOfficialImagePermission: boolean } | null
   collection?: { id: string; slug: string; name: string; coverImage: string | null } | null
   previousEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
   nextEdition?: { id: string; slug: string; resolvedSaleDate?: { label: string; date: string } | null; bookBoxCompany: { name: string; slug: string } | null; collection: { name: string } | null } | null
@@ -277,11 +277,14 @@ export default async function EditionPage({ params, searchParams }: Props) {
                   no dedicated photographer/artist. */}
               {(() => {
                 const company = edition.bookBoxCompany
-                const credits = buildPhotoCredits(edition.photoCredit, company?.instagram)
-                // Only credit the company when we're showing its own official images —
-                // hasOfficialImagePermission is company-wide and can be true even for
-                // editions (e.g. subscriptions) where we only have community photos.
-                const showCompanyCredit = allImages.length > 0 && !!company?.website
+                // Auto-resolving the company's own IG handle into the credit line requires both:
+                // official images actually being shown (allImages.length > 0 — not the
+                // CommunityImageSection fallback) AND the company having granted permission to
+                // use them (hasOfficialImagePermission, company-wide but only meaningful here
+                // once we know these are its own images, not community-submitted ones).
+                const hasOfficialPhotos = allImages.length > 0 && !!company?.hasOfficialImagePermission
+                const credits = buildPhotoCredits(edition.photoCredit, hasOfficialPhotos ? company?.instagram : null)
+                const showCompanyCredit = hasOfficialPhotos && !!company?.website
                 if (credits.length === 0 && !showCompanyCredit) return null
                 return (
                   <div className="text-xs text-navy-400 mt-1 text-center leading-5 w-full">
