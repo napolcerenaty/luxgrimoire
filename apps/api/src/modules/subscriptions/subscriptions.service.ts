@@ -260,7 +260,12 @@ export class SubscriptionsService {
 
   /** Compute the current effective price from a subscription's price change records.
    *  Returns the sentinel price (year=1900) as "base price", or null if no records exist.
-   *  When defaultCurrency is provided, only records matching that currency are considered. */
+   *  When defaultCurrency is provided, only records matching that currency are considered.
+   *  Only price changes whose effective month has actually arrived are considered — a change
+   *  scheduled for a future month must never surface as "the current price" (it also prefills
+   *  the admin edit-subscription form's price field, so a future price leaking through here gets
+   *  resubmitted and overwrites the sentinel, corrupting the price for months before it takes
+   *  effect too — see resolveEffectiveBasePrice for the equivalent per-renewal-month check). */
   private computeCurrentPrice(
     priceChanges: { effectiveYear: number; effectiveMonth: number; newBasePrice: { toString(): string }; currency: string }[],
     defaultCurrency?: string | null,
@@ -270,12 +275,18 @@ export class SubscriptionsService {
       ? priceChanges.filter(pc => pc.currency === defaultCurrency)
       : priceChanges;
     if (!pool.length) return null;
-    // Return the most recent explicit price change (excluding sentinel 1900-01).
-    // Fall back to sentinel if no explicit change exists.
-    const explicit = pool
+    const now = new Date();
+    const nowYear = now.getUTCFullYear();
+    const nowMonth = now.getUTCMonth() + 1;
+    const arrived = pool.filter(
+      pc => pc.effectiveYear < nowYear || (pc.effectiveYear === nowYear && pc.effectiveMonth <= nowMonth),
+    );
+    // Return the most recent explicit price change that has arrived (excluding sentinel 1900-01).
+    // Fall back to sentinel if no explicit change has arrived yet.
+    const explicit = arrived
       .filter(pc => pc.effectiveYear !== 1900)
       .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth);
-    const best = explicit[0] ?? pool.find(pc => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
+    const best = explicit[0] ?? arrived.find(pc => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
     return best ? parseFloat(best.newBasePrice.toString()).toFixed(2) : null;
   }
 
@@ -948,12 +959,15 @@ export class SubscriptionsService {
       });
     }
 
-    // If price changed, update the sentinel price change record
-    if (price !== undefined && price !== null) {
-      const currency = (dto.currency ?? existing.currency ?? 'EUR') as string;
-      await this.upsertSentinelPrice(updated.id, price, currency);
-      await this.cache.del(this.subSlugKey(slug));
-    }
+    // Deliberately NOT touching the sentinel price change record here even when `price` is
+    // present in the DTO: the sentinel is the subscription's "since day one" historical baseline,
+    // and this general update endpoint fires on every edit regardless of intent (e.g. the admin
+    // form always resubmits its price field's current display value alongside unrelated edits).
+    // Treating that as "the admin wants to rewrite history" silently corrupted the baseline for
+    // every month before the next explicit price change whenever the field's displayed value came
+    // from a stale or future-dated read. Deliberate sentinel corrections go through
+    // updatePriceChange (the dedicated Price Changes admin panel) instead — see createPriceChange
+    // for the one legitimate automatic case (subscription creation, upsertSentinelPrice call above).
 
     // Delete old images from Cloudinary if replaced or cleared
     if (dto.coverImage !== undefined && dto.coverImage !== existing.coverImage) {

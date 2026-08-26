@@ -156,6 +156,27 @@ describe('SubscriptionsService — price changes', () => {
       ];
       expect(call(changes)).toBe('11.00');
     });
+
+    it('ignores a price change scheduled for a future month, falling back to sentinel', () => {
+      const farFuture = new Date();
+      farFuture.setUTCFullYear(farFuture.getUTCFullYear() + 5);
+      const changes = [
+        { effectiveYear: 1900, effectiveMonth: 1, newBasePrice: { toString: () => '9.99' } },
+        { effectiveYear: farFuture.getUTCFullYear(), effectiveMonth: farFuture.getUTCMonth() + 1, newBasePrice: { toString: () => '99.00' } },
+      ];
+      expect(call(changes)).toBe('9.99');
+    });
+
+    it('picks the most recent already-arrived change, ignoring a later future one', () => {
+      const farFuture = new Date();
+      farFuture.setUTCFullYear(farFuture.getUTCFullYear() + 5);
+      const changes = [
+        { effectiveYear: 1900, effectiveMonth: 1, newBasePrice: { toString: () => '9.99' } },
+        { effectiveYear: 2024, effectiveMonth: 6, newBasePrice: { toString: () => '15.00' } },
+        { effectiveYear: farFuture.getUTCFullYear(), effectiveMonth: farFuture.getUTCMonth() + 1, newBasePrice: { toString: () => '99.00' } },
+      ];
+      expect(call(changes)).toBe('15.00');
+    });
   });
 
   // ── listPriceChanges ────────────────────────────────────────────────────────
