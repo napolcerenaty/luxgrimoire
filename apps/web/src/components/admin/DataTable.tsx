@@ -15,9 +15,11 @@ interface DataTableProps<T> {
   onDelete?: (row: T) => void
   onDuplicate?: (row: T) => void
   duplicateLabel?: string
+  /** Return a reason string to disable+explain the Delete button for a row, or `false` to leave it enabled. */
+  deleteDisabled?: (row: T) => string | false
 }
 
-function DataTable<T>({ columns, data, onEdit, onDelete, onDuplicate, duplicateLabel = 'Duplicate' }: DataTableProps<T>) {
+function DataTable<T>({ columns, data, onEdit, onDelete, onDuplicate, duplicateLabel = 'Duplicate', deleteDisabled }: DataTableProps<T>) {
   const hasActions = !!(onEdit || onDelete || onDuplicate)
   return (
     <div className="overflow-x-auto rounded-2xl border border-navy-800">
@@ -71,14 +73,23 @@ function DataTable<T>({ columns, data, onEdit, onDelete, onDuplicate, duplicateL
                         {duplicateLabel}
                       </button>
                     )}
-                    {onDelete && (
-                      <button
-                        onClick={() => onDelete(row)}
-                        className="bg-red-900/50 text-red-300 px-3 py-1 rounded text-xs hover:bg-red-900 transition-colors"
-                      >
-                        Delete
-                      </button>
-                    )}
+                    {onDelete && (() => {
+                      const disabledReason = deleteDisabled?.(row)
+                      return (
+                        <button
+                          onClick={() => onDelete(row)}
+                          disabled={!!disabledReason}
+                          title={disabledReason || undefined}
+                          className={`px-3 py-1 rounded text-xs transition-colors ${
+                            disabledReason
+                              ? 'bg-red-900/20 text-red-300/40 cursor-not-allowed'
+                              : 'bg-red-900/50 text-red-300 hover:bg-red-900'
+                          }`}
+                        >
+                          Delete
+                        </button>
+                      )
+                    })()}
                   </div>
                 </td>
               )}

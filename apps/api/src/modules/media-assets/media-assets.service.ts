@@ -1,6 +1,34 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+
+const USAGE_COUNT_SELECT = {
+  authorPhotos: true,
+  artistPhotos: true,
+  companyLogos: true,
+  subscriptionCovers: true,
+  subscriptionLogos: true,
+  seriesCovers: true,
+  monthCovers: true,
+  monthSpoilers: true,
+  saMainImages: true,
+  saExtraImages: true,
+  editionImages: true,
+} as const;
+
+interface UsageCounts {
+  authorPhotos: number;
+  artistPhotos: number;
+  companyLogos: number;
+  subscriptionCovers: number;
+  subscriptionLogos: number;
+  seriesCovers: number;
+  monthCovers: number;
+  monthSpoilers: number;
+  saMainImages: number;
+  saExtraImages: number;
+  editionImages: number;
+}
 
 function normalizePublicId(value: string): string {
   let normalized = value.trim();
@@ -108,5 +136,66 @@ export class MediaAssetsService {
 
   async findByPublicId(publicId: string) {
     return this.prismaClient.mediaAsset.findUnique({ where: { publicId: normalizePublicId(publicId) } });
+  }
+
+  async findAllWithUsage(opts: { search?: string; folder?: string; page?: number; pageSize?: number }) {
+    const page = opts.page ?? 1;
+    const pageSize = opts.pageSize ?? 24;
+    const skip = (page - 1) * pageSize;
+    const where: any = {};
+    if (opts.folder) where.folder = opts.folder;
+    if (opts.search) {
+      where.publicId = { contains: opts.search, mode: 'insensitive' };
+    }
+    const [rows, total] = await Promise.all([
+      this.prismaClient.mediaAsset.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: { _count: { select: USAGE_COUNT_SELECT } },
+      }),
+      this.prismaClient.mediaAsset.count({ where }),
+    ]);
+
+    const bookCounts = await Promise.all(
+      rows.map((row: { id: string }) =>
+        this.prisma.book.count({ where: { editions: { some: { editionImages: { some: { assetId: row.id } } } } } }),
+      ),
+    );
+
+    const data = rows.map((row: { id: string; publicId: string; folder: string | null; createdAt: Date; _count: UsageCounts }, i: number) => {
+      const counts = row._count;
+      const otherUsageCount =
+        counts.authorPhotos +
+        counts.artistPhotos +
+        counts.companyLogos +
+        counts.subscriptionCovers +
+        counts.subscriptionLogos +
+        counts.seriesCovers +
+        counts.monthCovers +
+        counts.monthSpoilers +
+        counts.saMainImages +
+        counts.saExtraImages;
+      const totalUsageCount = otherUsageCount + counts.editionImages;
+      return {
+        id: row.id,
+        publicId: row.publicId,
+        folder: row.folder,
+        createdAt: row.createdAt,
+        bookCount: bookCounts[i],
+        otherUsageCount,
+        totalUsageCount,
+      };
+    });
+
+    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  async remove(id: string, uploadService: { deleteImage(publicId: string): Promise<void> }) {
+    const asset = await this.prismaClient.mediaAsset.findUnique({ where: { id } });
+    if (!asset) throw new NotFoundException('Media asset not found');
+    const result = await this.deleteIfUnused(asset.publicId, uploadService);
+    return { ...result, publicId: asset.publicId };
   }
 }
