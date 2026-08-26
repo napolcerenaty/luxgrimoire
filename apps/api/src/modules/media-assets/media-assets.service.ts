@@ -40,6 +40,12 @@ function normalizePublicId(value: string): string {
   return normalized.replace(/\.[a-z]{2,5}$/i, '');
 }
 
+// Blog post content lives in Ghost (a separate CMS/DB) — there's no relation in this DB that
+// could ever confirm whether a blog-folder image is still referenced, so the whole folder is
+// kept out of the admin Media Library's listing/deletion entirely rather than risk deleting a
+// live blog image while it reads as "unused".
+const BLOG_FOLDER = 'luxgrimoire/blog';
+
 function extractFolder(publicId: string): string | undefined {
   const normalized = normalizePublicId(publicId);
   const lastSlash = normalized.lastIndexOf('/');
@@ -106,7 +112,8 @@ export class MediaAssetsService {
   }
 
   async countUsages(publicId: string): Promise<number> {
-    const asset = await this.prismaClient.mediaAsset.findUnique({ where: { publicId: normalizePublicId(publicId) } });
+    const normalizedPublicId = normalizePublicId(publicId);
+    const asset = await this.prismaClient.mediaAsset.findUnique({ where: { publicId: normalizedPublicId } });
     if (!asset) return 0;
     const id = asset.id;
     const counts = await Promise.all([
@@ -119,6 +126,12 @@ export class MediaAssetsService {
       this.prisma.saleAnnouncement.count({ where: { imageAssetId: id } }),
       this.prismaClient.bookEditionMediaAsset.count({ where: { assetId: id } }),
       this.prismaClient.saleAnnouncementMediaAsset.count({ where: { assetId: id } }),
+      // Community photos (UserEditionImage) store the raw Cloudinary publicId directly —
+      // there's no assetId FK, so match by the normalized publicId string instead.
+      // TODO: add a proper UserEditionImage.assetId FK to MediaAsset and backfill it, then
+      // switch this (and the matching lookup in findAllWithUsage) to a real relation count —
+      // string matching is a correctness stopgap, not the long-term fix.
+      this.prisma.userEditionImage.count({ where: { cloudinaryId: normalizedPublicId } }),
     ]);
     return counts.reduce((a, b) => a + b, 0);
   }
@@ -138,7 +151,13 @@ export class MediaAssetsService {
     return this.prismaClient.mediaAsset.findUnique({ where: { publicId: normalizePublicId(publicId) } });
   }
 
-  async findAllWithUsage(opts: { search?: string; folder?: string; page?: number; pageSize?: number }) {
+  async findAllWithUsage(opts: {
+    search?: string;
+    folder?: string;
+    page?: number;
+    pageSize?: number;
+    unusedOnly?: boolean;
+  }) {
     const page = opts.page ?? 1;
     const pageSize = opts.pageSize ?? 24;
     const skip = (page - 1) * pageSize;
@@ -147,6 +166,32 @@ export class MediaAssetsService {
     if (opts.search) {
       where.publicId = { contains: opts.search, mode: 'insensitive' };
     }
+    // Explicit OR-with-null rather than relying on `not`'s null semantics, so assets with no
+    // folder at all are never accidentally excluded alongside the blog folder.
+    const andConditions: any[] = [{ OR: [{ folder: null }, { folder: { not: BLOG_FOLDER } }] }];
+    if (opts.unusedOnly) {
+      // Pushed into SQL (relation-count filters + a NOT IN against community publicIds) so this
+      // stays cheap and paginates correctly, instead of fetching everything and filtering in JS.
+      const communityAssets = await this.prisma.userEditionImage.findMany({
+        select: { cloudinaryId: true },
+        distinct: ['cloudinaryId'],
+      });
+      andConditions.push(
+        { authorPhotos: { none: {} } },
+        { artistPhotos: { none: {} } },
+        { companyLogos: { none: {} } },
+        { subscriptionCovers: { none: {} } },
+        { subscriptionLogos: { none: {} } },
+        { seriesCovers: { none: {} } },
+        { monthCovers: { none: {} } },
+        { monthSpoilers: { none: {} } },
+        { saMainImages: { none: {} } },
+        { saExtraImages: { none: {} } },
+        { editionImages: { none: {} } },
+        { publicId: { notIn: communityAssets.map((r: { cloudinaryId: string }) => r.cloudinaryId) } },
+      );
+    }
+    where.AND = andConditions;
     const [rows, total] = await Promise.all([
       this.prismaClient.mediaAsset.findMany({
         where,
@@ -158,11 +203,19 @@ export class MediaAssetsService {
       this.prismaClient.mediaAsset.count({ where }),
     ]);
 
-    const bookCounts = await Promise.all(
-      rows.map((row: { id: string }) =>
-        this.prisma.book.count({ where: { editions: { some: { editionImages: { some: { assetId: row.id } } } } } }),
+    const [bookCounts, communityImageCounts] = await Promise.all([
+      Promise.all(
+        rows.map((row: { id: string }) =>
+          this.prisma.book.count({ where: { editions: { some: { editionImages: { some: { assetId: row.id } } } } } }),
+        ),
       ),
-    );
+      // Community photos (UserEditionImage) have no assetId FK — match by publicId string.
+      Promise.all(
+        rows.map((row: { publicId: string }) =>
+          this.prisma.userEditionImage.count({ where: { cloudinaryId: row.publicId } }),
+        ),
+      ),
+    ]);
 
     const data = rows.map((row: { id: string; publicId: string; folder: string | null; createdAt: Date; _count: UsageCounts }, i: number) => {
       const counts = row._count;
@@ -176,7 +229,8 @@ export class MediaAssetsService {
         counts.monthCovers +
         counts.monthSpoilers +
         counts.saMainImages +
-        counts.saExtraImages;
+        counts.saExtraImages +
+        communityImageCounts[i];
       const totalUsageCount = otherUsageCount + counts.editionImages;
       return {
         id: row.id,
@@ -195,6 +249,11 @@ export class MediaAssetsService {
   async remove(id: string, uploadService: { deleteImage(publicId: string): Promise<void> }) {
     const asset = await this.prismaClient.mediaAsset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('Media asset not found');
+    if (asset.folder === BLOG_FOLDER) {
+      // Defense in depth: blog images are already excluded from findAllWithUsage, but this
+      // guards direct-by-id deletion too, since we can never verify usage in Ghost's own DB.
+      return { deleted: false, publicId: asset.publicId };
+    }
     const result = await this.deleteIfUnused(asset.publicId, uploadService);
     return { ...result, publicId: asset.publicId };
   }

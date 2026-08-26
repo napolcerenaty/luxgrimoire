@@ -19,6 +19,7 @@ export default function MediaLibraryAdminPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [folderFilter, setFolderFilter] = useState('')
+  const [unusedOnly, setUnusedOnly] = useState(false)
   const [page, setPage] = useState(1)
   const [deleteTarget, setDeleteTarget] = useState<MediaAssetAdminItem | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -30,14 +31,15 @@ export default function MediaLibraryAdminPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [debouncedSearch, folderFilter])
+  }, [debouncedSearch, folderFilter, unusedOnly])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'media-assets', debouncedSearch, folderFilter, page],
+    queryKey: ['admin', 'media-assets', debouncedSearch, folderFilter, unusedOnly, page],
     queryFn: () =>
       fetchMediaAssetsAdmin({
         search: debouncedSearch || undefined,
         folder: folderFilter || undefined,
+        unusedOnly,
         page,
         pageSize: PAGE_SIZE,
       }),
@@ -113,7 +115,7 @@ export default function MediaLibraryAdminPage() {
       label: 'Other usage',
       render: (row: MediaAssetAdminItem) =>
         row.otherUsageCount > 0 ? (
-          <span title="Used as an author/artist photo, company logo, subscription/series/month cover, or sale announcement image">
+          <span title="Used as an author/artist photo, company logo, subscription/series/month cover, sale announcement image, or a community-submitted edition photo">
             {row.otherUsageCount}
           </span>
         ) : (
@@ -153,6 +155,15 @@ export default function MediaLibraryAdminPage() {
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-2 text-sm text-navy-300 md:self-center">
+          <input
+            type="checkbox"
+            checked={unusedOnly}
+            onChange={(e) => setUnusedOnly(e.target.checked)}
+            className="w-4 h-4 rounded accent-brand-500"
+          />
+          Show unlinked only
+        </label>
       </div>
 
       {isLoading ? (

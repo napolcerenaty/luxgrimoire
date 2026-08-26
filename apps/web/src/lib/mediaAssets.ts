@@ -59,11 +59,13 @@ export async function fetchMediaAssetsAdmin(opts: {
   folder?: string
   page?: number
   pageSize?: number
+  unusedOnly?: boolean
 }): Promise<MediaAssetsAdminPage> {
   const params = new URLSearchParams()
   if (opts.search) params.set('search', opts.search)
   if (opts.folder) params.set('folder', opts.folder)
   if (opts.page) params.set('page', String(opts.page))
   if (opts.pageSize) params.set('pageSize', String(opts.pageSize))
+  if (opts.unusedOnly) params.set('unusedOnly', 'true')
   return authFetch<MediaAssetsAdminPage>(`/media-assets/admin?${params}`)
 }

@@ -45,12 +45,14 @@ export class MediaAssetsController {
     @Query('folder') folder?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('unusedOnly') unusedOnly?: string,
   ) {
     return this.service.findAllWithUsage({
       search,
       folder,
       page: page ? parseInt(page, 10) : undefined,
       pageSize: pageSize ? parseInt(pageSize, 10) : undefined,
+      unusedOnly: unusedOnly === 'true',
     });
   }
 
