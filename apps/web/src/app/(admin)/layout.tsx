@@ -22,6 +22,7 @@ import {
   ScrollText,
   BarChart3,
   Image,
+  Images,
   Menu,
   X,
   Tags,
@@ -30,6 +31,7 @@ import {
   AlertTriangle,
   Newspaper,
   BadgeCheck,
+  Sparkles,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -77,6 +79,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
       { href: '/admin/books', label: 'Books', icon: BookOpen },
       { href: '/admin/editions', label: 'Editions', icon: Layers },
       { href: '/admin/series', label: 'Series', icon: BookMarked },
+      { href: '/admin/series-suggestions', label: 'Series Suggestions', icon: Sparkles },
       { href: '/admin/authors', label: 'Authors', icon: Users },
       { href: '/admin/artists', label: 'Artists', icon: Brush },
       { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },
@@ -113,6 +116,7 @@ const ADMIN_GROUPS: NavGroup[] = [
       { href: '/admin/audit-logs', label: 'Audit Log', icon: ScrollText },
       { href: '/admin/company-image-purge', label: 'Image Purge', icon: Image },
       { href: '/admin/image-permissions', label: 'Image Permissions', icon: BadgeCheck },
+      { href: '/admin/media-library', label: 'Media Library', icon: Images },
     ],
   },
 ]

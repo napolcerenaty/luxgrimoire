@@ -66,14 +66,17 @@ function makeEntry(overrides: Record<string, unknown> = {}) {
 describe('SubscriptionsService — getManagedMonths', () => {
   let service: SubscriptionsService;
   let prisma: DeepMockProxy<PrismaService>;
-  let skipEngMock: { recomputeSkipState: jest.Mock };
+  let skipEngMock: { recomputeSkipState: jest.Mock; recomputeEntryWindowKeys: jest.Mock };
 
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-07-13T10:00:00Z'));
 
     prisma = mockDeep<PrismaService>();
-    skipEngMock = { recomputeSkipState: jest.fn().mockResolvedValue(undefined) };
+    skipEngMock = {
+      recomputeSkipState: jest.fn().mockResolvedValue(undefined),
+      recomputeEntryWindowKeys: jest.fn().mockResolvedValue(undefined),
+    };
     service = new SubscriptionsService(
       prisma,
       {} as any,
@@ -321,14 +324,17 @@ describe('SubscriptionsService — getManagedMonths', () => {
 describe('SubscriptionsService — manageSkips', () => {
   let service: SubscriptionsService;
   let prisma: DeepMockProxy<PrismaService>;
-  let skipEngMock: { recomputeSkipState: jest.Mock };
+  let skipEngMock: { recomputeSkipState: jest.Mock; recomputeEntryWindowKeys: jest.Mock };
 
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-07-13T10:00:00Z'));
 
     prisma = mockDeep<PrismaService>();
-    skipEngMock = { recomputeSkipState: jest.fn().mockResolvedValue(undefined) };
+    skipEngMock = {
+      recomputeSkipState: jest.fn().mockResolvedValue(undefined),
+      recomputeEntryWindowKeys: jest.fn().mockResolvedValue(undefined),
+    };
     service = new SubscriptionsService(
       prisma,
       {} as any,
@@ -608,6 +614,10 @@ describe('SubscriptionsService — manageSkips', () => {
       removeBooksForSkipped: false,
     });
 
+    // recomputeEntryWindowKeys must run before recomputeSkipState — bulk-created skip records
+    // above have no policy-aware windowKey, so the state recompute needs them corrected first
+    // (see skip-policy.engine.ts recomputeEntryWindowKeys for why).
+    expect(skipEngMock.recomputeEntryWindowKeys).toHaveBeenCalledWith(USER_ID, SUB_ID);
     expect(skipEngMock.recomputeSkipState).toHaveBeenCalledWith(USER_ID, SUB_ID);
     // refreshNextRenewalDate hits findUnique to read the entry
     expect(prisma.userSubscriptionEntry.findUnique).toHaveBeenCalled();

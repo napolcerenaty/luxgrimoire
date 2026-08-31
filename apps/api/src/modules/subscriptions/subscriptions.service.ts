@@ -37,7 +37,7 @@ import { generateSlugFromParts, generateSubscriptionSlug } from '../../common/ut
 import { resolvePerBookPrices } from '../../common/utils/price-allocation.util';
 import { parsePagination, buildPageMeta } from '../../common/pagination';
 import { findBySlugOrThrow } from '../../common/prisma.utils';
-import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, computeDateAnchoredFirstBoxMonth, computeJoinDateWindow, getPreviousBoxUnitStart, resolveFirstBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth, computeGlobalRenewalDay } from '../../common/utils/renewal-date.util';
+import { computeNextRenewalDate, refreshNextRenewalDate, backfillRenewalHistory, computeFirstEligibleBoxMonth, computeLastProcessedBoxMonth, computeDateAnchoredFirstBoxMonth, computeJoinDateWindow, getPreviousBoxUnitStart, resolveFirstBoxMonth, getBundleBoxStart, enumerateBundleMonths, isSubscriptionDueInMonth, entryCoversMonth, computeGlobalRenewalDay, renewalMonthFromBoxMonth } from '../../common/utils/renewal-date.util';
 import { SkipPolicyEngine } from '../skip-policy/skip-policy.engine';
 import { RenewalCronService } from './renewal.cron';
 import { CountryFeeSnapshotCronService } from './country-fee-snapshot.cron';
@@ -260,7 +260,12 @@ export class SubscriptionsService {
 
   /** Compute the current effective price from a subscription's price change records.
    *  Returns the sentinel price (year=1900) as "base price", or null if no records exist.
-   *  When defaultCurrency is provided, only records matching that currency are considered. */
+   *  When defaultCurrency is provided, only records matching that currency are considered.
+   *  Only price changes whose effective month has actually arrived are considered — a change
+   *  scheduled for a future month must never surface as "the current price" (it also prefills
+   *  the admin edit-subscription form's price field, so a future price leaking through here gets
+   *  resubmitted and overwrites the sentinel, corrupting the price for months before it takes
+   *  effect too — see resolveEffectiveBasePrice for the equivalent per-renewal-month check). */
   private computeCurrentPrice(
     priceChanges: { effectiveYear: number; effectiveMonth: number; newBasePrice: { toString(): string }; currency: string }[],
     defaultCurrency?: string | null,
@@ -270,12 +275,18 @@ export class SubscriptionsService {
       ? priceChanges.filter(pc => pc.currency === defaultCurrency)
       : priceChanges;
     if (!pool.length) return null;
-    // Return the most recent explicit price change (excluding sentinel 1900-01).
-    // Fall back to sentinel if no explicit change exists.
-    const explicit = pool
+    const now = new Date();
+    const nowYear = now.getUTCFullYear();
+    const nowMonth = now.getUTCMonth() + 1;
+    const arrived = pool.filter(
+      pc => pc.effectiveYear < nowYear || (pc.effectiveYear === nowYear && pc.effectiveMonth <= nowMonth),
+    );
+    // Return the most recent explicit price change that has arrived (excluding sentinel 1900-01).
+    // Fall back to sentinel if no explicit change has arrived yet.
+    const explicit = arrived
       .filter(pc => pc.effectiveYear !== 1900)
       .sort((a, b) => b.effectiveYear !== a.effectiveYear ? b.effectiveYear - a.effectiveYear : b.effectiveMonth - a.effectiveMonth);
-    const best = explicit[0] ?? pool.find(pc => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
+    const best = explicit[0] ?? arrived.find(pc => pc.effectiveYear === 1900 && pc.effectiveMonth === 1);
     return best ? parseFloat(best.newBasePrice.toString()).toFixed(2) : null;
   }
 
@@ -948,12 +959,15 @@ export class SubscriptionsService {
       });
     }
 
-    // If price changed, update the sentinel price change record
-    if (price !== undefined && price !== null) {
-      const currency = (dto.currency ?? existing.currency ?? 'EUR') as string;
-      await this.upsertSentinelPrice(updated.id, price, currency);
-      await this.cache.del(this.subSlugKey(slug));
-    }
+    // Deliberately NOT touching the sentinel price change record here even when `price` is
+    // present in the DTO: the sentinel is the subscription's "since day one" historical baseline,
+    // and this general update endpoint fires on every edit regardless of intent (e.g. the admin
+    // form always resubmits its price field's current display value alongside unrelated edits).
+    // Treating that as "the admin wants to rewrite history" silently corrupted the baseline for
+    // every month before the next explicit price change whenever the field's displayed value came
+    // from a stale or future-dated read. Deliberate sentinel corrections go through
+    // updatePriceChange (the dedicated Price Changes admin panel) instead — see createPriceChange
+    // for the one legitimate automatic case (subscription creation, upsertSentinelPrice call above).
 
     // Delete old images from Cloudinary if replaced or cleared
     if (dto.coverImage !== undefined && dto.coverImage !== existing.coverImage) {
@@ -2200,6 +2214,7 @@ export class SubscriptionsService {
         basePrice: true,
         shippingCost: true,
         isForwarding: true,
+        prepaidMonths: true,
         scheduledPrepayOptionId: true,
         scheduledPrepayOption: {
           select: { price: true, currency: true, months: true },
@@ -2368,10 +2383,27 @@ export class SubscriptionsService {
           entry.costCurrency,
           userFirstBilledYearMonth,
         );
-        if (resolved.fromPriceChange && resolved.price !== fallbackBase) {
+        // "Is the price changing" must compare against what the user is EFFECTIVELY paying right
+        // now — not the raw fallbackBase (entry.basePrice), which stays null for anyone who's
+        // never had a custom override. Comparing a resolved number against null always reads as
+        // "changed", even when resolveEffectiveBasePrice would resolve to the exact same
+        // (correctly grandfathered) price for both "now" and the next renewal — real bug found in
+        // production: a subscriber who joined before a grandfathered price change saw a "price
+        // changing to £X" warning where £X was the price they were already paying.
+        const now = new Date();
+        const currentResolved = resolveEffectiveBasePrice(
+          subPriceChanges ?? [],
+          now.getUTCFullYear(),
+          now.getUTCMonth() + 1,
+          fallbackBase,
+          entry.costCurrency,
+          userFirstBilledYearMonth,
+        );
+        const currentEffectiveBase = currentResolved.price ?? fallbackBase;
+        if (resolved.fromPriceChange && resolved.price !== null && resolved.price !== currentEffectiveBase) {
           nextBase = resolved.price;
           nextRenewalPriceChanged = true;
-          nextRenewalNewPrice = resolved.price !== null ? resolved.price.toFixed(2) : null;
+          nextRenewalNewPrice = resolved.price.toFixed(2);
         } else {
           nextBase = resolved.price ?? fallbackBase;
         }
@@ -2384,8 +2416,38 @@ export class SubscriptionsService {
       // Compute box month from renewal month by adding the renewalMonthOffset
       // e.g. renewal in Oct + offset=1 → box month = Nov
       let nextBoxMonth: { year: number; month: number } | null = null;
-      if (storedRenewalDate) {
-        const offset: number = (subRest as any).renewalMonthOffset ?? 0;
+      const offset: number = (subRest as any).renewalMonthOffset ?? 0;
+      const effectivePrepayMonths: number | null = scheduledPrepayOption?.months
+        ?? ((entry as any).prepaidMonths > 1 ? (entry as any).prepaidMonths : null);
+      if (effectivePrepayMonths && entry.startDate) {
+        // For a prepaid entry, storedRenewalDate is the next BILLING date — it only fires once
+        // per multi-month prepay period, so mid-period it can be months away from "now". Boxes
+        // still ship every month within an already-paid period, so the next BOX must be found
+        // via the plain monthly cadence, ignoring the prepay batching entirely (mirrors what
+        // storedRenewalDate itself would be for a non-prepaid entry with the same cadence).
+        const personalSkippedMonths = ((entry as any).skipRecords as Array<{ month: { year: number; month: number } }>).map((r) => {
+          const [ry, rm] = renewalMonthFromBoxMonth(r.month.year, r.month.month, offset);
+          return { year: ry, month: rm };
+        });
+        const renewalDay = entry.renewalDay ?? sub.renewalDay ?? 1;
+        const nextBoxRenewalDate = computeNextRenewalDate(
+          renewalDay,
+          1,
+          null,
+          entry.startDate,
+          personalSkippedMonths,
+          null,
+          null,
+          offset,
+        );
+        if (nextBoxRenewalDate) {
+          let bm = nextBoxRenewalDate.getUTCMonth() + 1 + offset;
+          let by = nextBoxRenewalDate.getUTCFullYear();
+          while (bm > 12) { bm -= 12; by += 1; }
+          while (bm < 1)  { bm += 12; by -= 1; }
+          nextBoxMonth = { year: by, month: bm };
+        }
+      } else if (storedRenewalDate) {
         let bm = storedRenewalDate.getUTCMonth() + 1 + offset; // 1-12 based
         let by = storedRenewalDate.getUTCFullYear();
         while (bm > 12) { bm -= 12; by += 1; }
@@ -5490,7 +5552,11 @@ export class SubscriptionsService {
       }
     }
 
-    // Recompute skip state + renewal date
+    // Recompute skip state + renewal date. Bulk-created skip records above have no
+    // policy-aware windowKey (see manageSkips's upsert), so recompute the real windowKey on
+    // every record first — otherwise recomputeSkipState's own "trust the latest record's
+    // stored windowKey" logic gets corrupted by the unstamped ones and undercounts real usage.
+    await this.skipPolicyEngine.recomputeEntryWindowKeys(userId, sub.id);
     await this.skipPolicyEngine.recomputeSkipState(userId, sub.id);
     await refreshNextRenewalDate(this.prisma, entry.id);
     backfillRenewalHistory(this.prisma, entry.id).catch(() => {});

@@ -292,6 +292,120 @@ describe('SubscriptionsService — query methods', () => {
         expect(result[0].nextRenewalPriceChanged).toBe(true);
         expect(result[0].nextRenewalNewPrice).toBe('111.00');
       });
+
+      // Real bug found in production: nextBoxMonth was derived from storedRenewalDate (the next
+      // BILLING date), which for a prepaid entry only fires once per multi-month period and can be
+      // months away mid-period. Boxes still ship every month within an already-paid period, so
+      // "Next Box" must be computed on the plain monthly cadence, independent of the prepay billing
+      // cycle — otherwise it skips straight to the box tied to the far-future re-bill instead of the
+      // next one actually shipping.
+      it('computes nextBoxMonth from the plain monthly cadence, not the far-future prepay renewal date', async () => {
+        jest.useFakeTimers().setSystemTime(new Date('2026-08-23T12:00:00Z'));
+        try {
+          const entry = makeEntryRow({
+            startDate: '2026-07-22',
+            renewalDay: 1,
+            nextRenewalDate: new Date('2026-11-01'), // next re-bill, 3-month prepay period just used up
+            scheduledPrepayOptionId: OLD_OPTION.id,
+            scheduledPrepayOption: { price: OLD_OPTION.price, currency: OLD_OPTION.currency, months: OLD_OPTION.months },
+            subscription: makeSub({ renewalDay: 1, prepayOptions: [OLD_OPTION] }),
+          });
+          (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
+
+          const result = await service.getMySubscriptions(USER_ID);
+
+          expect(result[0].nextRenewalDate).toBe(new Date('2026-11-01').toISOString());
+          expect(result[0].nextBoxMonth).toEqual({ year: 2026, month: 9 });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+    });
+
+    describe('grandfathered non-prepaid price change', () => {
+      const OCT_CHANGE = { effectiveYear: 2026, effectiveMonth: 10, newBasePrice: { toString: () => '35.00' }, currency: 'GBP', grandfatheredPrice: true };
+      const SENTINEL = { effectiveYear: 1900, effectiveMonth: 1, newBasePrice: { toString: () => '29.00' }, currency: 'GBP', grandfatheredPrice: false };
+
+      // Real bug found in production (Illumicrate Box): a subscriber who joined in August, before
+      // a grandfathered price change effective in October, saw a "price changing to £29.00" warning
+      // at their September renewal — the SAME price they already pay. Root cause: entry.basePrice
+      // is null for anyone who never had a custom override, and `resolved.price !== fallbackBase`
+      // compares a real number against null, which is always true — so grandfathering correctly
+      // resolved the same (unchanged) price, but the comparison still flagged it as "changed".
+      it('does not flag a change for a grandfathered subscriber when entry.basePrice is null', async () => {
+        jest.useFakeTimers().setSystemTime(new Date('2026-08-25T12:00:00Z'));
+        try {
+          const entry = makeEntryRow({
+            startDate: '2026-07-27',
+            renewalDay: 1,
+            costCurrency: 'GBP',
+            basePrice: null,
+            shippingCost: null,
+            nextRenewalDate: new Date('2026-09-01'), // next renewal, still before the Oct change
+            purchaseGroups: [{ title: 'Subscription – 2026/08' }], // joined before the Oct change
+            subscription: makeSub({ renewalDay: 1, paymentOnStartup: true, priceChanges: [SENTINEL, OCT_CHANGE] }),
+          });
+          (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
+
+          const result = await service.getMySubscriptions(USER_ID);
+
+          expect(result[0].nextRenewalPriceChanged).toBe(false);
+          expect(result[0].nextRenewalNewPrice).toBeNull();
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('does not flag a change for a grandfathered subscriber when entry.basePrice is set', async () => {
+        jest.useFakeTimers().setSystemTime(new Date('2026-08-25T12:00:00Z'));
+        try {
+          const entry = makeEntryRow({
+            startDate: '2026-07-27',
+            renewalDay: 1,
+            costCurrency: 'GBP',
+            basePrice: '29.00',
+            shippingCost: null,
+            nextRenewalDate: new Date('2026-09-01'),
+            purchaseGroups: [{ title: 'Subscription – 2026/08' }],
+            subscription: makeSub({ renewalDay: 1, paymentOnStartup: true, priceChanges: [SENTINEL, OCT_CHANGE] }),
+          });
+          (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
+
+          const result = await service.getMySubscriptions(USER_ID);
+
+          expect(result[0].nextRenewalPriceChanged).toBe(false);
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('still flags a real, non-grandfathered price increase applying to everyone at the boundary month', async () => {
+        jest.useFakeTimers().setSystemTime(new Date('2026-09-25T12:00:00Z'));
+        try {
+          // grandfatheredPrice: false — this increase applies to ALL subscribers, old and new,
+          // once the effective month arrives. "Now" (Sept) resolves to the sentinel price; the
+          // next renewal (Oct) resolves to the new one — a genuine change that must still flag.
+          const UNIVERSAL_OCT_CHANGE = { ...OCT_CHANGE, grandfatheredPrice: false };
+          const entry = makeEntryRow({
+            startDate: '2026-07-27',
+            renewalDay: 1,
+            costCurrency: 'GBP',
+            basePrice: null,
+            shippingCost: null,
+            nextRenewalDate: new Date('2026-10-01'),
+            purchaseGroups: [{ title: 'Subscription – 2026/08' }],
+            subscription: makeSub({ renewalDay: 1, paymentOnStartup: true, priceChanges: [SENTINEL, UNIVERSAL_OCT_CHANGE] }),
+          });
+          (prisma.userSubscriptionEntry.findMany as jest.Mock).mockResolvedValueOnce([entry]);
+
+          const result = await service.getMySubscriptions(USER_ID);
+
+          expect(result[0].nextRenewalPriceChanged).toBe(true);
+          expect(result[0].nextRenewalNewPrice).toBe('35.00');
+        } finally {
+          jest.useRealTimers();
+        }
+      });
     });
   });
 

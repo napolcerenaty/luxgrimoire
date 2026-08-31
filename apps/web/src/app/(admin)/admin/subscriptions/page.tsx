@@ -268,7 +268,10 @@ function formToUpdatePayload(form: SubFormData) {
     genres: form.genres,
     currency: form.currency || 'EUR',
     coverImage: form.coverImage === null ? null : (form.coverImage || undefined),
-    price: form.price ? form.price.replace(',', '.') : undefined,
+    // Deliberately omitted: `price` only sets the initial base price on create. Editing an
+    // existing subscription's baseline goes through the Price Changes panel (Prices page)
+    // instead — see the backend's update() for why resubmitting this field is no longer wired
+    // to overwrite the sentinel record.
     language: form.language || undefined,
     intervalMonths: parseInt(form.intervalMonths, 10) || 1,
     contentType: form.contentType || 'MIX',
@@ -491,6 +494,8 @@ interface SubFormProps {
   allSubscriptions: ApiSubscription[]
   allSubs: ApiSubscription[]
   user: { role: string; managedCompanyId?: string | null } | null
+  /** Present only when editing an existing subscription — used to link to its Prices page. */
+  slug?: string
 }
 
 function SubscriptionForm({
@@ -502,6 +507,7 @@ function SubscriptionForm({
   allSubscriptions,
   allSubs,
   user,
+  slug,
 }: SubFormProps) {
   const isManager = user?.role === 'COMPANY_MANAGER'
 
@@ -655,8 +661,26 @@ function SubscriptionForm({
           <div className="grid sm:grid-cols-3 gap-3">
             <div>
               <label className={LABEL_CLASS}>Price</label>
-              <input className={INPUT_CLASS} value={form.price} onChange={setStr('price')} placeholder="59.99" />
-              <p className="text-xs text-navy-500 mt-1">Sets the initial base price. Add price changes below for future changes.</p>
+              {isEditMode ? (
+                <>
+                  <input className={`${INPUT_CLASS} opacity-60 cursor-not-allowed`} value={form.price} disabled readOnly />
+                  <p className="text-xs text-navy-500 mt-1">
+                    Read-only here.{' '}
+                    {slug ? (
+                      <a href={`/admin/subscriptions/${slug}/prices`} className="text-brand-400 hover:underline">
+                        Edit the base price or schedule a change on the Prices page →
+                      </a>
+                    ) : (
+                      'Edit the base price or schedule a change on the Prices page.'
+                    )}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <input className={INPUT_CLASS} value={form.price} onChange={setStr('price')} placeholder="59.99" />
+                  <p className="text-xs text-navy-500 mt-1">Sets the initial base price. Add price changes below for future changes.</p>
+                </>
+              )}
             </div>
             <div>
               <label className={LABEL_CLASS}>Currency</label>
@@ -1851,6 +1875,7 @@ export default function AdminSubscriptionsPage() {
           <SubscriptionForm
             key={editSub.id}
             {...commonFormProps}
+            slug={editSub.slug}
             initial={subToForm(editSub)}
             submitLabel="Save Changes"
             submitting={editMutation.isPending}

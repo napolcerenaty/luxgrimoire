@@ -16,6 +16,7 @@ interface ApiSeries {
   id: string
   slug: string
   name: string
+  isCompleted: boolean
   bookCount: number
   primaryBookCount: number
   authors: string[]
@@ -43,6 +44,7 @@ export default function AdminSeriesPage() {
   const [search, setSearch] = useState('')
   const [newName, setNewName] = useState('')
   const [editName, setEditName] = useState('')
+  const [editIsCompleted, setEditIsCompleted] = useState(false)
 
   const { data: switchCandidates } = useQuery({
     queryKey: ['admin', 'series-search', switchQuery],
@@ -112,8 +114,8 @@ export default function AdminSeriesPage() {
   })
 
   const editMutation = useMutation({
-    mutationFn: ({ slug, name }: { slug: string; name: string }) =>
-      authFetch(`/book-series/${slug}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
+    mutationFn: ({ slug, name, isCompleted }: { slug: string; name: string; isCompleted: boolean }) =>
+      authFetch(`/book-series/${slug}`, { method: 'PATCH', body: JSON.stringify({ name, isCompleted }) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'series'] })
       setEditSeries(null)
@@ -163,12 +165,23 @@ export default function AdminSeriesPage() {
       ),
     },
     {
+      key: 'isCompleted',
+      label: 'Status',
+      render: (row: ApiSeries) => (
+        row.isCompleted ? (
+          <span className="text-xs px-2 py-0.5 rounded-full border font-medium text-navy-400 bg-navy-800 border-navy-600">Completed</span>
+        ) : (
+          <span className="text-xs px-2 py-0.5 rounded-full border font-medium text-brand-400 bg-brand-500/10 border-brand-500/30">Ongoing</span>
+        )
+      ),
+    },
+    {
       key: 'actions',
       label: 'Actions',
       render: (row: ApiSeries) => (
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setEditSeries(row); setEditName(row.name) }}
+            onClick={() => { setEditSeries(row); setEditName(row.name); setEditIsCompleted(row.isCompleted) }}
             className="bg-brand-400/10 text-brand-400 border border-brand-400/20 px-3 py-1 rounded text-xs font-medium hover:bg-brand-400/20 transition-colors"
           >
             Edit
@@ -265,7 +278,7 @@ export default function AdminSeriesPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              if (editName.trim()) editMutation.mutate({ slug: editSeries.slug, name: editName.trim() })
+              if (editName.trim()) editMutation.mutate({ slug: editSeries.slug, name: editName.trim(), isCompleted: editIsCompleted })
             }}
             className="flex flex-col gap-4"
           >
@@ -279,6 +292,15 @@ export default function AdminSeriesPage() {
                 onChange={(e) => setEditName(e.target.value)}
               />
             </div>
+            <label className="flex items-center gap-2 text-sm text-navy-300">
+              <input
+                type="checkbox"
+                checked={editIsCompleted}
+                onChange={(e) => setEditIsCompleted(e.target.checked)}
+                className="accent-brand-400"
+              />
+              Series completed — stop checking for new volumes
+            </label>
             <button
               type="submit"
               disabled={editMutation.isPending}

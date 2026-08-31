@@ -17,6 +17,7 @@ interface DashboardCounts {
   saleRequestsPending: number
   bugReportsOpen: number
   featureRequestsPending: number
+  seriesSuggestionsPending: number
   totalUsers: number
   activeUsersLastWeek: number
 }
@@ -106,7 +107,7 @@ export default function AdminDashboard() {
   })
 
   const totalAttention = counts
-    ? counts.communityImagesPending + counts.dataRequestsPending + counts.saleRequestsPending +
+    ? counts.communityImagesPending + counts.dataRequestsPending + counts.saleRequestsPending + counts.seriesSuggestionsPending +
       (!isModerator ? counts.bugReportsOpen + counts.featureRequestsPending : 0)
     : null
 
@@ -178,6 +179,14 @@ export default function AdminDashboard() {
             label="Sale Announcement Requests"
             count={counts?.saleRequestsPending ?? 0}
             countLabel={counts ? `${counts.saleRequestsPending} pending` : '…'}
+            accent="purple"
+          />
+          <CountCard
+            href="/admin/series-suggestions"
+            icon="✨"
+            label="Series Suggestions"
+            count={counts?.seriesSuggestionsPending ?? 0}
+            countLabel={counts ? `${counts.seriesSuggestionsPending} new volume${counts.seriesSuggestionsPending === 1 ? '' : 's'} to review` : '…'}
             accent="purple"
           />
           {!isModerator && (
