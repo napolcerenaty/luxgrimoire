@@ -7,6 +7,7 @@ import { GoogleBooksClient } from './clients/google-books.client';
 import { OpenLibraryClient } from './clients/open-library.client';
 import { WikidataClient } from './clients/wikidata.client';
 import type { ExternalVolumeCandidate } from './series-discovery.types';
+import { normalizeForMatch } from './series-discovery.utils';
 
 const DEFAULT_DAILY_BATCH = 20;
 
@@ -25,26 +26,6 @@ const LANGUAGE_TO_WIKIDATA_QID: Record<string, string> = {
 const LANGUAGE_TO_OPEN_LIBRARY_CODE: Record<string, string> = {
   en: 'eng',
 };
-
-/** Normalizes a title or author name for loose duplicate-detection only (never stored) — same
- * idea as BookSeriesService's normalizeSeriesName (including stripping every standalone
- * "the"/"a"/"an", not just a leading one — see that function's docblock for why), but for
- * comparing external-API titles/authors against what we already have, where punctuation/subtitle
- * differences are common.
- *
- * "&" is folded to "and" before the generic punctuation strip below would otherwise just erase
- * it — unlike "the"/"a"/"an", it's meaningful ("Fire and Blood" needs it to not become "Fire
- * Blood"), so "X & Y" and "X and Y" need to end up equal, not both losing the word entirely. */
-function normalizeForMatch(title: string): string {
-  return title
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/&/g, ' and ')
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .replace(/\b(the|an?)\b/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 function titlesLikelyMatch(a: string, b: string): boolean {
   const na = normalizeForMatch(a);

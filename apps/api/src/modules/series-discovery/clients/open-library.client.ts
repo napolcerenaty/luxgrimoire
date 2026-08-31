@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ExternalVolumeCandidate } from '../series-discovery.types';
+import { normalizeForMatch } from '../series-discovery.utils';
 
 const USER_AGENT = 'LuxGrimoire/1.0 (+https://luxgrimoire.com)';
 const LIMIT = 20;
@@ -15,13 +16,42 @@ const LIMIT = 20;
  *  - Trailing periods are stripped and casing is normalized to Title Case, so near-duplicates
  *    like "Science fiction." / "Science fiction" / ".../Science Fiction" collapse into one tag
  *    instead of showing up as three near-identical chips.
+ *  - Internal "key:value" facets (e.g. "Series:once_upon_a_broken_heart", their own series
+ *    metadata; "Nyt:young-adult-hardcover=2021-10-17", NYT bestseller-list membership) are
+ *    dropped too — a real genre subject is a plain phrase and never contains a colon, so this is
+ *    a safe blanket filter rather than an allowlist of every internal prefix OL happens to use.
  * Returns null when nothing genre-like is left (signals "drop this one"). */
 function cleanGenreLabel(raw: string): string | null {
   if (raw.includes('--')) return null;
+  if (raw.includes(':')) return null;
   let s = raw.includes('/') ? raw.slice(raw.lastIndexOf('/') + 1) : raw;
   s = s.trim().replace(/\.+$/, '').trim();
   if (!s) return null;
   return s.replace(/\w\S*/g, (word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
+}
+
+/** Open Library tags some docs with an internal "Series:<slug>" subject entry drawn from its own
+ * series metadata (e.g. "Series:once_upon_a_broken_heart"). search.json has no real series
+ * filter — it's free-text relevance search — so a prolific author's book from a totally
+ * different series of theirs routinely surfaces as a top match for "<seriesName> <author>" and
+ * sails past our own author/title matching alone (found in practice, 2026-08-31: Stephanie
+ * Garber's "Once Upon a Broken Heart" suggested as a new "Caraval" volume).
+ *
+ * Requires OL's tag to positively confirm the series, rather than merely not contradict it — a
+ * doc with no "Series:" tag at all is dropped too, not kept on an "unsure -> don't drop"
+ * assumption. That's deliberately stricter than authorsLikelyMatch's policy in the service: over
+ * 40 suggestions already sitting in prod, manually dismissed as junk, were exactly this shape —
+ * author matched, but no series tag (or a contradicting one) — so in practice for this source
+ * "unsure" has meant "wrong series" far more often than "sparse metadata, still a real match".
+ * Costs recall (a real match with no OL series tag is dropped too) in favor of not littering the
+ * queue with junk an admin has to notice and dismiss by hand. */
+function openLibraryConfirmsSeries(subjects: string[] | undefined, seriesName: string): boolean {
+  const tag = (subjects ?? []).find((s) => s.toLowerCase().startsWith('series:'));
+  if (!tag) return false;
+  const taggedSeries = normalizeForMatch(tag.slice('series:'.length).replace(/[-_]/g, ' '));
+  const target = normalizeForMatch(seriesName);
+  if (!taggedSeries || !target) return false;
+  return taggedSeries === target || taggedSeries.includes(target) || target.includes(taggedSeries);
 }
 
 interface OpenLibraryDoc {
@@ -66,6 +96,7 @@ export class OpenLibraryClient {
       return (data.docs ?? [])
         .filter((doc): doc is OpenLibraryDoc & { title: string } => Boolean(doc.title))
         .filter((doc) => !languageCode639_2 || !doc.language?.length || doc.language.includes(languageCode639_2))
+        .filter((doc) => openLibraryConfirmsSeries(doc.subject, seriesName))
         .map((doc) => ({
           title: doc.title,
           authorNames: doc.author_name ?? [],
