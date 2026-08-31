@@ -1,4 +1,5 @@
-import { Injectable, Logger, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, ConflictException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paginatedQuery } from '../../common/prisma.utils';
@@ -304,15 +305,34 @@ export class SeriesDiscoveryService {
     );
   }
 
-  updateSuggestionStatus(id: string, status: string, adminNote?: string) {
-    return this.prisma.seriesVolumeSuggestion.update({
-      where: { id },
-      data: { status, ...(adminNote !== undefined && { adminNote }) },
-    });
+  // Both mutate by id only, no other guard — a row can legitimately vanish between the admin's
+  // list loading and their click (cascade-deleted with its parent series, or removed from another
+  // tab/session), which Prisma reports as P2025 "record not found". Surfacing that as a clean 404
+  // instead of the raw Prisma error lets the frontend show a real message instead of a silent
+  // failure — see series-suggestions/page.tsx's onError handlers.
+  async updateSuggestionStatus(id: string, status: string, adminNote?: string) {
+    try {
+      return await this.prisma.seriesVolumeSuggestion.update({
+        where: { id },
+        data: { status, ...(adminNote !== undefined && { adminNote }) },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new NotFoundException('This suggestion no longer exists — it may have already been removed.');
+      }
+      throw err;
+    }
   }
 
-  removeSuggestion(id: string) {
-    return this.prisma.seriesVolumeSuggestion.delete({ where: { id } });
+  async removeSuggestion(id: string) {
+    try {
+      return await this.prisma.seriesVolumeSuggestion.delete({ where: { id } });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new NotFoundException('This suggestion no longer exists — it may have already been removed.');
+      }
+      throw err;
+    }
   }
 
   // ─── Admin-managed bundle/omnibus keyword list ─────────────────────────────
