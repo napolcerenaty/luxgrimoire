@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { PersonPicker, type PersonEntry } from './pickers/PersonPicker'
 import { GenreTagsPicker } from './pickers/GenreTagsPicker'
 import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type EditionSaleDateEntry, type FeaturePreviewHandle, FEATURE_TAGS_QUERY_KEY } from './EditionFieldsSection'
+import { VariantLabelPicker } from './pickers/VariantLabelPicker'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { GoodreadsParser, SeriesEntriesEditor, seriesEntriesToPayload, StagedComponentsEditor, type AiBookResult, type SeriesEntryFormState, type StagedComponent } from './BookForm'
 import { INP, LBL, BTN_PRIMARY, BTN_GHOST } from '@/lib/adminFormStyles'
@@ -643,13 +644,7 @@ export default function CreateBookEditionForm({
 
       <div>
         <label className={LBL}>Variant label</label>
-        <input
-          type="text"
-          value={variantLabel}
-          onChange={e => setVariantLabel(e.target.value)}
-          placeholder="e.g. White Edition, Overlay Edition, Numbered — leave blank if this isn't a variant"
-          className={INP}
-        />
+        <VariantLabelPicker value={variantLabel} onChange={setVariantLabel} companyId={companyId} />
         {sourceEditionId && (
           <p className="text-xs text-brand-500/80 mt-1">This will be linked as a variant of the edition you duplicated from.</p>
         )}

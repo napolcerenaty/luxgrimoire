@@ -19,11 +19,12 @@ describe('SeriesContinuationService', () => {
     (prisma.$transaction as unknown as jest.Mock).mockImplementation((fn: (tx: any) => Promise<void>) => fn(prisma));
   });
 
-  const stubEdition = (overrides: Partial<{ bookId: string; bookBoxCompanyId: string | null; seriesId: string | null }> = {}) => {
-    const { bookId = BOOK_ID, bookBoxCompanyId = COMPANY_ID, seriesId = SERIES_ID } = overrides;
+  const stubEdition = (overrides: Partial<{ bookId: string; bookBoxCompanyId: string | null; seriesId: string | null; variantLabel: string | null }> = {}) => {
+    const { bookId = BOOK_ID, bookBoxCompanyId = COMPANY_ID, seriesId = SERIES_ID, variantLabel = null } = overrides;
     (prisma.bookEdition.findUnique as jest.Mock).mockResolvedValue({
       bookId,
       bookBoxCompanyId,
+      variantLabel,
       book: { seriesId },
     });
   };
@@ -40,7 +41,7 @@ describe('SeriesContinuationService', () => {
     expect(prisma.userBookEntry.findMany).not.toHaveBeenCalled();
   });
 
-  it('matches on same series + same company, excluding the same book, wishlist, sold, and gifted-away entries', async () => {
+  it('matches on same series + same company + same (null) variantLabel, excluding the same book, wishlist, sold, and gifted-away entries', async () => {
     stubEdition();
     (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValue([{ userId: USER_ID }]);
     (prisma.pendingSeriesContinuationNotification.findUnique as jest.Mock).mockResolvedValue(null);
@@ -54,7 +55,7 @@ describe('SeriesContinuationService', () => {
           ownershipStatus: { notIn: ['SOLD', 'GIFTED_AWAY'] },
           bookId: { not: BOOK_ID },
           book: { seriesId: SERIES_ID },
-          edition: { bookBoxCompanyId: COMPANY_ID },
+          edition: { bookBoxCompanyId: COMPANY_ID, variantLabel: null },
         }),
         distinct: ['userId'],
       }),
@@ -62,6 +63,24 @@ describe('SeriesContinuationService', () => {
     expect(prisma.pendingSeriesContinuationNotification.create).toHaveBeenCalledWith({
       data: { userId: USER_ID, saleAnnouncementId: SALE_ID, editionIds: [EDITION_ID], scheduledFor: expect.any(Date) },
     });
+  });
+
+  it('requires the exact same variantLabel when the new edition has one — never mixes variant with no-variant', async () => {
+    stubEdition({ variantLabel: 'Black Edition' });
+    (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValue([]);
+
+    await service.notifyOnEditionAddedToSale(EDITION_ID, SALE_ID);
+
+    expect(prisma.userBookEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          edition: { bookBoxCompanyId: COMPANY_ID, variantLabel: 'Black Edition' },
+        }),
+      }),
+    );
+    // A user who only owns a plain (no-variant) edition of the series+company would be
+    // excluded by this filter — verified by the query shape above, not a separate case, since
+    // matching itself is delegated to the (mocked) database's equality semantics.
   });
 
   it('sets scheduledFor roughly 5 minutes out on a new pending row', async () => {

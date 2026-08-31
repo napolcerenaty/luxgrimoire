@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import type { ApiBookEdition } from '@luxgrimoire/shared-types'
 import { EditionFieldsSection, type AiParseResult, type ArtistEntry, type EditionCompany, type EditionSaleDateEntry, type FeaturePreviewHandle } from './EditionFieldsSection'
+import { VariantLabelPicker } from './pickers/VariantLabelPicker'
 import { applyAiEditionResult } from '@/lib/applyAiEditionResult'
 import { formatEditionDisplayTitle } from '@/lib/editionTitle'
 import { BTN_PRIMARY, BTN_GHOST, LBL } from '@/lib/adminFormStyles'
@@ -435,13 +436,7 @@ export default function EditBookEditionForm({ edition, onSuccess, onCancel }: Ed
 
       <div>
         <label className={LBL}>Variant label</label>
-        <input
-          type="text"
-          value={variantLabel}
-          onChange={e => setVariantLabel(e.target.value)}
-          placeholder="e.g. White Edition, Overlay Edition, Numbered — leave blank if this isn't a variant"
-          className="w-full px-3 py-1.5 rounded bg-navy-700 text-navy-200 text-sm placeholder-navy-500 focus:outline-none"
-        />
+        <VariantLabelPicker value={variantLabel} onChange={setVariantLabel} companyId={companyId} />
         <p className="text-xs text-navy-500 mt-1">Shown as a suffix on the title, e.g. &quot;Book Title (White Edition)&quot;.</p>
       </div>
 

@@ -11,14 +11,17 @@ export class SeriesContinuationService {
 
   /**
    * Called when an edition is linked to a SaleAnnouncement. Matches users who already own a
-   * different book in the same series, via an edition from the same company, and enqueues a
-   * per-[userId, saleAnnouncementId] pending row for the cron to send later — merging into an
-   * existing row (within its debounce window) rather than creating a duplicate.
+   * different book in the same series, via an edition from the same company **and the exact
+   * same variantLabel** (both null counts as a match — a plain, no-variant line continuing with
+   * another plain edition; never mixed, a variant edition only continues the same variant, not
+   * every edition of the book), and enqueues a per-[userId, saleAnnouncementId] pending row for
+   * the cron to send later — merging into an existing row (within its debounce window) rather
+   * than creating a duplicate.
    */
   async notifyOnEditionAddedToSale(editionId: string, saleAnnouncementId: string) {
     const edition = await this.prisma.bookEdition.findUnique({
       where: { id: editionId },
-      select: { bookId: true, bookBoxCompanyId: true, book: { select: { seriesId: true } } },
+      select: { bookId: true, bookBoxCompanyId: true, variantLabel: true, book: { select: { seriesId: true } } },
     });
     if (!edition?.bookBoxCompanyId || !edition.book.seriesId) return;
 
@@ -28,7 +31,7 @@ export class SeriesContinuationService {
         ownershipStatus: { notIn: ['SOLD', 'GIFTED_AWAY'] },
         bookId: { not: edition.bookId },
         book: { seriesId: edition.book.seriesId },
-        edition: { bookBoxCompanyId: edition.bookBoxCompanyId },
+        edition: { bookBoxCompanyId: edition.bookBoxCompanyId, variantLabel: edition.variantLabel },
       },
       select: { userId: true },
       distinct: ['userId'],
