@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Check } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
@@ -35,6 +35,16 @@ function CheckRow({
   const never = isNeverChecked(row.checkedAt)
   const { cls, warn } = freshness(row.checkedAt)
 
+  // Auto-grow the note field so long notes wrap onto extra lines and the row
+  // stretches vertically instead of truncating.
+  const noteRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const el = noteRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [note])
+
   const noteChanged = note.trim() !== (row.note ?? '').trim()
   const commitNote = () => {
     if (noteChanged) onUpdate({ slug: row.slug, note: note.trim() || null })
@@ -63,18 +73,20 @@ function CheckRow({
       </div>
 
       {/* Note + action */}
-      <div className="flex flex-col gap-2 md:flex-row md:items-center">
-        <input
-          type="text"
+      <div className="flex flex-col gap-2 md:flex-row md:items-start">
+        <textarea
+          ref={noteRef}
+          rows={1}
           value={note}
           disabled={pending}
           placeholder="Add a note…"
           onChange={(e) => setNote(e.target.value)}
           onBlur={commitNote}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); commitNote() }
+            // Enter commits; Shift+Enter inserts a line break.
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitNote(); noteRef.current?.blur() }
           }}
-          className="w-full rounded-lg border border-navy-700 bg-navy-800 px-3 py-2 text-sm text-navy-100 placeholder-navy-600 focus:border-brand-400 focus:outline-none md:w-64"
+          className="w-full resize-none overflow-hidden rounded-lg border border-navy-700 bg-navy-800 px-3 py-2 text-sm leading-snug text-navy-100 placeholder-navy-600 focus:border-brand-400 focus:outline-none md:w-64"
         />
         <button
           type="button"
