@@ -30,6 +30,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ProfileModule } from './modules/profile/profile.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { SaleInterestsModule } from './modules/sale-interests/sale-interests.module';
+import { FollowsModule } from './modules/follows/follows.module';
 import { SkipPolicyModule } from './modules/skip-policy/skip-policy.module';
 import { CurrencyModule } from './modules/currency/currency.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -38,6 +39,7 @@ import { PurchaseGroupsModule } from './modules/purchase-groups/purchase-groups.
 import { BookBoxCollectionsModule } from './modules/book-box-collections/book-box-collections.module';
 import { SubscriptionSeriesModule } from './modules/subscription-series/subscription-series.module';
 import { BugReportsModule } from './modules/bug-reports/bug-reports.module';
+import { ImagePermissionsModule } from './modules/image-permissions/image-permissions.module';
 import { FeatureRequestsModule } from './modules/feature-requests/feature-requests.module';
 import { DataRequestsModule } from './modules/data-requests/data-requests.module';
 import { SaleAnnouncementRequestsModule } from './modules/sale-announcement-requests/sale-announcement-requests.module';
@@ -51,6 +53,7 @@ import { StatsModule } from './modules/stats/stats.module';
 import { ReadingImportModule } from './modules/reading-import/reading-import.module';
 import { MediaAssetsModule } from './modules/media-assets/media-assets.module';
 import { BookSeriesModule } from './modules/book-series/book-series.module';
+import { SeriesDiscoveryModule } from './modules/series-discovery/series-discovery.module';
 import { HomepageFeaturesModule } from './modules/homepage-features/homepage-features.module';
 import { BlogAdminModule } from './modules/blog-admin/blog-admin.module';
 import { SitemapModule } from './modules/sitemap/sitemap.module';
@@ -147,6 +150,7 @@ import { SitemapModule } from './modules/sitemap/sitemap.module';
     ProfileModule,
     AnnouncementsModule,
     SaleInterestsModule,
+    FollowsModule,
     SkipPolicyModule,
     CurrencyModule,
     AiModule,
@@ -155,6 +159,7 @@ import { SitemapModule } from './modules/sitemap/sitemap.module';
     BookBoxCollectionsModule,
     SubscriptionSeriesModule,
     BugReportsModule,
+    ImagePermissionsModule,
     FeatureRequestsModule,
     DataRequestsModule,
     SaleAnnouncementRequestsModule,
@@ -167,6 +172,7 @@ import { SitemapModule } from './modules/sitemap/sitemap.module';
     StatsModule,
     ReadingImportModule,
     BookSeriesModule,
+    SeriesDiscoveryModule,
     BlogAdminModule,
     SitemapModule,
   ],

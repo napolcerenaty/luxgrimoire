@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MailService } from '../mail/mail.service';
 import { paginatedQuery } from '../../common/prisma.utils';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class BugReportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly mail: MailService,
   ) {}
 
   async create(data: {
@@ -16,6 +18,7 @@ export class BugReportsService {
     description: string;
     pageUrl?: string;
     category?: string;
+    contactEmail?: string;
   }) {
     const report = await this.prisma.bugReport.create({
       data: {
@@ -35,6 +38,15 @@ export class BugReportsService {
         '🐛 Bug report received',
         `Your report "${data.title}" has been submitted. We'll look into it!`,
       );
+    }
+
+    // Contact Us page only — never throws, so a mail outage can't fail the submission
+    if (data.contactEmail) {
+      await this.mail.sendContactMessage({
+        email: data.contactEmail,
+        subject: data.title,
+        message: data.description,
+      });
     }
 
     return report;

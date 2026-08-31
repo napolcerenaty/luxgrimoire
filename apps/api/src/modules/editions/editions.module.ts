@@ -5,9 +5,10 @@ import { UserEditionImagesService } from './user-edition-images.service';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { UploadModule } from '../upload/upload.module';
 import { FeatureCategoriesModule } from '../feature-categories/feature-categories.module';
+import { FollowsModule } from '../follows/follows.module';
 
 @Module({
-  imports: [AnalyticsModule, UploadModule, FeatureCategoriesModule],
+  imports: [AnalyticsModule, UploadModule, FeatureCategoriesModule, FollowsModule],
   controllers: [EditionsController],
   providers: [EditionsService, UserEditionImagesService],
   exports: [UserEditionImagesService, EditionsService],

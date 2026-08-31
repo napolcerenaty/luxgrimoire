@@ -268,7 +268,10 @@ function formToUpdatePayload(form: SubFormData) {
     genres: form.genres,
     currency: form.currency || 'EUR',
     coverImage: form.coverImage === null ? null : (form.coverImage || undefined),
-    price: form.price ? form.price.replace(',', '.') : undefined,
+    // Deliberately omitted: `price` only sets the initial base price on create. Editing an
+    // existing subscription's baseline goes through the Price Changes panel (Prices page)
+    // instead — see the backend's update() for why resubmitting this field is no longer wired
+    // to overwrite the sentinel record.
     language: form.language || undefined,
     intervalMonths: parseInt(form.intervalMonths, 10) || 1,
     contentType: form.contentType || 'MIX',
@@ -491,6 +494,8 @@ interface SubFormProps {
   allSubscriptions: ApiSubscription[]
   allSubs: ApiSubscription[]
   user: { role: string; managedCompanyId?: string | null } | null
+  /** Present only when editing an existing subscription — used to link to its Prices page. */
+  slug?: string
 }
 
 function SubscriptionForm({
@@ -502,6 +507,7 @@ function SubscriptionForm({
   allSubscriptions,
   allSubs,
   user,
+  slug,
 }: SubFormProps) {
   const isManager = user?.role === 'COMPANY_MANAGER'
 
@@ -655,8 +661,26 @@ function SubscriptionForm({
           <div className="grid sm:grid-cols-3 gap-3">
             <div>
               <label className={LABEL_CLASS}>Price</label>
-              <input className={INPUT_CLASS} value={form.price} onChange={setStr('price')} placeholder="59.99" />
-              <p className="text-xs text-navy-500 mt-1">Sets the initial base price. Add price changes below for future changes.</p>
+              {isEditMode ? (
+                <>
+                  <input className={`${INPUT_CLASS} opacity-60 cursor-not-allowed`} value={form.price} disabled readOnly />
+                  <p className="text-xs text-navy-500 mt-1">
+                    Read-only here.{' '}
+                    {slug ? (
+                      <a href={`/admin/subscriptions/${slug}/prices`} className="text-brand-400 hover:underline">
+                        Edit the base price or schedule a change on the Prices page →
+                      </a>
+                    ) : (
+                      'Edit the base price or schedule a change on the Prices page.'
+                    )}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <input className={INPUT_CLASS} value={form.price} onChange={setStr('price')} placeholder="59.99" />
+                  <p className="text-xs text-navy-500 mt-1">Sets the initial base price. Add price changes below for future changes.</p>
+                </>
+              )}
             </div>
             <div>
               <label className={LABEL_CLASS}>Currency</label>
@@ -1319,13 +1343,34 @@ interface PrepayOption {
   label: string | null
   validFrom: string | null
   validUntil: string | null
+  grandfatheredPrice: boolean
+}
+
+function PrepayGrandfatheredToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-start gap-2 py-1 basis-full">
+      <input
+        type="checkbox"
+        id="prepay-grandfathered-toggle"
+        checked={value}
+        onChange={e => onChange(e.target.checked)}
+        className="mt-0.5 accent-brand-400 cursor-pointer"
+      />
+      <label htmlFor="prepay-grandfathered-toggle" className="text-xs text-navy-300 cursor-pointer leading-tight">
+        <span className="font-medium text-brand-400/90">Grandfathered price</span>
+        <span className="text-navy-400"> — subscribers already active before this option started keep whichever price they qualified for; new subscribers pay this price.</span>
+      </label>
+    </div>
+  )
 }
 
 function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subscriptionCurrency: string }) {
   const queryClient = useQueryClient()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [newForm, setNewForm] = useState({ months: '', price: '', currency: subscriptionCurrency, label: '', validFrom: '', validUntil: '' })
+  const [newGrandfathered, setNewGrandfathered] = useState(false)
   const [editForm, setEditForm] = useState({ months: '', price: '', currency: '', label: '', validFrom: '', validUntil: '' })
+  const [editGrandfathered, setEditGrandfathered] = useState(false)
   const [adding, setAdding] = useState(false)
 
   const validDates = (validFrom: string, validUntil: string): boolean => {
@@ -1334,9 +1379,12 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
     return true
   }
 
+  // Admin-only raw list (not the customer-facing /prepay-options, which collapses rows down to
+  // one resolved winner per months+currency group) — the admin panel needs to see and edit
+  // every row, including ones auto-closed by a more recent option for the same group.
   const { data: options = [], isLoading } = useQuery<PrepayOption[]>({
-    queryKey: ['prepay-options', slug],
-    queryFn: () => authFetch<PrepayOption[]>(`/subscriptions/${slug}/prepay-options`),
+    queryKey: ['prepay-options-admin', slug],
+    queryFn: () => authFetch<PrepayOption[]>(`/subscriptions/${slug}/prepay-options/admin`),
   })
 
   const createMutation = useMutation({
@@ -1350,11 +1398,13 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
           label: newForm.label || undefined,
           validFrom: newForm.validFrom || undefined,
           validUntil: newForm.validUntil || undefined,
+          grandfatheredPrice: newGrandfathered,
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prepay-options', slug] })
+      queryClient.invalidateQueries({ queryKey: ['prepay-options-admin', slug] })
       setNewForm({ months: '', price: '', currency: subscriptionCurrency, label: '', validFrom: '', validUntil: '' })
+      setNewGrandfathered(false)
       setAdding(false)
     },
     onError: (err: Error) => alert(`Error: ${err.message}`),
@@ -1371,10 +1421,11 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
           label: editForm.label || null,
           validFrom: editForm.validFrom || null,
           validUntil: editForm.validUntil || null,
+          grandfatheredPrice: editGrandfathered,
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prepay-options', slug] })
+      queryClient.invalidateQueries({ queryKey: ['prepay-options-admin', slug] })
       setEditingId(null)
     },
     onError: (err: Error) => alert(`Error: ${err.message}`),
@@ -1383,7 +1434,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       authFetch(`/subscriptions/${slug}/prepay-options/${id}`, { method: 'DELETE' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['prepay-options', slug] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['prepay-options-admin', slug] }),
     onError: (err: Error) => alert(`Error: ${err.message}`),
   })
 
@@ -1397,6 +1448,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
       validFrom: o.validFrom ? o.validFrom.slice(0, 10) : '',
       validUntil: o.validUntil ? o.validUntil.slice(0, 10) : '',
     })
+    setEditGrandfathered(o.grandfatheredPrice)
   }
 
   return (
@@ -1458,6 +1510,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
               <input type="date" className={`${INPUT_CLASS} w-36`} value={editForm.validUntil}
                 onChange={(e) => setEditForm((f) => ({ ...f, validUntil: e.target.value }))} />
             </div>
+            <PrepayGrandfatheredToggle value={editGrandfathered} onChange={setEditGrandfathered} />
             <div className="flex gap-2 mt-4">
               <button type="button" disabled={updateMutation.isPending}
                 onClick={() => { if (validDates(editForm.validFrom, editForm.validUntil)) updateMutation.mutate(o.id) }}
@@ -1479,6 +1532,9 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
                   {o.validFrom && o.validUntil ? ' · ' : ''}
                   {o.validUntil ? `until ${o.validUntil.slice(0, 10)}` : ''}
                 </span>
+              )}
+              {o.grandfatheredPrice && (
+                <span className="text-xs text-brand-400/90 ml-2">Grandfathered</span>
               )}
             </span>
             <div className="flex gap-2">
@@ -1529,6 +1585,7 @@ function PrepayOptionsPanel({ slug, subscriptionCurrency }: { slug: string; subs
             <input type="date" className={`${INPUT_CLASS} w-36`} value={newForm.validUntil}
               onChange={(e) => setNewForm((f) => ({ ...f, validUntil: e.target.value }))} />
           </div>
+          <PrepayGrandfatheredToggle value={newGrandfathered} onChange={setNewGrandfathered} />
           <div className="flex gap-2 mt-4">
             <button type="button" disabled={createMutation.isPending || !newForm.months || !newForm.price}
               onClick={() => { if (validDates(newForm.validFrom, newForm.validUntil)) createMutation.mutate() }}
@@ -1818,6 +1875,7 @@ export default function AdminSubscriptionsPage() {
           <SubscriptionForm
             key={editSub.id}
             {...commonFormProps}
+            slug={editSub.slug}
             initial={subToForm(editSub)}
             submitLabel="Save Changes"
             submitting={editMutation.isPending}

@@ -5,7 +5,7 @@ import { X, Check } from 'lucide-react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { authFetch } from '@/lib/authFetch'
 import { cloudinaryUrl } from '@/lib/cloudinary'
-import { fetchMediaAssets, type MediaAssetItem, type MediaAssetsPage } from '@/lib/mediaAssets'
+import { assetName, fetchMediaAssets, type MediaAssetItem, type MediaAssetsPage } from '@/lib/mediaAssets'
 
 interface Props {
   open: boolean
@@ -20,10 +20,6 @@ const INPUT =
   'w-full bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-400'
 const BUTTON =
   'px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-700 text-navy-300 hover:bg-navy-600 disabled:opacity-50 disabled:hover:bg-navy-700 transition-colors'
-
-function assetName(asset: MediaAssetItem): string {
-  return asset.publicId.split('/').pop() || asset.publicId
-}
 
 export default function MediaLibraryPicker({ open, folder: _folder, multi = false, onSelect, onClose }: Props) {
   const [search, setSearch] = useState('')
@@ -174,7 +170,7 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
                       <div className="relative aspect-[3/4] bg-navy-800">
                         {thumb ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={thumb} alt={assetName(asset)} className="h-full w-full object-cover" />
+                          <img src={thumb} alt={assetName(asset.publicId)} className="h-full w-full object-cover" />
                         ) : (
                           <div className="flex h-full items-center justify-center text-xs text-navy-600">No image</div>
                         )}
@@ -187,7 +183,7 @@ export default function MediaLibraryPicker({ open, folder: _folder, multi = fals
                         )}
                       </div>
                       <div className="border-t border-navy-700 px-2 py-2">
-                        <div className="truncate text-xs font-medium text-navy-200">{assetName(asset)}</div>
+                        <div className="truncate text-xs font-medium text-navy-200">{assetName(asset.publicId)}</div>
                         <div className="truncate text-[11px] text-navy-500">{asset.folder ?? 'No folder'}</div>
                       </div>
                     </div>

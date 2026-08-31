@@ -8,6 +8,7 @@ import { BookEditionsSection, BookEditionsSkeleton } from '@/components/books/Bo
 import { EditionCard } from '@/components/books/EditionCard'
 import { formatVolumeNumbers } from '@/lib/volumeNumbers'
 import type { ApiBook } from '@luxgrimoire/shared-types'
+import { FollowButton } from '@/components/follows/FollowButton'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -91,9 +92,12 @@ export default async function BookPage({ params }: Props) {
             ))}
           </p>
         )}
-        <h1 className="text-4xl font-serif font-bold text-navy-100 mb-3 leading-tight">
-          {book.title}
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+          <h1 className="text-4xl font-serif font-bold text-navy-100 leading-tight">
+            {book.title}
+          </h1>
+          <FollowButton targetType="book" targetId={book.id} />
+        </div>
         {book.authors.length > 0 && (
           <p className="text-navy-300 mb-6">
             by{' '}

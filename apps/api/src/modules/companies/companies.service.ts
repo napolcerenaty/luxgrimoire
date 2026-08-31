@@ -108,8 +108,11 @@ export class CompaniesService {
         x: dto.x,
         bluesky: dto.bluesky,
         iossImplemented: dto.iossImplemented ?? false,
-        hasOfficialImagePermission: dto.hasOfficialImagePermission ?? false,
       },
+    });
+    // Seed the "Data Freshness" row at epoch (= never checked) — see admin Data Freshness view.
+    await this.prisma.companyDataCheck.create({
+      data: { companyId: company.id, checkedAt: new Date(0) },
     });
     await this.indexCompany(company);
     return this.mapCompanyAssets({

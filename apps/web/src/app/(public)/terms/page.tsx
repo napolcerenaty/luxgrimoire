@@ -158,6 +158,24 @@ export default async function TermsPage() {
             Attempting to circumvent this restriction (e.g. by creating multiple accounts) is a violation of Section 7
             (Prohibited Conduct) and may result in account termination.
           </p>
+
+          <h3 className="text-base font-semibold text-navy-200 mt-6 mb-2">6b. Official Brand &amp; Promotional Imagery</h3>
+          <p>
+            Where a company or subscription page displays official promotional materials, LuxGrimoire has
+            received permission from the relevant company or rights-holder to use them, as indicated by a
+            &ldquo;✓ Images used with brand permission&rdquo; badge. This badge does not
+            mean that the company sponsors, endorses, or is otherwise affiliated with LuxGrimoire — see
+            Section 2. Full details on how and why materials are used this way, including image credits and
+            how to request removal, are available on our{' '}
+            <Link href="/companies-permissions" className="text-brand-500 hover:text-brand-400 underline underline-offset-2">
+              Companies &amp; Permissions
+            </Link>{' '}
+            page.
+          </p>
+          <p className="mt-3">
+            Permission to use a company&apos;s official materials may be revoked by that company at any time. When
+            this happens, the affected images are removed from the platform without prior notice.
+          </p>
         </section>
 
         <section>

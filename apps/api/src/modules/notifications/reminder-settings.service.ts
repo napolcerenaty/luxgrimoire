@@ -23,6 +23,9 @@ export interface ReminderSettingsDto {
 
   appNotifPushEnabled?: boolean;
 
+  newEditionFollowInAppEnabled?: boolean;
+  newEditionFollowPushEnabled?: boolean;
+
   seriesContinuationInAppEnabled?: boolean;
   seriesContinuationPushEnabled?: boolean;
 }
@@ -53,6 +56,8 @@ export class ReminderSettingsService {
         bookChoicePushEnabled: false,
         bookChoiceDaysBefore: 3,
         appNotifPushEnabled: false,
+        newEditionFollowInAppEnabled: true,
+        newEditionFollowPushEnabled: true,
         seriesContinuationInAppEnabled: true,
         seriesContinuationPushEnabled: true,
       };
@@ -82,6 +87,8 @@ export class ReminderSettingsService {
         bookChoicePushEnabled: dto.bookChoicePushEnabled ?? false,
         bookChoiceDaysBefore: dto.bookChoiceDaysBefore ?? 3,
         appNotifPushEnabled: dto.appNotifPushEnabled ?? false,
+        newEditionFollowInAppEnabled: dto.newEditionFollowInAppEnabled ?? true,
+        newEditionFollowPushEnabled: dto.newEditionFollowPushEnabled ?? true,
         seriesContinuationInAppEnabled: dto.seriesContinuationInAppEnabled ?? true,
         seriesContinuationPushEnabled: dto.seriesContinuationPushEnabled ?? true,
       },
@@ -103,6 +110,8 @@ export class ReminderSettingsService {
         ...(dto.bookChoicePushEnabled !== undefined && { bookChoicePushEnabled: dto.bookChoicePushEnabled }),
         ...(dto.bookChoiceDaysBefore !== undefined && { bookChoiceDaysBefore: dto.bookChoiceDaysBefore }),
         ...(dto.appNotifPushEnabled !== undefined && { appNotifPushEnabled: dto.appNotifPushEnabled }),
+        ...(dto.newEditionFollowInAppEnabled !== undefined && { newEditionFollowInAppEnabled: dto.newEditionFollowInAppEnabled }),
+        ...(dto.newEditionFollowPushEnabled !== undefined && { newEditionFollowPushEnabled: dto.newEditionFollowPushEnabled }),
         ...(dto.seriesContinuationInAppEnabled !== undefined && { seriesContinuationInAppEnabled: dto.seriesContinuationInAppEnabled }),
         ...(dto.seriesContinuationPushEnabled !== undefined && { seriesContinuationPushEnabled: dto.seriesContinuationPushEnabled }),
       },

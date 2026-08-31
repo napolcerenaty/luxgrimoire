@@ -25,16 +25,29 @@ function compareVolumeNumbers(a: number[], b: number[]): number {
  * (e.g. straight ' vs curly ’, hyphen - vs en dash – vs em dash —) plus repeated whitespace, so
  * two names differing only by that are recognised as the same series instead of silently
  * creating a duplicate. A real instance of this (apostrophes) split one series' books across
- * two rows — see migration 20260721100000_merge_duplicate_dragons_gift_trilogy_series. */
+ * two rows — see migration 20260721100000_merge_duplicate_dragons_gift_trilogy_series.
+ *
+ * Also strips every standalone "the"/"a"/"an", not just a leading one — different sources are
+ * inconsistent about including/wording articles anywhere in the name, not only at the start
+ * (e.g. "Arc of a Scythe" vs "Arc of the Scythe" — a real instance that split a series' books
+ * across two rows, caught 2026-08-25). "the"/"a"/"an" are close enough to interchangeable
+ * filler words in English titles that no two genuinely different series are expected to
+ * collide only over which one was used.
+ *
+ * "&" is folded to "and" (not stripped like the articles above — unlike "the", it's meaningful,
+ * e.g. "Pride and Prejudice" needs it to not become "Pride Prejudice") before the ampersand
+ * would otherwise just vanish as punctuation, so "X & Y" and "X and Y" compare equal. */
 function normalizeSeriesName(name: string): string {
   return name
     .normalize('NFKC')
     .replace(/[‘’‛ʼ`´]/g, "'")
     .replace(/[“”]/g, '"')
     .replace(/[‐‑‒–—―−]/g, '-')
+    .replace(/&/g, ' and ')
+    .toLowerCase()
+    .replace(/\b(the|an?)\b/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+    .trim();
 }
 
 @Injectable()
@@ -47,9 +60,13 @@ export class BookSeriesService {
   async findAll(query: BookSeriesQueryDto) {
     const { skip, take: pageSize, page } = parsePagination(query);
 
-    const where = query.search
-      ? { name: { contains: query.search, mode: 'insensitive' as const } }
-      : {};
+    const where = {
+      ...(query.search && { name: { contains: query.search, mode: 'insensitive' as const } }),
+      // `entries`, not the old `books` relation — a series only attached as a secondary entry
+      // isn't truly empty (and isn't deletable — see `delete` below), so it shouldn't show up
+      // as a candidate for removal either.
+      ...(query.emptyOnly && { entries: { none: {} } }),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.bookSeries.findMany({
@@ -61,6 +78,7 @@ export class BookSeriesService {
           id: true,
           slug: true,
           name: true,
+          isCompleted: true,
           // `books` (the old single-series relation) counts only where this is the PRIMARY
           // series; `entries` (book_series_entries) counts every book attached at all, primary
           // or secondary — the list's "Books" column and the delete guard both need the total,
@@ -89,7 +107,7 @@ export class BookSeriesService {
         const authorNames = Array.from(
           new Set(s.entries.flatMap(e => e.book.authors.map(a => a.author.name)))
         );
-        return { id: s.id, slug: s.slug, name: s.name, bookCount: s._count.entries, primaryBookCount: s._count.books, authors: authorNames };
+        return { id: s.id, slug: s.slug, name: s.name, isCompleted: s.isCompleted, bookCount: s._count.entries, primaryBookCount: s._count.books, authors: authorNames };
       }),
       ...buildPageMeta(total, page, pageSize),
     };
@@ -332,7 +350,7 @@ export class BookSeriesService {
     const series = await this.prisma.bookSeries.findUnique({ where: { slug } });
     if (!series) throw new NotFoundException(`Series '${slug}' not found`);
 
-    const data: { name?: string; slug?: string } = {};
+    const data: { name?: string; slug?: string; isCompleted?: boolean; completedAt?: Date | null } = {};
     if (dto.name) {
       const nearMatch = await this.findByNormalizedName(dto.name, slug);
       if (nearMatch) {
@@ -345,11 +363,15 @@ export class BookSeriesService {
         data.slug = await this.ensureUniqueSlug(newSlug, slug);
       }
     }
+    if (dto.isCompleted !== undefined) {
+      data.isCompleted = dto.isCompleted;
+      data.completedAt = dto.isCompleted ? new Date() : null;
+    }
 
     return this.prisma.bookSeries.update({
       where: { slug },
       data,
-      select: { id: true, slug: true, name: true },
+      select: { id: true, slug: true, name: true, isCompleted: true },
     });
   }
 

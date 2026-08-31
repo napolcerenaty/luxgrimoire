@@ -22,6 +22,7 @@ import {
   ScrollText,
   BarChart3,
   Image,
+  Images,
   Menu,
   X,
   Tags,
@@ -29,6 +30,9 @@ import {
   Star,
   AlertTriangle,
   Newspaper,
+  BadgeCheck,
+  Sparkles,
+  CalendarClock,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -68,6 +72,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
       { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
       { href: '/admin/book-box-collections', label: 'Collections', icon: LibraryBig },
       { href: '/admin/subscription-month-gaps', label: 'Month Gaps', icon: AlertTriangle },
+      { href: '/admin/data-freshness', label: 'Data Freshness', icon: CalendarClock },
     ],
   },
   {
@@ -76,6 +81,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
       { href: '/admin/books', label: 'Books', icon: BookOpen },
       { href: '/admin/editions', label: 'Editions', icon: Layers },
       { href: '/admin/series', label: 'Series', icon: BookMarked },
+      { href: '/admin/series-suggestions', label: 'Series Suggestions', icon: Sparkles },
       { href: '/admin/authors', label: 'Authors', icon: Users },
       { href: '/admin/artists', label: 'Artists', icon: Brush },
       { href: '/admin/sale-announcements', label: 'Sale Announcements', icon: Megaphone },
@@ -111,6 +117,8 @@ const ADMIN_GROUPS: NavGroup[] = [
       { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
       { href: '/admin/audit-logs', label: 'Audit Log', icon: ScrollText },
       { href: '/admin/company-image-purge', label: 'Image Purge', icon: Image },
+      { href: '/admin/image-permissions', label: 'Image Permissions', icon: BadgeCheck },
+      { href: '/admin/media-library', label: 'Media Library', icon: Images },
     ],
   },
 ]
@@ -139,7 +147,7 @@ function NavContent({
             <div className="flex flex-col gap-0.5">
               {group.items.map(({ href, label, icon: Icon }) => {
                 const isActive =
-                  href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
+                  href === '/admin' ? pathname === '/admin' : pathname === href || pathname.startsWith(href + '/')
                 return (
                   <Link
                     key={href}

@@ -52,10 +52,6 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsBoolean()
   iossImplemented?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  hasOfficialImagePermission?: boolean;
 }
 
 export class UpdateCompanyDto {
@@ -121,10 +117,6 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsBoolean()
   iossImplemented?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  hasOfficialImagePermission?: boolean;
 }
 
 export class CompanyQueryDto {

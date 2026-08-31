@@ -48,6 +48,10 @@ model User {
   pushSubscriptions        PushSubscription[]
   reminderSettings         UserReminderSettings?
   scheduledReminders       ScheduledReminder[]
+  artistFollows            UserArtistFollow[]
+  authorFollows            UserAuthorFollow[]
+  bookFollows              UserBookFollow[]
+  pendingEditionNotifications PendingEditionNotification[]
   pendingSeriesContinuationNotifications PendingSeriesContinuationNotification[]
   purchaseDiscounts        UserPurchaseDiscount[]
   purchaseFees             UserPurchaseFee[]
@@ -135,8 +139,22 @@ model BookSeries {
   updatedAt DateTime @updatedAt
   books     Book[]
   entries   BookSeriesEntry[]
+  /// Manually set by an admin — no free book API exposes a reliable "series completed" flag.
+  /// Drives series-discovery: a completed series is excluded from the daily check batch entirely.
+  isCompleted         Boolean   @default(false)
+  completedAt         DateTime?
+  /// Cached external-source IDs so series-discovery doesn't have to re-search by name/author on
+  /// every run — set once on first successful match, then queried directly by ID afterward.
+  googleBooksSeriesId String?
+  openLibraryId       String?
+  wikidataId          String?
+  /// When this series was last checked by series-discovery — drives the daily batch's
+  /// oldest-checked-first ordering (see SeriesDiscoveryService).
+  lastCheckedAt       DateTime?
+  volumeSuggestions   SeriesVolumeSuggestion[]
 
   @@index([name])
+  @@index([isCompleted, lastCheckedAt])
   @@map("book_series")
 }
 
@@ -163,6 +181,7 @@ model Book {
   seriesEntries     BookSeriesEntry[]
   omnibusComponents BookComponent[]         @relation("OmnibusContents")
   componentOf       BookComponent[]         @relation("ComponentOf")
+  followers         UserBookFollow[]
 
   @@index([language])
   @@index([seriesName])
@@ -223,6 +242,7 @@ model Author {
   website     String?
   books       BookAuthor[]
   photoAsset  MediaAsset?          @relation("AuthorPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
+  followers   UserAuthorFollow[]
 
   @@index([nationality])
   @@index([name])
@@ -262,6 +282,7 @@ model Artist {
   contributions ArtistContribution[]
   cardArtistMonths SubscriptionMonth[]
   photoAsset    MediaAsset?          @relation("ArtistPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
+  followers     UserArtistFollow[]
 
   @@index([specialty])
   @@index([name])
@@ -330,6 +351,7 @@ model BookEdition {
   statsSnapshot            EditionStatsSnapshot?
   featureTags              EditionFeatureTag[]
   saleDates                EditionSaleDate[]
+  pendingFollowNotifications PendingEditionNotification[]
 
   @@index([bookId])
   @@index([bookBoxCompanyId])
@@ -372,8 +394,57 @@ model BookBoxCompany {
   subscriptions     Subscription[]
   managers          User[]                @relation("CompanyManagers")
   logoAsset         MediaAsset?           @relation("CompanyLogo", fields: [logoAssetId], references: [id], onDelete: SetNull)
+  imagePermission   CompanyImagePermission?
+  permissionCommunications CompanyPermissionCommunication[]
+  dataCheck         CompanyDataCheck?
   @@index([country])
   @@map("book_box_companies")
+}
+
+// One row per company: when an admin/moderator last verified the company's data is
+// current. Seeded at epoch (= "never checked") for every company by migration and on
+// create; overwritten in place by the admin "Data Freshness" view (no history kept).
+model CompanyDataCheck {
+  id            String         @id @default(uuid())
+  companyId     String         @unique
+  checkedAt     DateTime       @default("1970-01-01T00:00:00.000Z")
+  checkedByName String?
+  note          String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  company       BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("company_data_checks")
+}
+
+model CompanyImagePermission {
+  id            String                @id @default(uuid())
+  companyId     String                @unique
+  status        ImagePermissionStatus @default(PENDING)
+  grantedByName String? // contact person at the publisher/company who granted permission
+  grantedAt     DateTime?
+  conditions    String[] // short bullet-point terms of the grant
+  emailContent  String? // full text of the permission email, kept for reference/proof
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  company       BookBoxCompany        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("company_image_permissions")
+}
+
+model CompanyPermissionCommunication {
+  id        String         @id @default(uuid())
+  companyId String
+  sentAt    DateTime
+  channel   ContactChannel
+  subject   String
+  responded Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  company   BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("company_permission_communications")
 }
 
 model BookBoxCollection {
@@ -554,17 +625,27 @@ model UserSubscriptionSkipState {
   @@map("user_subscription_skip_states")
 }
 
+/// Uses validFrom/validUntil (an open date range) rather than SubscriptionPriceChange's single
+/// effectiveYear/effectiveMonth: the base monthly price is always in effect (exactly one row
+/// applies to any given month), but a prepay option is an optional upfront-payment offer that can
+/// be withdrawn while the underlying subscription keeps running on ordinary monthly billing — so
+/// its validity needs both a start and an end, not just a single "as of" month.
 model SubscriptionPrepayOption {
-  id               String                  @id @default(uuid())
-  subscriptionId   String
-  months           Int
-  price            Decimal                 @db.Decimal(10, 2)
-  currency         String                  @db.VarChar(3) @default("USD")
-  label            String?
-  validFrom        DateTime?
-  validUntil       DateTime?
-  subscription     Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  scheduledEntries UserSubscriptionEntry[] @relation("ScheduledPrepay")
+  id                 String                  @id @default(uuid())
+  subscriptionId     String
+  months             Int
+  price              Decimal                 @db.Decimal(10, 2)
+  currency           String                  @db.VarChar(3) @default("USD")
+  label              String?
+  validFrom          DateTime?
+  validUntil         DateTime?
+  /// Mirrors SubscriptionPriceChange.grandfatheredPrice: when true, subscribers whose active
+  /// entry's startDate predates this option's validFrom keep being resolved to whichever older
+  /// option they qualify for (see resolveEffectivePrepayOption) instead of rolling onto this price
+  /// at their next renewal. New joiners always get the current option regardless of this flag.
+  grandfatheredPrice Boolean                 @default(false)
+  subscription       Subscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  scheduledEntries   UserSubscriptionEntry[] @relation("ScheduledPrepay")
 
   @@map("subscription_prepay_options")
   @@index([subscriptionId])
@@ -1230,6 +1311,11 @@ model UserReminderSettings {
 
   appNotifPushEnabled  Boolean  @default(false)
 
+  /// Channel choice only — no separate master enable, since following an artist/author/book
+  /// is itself the opt-in. Both default true so a new follow notifies immediately.
+  newEditionFollowInAppEnabled Boolean @default(true)
+  newEditionFollowPushEnabled  Boolean @default(true)
+
   /// No master toggle, unlike renewal/sale/bookChoice above — ownership of a prior volume is
   /// itself the opt-in, so these two default to true (opt-out only).
   seriesContinuationInAppEnabled Boolean @default(true)
@@ -1238,6 +1324,64 @@ model UserReminderSettings {
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_reminder_settings")
+}
+
+model UserArtistFollow {
+  userId    String
+  artistId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@id([userId, artistId])
+  @@index([artistId])
+  @@map("user_artist_follows")
+}
+
+model UserAuthorFollow {
+  userId    String
+  authorId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  author    Author   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@id([userId, authorId])
+  @@index([authorId])
+  @@map("user_author_follows")
+}
+
+model UserBookFollow {
+  userId    String
+  bookId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@id([userId, bookId])
+  @@index([bookId])
+  @@map("user_book_follows")
+}
+
+/// Batches "new edition matched a follow" events per (user, edition) with a 5-minute debounce
+/// so a user following e.g. both the book and one of its artists gets ONE combined notification
+/// instead of one per matched follow, even though edition creation + artist attachment happen as
+/// separate API calls from the admin form. The cron in edition-follow-notifications.cron.ts
+/// consumes and deletes rows once scheduledFor is due — see PendingEditionNotificationsService.
+model PendingEditionNotification {
+  id           String      @id @default(uuid())
+  userId       String
+  editionId    String
+  /// Array of { type: 'artist'|'author'|'book', id: string, name: string }, merged/deduped as
+  /// more matching follows are found for the same edition within the debounce window.
+  reasons      Json
+  scheduledFor DateTime
+  createdAt    DateTime    @default(now())
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  edition      BookEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, editionId])
+  @@index([scheduledFor])
+  @@map("pending_edition_notifications")
 }
 
 model ScheduledReminder {
@@ -1695,10 +1839,65 @@ model SaleAnnouncementRequest {
   @@map("sale_announcement_requests")
 }
 
+/// A candidate "next volume" for a series we already track, surfaced by the series-discovery
+/// cron from a free book API. Never auto-creates a Book — an admin reviews and either uses it
+/// to prefill BookForm (status -> approved) or dismisses it (status -> dismissed).
+model SeriesVolumeSuggestion {
+  id            String     @id @default(uuid())
+  seriesId      String
+  title         String
+  authorNames   String[]   @default([])
+  volumeNumber  Float?
+  genres        String[]   @default([])
+  /// 'google_books' | 'open_library' | 'wikidata'
+  source        String     @db.VarChar(20)
+  /// The source API's own id for this volume — combined with `source` and `seriesId`, this is
+  /// what makes re-running the check idempotent (upsert instead of duplicate rows every run).
+  sourceId      String
+  sourceUrl     String?
+  description   String?
+  publishedDate String?
+  status        String     @default("pending") @db.VarChar(20)
+  adminNote     String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  series        BookSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([seriesId, source, sourceId])
+  @@index([status])
+  @@index([seriesId])
+  @@map("series_volume_suggestions")
+}
+
+/// Admin-managed list of words/phrases that mark a series-discovery candidate as a bundle/omnibus
+/// listing (e.g. "Boxed Set", "Trilogy") rather than a real new volume — see isBundleListing in
+/// SeriesDiscoveryService. Seeded with the original hardcoded list; editable from admin without a
+/// deploy, since which bundle words a given source uses in practice is discovered empirically.
+model SeriesDiscoveryExcludedKeyword {
+  id        String   @id @default(uuid())
+  keyword   String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("series_discovery_excluded_keywords")
+}
+
 enum UserImageStatus {
   PENDING
   APPROVED
   REMOVED
+}
+
+enum ImagePermissionStatus {
+  PENDING
+  GRANTED
+  REVOKED
+  DENIED
+}
+
+enum ContactChannel {
+  EMAIL
+  CONTACT_FORM
+  OTHER
 }
 
 model UserEditionImage {

@@ -504,6 +504,27 @@ describe('SkipPolicyEngine — comprehensive', () => {
       expect(status.canSkip).toBe(true);
     });
 
+    // Real bug found in production: loadContext's `userEntries` include had no `active` filter
+    // and no `orderBy`, so `take: 1` picked whichever row the DB happened to return first for a
+    // rejoined subscriber (a user with both an old, inactive entry and a current, active one for
+    // the same subscription) — landing on the wrong entry. That entry's skipRecords then feed
+    // both getStatus's returned skippedMonths and recordSkip's target for creating new skips, so
+    // a skip taken there attaches to the WRONG (inactive) entry: the counter still looks right
+    // (UserSubscriptionSkipState is keyed by userId+subscriptionId, not by entry), but the skip
+    // never shows up in "manage skips" or the skipped-months list, both of which read the active
+    // entry's own skipRecords. This only asserts the query SHAPE (active-only, most-recent-first)
+    // since the mock returns a canned object regardless of args — it can't exercise real Prisma
+    // filtering, which is exactly how this slipped through originally.
+    it('resolves userEntries as active-only, most-recent-first (so a rejoined subscriber never resolves to an old inactive entry)', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-05-18T10:00:00Z'));
+      const prisma = makePrismaForGetStatus({ policyType: 'CALENDAR_YEAR', maxSkips: 3, state: null });
+      await new SkipPolicyEngine(prisma).getStatus(uid, slug);
+
+      const call = (prisma.subscription.findUnique as jest.Mock).mock.calls[0][0];
+      expect(call.include.userEntries.where).toEqual({ userId: uid, active: true });
+      expect(call.include.userEntries.orderBy).toEqual({ startDate: 'desc' });
+    });
+
     it('1 of 3 used in current year → canSkip=true, no warnings', async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-05-18T10:00:00Z'));
       const prisma = makePrismaForGetStatus({
@@ -1405,6 +1426,134 @@ describe('SkipPolicyEngine — comprehensive', () => {
         makeRecord({ year: 2025, month: 2, windowKey: '2025-01-01', skippedAt: new Date('2025-02-01') }),
       ]);
       expect(create.windowKey).toBe('2025-01-01');
+    });
+
+    // Real bug found in production: recomputeState trusts whatever windowKey is stamped on the
+    // record with the latest MONTH, rather than computing it fresh. A bulk-created record with a
+    // null/wrong windowKey can therefore become the trusted "current window" and silently
+    // undercount real usage — see the 'recomputeEntryWindowKeys' block below for the fix.
+    it('DOCUMENTS THE BUG: a single null-windowKey record (latest month) makes skipsInWindow ignore 5 real skips', async () => {
+      const update = await invoke([
+        makeRecord({ year: 2026, month: 7, windowKey: '2026' }),
+        makeRecord({ year: 2026, month: 2, windowKey: null as unknown as string }),
+        makeRecord({ year: 2026, month: 3, windowKey: null as unknown as string }),
+        makeRecord({ year: 2026, month: 4, windowKey: null as unknown as string }),
+        makeRecord({ year: 2026, month: 6, windowKey: null as unknown as string }),
+        makeRecord({ year: 2026, month: 8, windowKey: null as unknown as string }),
+      ], { type: 'CALENDAR_YEAR', windowMonths: null });
+      // Latest month (8) has windowKey=null, so recomputeState trusts null as "current" —
+      // counting only the 5 null-windowKey records and ignoring the real '2026' one entirely.
+      expect(update.windowKey).toBeNull();
+      expect(update.skipsInWindow).toBe(5);
+      expect(update.totalSkips).toBe(6);
+    });
+  });
+
+  // =========================================================================
+  // recomputeEntryWindowKeys — self-heals bad windowKey data (the actual fix)
+  // =========================================================================
+
+  describe('recomputeEntryWindowKeys', () => {
+    /** Stateful mock: userSkipRecord.update mutates the same records the next findMany call
+     *  returns, so the auto-triggered recomputeState inside recomputeEntryWindowsForPolicy sees
+     *  the corrected data — mirrors what actually happens against a real database. */
+    function makePrismaForWindowKeyRecompute(
+      records: ReturnType<typeof makeRecord>[],
+      policy: { type: string; windowMonths: number | null; billingType?: string },
+      subOverrides: Record<string, unknown> = {},
+    ): PrismaService {
+      const store = records.map((r) => ({ ...r }));
+      const upsertMock = jest.fn().mockImplementation(({ create, update }: any) =>
+        Promise.resolve({ ...create, ...update }),
+      );
+      const updateMock = jest.fn().mockImplementation(({ where, data }: any) => {
+        const rec = store.find((r) => r.id === where.id);
+        if (rec) Object.assign(rec, data);
+        return Promise.resolve(rec);
+      });
+      return {
+        subscription: {
+          findUnique: jest.fn().mockResolvedValue({
+            intervalMonths: 1,
+            startingMonth: 1,
+            isBundleSubscription: false,
+            skipPolicies: [{ ...policy, billingType: policy.billingType ?? 'ALL' }],
+            ...subOverrides,
+          }),
+        },
+        userSubscriptionEntry: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 'entry-1', userId: 'user-1', subscriptionId: 'sub-1',
+            startDate: '2024-01-01', firstBoxYear: null, firstBoxMonth: null, prepaidMonths: 1,
+          }),
+        },
+        userSkipRecord: {
+          findMany: jest.fn().mockImplementation(() => Promise.resolve(store.map((r) => ({ ...r })))),
+          update: updateMock,
+        },
+        userSubscriptionSkipState: { upsert: upsertMock },
+      } as unknown as PrismaService;
+    }
+
+    it('corrects null-windowKey records to the real CALENDAR_YEAR key and fixes skipsInWindow', async () => {
+      const records = [
+        makeRecord({ year: 2026, month: 7, windowKey: '2026' }),
+        makeRecord({ year: 2026, month: 9, windowKey: '2026' }),
+        makeRecord({ year: 2026, month: 2, windowKey: null as unknown as string }),
+        makeRecord({ year: 2026, month: 3, windowKey: null as unknown as string }),
+        makeRecord({ year: 2026, month: 4, windowKey: null as unknown as string }),
+        makeRecord({ year: 2026, month: 6, windowKey: null as unknown as string }),
+        makeRecord({ year: 2026, month: 8, windowKey: null as unknown as string }),
+      ];
+      const policy = { type: 'CALENDAR_YEAR', windowMonths: null, maxSkips: 6 };
+      const prisma = makePrismaForWindowKeyRecompute(records, policy);
+      const eng = new SkipPolicyEngine(prisma);
+
+      await eng.recomputeEntryWindowKeys('user-1', 'sub-1');
+
+      // Every previously-null record got corrected to '2026'.
+      const updateMock = prisma.userSkipRecord.update as jest.Mock;
+      const correctedIds = updateMock.mock.calls.map((c) => c[0].where.id);
+      expect(correctedIds.sort()).toEqual(['rec-2026-2', 'rec-2026-3', 'rec-2026-4', 'rec-2026-6', 'rec-2026-8'].sort());
+      for (const call of updateMock.mock.calls) {
+        expect(call[0].data.windowKey).toBe('2026');
+      }
+
+      // recomputeState, auto-triggered because records changed, now sees all 7 in the same
+      // window — matches the real total instead of the undercounted 1 seen in production.
+      const upsertCall = (prisma.userSubscriptionSkipState.upsert as jest.Mock).mock.calls.at(-1)![0];
+      expect(upsertCall.update.windowKey).toBe('2026');
+      expect(upsertCall.update.skipsInWindow).toBe(7);
+      expect(upsertCall.update.totalSkips).toBe(7);
+    });
+
+    it('no-op when all records already have the correct windowKey', async () => {
+      const records = [
+        makeRecord({ year: 2026, month: 7, windowKey: '2026' }),
+        makeRecord({ year: 2026, month: 9, windowKey: '2026' }),
+      ];
+      const policy = { type: 'CALENDAR_YEAR', windowMonths: null, maxSkips: 6 };
+      const prisma = makePrismaForWindowKeyRecompute(records, policy);
+      const eng = new SkipPolicyEngine(prisma);
+
+      await eng.recomputeEntryWindowKeys('user-1', 'sub-1');
+
+      expect(prisma.userSkipRecord.update).not.toHaveBeenCalled();
+      // Nothing changed, so recomputeState is never triggered from here.
+      expect(prisma.userSubscriptionSkipState.upsert).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the user has no active entry (e.g. fully cancelled)', async () => {
+      const prisma = makePrismaForWindowKeyRecompute(
+        [makeRecord({ year: 2026, month: 7, windowKey: null as unknown as string })],
+        { type: 'CALENDAR_YEAR', windowMonths: null },
+      );
+      (prisma.userSubscriptionEntry.findFirst as jest.Mock).mockResolvedValue(null);
+      const eng = new SkipPolicyEngine(prisma);
+
+      await eng.recomputeEntryWindowKeys('user-1', 'sub-1');
+
+      expect(prisma.userSkipRecord.update).not.toHaveBeenCalled();
     });
   });
 
