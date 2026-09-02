@@ -32,6 +32,7 @@ import {
   Newspaper,
   BadgeCheck,
   Sparkles,
+  CalendarClock,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -71,6 +72,7 @@ const MODERATOR_GROUPS: NavGroup[] = [
       { href: '/admin/subscriptions', label: 'Subscriptions', icon: Package },
       { href: '/admin/book-box-collections', label: 'Collections', icon: LibraryBig },
       { href: '/admin/subscription-month-gaps', label: 'Month Gaps', icon: AlertTriangle },
+      { href: '/admin/data-freshness', label: 'Data Freshness', icon: CalendarClock },
     ],
   },
   {

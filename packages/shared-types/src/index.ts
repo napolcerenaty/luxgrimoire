@@ -274,6 +274,16 @@ export interface ApiBookBoxCompany {
   _count?: { collections: number; editions: number };
 }
 
+/** Row of the admin/moderator "Data Freshness" view. */
+export interface ApiCompanyDataCheck {
+  slug: string;
+  name: string;
+  /** ISO datetime; epoch (1970-01-01) means "never checked". */
+  checkedAt: string;
+  checkedByName: string | null;
+  note: string | null;
+}
+
 export interface ApiSubscriptionSkipPolicy {
   type: string;
   maxSkips: number | null;

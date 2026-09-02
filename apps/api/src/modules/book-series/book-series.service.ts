@@ -60,9 +60,13 @@ export class BookSeriesService {
   async findAll(query: BookSeriesQueryDto) {
     const { skip, take: pageSize, page } = parsePagination(query);
 
-    const where = query.search
-      ? { name: { contains: query.search, mode: 'insensitive' as const } }
-      : {};
+    const where = {
+      ...(query.search && { name: { contains: query.search, mode: 'insensitive' as const } }),
+      // `entries`, not the old `books` relation — a series only attached as a secondary entry
+      // isn't truly empty (and isn't deletable — see `delete` below), so it shouldn't show up
+      // as a candidate for removal either.
+      ...(query.emptyOnly && { entries: { none: {} } }),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.bookSeries.findMany({

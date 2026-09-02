@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Public, Roles } from '../../common/decorators/auth.decorators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
-import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto, SetMaintenanceDto } from './admin.dto';
+import { AuditLogQueryDto, RecentEditionsQueryDto, AssignRoleDto, UserQueryDto, SetMaintenanceDto, UpdateCompanyDataCheckDto } from './admin.dto';
 import { UserEditionImagesService } from '../editions/user-edition-images.service';
 import { UpdateImageStatusDto, ReorderImagesDto } from '../editions/user-edition-images.dto';
 
@@ -77,6 +77,21 @@ export class AdminController {
   @Roles('ADMIN')
   backfillRenewalDates() {
     return this.adminService.backfillNextRenewalDates();
+  }
+
+  // Company "Data Freshness" tracking (admin + moderator)
+  @Get('company-data-checks')
+  listCompanyDataChecks() {
+    return this.adminService.listCompanyDataChecks();
+  }
+
+  @Patch('company-data-checks/:slug')
+  updateCompanyDataCheck(
+    @Param('slug') slug: string,
+    @Body() dto: UpdateCompanyDataCheckDto,
+    @CurrentUser() actor: { id: string; username: string },
+  ) {
+    return this.adminService.updateCompanyDataCheck(slug, dto, actor);
   }
 
   // Community image moderation

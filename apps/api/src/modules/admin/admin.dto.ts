@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsIn, IsInt, Min, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsIn, IsInt, Min, IsBoolean, ValidateIf, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AuditLogQueryDto {
@@ -43,4 +43,18 @@ export class SetMaintenanceDto {
   @IsOptional()
   @IsString()
   message?: string;
+}
+
+export class UpdateCompanyDataCheckDto {
+  /** When true, stamp checkedAt = now and record the actor as checkedByName. */
+  @IsOptional()
+  @IsBoolean()
+  touch?: boolean;
+
+  /** Overwrites the single note field. Empty string / null both clear it. */
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @IsString()
+  @MaxLength(1000)
+  note?: string | null;
 }

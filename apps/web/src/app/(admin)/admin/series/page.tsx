@@ -42,6 +42,7 @@ export default function AdminSeriesPage() {
   const [switchVolumeInputs, setSwitchVolumeInputs] = useState<Record<string, string>>({})
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [emptyOnly, setEmptyOnly] = useState(false)
   const [newName, setNewName] = useState('')
   const [editName, setEditName] = useState('')
   const [editIsCompleted, setEditIsCompleted] = useState(false)
@@ -91,10 +92,11 @@ export default function AdminSeriesPage() {
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'series', page, search],
+    queryKey: ['admin', 'series', page, search, emptyOnly],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), pageSize: '20' })
       if (search) params.set('search', search)
+      if (emptyOnly) params.set('emptyOnly', 'true')
       return authFetch<PaginatedResponse<ApiSeries>>(`/book-series?${params}`)
     },
     placeholderData: keepPreviousData,
@@ -227,7 +229,7 @@ export default function AdminSeriesPage() {
         </button>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <input
           type="search"
           placeholder="Search series…"
@@ -235,6 +237,18 @@ export default function AdminSeriesPage() {
           onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           className="w-full max-w-sm bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 placeholder-navy-500 focus:outline-none focus:border-brand-400 text-sm"
         />
+        <label
+          title="Series with zero books attached (primary or secondary) — the ones Delete would actually let you remove. Useful for cleaning up abandoned/duplicate rows."
+          className="flex items-center gap-2 text-sm text-navy-300 shrink-0"
+        >
+          <input
+            type="checkbox"
+            checked={emptyOnly}
+            onChange={(e) => { setEmptyOnly(e.target.checked); setPage(1) }}
+            className="accent-brand-400"
+          />
+          No books only
+        </label>
       </div>
 
       {isLoading ? (
