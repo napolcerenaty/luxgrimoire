@@ -136,6 +136,13 @@ ARTIST EXTRACTION RULES:
 - For SUBSEQUENT artists in the same line (after "and … by @next"): the role = only their portion of the sentence
 - If multiple artists are mentioned in separate lines/bullets, list each separately
 - IMPORTANT: The SAME artist handle can appear multiple times in different bullets — if @artist did work on MULTIPLE elements (each in its own bullet), create ONE entry per bullet. Do NOT merge or combine entries for the same artist. Every @mention in its own bullet = its own separate artist entry in the array.
+- IN-HOUSE / INTERNAL TEAM CREDITS: A creative contribution credited to a company's own internal/in-house team — with NO named individual and NO @handle — MUST STILL be captured as an artist entry (it is currently being missed). Use the exact name "in-house team" (lowercase, no @ prefix) for ALL such variations, regardless of which company. The role = the work description, following the same attribution-verb-stripping and role-cropping rules as for named artists. Treat these credits exactly like any other artist attribution (including the "do NOT also add the item to the features array" rule, and the multi-artist parenthetical exception).
+  Recognise variations including (non-exhaustive): "in-house", "in house", "in-house team", "in-house design team", "in-house art team", "in-house studio", "our in-house team", "[Company]'s in-house team", "[Company] in-house team", "designed in-house", "illustrated in-house", "created in-house", "made in-house", "done in-house", "by the [Company] team", "by our design team", "by our art team", "by our studio team", "our studio".
+  Example: "Sprayed edges designed in-house" → artists: [{ name: "in-house team", role: "Sprayed edges" }], features: []
+  Example: "Endpapers by LitJoy's in-house design team" → artists: [{ name: "in-house team", role: "Endpapers" }], features: []
+  Example: "Cover art created by our in-house art team" → artists: [{ name: "in-house team", role: "Cover art" }], features: []
+  Example: "Custom foiled case designed in-house with lettering by @someartist" → features: ["Custom foiled case"], artists: [{ name: "in-house team", role: "Custom foiled case (design)" }, { name: "@someartist", role: "Custom foiled case (lettering)" }]
+  Do NOT use "in-house team" when a real individual or an @handle is credited — only when the credit is genuinely to an unnamed internal/company team.
 
 FEATURES RULES:
 - ORDER PRESERVATION: List features and artists in the EXACT ORDER they appear in the source text. Do not sort, reorder, or group them. The first feature mentioned in the text must be first in the array, and so on.
