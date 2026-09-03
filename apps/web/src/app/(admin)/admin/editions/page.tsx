@@ -445,7 +445,7 @@ export default function AdminEditionsPage() {
         </>
       )}
 
-      <FormModal open={createModal.isOpen} title="Add Edition" onClose={() => createModal.close()}>
+      <FormModal open={createModal.isOpen} title="Add Edition" size="xl" onClose={() => createModal.close()}>
         <AddEditionFlow
           defaultCompanyId={isManager ? managedCompanyId : undefined}
           onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'editions'] }); createModal.close() }}
@@ -456,6 +456,7 @@ export default function AdminEditionsPage() {
       <FormModal
         open={editEditionSlug !== null}
         title="Edit Edition"
+        size="xl"
         onClose={() => setEditEditionSlug(null)}
       >
         {editEditionSlug && (
@@ -470,6 +471,7 @@ export default function AdminEditionsPage() {
       <FormModal
         open={duplicateEditionSlug !== null}
         title="Duplicate Edition as Variant"
+        size="xl"
         onClose={() => setDuplicateEditionSlug(null)}
       >
         {duplicateEditionSlug && (

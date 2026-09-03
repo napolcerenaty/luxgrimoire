@@ -231,7 +231,7 @@ export default function AdminBooksPage() {
         </>
       )}
 
-      <FormModal open={createModal.isOpen} title="Add Book" onClose={() => createModal.close()}>
+      <FormModal open={createModal.isOpen} title="Add Book" size="lg" onClose={() => createModal.close()}>
         <CreateBookEditionForm
           bookOnly
           onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['admin', 'books'] }); createModal.close() }}
@@ -239,7 +239,7 @@ export default function AdminBooksPage() {
         />
       </FormModal>
 
-      <FormModal open={editBookSlug !== null} title="Edit Book" onClose={() => setEditBookSlug(null)}>
+      <FormModal open={editBookSlug !== null} title="Edit Book" size="lg" onClose={() => setEditBookSlug(null)}>
         {editBookLoading && (
           <div className="text-navy-400 py-8 text-center">Loading…</div>
         )}

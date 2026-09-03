@@ -289,7 +289,7 @@ export default function AdminSeriesSuggestionsPage() {
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
-      <FormModal open={createFrom !== null} title="Create Book from Suggestion" onClose={() => setCreateFrom(null)}>
+      <FormModal open={createFrom !== null} title="Create Book from Suggestion" size="lg" onClose={() => setCreateFrom(null)}>
         {createFrom && (
           <CreateBookEditionForm
             bookOnly
