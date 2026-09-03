@@ -136,13 +136,15 @@ ARTIST EXTRACTION RULES:
 - For SUBSEQUENT artists in the same line (after "and … by @next"): the role = only their portion of the sentence
 - If multiple artists are mentioned in separate lines/bullets, list each separately
 - IMPORTANT: The SAME artist handle can appear multiple times in different bullets — if @artist did work on MULTIPLE elements (each in its own bullet), create ONE entry per bullet. Do NOT merge or combine entries for the same artist. Every @mention in its own bullet = its own separate artist entry in the array.
-- IN-HOUSE / INTERNAL TEAM CREDITS: A creative contribution credited to a company's own internal/in-house team — with NO named individual and NO @handle — MUST STILL be captured as an artist entry (it is currently being missed). Use the exact name "in-house team" (lowercase, no @ prefix) for ALL such variations, regardless of which company. The role = the work description, following the same attribution-verb-stripping and role-cropping rules as for named artists. Treat these credits exactly like any other artist attribution (including the "do NOT also add the item to the features array" rule, and the multi-artist parenthetical exception).
+- IN-HOUSE / INTERNAL TEAM CREDITS: A creative contribution credited to a company's own internal/in-house team — with NO named individual and NO @handle — MUST STILL be captured as an artist entry (it is currently being missed). The role = the work description, following the same attribution-verb-stripping and role-cropping rules as for named artists. Treat these credits exactly like any other artist attribution (including the "do NOT also add the item to the features array" rule, and the multi-artist parenthetical exception).
+  NAME: use "<Company> in-house team" — the specific crediting company, NEVER a generic merged label. Determine <Company> from, in order of preference: (1) the company name given in the user message context, (2) the company name possessive in the credit itself ("LitJoy's in-house team" → "LitJoy in-house team"), (3) the companyName you extracted for this edition. Only if NONE of these yield a company, fall back to the bare name "in-house team". Do NOT collapse different companies' in-house teams into one name.
   Recognise variations including (non-exhaustive): "in-house", "in house", "in-house team", "in-house design team", "in-house art team", "in-house studio", "our in-house team", "[Company]'s in-house team", "[Company] in-house team", "designed in-house", "illustrated in-house", "created in-house", "made in-house", "done in-house", "by the [Company] team", "by our design team", "by our art team", "by our studio team", "our studio".
-  Example: "Sprayed edges designed in-house" → artists: [{ name: "in-house team", role: "Sprayed edges" }], features: []
-  Example: "Endpapers by LitJoy's in-house design team" → artists: [{ name: "in-house team", role: "Endpapers" }], features: []
-  Example: "Cover art created by our in-house art team" → artists: [{ name: "in-house team", role: "Cover art" }], features: []
-  Example: "Custom foiled case designed in-house with lettering by @someartist" → features: ["Custom foiled case"], artists: [{ name: "in-house team", role: "Custom foiled case (design)" }, { name: "@someartist", role: "Custom foiled case (lettering)" }]
-  Do NOT use "in-house team" when a real individual or an @handle is credited — only when the credit is genuinely to an unnamed internal/company team.
+  Example (company context = "LitJoy"): "Sprayed edges designed in-house" → artists: [{ name: "LitJoy in-house team", role: "Sprayed edges" }], features: []
+  Example: "Endpapers by LitJoy's in-house design team" → artists: [{ name: "LitJoy in-house team", role: "Endpapers" }], features: []
+  Example (company context = "Illumicrate"): "Cover art created by our in-house art team" → artists: [{ name: "Illumicrate in-house team", role: "Cover art" }], features: []
+  Example (company context = "FairyLoot"): "Custom foiled case designed in-house with lettering by @someartist" → features: ["Custom foiled case"], artists: [{ name: "FairyLoot in-house team", role: "Custom foiled case (design)" }, { name: "@someartist", role: "Custom foiled case (lettering)" }]
+  Example (no company anywhere): "Sprayed edges designed in-house" → artists: [{ name: "in-house team", role: "Sprayed edges" }], features: []
+  Do NOT use an in-house team entry when a real individual or an @handle is credited — only when the credit is genuinely to an unnamed internal/company team.
 
 FEATURES RULES:
 - ORDER PRESERVATION: List features and artists in the EXACT ORDER they appear in the source text. Do not sort, reorder, or group them. The first feature mentioned in the text must be first in the array, and so on.
@@ -521,7 +523,7 @@ export class AiService {
     }
   }
 
-  async parse(input: { text?: string; imageUrl?: string; imageBase64?: string }): Promise<AiParseResult> {
+  async parse(input: { text?: string; imageUrl?: string; imageBase64?: string; companyName?: string }): Promise<AiParseResult> {
     if (!this.client) {
       throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
     }
@@ -562,6 +564,12 @@ export class AiService {
       ? this.buildDataUrl(input.imageBase64)
       : input.imageUrl ?? null;
 
+    const companyHint = input.companyName?.trim()
+      ? `\n\nContext: this edition is offered by the company "${input.companyName.trim()}". `
+        + `For any in-house / internal team credit (see IN-HOUSE / INTERNAL TEAM CREDITS rule), `
+        + `use the artist name "${input.companyName.trim()} in-house team".`
+      : '';
+
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: SYSTEM_PROMPT },
     ];
@@ -570,14 +578,14 @@ export class AiService {
       messages.push({
         role: 'user',
         content: [
-          { type: 'text', text: 'Extract book edition information from this image:' },
+          { type: 'text', text: `Extract book edition information from this image:${companyHint}` },
           { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
         ],
       });
     } else {
       messages.push({
         role: 'user',
-        content: `Extract book edition information from this announcement:\n\n${input.text}`,
+        content: `Extract book edition information from this announcement:\n\n${input.text}${companyHint}`,
       });
     }
 

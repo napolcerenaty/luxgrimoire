@@ -20,6 +20,13 @@ class AiParseDto {
   @IsString()
   @MaxLength(10_000_000) // ~7.5 MB base64
   imageBase64?: string;
+
+  /** Crediting company name — used to attribute in-house/internal team credits
+   *  as "<Company> in-house team" instead of a generic fallback. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  companyName?: string;
 }
 
 class AiParseSaleDto {

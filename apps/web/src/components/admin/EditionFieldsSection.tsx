@@ -116,9 +116,12 @@ export function FeatureTags({ features, onChange }: { features: string[]; onChan
 }
 
 // ─── AiParseSection ───────────────────────────────────────────────────────────
-export function AiParseSection({ onResult, disabled }: {
+export function AiParseSection({ onResult, disabled, companyName }: {
   onResult: (r: AiParseResult) => void
   disabled?: boolean
+  /** Crediting company — sent to the parser so in-house/internal team credits are
+   *  attributed as "<Company> in-house team" rather than a generic fallback. */
+  companyName?: string
 }) {
   const [open, setOpen] = useState(false)
   const [inputMode, setInputMode] = useState<'text' | 'screenshot'>('text')
@@ -142,9 +145,10 @@ export function AiParseSection({ onResult, disabled }: {
   const parse = async () => {
     setParsing(true)
     try {
-      const payload = inputMode === 'screenshot' && imageBase64
-        ? { imageBase64 }
-        : { text }
+      const payload = {
+        ...(inputMode === 'screenshot' && imageBase64 ? { imageBase64 } : { text }),
+        ...(companyName?.trim() ? { companyName: companyName.trim() } : {}),
+      }
       const result = await authFetch<AiParseResult>('/ai/parse', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -838,7 +842,7 @@ export function EditionFieldsSection({
         />
       </div>
 
-      <AiParseSection onResult={onAiResult} />
+      <AiParseSection onResult={onAiResult} companyName={companies.find(c => c.id === companyId)?.name} />
 
       {/* Artists / contributors */}
       <div>
