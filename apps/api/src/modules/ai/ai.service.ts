@@ -263,7 +263,11 @@ RULES:
 - genres: take all provided genres from the Genres section. Omit if not present. NEVER include "Audiobook" or "Book Club" in genres — skip them entirely.
 - authors: list only book authors found, remove translators, editors, narrators, or other contributors. If multiple authors are listed, include them all in the authors array.`;
 
-const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.
+/** Built per-call (not a static const) so the fallback year in YEAR RULES below is always the
+ * real current year — a hardcoded year in the prompt text would silently go stale. */
+function getSaleAnnouncementPrompt(): string {
+  const currentYear = new Date().getFullYear();
+  return `You are a sale announcement data extractor for a luxury book subscription tracking app.
 Given a sale announcement post (usually from a book subscription box company), extract structured information.
 
 Return ONLY valid JSON matching this schema (omit fields you cannot find):
@@ -344,7 +348,7 @@ TIER RULES (each region's "tiers" array):
 
 SHIPPING:
 - Extract expected shipping timeframe if mentioned (e.g. "ships around November/December", "expected to ship in Q1 2026")
-- Include year if determinable from context (current year is 2026)
+- Include year if determinable from context; if the text gives no year for the shipping window at all, assume the current year (${currentYear})
 
 SALE TYPE RULES:
 - LIMITED_PREORDER: a preorder that is limited in quantity and/or time — phrases like "limited edition", "limited slots", "only X copies", "while stocks last", "preorder closes [date]", "sold out when gone"
@@ -357,8 +361,15 @@ ENDS AT RULES:
 - Use the same LOCAL-time format as other dates (no Z suffix); the saleTimezone field in the matching region indicates the timezone
 - If no explicit close date is mentioned, omit endsAt
 
+YEAR RULES (applies to every date field: tiers[].date, endsAt):
+- Every date you output MUST include a year — never omit the year or leave it ambiguous.
+- If the source text states or clearly implies a year for that date (an explicit year, or a season/quarter paired with one, e.g. "Q1 2026", "Winter 2025"), use that year.
+- If the source gives NO year anywhere that this date could reasonably be tied to, do NOT guess — use the current year (${currentYear}).
+- Do NOT reuse a year mentioned elsewhere in the text (e.g. a copyright notice, an unrelated past sale) for a date it doesn't actually belong to — that still counts as "no year determinable", so fall back to the current year (${currentYear}).
+
 For dates, use ISO 8601 format WITHOUT Z suffix (local time, not UTC). If only a date is given without time, use 00:00:00.000 (no Z).
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
+}
 
 /**
  * Resolve ambiguous US timezone abbreviations (ET, PT, CT, MT) to their
@@ -766,7 +777,7 @@ export class AiService {
     }
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-      { role: 'system', content: SALE_ANNOUNCEMENT_PROMPT },
+      { role: 'system', content: getSaleAnnouncementPrompt() },
       { role: 'user', content: userContent },
     ];
 
@@ -819,7 +830,7 @@ export class AiService {
     }
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-      { role: 'system', content: SALE_ANNOUNCEMENT_PROMPT },
+      { role: 'system', content: getSaleAnnouncementPrompt() },
       {
         role: 'user',
         content: [
