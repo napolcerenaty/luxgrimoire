@@ -12,6 +12,9 @@
   - `.\restart.ps1` at repo root — user's preferred Windows script: kills anything on :3000/:3001, starts Redis if installed via scoop, then API (from built `dist/main`, not watch mode) + Web. Flags: `-ApiOnly`, `-WebOnly`, `-RedisOnly`
   - API: http://localhost:3001 · Web: http://localhost:3000
 
+## Active plans
+- **Growth roadmap**: `docs/specs/growth-roadmap.md` is the staged user-acquisition plan (Faza 0→9: measurement, SSR/ISR, OG images, public collection profile, SEO conversion, TWA/Play, sharing, referral, retention, Wrapped). `docs/specs/og-images-and-public-profile.md` is the detailed spec for Faza 2+3. Implement ONE phase per branch/PR, tick `[ ]→[x]` in the roadmap as steps land, respect the phase dependencies, and re-read the doc when continuing this work.
+
 ## Branching & deployment
 - Always work on branch `development`, unless a feature is deliberately being built on its own dedicated feature branch
 - **Commit and push immediately after making changes, without asking for confirmation first — on every branch, not just `development`.** The only exception is `master`. Reasoning: uncommitted work sitting in the working tree is vulnerable to being wiped by branch switches, resets, or a parallel session working in the same directory — committing promptly is the safety net.
