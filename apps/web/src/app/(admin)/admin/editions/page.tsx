@@ -184,6 +184,14 @@ export default function AdminEditionsPage() {
     setPage(1)
   }, [companyFilter, collectionFilter, unverifiedOnly, exclusiveOnly, hasOfficialPhoto, subscriptionFilter])
 
+  // Collections + subscriptions dropdowns are scoped to the selected company, so a stale
+  // selection from a different company would silently over-filter the table — clear both
+  // whenever the company changes. (No-op on mount: both are already ''.)
+  useEffect(() => {
+    setCollectionFilter('')
+    setSubscriptionFilter('')
+  }, [companyFilter])
+
   const buildParams = () => {
     const p = new URLSearchParams({ page: String(page), pageSize: '10' })
     if (debouncedSearch) p.set('search', debouncedSearch)
@@ -223,18 +231,22 @@ export default function AdminEditionsPage() {
     ? Array.isArray(companiesData) ? companiesData : companiesData.data
     : []
 
-  // Subscriptions for filter dropdown
+  // Subscriptions for filter dropdown — scoped to the selected company when one is picked
   const { data: subscriptionsData } = useQuery({
-    queryKey: ['admin', 'subscriptions-list'],
-    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>('/subscriptions?pageSize=200'),
+    queryKey: ['admin', 'subscriptions-list', companyFilter],
+    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>(
+      `/subscriptions?pageSize=200${companyFilter ? `&companyId=${companyFilter}` : ''}`,
+    ),
     enabled: !isManager,
   })
   const subscriptions = subscriptionsData?.data ?? []
 
-  // Collections for filter dropdown
+  // Collections for filter dropdown — scoped to the selected company when one is picked
   const { data: collectionsData } = useQuery({
-    queryKey: ['admin', 'collections-list'],
-    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>('/book-box-collections?pageSize=200'),
+    queryKey: ['admin', 'collections-list', companyFilter],
+    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>(
+      `/book-box-collections?pageSize=200${companyFilter ? `&companyId=${companyFilter}` : ''}`,
+    ),
     enabled: !isManager,
   })
   const collections = collectionsData?.data ?? []
