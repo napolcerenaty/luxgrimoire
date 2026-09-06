@@ -27,13 +27,13 @@ Szacunek: solo ~6–8 tygodni, jeśli Fazy 4 i 5 lecą równolegle do Fazy 3.
 
 Cel: bez tego nie odróżnisz, co działa.
 
-- [x] Atrybucja źródła: `middleware.ts` łapie `utm_*` / `?ref=` → cookie `lg_src` (first-touch, 30 dni) → `signupSource String?` na `User` przy rejestracji (email/hasło: body; OAuth: `?src=` → `oauth_src` cookie hop w `GoogleInitGuard`). Event `signup` z etykietą źródła. Migracja `20260906130000_add_signup_source` napisana — **NIE zaaplikowana** (dedykowany branch; aplikacja do v2+test po merge do `development`). Testy: `auth.service.spec.ts`, `attribution.test.ts`.
-- [x] Eventy lejka aktywacji do `SUPPORTED_EVENT_TYPES` (`apps/api/src/modules/analytics/analytics.dto.ts`): `signup`, `added_first_edition`, `imported_collection`, `enabled_notifications`
+- [x] Atrybucja źródła: `middleware.ts` łapie `utm_*` / `?ref=` → cookie `lg_src` (first-touch, 30 dni) → `signupSource String?` na `User` przy rejestracji (email/hasło: body; OAuth: `?src=` → `oauth_src` cookie hop w `GoogleInitGuard`). Event `signup` z etykietą źródła. Migracja `20260906130000_add_signup_source` zaaplikowana do `luxgrimoire_v2` + `luxgrimoire_test`. Testy: `auth.service.spec.ts`, `attribution.test.ts`.
+- [x] Eventy lejka aktywacji do `SUPPORTED_EVENT_TYPES` (`apps/api/src/modules/analytics/analytics.dto.ts`) + do hardcoded `METRICS` w `apps/web/src/app/(admin)/admin/analytics/page.tsx`: `signup`, `added_first_edition`, `imported_collection`, `enabled_notifications`
 - [x] Wpięcie `analyticsService.track()`: `added_first_edition` (`POST /collection`, tylko przy 1. nie-wishlist entry), `imported_collection` (`POST /reading-import/execute` gdy `imported > 0`), `enabled_notifications` (`PUT /notifications/preferences` na przejściu off→on)
 
 Zależy od: nic.
 Gotowe gdy: nowa rejestracja ma źródło w DB; admin analytics grupuje `signup` po źródle.
-Branch: `feature/growth-faza-0-attribution`. Po merge do `development`: zaaplikować migrację do `luxgrimoire_v2` i `luxgrimoire_test`.
+**FAZA 0 UKOŃCZONA** — merge do `development` (PR #39) 2026-09-06, migracja zaaplikowana do v2 + test.
 
 ## Faza 1 — SSR/ISR na public stronach (~2–3 dni)
 
