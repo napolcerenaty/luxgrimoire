@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import type { ApiSaleAnnouncement } from '@luxgrimoire/shared-types'
@@ -44,6 +45,16 @@ export default async function SaleAnnouncementPage({ params }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-10 mb-12">
         {/* Image(s) */}
         <div>
+          {/* Company name above the image — links to the company page (same as the edition view) */}
+          {sale.company?.slug && (
+            <Link
+              href={`/companies/${sale.company.slug}`}
+              className="block mb-3 text-center md:text-left font-serif font-semibold uppercase tracking-widest text-navy-300 hover:text-brand-400 transition-colors text-base leading-snug"
+            >
+              {sale.company.name}
+            </Link>
+          )}
+
           {carouselImages.length > 0 ? (
             <ImageCarousel images={carouselImages} alt={sale.title} />
           ) : (

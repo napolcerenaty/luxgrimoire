@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/cloudinary'
 import { brandGradientStyle } from '@/lib/brandGradient'
@@ -72,6 +73,17 @@ export function SaleAnnouncementModal({ sale, onClose }: Props) {
           </div>
 
           <div className="p-5 sm:p-6">
+            {/* Company name above the image — links to the company page (same as the edition view) */}
+            {sale.company?.slug && (
+              <Link
+                href={`/companies/${sale.company.slug}`}
+                onClick={onClose}
+                className="block mb-3 text-center sm:text-left font-serif font-semibold uppercase tracking-widest text-navy-300 hover:text-brand-400 transition-colors text-sm leading-snug"
+              >
+                {sale.company.name}
+              </Link>
+            )}
+
             {/* Image + content: stacked on mobile (side-by-side squeezes everything into a
                 narrow column next to the cover), side by side from sm: up */}
             <div className="flex flex-col sm:flex-row gap-4 mb-5">
