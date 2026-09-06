@@ -41,7 +41,7 @@ describe('SeriesContinuationService', () => {
     expect(prisma.userBookEntry.findMany).not.toHaveBeenCalled();
   });
 
-  it('matches on same series + same company + same (null) variantLabel, excluding the same book, wishlist, sold, and gifted-away entries', async () => {
+  it('matches on same series + same company + same (null) variantLabel, excluding the same book, wishlist, sold, gifted-away, and borrowed entries', async () => {
     stubEdition();
     (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValue([{ userId: USER_ID }]);
     (prisma.pendingSeriesContinuationNotification.findUnique as jest.Mock).mockResolvedValue(null);
@@ -52,7 +52,7 @@ describe('SeriesContinuationService', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           isWishlist: false,
-          ownershipStatus: { notIn: ['SOLD', 'GIFTED_AWAY'] },
+          ownershipStatus: { notIn: ['SOLD', 'GIFTED_AWAY', 'BORROWED'] },
           bookId: { not: BOOK_ID },
           book: { seriesId: SERIES_ID },
           edition: { bookBoxCompanyId: COMPANY_ID, variantLabel: null },

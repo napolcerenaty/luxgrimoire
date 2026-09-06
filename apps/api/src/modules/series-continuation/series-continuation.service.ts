@@ -17,6 +17,10 @@ export class SeriesContinuationService {
    * every edition of the book), and enqueues a per-[userId, saleAnnouncementId] pending row for
    * the cron to send later — merging into an existing row (within its debounce window) rather
    * than creating a duplicate.
+   *
+   * ownershipStatus excludes SOLD/GIFTED_AWAY (no longer have it) and BORROWED (never actually
+   * theirs — someone else's copy they're holding, not a purchase signal for this company).
+   * LENDED still counts: that's their own copy, just temporarily out with someone else.
    */
   async notifyOnEditionAddedToSale(editionId: string, saleAnnouncementId: string) {
     const edition = await this.prisma.bookEdition.findUnique({
@@ -28,7 +32,7 @@ export class SeriesContinuationService {
     const matches = await this.prisma.userBookEntry.findMany({
       where: {
         isWishlist: false,
-        ownershipStatus: { notIn: ['SOLD', 'GIFTED_AWAY'] },
+        ownershipStatus: { notIn: ['SOLD', 'GIFTED_AWAY', 'BORROWED'] },
         bookId: { not: edition.bookId },
         book: { seriesId: edition.book.seriesId },
         edition: { bookBoxCompanyId: edition.bookBoxCompanyId, variantLabel: edition.variantLabel },
