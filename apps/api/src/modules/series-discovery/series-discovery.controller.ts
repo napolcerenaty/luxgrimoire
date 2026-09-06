@@ -3,7 +3,12 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../../common/decorators/auth.decorators';
 import { SeriesDiscoveryService } from './series-discovery.service';
-import { UpdateSeriesVolumeSuggestionStatusDto, AddExcludedKeywordDto } from './series-discovery.dto';
+import {
+  UpdateSeriesVolumeSuggestionStatusDto,
+  AddExcludedKeywordDto,
+  BulkSeriesVolumeSuggestionIdsDto,
+  BulkUpdateSeriesVolumeSuggestionStatusDto,
+} from './series-discovery.dto';
 
 @ApiTags('series-discovery')
 @Controller()
@@ -34,6 +39,20 @@ export class SeriesDiscoveryController {
   @Roles('ADMIN', 'MODERATOR')
   remove(@Param('id') id: string) {
     return this.service.removeSuggestion(id);
+  }
+
+  @Post('admin/series-volume-suggestions/bulk-delete')
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  bulkRemove(@Body() body: BulkSeriesVolumeSuggestionIdsDto) {
+    return this.service.removeSuggestions(body.ids);
+  }
+
+  @Post('admin/series-volume-suggestions/bulk-status')
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  bulkUpdateStatus(@Body() body: BulkUpdateSeriesVolumeSuggestionStatusDto) {
+    return this.service.updateSuggestionsStatus(body.ids, body.status);
   }
 
   @Post('admin/series-discovery/run')
