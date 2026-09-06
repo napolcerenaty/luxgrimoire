@@ -28,6 +28,7 @@
 - Never add DROP TABLE or DROP COLUMN without explicit user confirmation
 - **Never remove columns/tables in the same migration/release as the additive changes that replace them** — if a deployment fails or needs rollback, the old columns/tables must still be there to fall back to. Land the additive schema + backfill in one release; ship the DROP TABLE/DROP COLUMN cleanup in a separate, later migration once that release is confirmed stable in production
 - **For a feature built on its own dedicated feature branch (not directly on `development`)**: write the migration file, but do NOT apply it against the local database (no `prisma db execute` / `prisma migrate resolve`) while still on that branch. Only run those commands after the branch is merged into `development` — keeps local DB state matching whatever branch is actually checked out and avoids drift/mismatch when switching branches mid-feature.
+- **After merging to `development` and applying a new migration to the local dev database (`luxgrimoire_v2`), also apply it to the e2e test database (`luxgrimoire_test`)** — same `prisma db execute` + `prisma migrate resolve --applied` steps, just with `DATABASE_URL` pointed at `luxgrimoire_test`. Skipping this lets it silently drift out of sync until `pnpm --filter api test:e2e` breaks wholesale — it once went ~35 migrations stale this way (2026-09-06 incident).
 
 ## Tech stack
 - Monorepo managed with `pnpm`
