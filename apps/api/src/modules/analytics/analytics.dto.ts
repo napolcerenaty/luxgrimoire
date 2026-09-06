@@ -2,9 +2,9 @@ import { IsString, IsIn, IsOptional, IsNumberString } from 'class-validator';
 
 export const SUPPORTED_EVENT_TYPES = [
   { id: 'signup',                label: 'Signups (by source)',            defaultGroupBy: 'value'  },
-  { id: 'added_first_edition',   label: 'Activation — First Edition Added', defaultGroupBy: 'user'  },
-  { id: 'imported_collection',   label: 'Activation — Collection CSV Import', defaultGroupBy: 'user' },
-  { id: 'enabled_notifications', label: 'Activation — Notifications Enabled', defaultGroupBy: 'user' },
+  { id: 'added_first_edition',   label: 'Activation — First Edition Added', defaultGroupBy: 'day'   },
+  { id: 'imported_collection',   label: 'Activation — Collection CSV Import', defaultGroupBy: 'day'  },
+  { id: 'enabled_notifications', label: 'Activation — Notifications Enabled', defaultGroupBy: 'day'  },
   { id: 'edition_view',          label: 'Edition Views',                  defaultGroupBy: 'entity' },
   { id: 'book_view',             label: 'Book Views',                     defaultGroupBy: 'entity' },
   { id: 'author_view',           label: 'Author Views',                   defaultGroupBy: 'entity' },
