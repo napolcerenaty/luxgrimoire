@@ -93,6 +93,67 @@ describe('GoogleBooksClient', () => {
     expect(result.seriesId).toBe('gb-series-1');
   });
 
+  it('drops a volume whose language contradicts the target', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      items: [
+        { id: 'de', volumeInfo: { title: 'Test Saga Buch 4', language: 'de' } },
+        { id: 'en', volumeInfo: { title: 'Test Saga Book 4', language: 'en-US' } },
+      ],
+    }));
+
+    const result = await client.search('Test Saga', [], null, 'en');
+
+    expect(result.candidates.map((c) => c.sourceId)).toEqual(['en']);
+  });
+
+  it('keeps a volume with no language field (best-effort)', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      items: [{ id: 'nolang', volumeInfo: { title: 'Test Saga Book 4' } }],
+    }));
+
+    const result = await client.search('Test Saga', [], null, 'en');
+
+    expect(result.candidates.map((c) => c.sourceId)).toEqual(['nolang']);
+  });
+
+  it('drops an author\'s unrelated book that neither names the series nor shares its seriesId', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      items: [{ id: 'other', volumeInfo: { title: 'A Completely Different Novel', authors: ['Jane Doe'] } }],
+    }));
+
+    const result = await client.search('Test Saga', ['Jane Doe'], null);
+
+    expect(result.candidates).toEqual([]);
+  });
+
+  it('keeps a volume that does not name the series but shares the cached seriesId', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      items: [{
+        id: 'vol2',
+        volumeInfo: { title: 'Legendary', seriesInfo: { volumeSeries: [{ seriesId: 'gb-cached-series', orderNumber: 2 }] } },
+      }],
+    }));
+
+    const result = await client.search('Test Saga', [], 'gb-cached-series');
+
+    expect(result.candidates.map((c) => c.sourceId)).toEqual(['vol2']);
+  });
+
+  it('adopts a seriesId only from a title-confirmed volume, then keeps later volumes sharing it', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      items: [
+        { id: 'unrelated', volumeInfo: { title: 'Some Other Series', seriesInfo: { volumeSeries: [{ seriesId: 'wrong' }] } } },
+        { id: 'vol1', volumeInfo: { title: 'Test Saga', seriesInfo: { volumeSeries: [{ seriesId: 'gb-real', orderNumber: 1 }] } } },
+        { id: 'vol2', volumeInfo: { title: 'Second Entry', seriesInfo: { volumeSeries: [{ seriesId: 'gb-real', orderNumber: 2 }] } } },
+      ],
+    }));
+
+    const result = await client.search('Test Saga', [], null);
+
+    expect(result.seriesId).toBe('gb-real');
+    expect(result.candidates.map((c) => c.sourceId)).toEqual(['vol1', 'vol2']);
+  });
+
   it('skips items with no volumeInfo.title', async () => {
     fetchMock.mockResolvedValue(mockJsonResponse({
       items: [{ id: 'gb-1', volumeInfo: {} }, { id: 'gb-2' }],

@@ -474,5 +474,28 @@ describe('SeriesDiscoveryService', () => {
 
       expect(prisma.seriesVolumeSuggestion.delete).toHaveBeenCalledWith({ where: { id: 's1' } });
     });
+
+    it('bulk-deletes suggestions by id and returns the affected count', async () => {
+      (prisma.seriesVolumeSuggestion.deleteMany as jest.Mock).mockResolvedValue({ count: 2 });
+
+      const result = await service.removeSuggestions(['s1', 's2', 'gone']);
+
+      expect(prisma.seriesVolumeSuggestion.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['s1', 's2', 'gone'] } },
+      });
+      expect(result).toEqual({ count: 2 });
+    });
+
+    it('bulk-updates status by id and returns the affected count', async () => {
+      (prisma.seriesVolumeSuggestion.updateMany as jest.Mock).mockResolvedValue({ count: 3 });
+
+      const result = await service.updateSuggestionsStatus(['s1', 's2', 's3'], 'dismissed');
+
+      expect(prisma.seriesVolumeSuggestion.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['s1', 's2', 's3'] } },
+        data: { status: 'dismissed' },
+      });
+      expect(result).toEqual({ count: 3 });
+    });
   });
 });

@@ -588,6 +588,15 @@ export class SubscriptionQueryDto {
   @IsBoolean()
   isDiscontinued?: boolean;
 
+  /** When true, exclude discontinued subscriptions from the listing. Separate from
+   *  `isDiscontinued` on purpose: a query-string `isDiscontinued=false` is unreliable under
+   *  the global `enableImplicitConversion` (the string "false" coerces to a truthy boolean
+   *  before the @Transform runs), so a dedicated "only acts when true" flag is used instead. */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  hideDiscontinued?: boolean;
+
   @IsOptional()
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()

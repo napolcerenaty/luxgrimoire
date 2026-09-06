@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { BookPlus, Trash2, RefreshCw, ExternalLink, Sparkles, SlidersHorizontal, X } from 'lucide-react'
 import { authFetch } from '@/lib/authFetch'
@@ -120,6 +120,10 @@ export default function AdminSeriesSuggestionsPage() {
   const [statusFilter, setStatusFilter] = useState('pending')
   const [page, setPage] = useState(1)
   const [createFrom, setCreateFrom] = useState<SeriesVolumeSuggestion | null>(null)
+  // Multi-select for bulk delete / dismiss — a lot of low-quality rows piled up before the
+  // language + series-match filters were tightened, and clearing them one Trash click at a
+  // time is painful.
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'series-volume-suggestions', page, statusFilter],
@@ -130,6 +134,43 @@ export default function AdminSeriesSuggestionsPage() {
         `/admin/series-volume-suggestions?${params}`
       )
     },
+  })
+
+  // useMemo (not `?? []` inline) so the reference is stable while loading — an unstable array
+  // in the effect dep below would re-run it every render.
+  const items = useMemo(() => data?.items ?? [], [data])
+  // Drop selections that are no longer on screen (page/filter change, or a refetch removed them)
+  // so the action bar's count never counts rows the admin can't see.
+  useEffect(() => {
+    setSelected(prev => {
+      const visible = new Set(items.map(i => i.id))
+      const next = new Set([...prev].filter(id => visible.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [items])
+
+  const toggle = (id: string) =>
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  const allOnPageSelected = items.length > 0 && items.every(i => selected.has(i.id))
+  const toggleAll = () =>
+    setSelected(allOnPageSelected ? new Set() : new Set(items.map(i => i.id)))
+
+  const bulkDelete = useMutation({
+    mutationFn: (ids: string[]) =>
+      authFetch('/admin/series-volume-suggestions/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) }),
+    onSuccess: () => { setSelected(new Set()); qc.invalidateQueries({ queryKey: ['admin', 'series-volume-suggestions'] }) },
+    onError: (e: Error) => { alert(`Error: ${e.message}`); qc.invalidateQueries({ queryKey: ['admin', 'series-volume-suggestions'] }) },
+  })
+
+  const bulkDismiss = useMutation({
+    mutationFn: (ids: string[]) =>
+      authFetch('/admin/series-volume-suggestions/bulk-status', { method: 'POST', body: JSON.stringify({ ids, status: 'dismissed' }) }),
+    onSuccess: () => { setSelected(new Set()); qc.invalidateQueries({ queryKey: ['admin', 'series-volume-suggestions'] }) },
+    onError: (e: Error) => { alert(`Error: ${e.message}`); qc.invalidateQueries({ queryKey: ['admin', 'series-volume-suggestions'] }) },
   })
 
   const runNow = useMutation({
@@ -211,15 +252,59 @@ export default function AdminSeriesSuggestionsPage() {
         ))}
       </div>
 
+      {!isLoading && items.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap text-xs">
+          <label className="flex items-center gap-2 text-navy-400 cursor-pointer whitespace-nowrap">
+            <input
+              type="checkbox"
+              className="accent-brand-400"
+              checked={allOnPageSelected}
+              ref={el => { if (el) el.indeterminate = selected.size > 0 && !allOnPageSelected }}
+              onChange={toggleAll}
+            />
+            Select all on this page
+          </label>
+          {selected.size > 0 && (
+            <>
+              <span className="text-navy-400">{selected.size} selected</span>
+              <button
+                onClick={() => { if (confirm(`Dismiss ${selected.size} suggestion(s)? They won't be suggested again on future checks.`)) bulkDismiss.mutate([...selected]) }}
+                disabled={bulkDismiss.isPending || bulkDelete.isPending}
+                className="px-3 py-1 rounded bg-navy-800 text-navy-300 hover:bg-navy-700 disabled:opacity-40 transition-colors"
+              >
+                Dismiss selected
+              </button>
+              <button
+                onClick={() => { if (confirm(`Permanently delete ${selected.size} suggestion(s)? A future check could re-suggest any that still aren't in your catalogue.`)) bulkDelete.mutate([...selected]) }}
+                disabled={bulkDelete.isPending || bulkDismiss.isPending}
+                className="px-3 py-1 rounded bg-rose-950/40 text-rose-400 hover:bg-rose-950/60 disabled:opacity-40 transition-colors flex items-center gap-1"
+              >
+                <Trash2 size={12} /> Delete selected
+              </button>
+              <button onClick={() => setSelected(new Set())} className="text-navy-500 hover:text-navy-300">
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="text-center py-20 text-navy-500">Loading…</div>
-      ) : data?.items.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="text-center py-20 text-navy-500">No suggestions found.</div>
       ) : (
         <div className="space-y-3">
-          {data?.items.map(s => (
-            <div key={s.id} className="bg-navy-900 border border-navy-800 rounded-2xl p-4 hover:border-navy-700 transition-colors">
+          {items.map(s => (
+            <div key={s.id} className={`bg-navy-900 border rounded-2xl p-4 transition-colors ${selected.has(s.id) ? 'border-brand-500/50' : 'border-navy-800 hover:border-navy-700'}`}>
               <div className="flex items-start justify-between gap-3">
+                <input
+                  type="checkbox"
+                  className="accent-brand-400 mt-1 shrink-0"
+                  checked={selected.has(s.id)}
+                  onChange={() => toggle(s.id)}
+                  aria-label={`Select "${s.title}"`}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[s.status] ?? STATUS_STYLES.pending}`}>
@@ -289,7 +374,7 @@ export default function AdminSeriesSuggestionsPage() {
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
-      <FormModal open={createFrom !== null} title="Create Book from Suggestion" onClose={() => setCreateFrom(null)}>
+      <FormModal open={createFrom !== null} title="Create Book from Suggestion" size="lg" onClose={() => setCreateFrom(null)}>
         {createFrom && (
           <CreateBookEditionForm
             bookOnly

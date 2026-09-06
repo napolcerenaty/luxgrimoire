@@ -316,6 +316,23 @@ export class SeriesDiscoveryService {
     }
   }
 
+  /** Bulk delete / bulk status change for clearing out batches of junk suggestions (common
+   *  after tightening the discovery filters). `deleteMany`/`updateMany` silently skip ids that
+   *  no longer exist — a row vanishing between the list loading and the click is expected here,
+   *  not an error — so there's no P2025 handling; the returned `count` is what actually changed. */
+  async removeSuggestions(ids: string[]): Promise<{ count: number }> {
+    const { count } = await this.prisma.seriesVolumeSuggestion.deleteMany({ where: { id: { in: ids } } });
+    return { count };
+  }
+
+  async updateSuggestionsStatus(ids: string[], status: string): Promise<{ count: number }> {
+    const { count } = await this.prisma.seriesVolumeSuggestion.updateMany({
+      where: { id: { in: ids } },
+      data: { status },
+    });
+    return { count };
+  }
+
   // ─── Admin-managed bundle/omnibus keyword list ─────────────────────────────
 
   listExcludedKeywords() {

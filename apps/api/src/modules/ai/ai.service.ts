@@ -103,12 +103,14 @@ SIGNATURE RULES (read before artist rules):
 - "Foiled Author Signature" means a foil-stamped facsimile of the author's signature — it is NOT a hand-signed copy. In that case:
   - Add "Foiled Author Signature" (exact phrase, capitalised) to the features array — do NOT add "signed" or "digitally signed"
   - Example: "Foiled Author Signature" → features: ["Foiled Author Signature"]
-- If the text contains phrases like "signed by the author on a page designed by @artist", "hand-signed by the author on a page designed by @artist", or similar (author signs on a page whose DESIGN is credited to @artist):
-  - Add "signed" to the features array (it IS a hand-signed copy)
-  - Add the @artist as an artist entry with role: "author signature page"
+- If the text contains phrases like "signed by the author on a page designed by @artist", "hand-signed by the author on a page designed by @artist", or similar (author signs on a dedicated page whose DESIGN is credited to @artist):
+  - PRESERVE THE WORDING — do NOT reduce this to a bare "signed". The feature = the signing phrase kept as written, up to (but not including) the artist attribution ("designed by @artist"). Normalise only a bare/vague trailing "a page" / "on a page" to "a dedicated signature page"; if the source names the page more specifically (e.g. "the title page", "a tipped-in page", "the endpapers"), keep that name instead.
+  - Add the @artist as an artist entry with role: "dedicated signature page" (or the specific page name the source used)
   - Do NOT add the author as an artist entry
-  - Example: "Signed by the author on a page designed by @apollosproblemchild" → features: ["signed"], artists: [{ name: "@apollosproblemchild", role: "author signature page" }]
-  - Example: "Hand-signed by the author on a page designed by @apollosproblemchild" → features: ["signed"], artists: [{ name: "@apollosproblemchild", role: "author signature page" }]
+  - Do NOT also add a separate "signed" feature — the preserved phrase already conveys it
+  - Example: "Signed by the author on a page designed by @apollosproblemchild" → features: ["Signed by the author on a dedicated signature page"], artists: [{ name: "@apollosproblemchild", role: "dedicated signature page" }]
+  - Example: "Hand-signed by the author on a page designed by @apollosproblemchild" → features: ["Hand-signed by the author on a dedicated signature page"], artists: [{ name: "@apollosproblemchild", role: "dedicated signature page" }]
+  - Example: "Hand-signed by the author on a tipped-in page illustrated by @artist" → features: ["Hand-signed by the author on a tipped-in page"], artists: [{ name: "@artist", role: "tipped-in page" }]
 - SIGNED PHYSICAL ITEM: If "signed" appears as an attribute of a PHYSICAL ITEM (e.g. "Custom endpapers which are signed by the author"), capture BOTH the physical item as its own separate feature AND "signed" as an additional separate feature. Never reduce a sentence describing a physical feature to just "signed" alone — the physical item must not be lost.
   - Example: "Custom endpapers which are signed by the author" → features: ["Custom endpapers", "signed"]
   - Example: "Custom signed bookplate" → features: ["signed bookplate"] (here the item IS a signed bookplate — keep as one entry, no need to split)
@@ -136,6 +138,15 @@ ARTIST EXTRACTION RULES:
 - For SUBSEQUENT artists in the same line (after "and … by @next"): the role = only their portion of the sentence
 - If multiple artists are mentioned in separate lines/bullets, list each separately
 - IMPORTANT: The SAME artist handle can appear multiple times in different bullets — if @artist did work on MULTIPLE elements (each in its own bullet), create ONE entry per bullet. Do NOT merge or combine entries for the same artist. Every @mention in its own bullet = its own separate artist entry in the array.
+- IN-HOUSE / INTERNAL TEAM CREDITS: A creative contribution credited to a company's own internal/in-house team — with NO named individual and NO @handle — MUST STILL be captured as an artist entry (it is currently being missed). The role = the work description, following the same attribution-verb-stripping and role-cropping rules as for named artists. Treat these credits exactly like any other artist attribution (including the "do NOT also add the item to the features array" rule, and the multi-artist parenthetical exception).
+  NAME: use "<Company> in-house team" — the specific crediting company, NEVER a generic merged label. Determine <Company> from, in order of preference: (1) the company name given in the user message context, (2) the company name possessive in the credit itself ("LitJoy's in-house team" → "LitJoy in-house team"), (3) the companyName you extracted for this edition. Only if NONE of these yield a company, fall back to the bare name "in-house team". Do NOT collapse different companies' in-house teams into one name.
+  Recognise variations including (non-exhaustive): "in-house", "in house", "in-house team", "in-house design team", "in-house art team", "in-house studio", "our in-house team", "[Company]'s in-house team", "[Company] in-house team", "designed in-house", "illustrated in-house", "created in-house", "made in-house", "done in-house", "by the [Company] team", "by our design team", "by our art team", "by our studio team", "our studio".
+  Example (company context = "LitJoy"): "Sprayed edges designed in-house" → artists: [{ name: "LitJoy in-house team", role: "Sprayed edges" }], features: []
+  Example: "Endpapers by LitJoy's in-house design team" → artists: [{ name: "LitJoy in-house team", role: "Endpapers" }], features: []
+  Example (company context = "Illumicrate"): "Cover art created by our in-house art team" → artists: [{ name: "Illumicrate in-house team", role: "Cover art" }], features: []
+  Example (company context = "FairyLoot"): "Custom foiled case designed in-house with lettering by @someartist" → features: ["Custom foiled case"], artists: [{ name: "FairyLoot in-house team", role: "Custom foiled case (design)" }, { name: "@someartist", role: "Custom foiled case (lettering)" }]
+  Example (no company anywhere): "Sprayed edges designed in-house" → artists: [{ name: "in-house team", role: "Sprayed edges" }], features: []
+  Do NOT use an in-house team entry when a real individual or an @handle is credited — only when the credit is genuinely to an unnamed internal/company team.
 
 FEATURES RULES:
 - ORDER PRESERVATION: List features and artists in the EXACT ORDER they appear in the source text. Do not sort, reorder, or group them. The first feature mentioned in the text must be first in the array, and so on.
@@ -254,7 +265,11 @@ RULES:
 - genres: take all provided genres from the Genres section. Omit if not present. NEVER include "Audiobook" or "Book Club" in genres — skip them entirely.
 - authors: list only book authors found, remove translators, editors, narrators, or other contributors. If multiple authors are listed, include them all in the authors array.`;
 
-const SALE_ANNOUNCEMENT_PROMPT = `You are a sale announcement data extractor for a luxury book subscription tracking app.
+/** Built per-call (not a static const) so the fallback year in YEAR RULES below is always the
+ * real current year — a hardcoded year in the prompt text would silently go stale. */
+function getSaleAnnouncementPrompt(): string {
+  const currentYear = new Date().getFullYear();
+  return `You are a sale announcement data extractor for a luxury book subscription tracking app.
 Given a sale announcement post (usually from a book subscription box company), extract structured information.
 
 Return ONLY valid JSON matching this schema (omit fields you cannot find):
@@ -335,7 +350,7 @@ TIER RULES (each region's "tiers" array):
 
 SHIPPING:
 - Extract expected shipping timeframe if mentioned (e.g. "ships around November/December", "expected to ship in Q1 2026")
-- Include year if determinable from context (current year is 2026)
+- Include year if determinable from context; if the text gives no year for the shipping window at all, assume the current year (${currentYear})
 
 SALE TYPE RULES:
 - LIMITED_PREORDER: a preorder that is limited in quantity and/or time — phrases like "limited edition", "limited slots", "only X copies", "while stocks last", "preorder closes [date]", "sold out when gone"
@@ -348,8 +363,15 @@ ENDS AT RULES:
 - Use the same LOCAL-time format as other dates (no Z suffix); the saleTimezone field in the matching region indicates the timezone
 - If no explicit close date is mentioned, omit endsAt
 
+YEAR RULES (applies to every date field: tiers[].date, endsAt):
+- Every date you output MUST include a year — never omit the year or leave it ambiguous.
+- If the source text states or clearly implies a year for that date (an explicit year, or a season/quarter paired with one, e.g. "Q1 2026", "Winter 2025"), use that year.
+- If the source gives NO year anywhere that this date could reasonably be tied to, do NOT guess — use the current year (${currentYear}).
+- Do NOT reuse a year mentioned elsewhere in the text (e.g. a copyright notice, an unrelated past sale) for a date it doesn't actually belong to — that still counts as "no year determinable", so fall back to the current year (${currentYear}).
+
 For dates, use ISO 8601 format WITHOUT Z suffix (local time, not UTC). If only a date is given without time, use 00:00:00.000 (no Z).
 For currency, use 3-letter ISO codes (GBP, USD, EUR, PLN, etc.).`;
+}
 
 /**
  * Resolve ambiguous US timezone abbreviations (ET, PT, CT, MT) to their
@@ -514,7 +536,7 @@ export class AiService {
     }
   }
 
-  async parse(input: { text?: string; imageUrl?: string; imageBase64?: string }): Promise<AiParseResult> {
+  async parse(input: { text?: string; imageUrl?: string; imageBase64?: string; companyName?: string }): Promise<AiParseResult> {
     if (!this.client) {
       throw new BadRequestException('OPENAI_API_KEY is not configured on the server');
     }
@@ -555,6 +577,12 @@ export class AiService {
       ? this.buildDataUrl(input.imageBase64)
       : input.imageUrl ?? null;
 
+    const companyHint = input.companyName?.trim()
+      ? `\n\nContext: this edition is offered by the company "${input.companyName.trim()}". `
+        + `For any in-house / internal team credit (see IN-HOUSE / INTERNAL TEAM CREDITS rule), `
+        + `use the artist name "${input.companyName.trim()} in-house team".`
+      : '';
+
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: SYSTEM_PROMPT },
     ];
@@ -563,14 +591,14 @@ export class AiService {
       messages.push({
         role: 'user',
         content: [
-          { type: 'text', text: 'Extract book edition information from this image:' },
+          { type: 'text', text: `Extract book edition information from this image:${companyHint}` },
           { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
         ],
       });
     } else {
       messages.push({
         role: 'user',
-        content: `Extract book edition information from this announcement:\n\n${input.text}`,
+        content: `Extract book edition information from this announcement:\n\n${input.text}${companyHint}`,
       });
     }
 
@@ -751,7 +779,7 @@ export class AiService {
     }
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-      { role: 'system', content: SALE_ANNOUNCEMENT_PROMPT },
+      { role: 'system', content: getSaleAnnouncementPrompt() },
       { role: 'user', content: userContent },
     ];
 
@@ -804,7 +832,7 @@ export class AiService {
     }
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-      { role: 'system', content: SALE_ANNOUNCEMENT_PROMPT },
+      { role: 'system', content: getSaleAnnouncementPrompt() },
       {
         role: 'user',
         content: [

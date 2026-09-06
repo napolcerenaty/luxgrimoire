@@ -151,7 +151,10 @@ function getYearMonthFromIso(iso: string | null) {
 }
 
 function matchesSubscriptionSearch(entry: MySubscriptionEntry, query: string) {
-  return entry.subscription.name.toLowerCase().includes(query)
+  return (
+    entry.subscription.name.toLowerCase().includes(query) ||
+    entry.subscription.company.name.toLowerCase().includes(query)
+  )
 }
 
 function getCostTotal(detail: MyEntryDetail, fallbackCurrency: string) {
@@ -788,7 +791,7 @@ export default function MySubscriptionsPage() {
           type="search"
           value={searchTerm}
           onChange={event => setSearchTerm(event.target.value)}
-          placeholder="Search subscriptions…"
+          placeholder="Search by subscription or company…"
           className="flex-1 rounded-lg border border-navy-700 bg-navy-900 px-3 py-1.5 text-sm text-navy-100 placeholder:text-navy-500 focus:outline-none focus:border-brand-400 transition-colors"
         />
         {tab === 'active' && (

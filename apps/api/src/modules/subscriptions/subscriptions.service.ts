@@ -410,6 +410,9 @@ export class SubscriptionsService {
     if (query.isDiscontinued !== undefined) {
       where.isDiscontinued = query.isDiscontinued;
     }
+    if (query.hideDiscontinued) {
+      where.isDiscontinued = false;
+    }
     if (query.shipsInternationally !== undefined) {
       where.shipsInternationally = query.shipsInternationally;
     }
@@ -485,6 +488,25 @@ export class SubscriptionsService {
     }));
 
     return { data: mapped, ...buildPageMeta(total, page, pageSize) };
+  }
+
+  /** Ultra-lean id+name list for admin filter dropdowns (Editions view) — no pagination, no
+   *  price/asset mapping. Includes content streams (their months carry linked editions too),
+   *  and excludes what a "filter editions by subscription" picker can't use: combos and
+   *  variant subscriptions (never hold months of their own) and subscriptions with zero
+   *  linked months. Optionally scoped to one company. */
+  async getOptions(companyId?: string): Promise<{ id: string; name: string }[]> {
+    return this.prisma.subscription.findMany({
+      where: {
+        isHidden: false,
+        isCombo: false,
+        parentSubscriptionId: null,
+        months: { some: {} },
+        ...(companyId ? { companyId } : {}),
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
   }
 
   async findBySlug(slug: string) {
