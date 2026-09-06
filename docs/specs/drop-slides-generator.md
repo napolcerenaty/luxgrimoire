@@ -54,19 +54,30 @@ nie na slajd.
 - **Nazwa salea** (`title`) — duża.
 - **Pod spodem — blok dat/tierów/cen**:
   - sale **bez regionów**: pionowa lista, jeden wiersz na tier →
-    `{nazwa tieru, drobny druk}  {data} {godzina}`, a `{cena}` raz nad listą
-    (jest jedna cena)
+    `{krótka etykieta tieru, drobny druk}  {data} {godzina}`, a `{cena}` raz
+    nad listą (jest jedna cena)
   - sale **z regionami**: układ **kolumnowy** — jedna kolumna na region:
     - nagłówek kolumny = **nazwa regionu**
     - pod nagłówkiem `{cena}` tego regionu
-    - dalej per tier (posortowane po `order`): `{nazwa tieru, drobny druk}` +
-      `{data} {godzina}`
+    - dalej per tier (posortowane po `order`): `{krótka etykieta tieru, drobny
+      druk}` + `{data} {godzina}`
+  - **długie nazwy tierów** (`SaleTier.name` to wolny tekst — bywa całym zdaniem,
+    np. „Everyone who received edition of The Deathless One, as well as all Adult
+    Fantasy and Romantasy subscribers"): na slajd idzie **krótka etykieta**
+    (`tierShortLabel`), nie surowa nazwa. Pełna nazwa trafia tylko do „Kopiuj
+    opis". `tierShortLabel`:
+    - pole **edytowalne w tabeli admina** (per tier), wstępnie wypełnione heurystyką
+    - heurystyka: nazwa ≤ ~22 znaki → bierz jak jest; inaczej dopasowanie po
+      słowach kluczowych (`general sale`→„General sale", `subscriber`/`active`→
+      „Subscribers", `newsletter`→„Newsletter", `app`/`nest`→„App users",
+      `everyone`/`all`→„Early access"); brak trafienia → `order` decyduje:
+      ostatni tier → „General sale", wcześniejsze → „Early access {n}"
   - `cena` = `region.basePrice ?? announcement.basePrice` + `currency`
     (opcjonalnie `{subscriberBasePrice} subs`)
   - strefa z `region.saleTimezone` / `announcement.saleTimezone`
-  - próg czytelności: 2–3 kolumny mieszczą się na 1080 px; przy **≥ 4 regionach**
-    fallback do układu sekcji (region = nagłówek, tiery w wierszach pod nim) —
-    patrz otwarta decyzja #2
+  - liczba regionów: dziś zwykle 2, w przyszłości może 3 — 2–3 kolumny mieszczą
+    się na 1080 px z krótką etykietą tieru; ≥ 4 regiony to na razie przypadek
+    teoretyczny (otwarta decyzja #2)
   - do karuzeli wchodzą wszystkie tiery salea (nie tylko startowy) — filtr
     „startuje/live" z sekcji 2 działa na poziomie salea, nie tieru
 - **Stopka slajdu**: logo aplikacji (`/logo-light-text.png`, bez base64) +
@@ -79,15 +90,17 @@ nie na slajd.
 - `announcements.service.ts`: `getDropSlidesForRange(from, to)` —
   `saleAnnouncement.findMany` z `where` łączącym „startuje" i „live" (sekcja 2),
   `include`: `tiers` (+`region`), `editions` (+`edition.book.title`), `regions`,
-  `company`. Zbudowanie struktury per-sale: badge, znacznik reprintu, wiersze
-  regionów (z fallbackiem ceny region→announcement i wyborem tieru startowego),
-  `status`. Cache: ten sam bust-key co `getCalendarTiers` (te same dane bazowe).
+  `company`. Zbudowanie struktury per-sale: badge, znacznik reprintu, kolumny
+  regionów (z fallbackiem ceny region→announcement, wszystkie tiery po `order`),
+  `status`. Każdy tier zwraca `name` (surowe) **i** `tierShortLabel` (heurystyka
+  z sekcji 3). Cache: ten sam bust-key co `getCalendarTiers` (te same dane bazowe).
 - `announcements.controller.ts`:
   `@Get('admin/drop-slides') @Roles('ADMIN') @ApiBearerAuth()`,
   query = `DropSlidesRangeQueryDto`.
 - Jest `announcements.drop-slides.spec.ts`: dobór sales na krawędziach zakresu
   (starting vs live), reguły reprintu (0 / wszystkie / część → tytuły),
-  wiersze regionów (z regionami vs bez), fallback ceny, wybór tieru startowego.
+  kolumny regionów (z regionami vs bez), fallback ceny, heurystyka
+  `tierShortLabel` (krótka nazwa jak jest / słowo kluczowe / fallback po `order`).
 
 ## 5. Renderowanie slajdów — decyzja architektoniczna
 
@@ -113,8 +126,10 @@ z bramkowaniem na `document.fonts.ready`.
 
 - `apps/web/src/app/(admin)/admin/marketing/drop-slides/page.tsx` (`'use client'`)
   — dwa date-pickery (domyślnie najbliższy pon–niedz), „Generuj", toggle
-  „slajd okładkowy", edytowalna tabela (pola tekstowe per slajd, żeby dopieścić
-  copy przed eksportem), filmstrip podglądu, siatka eksportu PNG
+  „okładka + zamknięcie", edytowalna tabela (pola tekstowe per slajd — tytuł,
+  firma, znacznik reprintu, **oraz `tierShortLabel` per tier**, wstępnie
+  wypełnione heurystyką, do poprawy ręcznie przed eksportem), filmstrip
+  podglądu, siatka eksportu PNG
   (`<img src=".../og?...">` + „pobierz" / „pobierz wszystko" jako zip przez
   `client-zip`), „Kopiuj opis" + „Kopiuj hashtagi". Responsywnie: kontrolki
   w kolumnie na mobile, tabela i filmstrip w poziomym scrollu
@@ -158,5 +173,10 @@ z bramkowaniem na `document.fonts.ready`.
    opcjonalny toggle, domyślnie włączony  ·  vs  bez nich (tylko slajdy per sale).
    Slajd zamykający: ten sam layout co okładka + linia CTA
    `luxgrimoire.com/sales-calendar`  ·  vs  identyczny 1:1 z okładką.
-4. **Ścieżka renderu**: `next/og` / Satori  ·  vs  klient + `html-to-image`.
-5. **„Kopiuj opis"** (tekst posta z tej samej listy) — zostaje  ·  vs  tylko PNG.
+4. **Krótka etykieta tieru na slajdzie**: heurystyka (≤22 zn. jak jest /
+   słowo kluczowe / fallback po `order`) + pole edytowalne w tabeli  ·  vs
+   zawsze tylko po `order` („Early access {n}" / „General sale"), surowa nazwa
+   nigdy nie ląduje na slajdzie  ·  vs  bez etykiety — na slajdzie sama data,
+   nazwy tierów tylko w „Kopiuj opis".
+5. **Ścieżka renderu**: `next/og` / Satori  ·  vs  klient + `html-to-image`.
+6. **„Kopiuj opis"** (tekst posta z tej samej listy) — zostaje  ·  vs  tylko PNG.
