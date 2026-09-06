@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -317,5 +317,77 @@ export class AdminService {
     }
 
     return { processed: toProcess.length, skipped };
+  }
+
+  // ── Company "Data Freshness" tracking ──────────────────────────────────────
+  // Every company has exactly one company_data_checks row (seeded at epoch by the
+  // migration and on company create). "Never checked" == checkedAt at epoch.
+
+  private static readonly EPOCH = new Date(0);
+
+  async listCompanyDataChecks() {
+    const rows = await this.prisma.bookBoxCompany.findMany({
+      select: {
+        slug: true,
+        name: true,
+        dataCheck: { select: { checkedAt: true, checkedByName: true, note: true } },
+      },
+    });
+
+    return rows
+      .map((c) => ({
+        slug: c.slug,
+        name: c.name,
+        checkedAt: (c.dataCheck?.checkedAt ?? AdminService.EPOCH).toISOString(),
+        checkedByName: c.dataCheck?.checkedByName ?? null,
+        note: c.dataCheck?.note ?? null,
+      }))
+      // Stalest first: epoch/never rows on top, then oldest checkedAt, then name.
+      .sort((a, b) => +new Date(a.checkedAt) - +new Date(b.checkedAt) || a.name.localeCompare(b.name));
+  }
+
+  async updateCompanyDataCheck(
+    slug: string,
+    dto: { touch?: boolean; note?: string | null },
+    actor: { id: string; username: string },
+  ) {
+    const company = await this.prisma.bookBoxCompany.findUnique({
+      where: { slug },
+      select: { id: true, slug: true, name: true },
+    });
+    if (!company) throw new NotFoundException('Company not found');
+
+    const touchFields = dto.touch
+      ? { checkedAt: new Date(), checkedByName: actor.username }
+      : {};
+    const noteField =
+      dto.note !== undefined ? { note: dto.note === '' ? null : dto.note } : {};
+
+    // Row normally exists; upsert keeps this correct if it somehow doesn't.
+    const check = await this.prisma.companyDataCheck.upsert({
+      where: { companyId: company.id },
+      create: { companyId: company.id, checkedAt: AdminService.EPOCH, ...touchFields, ...noteField },
+      update: { ...touchFields, ...noteField },
+      select: { checkedAt: true, checkedByName: true, note: true },
+    });
+
+    if (dto.touch) {
+      void this.auditService.log({
+        userId: actor.id,
+        username: actor.username,
+        action: 'TOUCH_COMPANY_DATA_CHECK',
+        entityType: 'company',
+        entityId: company.id,
+        entityTitle: company.slug,
+      });
+    }
+
+    return {
+      slug: company.slug,
+      name: company.name,
+      checkedAt: check.checkedAt.toISOString(),
+      checkedByName: check.checkedByName,
+      note: check.note,
+    };
   }
 }

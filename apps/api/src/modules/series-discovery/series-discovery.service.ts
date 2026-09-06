@@ -1,4 +1,5 @@
-import { Injectable, Logger, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, ConflictException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paginatedQuery } from '../../common/prisma.utils';
@@ -6,6 +7,7 @@ import { GoogleBooksClient } from './clients/google-books.client';
 import { OpenLibraryClient } from './clients/open-library.client';
 import { WikidataClient } from './clients/wikidata.client';
 import type { ExternalVolumeCandidate } from './series-discovery.types';
+import { normalizeForMatch } from './series-discovery.utils';
 
 const DEFAULT_DAILY_BATCH = 20;
 
@@ -24,26 +26,6 @@ const LANGUAGE_TO_WIKIDATA_QID: Record<string, string> = {
 const LANGUAGE_TO_OPEN_LIBRARY_CODE: Record<string, string> = {
   en: 'eng',
 };
-
-/** Normalizes a title or author name for loose duplicate-detection only (never stored) — same
- * idea as BookSeriesService's normalizeSeriesName (including stripping every standalone
- * "the"/"a"/"an", not just a leading one — see that function's docblock for why), but for
- * comparing external-API titles/authors against what we already have, where punctuation/subtitle
- * differences are common.
- *
- * "&" is folded to "and" before the generic punctuation strip below would otherwise just erase
- * it — unlike "the"/"a"/"an", it's meaningful ("Fire and Blood" needs it to not become "Fire
- * Blood"), so "X & Y" and "X and Y" need to end up equal, not both losing the word entirely. */
-function normalizeForMatch(title: string): string {
-  return title
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/&/g, ' and ')
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .replace(/\b(the|an?)\b/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 function titlesLikelyMatch(a: string, b: string): boolean {
   const na = normalizeForMatch(a);
@@ -304,15 +286,34 @@ export class SeriesDiscoveryService {
     );
   }
 
-  updateSuggestionStatus(id: string, status: string, adminNote?: string) {
-    return this.prisma.seriesVolumeSuggestion.update({
-      where: { id },
-      data: { status, ...(adminNote !== undefined && { adminNote }) },
-    });
+  // Both mutate by id only, no other guard — a row can legitimately vanish between the admin's
+  // list loading and their click (cascade-deleted with its parent series, or removed from another
+  // tab/session), which Prisma reports as P2025 "record not found". Surfacing that as a clean 404
+  // instead of the raw Prisma error lets the frontend show a real message instead of a silent
+  // failure — see series-suggestions/page.tsx's onError handlers.
+  async updateSuggestionStatus(id: string, status: string, adminNote?: string) {
+    try {
+      return await this.prisma.seriesVolumeSuggestion.update({
+        where: { id },
+        data: { status, ...(adminNote !== undefined && { adminNote }) },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new NotFoundException('This suggestion no longer exists — it may have already been removed.');
+      }
+      throw err;
+    }
   }
 
-  removeSuggestion(id: string) {
-    return this.prisma.seriesVolumeSuggestion.delete({ where: { id } });
+  async removeSuggestion(id: string) {
+    try {
+      return await this.prisma.seriesVolumeSuggestion.delete({ where: { id } });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new NotFoundException('This suggestion no longer exists — it may have already been removed.');
+      }
+      throw err;
+    }
   }
 
   // ─── Admin-managed bundle/omnibus keyword list ─────────────────────────────

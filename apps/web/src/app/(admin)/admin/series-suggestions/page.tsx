@@ -151,11 +151,22 @@ export default function AdminSeriesSuggestionsPage() {
         body: JSON.stringify({ status }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'series-volume-suggestions'] }),
+    // A 404 here means the row was already removed elsewhere (another tab, or cascade-deleted
+    // with its series) since this list last loaded — refetch so the stale row disappears instead
+    // of sitting there ready to fail the same way again.
+    onError: (e: Error) => {
+      alert(`Error: ${e.message}`)
+      qc.invalidateQueries({ queryKey: ['admin', 'series-volume-suggestions'] })
+    },
   })
 
   const del = useMutation({
     mutationFn: (id: string) => authFetch(`/admin/series-volume-suggestions/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'series-volume-suggestions'] }),
+    onError: (e: Error) => {
+      alert(`Error: ${e.message}`)
+      qc.invalidateQueries({ queryKey: ['admin', 'series-volume-suggestions'] })
+    },
   })
 
   const totalPages = data ? Math.ceil(data.total / data.pageSize) : 1

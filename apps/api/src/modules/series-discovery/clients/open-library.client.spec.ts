@@ -42,7 +42,7 @@ describe('OpenLibraryClient', () => {
         title: 'Test Saga Book 5',
         author_name: ['Jane Doe'],
         first_publish_year: 2024,
-        subject: ['Fantasy', 'Adventure', 'Magic', 'Dragons', 'Quests', 'Extra Tag'],
+        subject: ['Series:test_saga', 'Fantasy', 'Adventure', 'Magic', 'Dragons', 'Quests', 'Extra Tag'],
       }],
     }));
 
@@ -66,6 +66,7 @@ describe('OpenLibraryClient', () => {
         key: '/works/OL9W',
         title: 'Some Book',
         subject: [
+          'Series:test_saga',
           'Death--Fiction.',
           'Murder--Fiction.',
           'Science fiction.',
@@ -80,11 +81,72 @@ describe('OpenLibraryClient', () => {
     expect(result[0].genres).toEqual(['Science Fiction']);
   });
 
+  it('drops internal "key:value" subject facets (series tags, NYT list membership) as genres', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      docs: [{
+        key: '/works/OL9W',
+        title: 'Some Book',
+        subject: ['Series:once_upon_a_broken_heart', 'Nyt:young-adult-hardcover=2021-10-17', 'Fantasy'],
+      }],
+    }));
+
+    const result = await client.search('Once Upon a Broken Heart', []);
+
+    expect(result[0].genres).toEqual(['Fantasy']);
+  });
+
+  it('drops a doc whose own "Series:" subject tag clearly names a different series', async () => {
+    // Regression test for a reported bug: Stephanie Garber's "Once Upon a Broken Heart" was
+    // suggested as a new volume of her unrelated "Caraval" series — free-text relevance search
+    // surfaced it for a "Caraval Stephanie Garber" query since author matching alone can't tell
+    // the two series apart. OL's own subject tag says otherwise.
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      docs: [{
+        key: '/works/OL1W',
+        title: 'Once Upon a Broken Heart',
+        author_name: ['Stephanie Garber'],
+        subject: ['Series:once_upon_a_broken_heart', 'Fantasy'],
+      }],
+    }));
+
+    const result = await client.search('Caraval', ['Stephanie Garber']);
+
+    expect(result).toEqual([]);
+  });
+
+  it('keeps a doc whose "Series:" subject tag matches the series being checked', async () => {
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      docs: [{
+        key: '/works/OL2W',
+        title: 'Caraval Book 2',
+        author_name: ['Stephanie Garber'],
+        subject: ['Series:caraval', 'Fantasy'],
+      }],
+    }));
+
+    const result = await client.search('Caraval', ['Stephanie Garber']);
+
+    expect(result.map((c) => c.title)).toEqual(['Caraval Book 2']);
+  });
+
+  it('drops a doc with no "Series:" subject tag at all — no positive confirmation, no keep', async () => {
+    // Deliberately stricter than the "unsure -> don't drop" policy used elsewhere (e.g. language
+    // filtering below): over 40 suggestions already sitting in prod as junk, manually dismissed,
+    // were exactly this shape — author matched, no series tag to confirm it either way.
+    fetchMock.mockResolvedValue(mockJsonResponse({
+      docs: [{ key: '/works/OL3W', title: 'Untagged Book', subject: ['Fantasy'] }],
+    }));
+
+    const result = await client.search('Caraval', ['Stephanie Garber']);
+
+    expect(result).toEqual([]);
+  });
+
   it('requests the language field and drops a doc whose language does not match', async () => {
     fetchMock.mockResolvedValue(mockJsonResponse({
       docs: [
-        { key: '/works/OL1W', title: 'English Edition', language: ['eng'] },
-        { key: '/works/OL2W', title: 'Foreign Edition', language: ['fre'] },
+        { key: '/works/OL1W', title: 'English Edition', language: ['eng'], subject: ['Series:test_saga'] },
+        { key: '/works/OL2W', title: 'Foreign Edition', language: ['fre'], subject: ['Series:test_saga'] },
       ],
     }));
 
@@ -96,7 +158,7 @@ describe('OpenLibraryClient', () => {
 
   it('keeps a doc with no language field at all rather than dropping it (sparse data)', async () => {
     fetchMock.mockResolvedValue(mockJsonResponse({
-      docs: [{ key: '/works/OL3W', title: 'Unknown Language Edition' }],
+      docs: [{ key: '/works/OL3W', title: 'Unknown Language Edition', subject: ['Series:test_saga'] }],
     }));
 
     const result = await client.search('Test Saga', [], 'eng');
@@ -106,7 +168,7 @@ describe('OpenLibraryClient', () => {
 
   it('does not filter by language when none is requested', async () => {
     fetchMock.mockResolvedValue(mockJsonResponse({
-      docs: [{ key: '/works/OL2W', title: 'Foreign Edition', language: ['fre'] }],
+      docs: [{ key: '/works/OL2W', title: 'Foreign Edition', language: ['fre'], subject: ['Series:test_saga'] }],
     }));
 
     const result = await client.search('Test Saga', []);

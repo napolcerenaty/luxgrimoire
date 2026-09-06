@@ -94,4 +94,33 @@ describe('BookSeriesService', () => {
       ).rejects.toThrow(ConflictException);
     });
   });
+
+  describe('findAll — emptyOnly filter', () => {
+    beforeEach(() => {
+      (prisma.bookSeries.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.bookSeries.count as jest.Mock).mockResolvedValue(0);
+    });
+
+    it('filters to series with zero book entries when emptyOnly is true', async () => {
+      await service.findAll({ emptyOnly: true });
+
+      const where = (prisma.bookSeries.findMany as jest.Mock).mock.calls[0][0].where;
+      expect(where).toEqual({ entries: { none: {} } });
+      expect((prisma.bookSeries.count as jest.Mock).mock.calls[0][0].where).toEqual({ entries: { none: {} } });
+    });
+
+    it('does not filter by entry count when emptyOnly is not set', async () => {
+      await service.findAll({});
+
+      const where = (prisma.bookSeries.findMany as jest.Mock).mock.calls[0][0].where;
+      expect(where).toEqual({});
+    });
+
+    it('combines emptyOnly with a search term', async () => {
+      await service.findAll({ emptyOnly: true, search: 'Caraval' });
+
+      const where = (prisma.bookSeries.findMany as jest.Mock).mock.calls[0][0].where;
+      expect(where).toEqual({ name: { contains: 'Caraval', mode: 'insensitive' }, entries: { none: {} } });
+    });
+  });
 });

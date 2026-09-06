@@ -395,8 +395,25 @@ model BookBoxCompany {
   logoAsset         MediaAsset?           @relation("CompanyLogo", fields: [logoAssetId], references: [id], onDelete: SetNull)
   imagePermission   CompanyImagePermission?
   permissionCommunications CompanyPermissionCommunication[]
+  dataCheck         CompanyDataCheck?
   @@index([country])
   @@map("book_box_companies")
+}
+
+// One row per company: when an admin/moderator last verified the company's data is
+// current. Seeded at epoch (= "never checked") for every company by migration and on
+// create; overwritten in place by the admin "Data Freshness" view (no history kept).
+model CompanyDataCheck {
+  id            String         @id @default(uuid())
+  companyId     String         @unique
+  checkedAt     DateTime       @default("1970-01-01T00:00:00.000Z")
+  checkedByName String?
+  note          String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  company       BookBoxCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("company_data_checks")
 }
 
 model CompanyImagePermission {
