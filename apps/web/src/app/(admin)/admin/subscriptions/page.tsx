@@ -1654,7 +1654,7 @@ export default function AdminSubscriptionsPage() {
         ? `&companyId=${managerCompanyId}`
         : filterCompanyId ? `&companyId=${filterCompanyId}` : ''
       const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
-      const discontinuedParam = showDiscontinued ? '' : '&isDiscontinued=false'
+      const discontinuedParam = showDiscontinued ? '' : '&hideDiscontinued=true'
       const contentStreamParam = contentStreamsOnly ? '&isContentStream=true' : ''
       return authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?page=${page}&pageSize=${PAGE_SIZE}&includeHidden=true${companyFilter}${searchParam}${discontinuedParam}${contentStreamParam}`)
     },

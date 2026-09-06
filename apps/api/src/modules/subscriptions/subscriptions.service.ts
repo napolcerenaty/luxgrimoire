@@ -410,6 +410,9 @@ export class SubscriptionsService {
     if (query.isDiscontinued !== undefined) {
       where.isDiscontinued = query.isDiscontinued;
     }
+    if (query.hideDiscontinued) {
+      where.isDiscontinued = false;
+    }
     if (query.shipsInternationally !== undefined) {
       where.shipsInternationally = query.shipsInternationally;
     }
