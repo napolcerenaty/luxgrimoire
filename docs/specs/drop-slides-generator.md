@@ -128,8 +128,11 @@ z bramkowaniem na `document.fonts.ready`.
   — dwa date-pickery (domyślnie najbliższy pon–niedz), „Generuj", toggle
   „okładka + zamknięcie", edytowalna tabela (pola tekstowe per slajd — tytuł,
   firma, znacznik reprintu, **oraz `tierShortLabel` per tier**, wstępnie
-  wypełnione heurystyką, do poprawy ręcznie przed eksportem), filmstrip
-  podglądu, siatka eksportu PNG
+  wypełnione heurystyką, do poprawy ręcznie przed eksportem). **Każdy wiersz
+  tieru pokazuje obok inputa surowe `SaleTier.name` — read-only, przygaszone,
+  z zawijaniem/tooltipem — żeby admin widział oryginał przy skracaniu.**
+  „Przywróć" cofa etykietę do wartości z heurystyki. Filmstrip podglądu,
+  siatka eksportu PNG
   (`<img src=".../og?...">` + „pobierz" / „pobierz wszystko" jako zip przez
   `client-zip`), „Kopiuj opis" + „Kopiuj hashtagi". Responsywnie: kontrolki
   w kolumnie na mobile, tabela i filmstrip w poziomym scrollu
