@@ -415,6 +415,17 @@ export class SubscriptionsService {
     }
     if (query.isContentStream !== undefined) {
       where.isContentStream = query.isContentStream;
+    } else if (query.includeContentStreams) {
+      // Base where sets `isContentStream: false` when not includeHidden — drop that constraint
+      // so both regular subscriptions and content streams come back.
+      delete where.isContentStream;
+    }
+    if (query.excludeComboAndVariants) {
+      where.isCombo = false;
+      where.parentSubscriptionId = null;
+    }
+    if (query.hasMonths) {
+      where.months = { some: {} };
     }
     if (query.skipPolicyType) {
       const billingType = query.skipPolicyBillingType;

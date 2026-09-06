@@ -231,11 +231,14 @@ export default function AdminEditionsPage() {
     ? Array.isArray(companiesData) ? companiesData : companiesData.data
     : []
 
-  // Subscriptions for filter dropdown — scoped to the selected company when one is picked
+  // Subscriptions for filter dropdown — scoped to the selected company when one is picked.
+  // Content-stream months carry linked editions too, so include content streams alongside
+  // regular subscriptions; combos/variants never hold months, so drop them and anything with
+  // no linked months (nothing to filter the table by).
   const { data: subscriptionsData } = useQuery({
     queryKey: ['admin', 'subscriptions-list', companyFilter],
     queryFn: () => authFetch<{ data: { id: string; name: string }[] }>(
-      `/subscriptions?pageSize=200${companyFilter ? `&companyId=${companyFilter}` : ''}`,
+      `/subscriptions?pageSize=200&includeContentStreams=true&excludeComboAndVariants=true&hasMonths=true${companyFilter ? `&companyId=${companyFilter}` : ''}`,
     ),
     enabled: !isManager,
   })
