@@ -12,6 +12,10 @@ import { PrismaService } from '../src/prisma/prisma.service';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/** RegisterDto requires these since the legal-consent-versioning feature — any
+ *  non-empty string works, register() doesn't validate against a "latest" version. */
+const CONSENT = { termsVersion: '2026-08-05T00:00:00.000Z', privacyVersion: '2026-08-04T00:00:00.000Z' };
+
 function hashToken(t: string) {
   return createHash('sha256').update(t).digest('hex');
 }
@@ -91,7 +95,7 @@ function extractJwtFromCookie(res: { headers: Record<string, string | string[]> 
 async function registerAndLogin(opts: { email: string; username: string; password: string }) {
   await request(httpServer)
     .post('/api/auth/register')
-    .send({ ...opts, termsAccepted: true });
+    .send({ ...opts, termsAccepted: true, ...CONSENT });
   await verifyEmail(opts.email);
   const res = await request(httpServer)
     .post('/api/auth/login')
@@ -110,7 +114,7 @@ describe('POST /api/auth/register', () => {
   it('201 — registration successful, returns message', async () => {
     const res = await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: email(), username: username(), password: 'Password1!', termsAccepted: true })
+      .send({ email: email(), username: username(), password: 'Password1!', termsAccepted: true, ...CONSENT })
       .expect(201);
 
     expect(res.body.message).toMatch(/registration successful/i);
@@ -120,11 +124,11 @@ describe('POST /api/auth/register', () => {
     const e = email();
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: e, username: username('first'), password: 'Password1!', termsAccepted: true });
+      .send({ email: e, username: username('first'), password: 'Password1!', termsAccepted: true, ...CONSENT });
 
     const res = await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: e, username: username('second'), password: 'Password1!', termsAccepted: true })
+      .send({ email: e, username: username('second'), password: 'Password1!', termsAccepted: true, ...CONSENT })
       .expect(409);
 
     expect(res.body.message).toMatch(/email/i);
@@ -134,11 +138,11 @@ describe('POST /api/auth/register', () => {
     const u = username();
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: email('first'), username: u, password: 'Password1!', termsAccepted: true });
+      .send({ email: email('first'), username: u, password: 'Password1!', termsAccepted: true, ...CONSENT });
 
     const res = await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: email('second'), username: u, password: 'Password1!', termsAccepted: true })
+      .send({ email: email('second'), username: u, password: 'Password1!', termsAccepted: true, ...CONSENT })
       .expect(409);
 
     expect(res.body.message).toMatch(/username/i);
@@ -163,7 +167,7 @@ describe('POST /api/auth/login', () => {
     testEmail = email('login');
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: testEmail, username: username('login'), password: testPassword, termsAccepted: true });
+      .send({ email: testEmail, username: username('login'), password: testPassword, termsAccepted: true, ...CONSENT });
     await verifyEmail(testEmail);
   });
 
@@ -320,7 +324,7 @@ describe('POST /api/auth/forgot-password', () => {
     const e = email('forgot');
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: e, username: username('forgot'), password: 'Password1!', termsAccepted: true });
+      .send({ email: e, username: username('forgot'), password: 'Password1!', termsAccepted: true, ...CONSENT });
 
     const res = await request(httpServer)
       .post('/api/auth/forgot-password')
@@ -334,7 +338,7 @@ describe('POST /api/auth/forgot-password', () => {
     const e = email('fgtok');
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: e, username: username('fgtok'), password: 'Password1!', termsAccepted: true });
+      .send({ email: e, username: username('fgtok'), password: 'Password1!', termsAccepted: true, ...CONSENT });
 
     await request(httpServer)
       .post('/api/auth/forgot-password')
@@ -362,7 +366,7 @@ describe('POST /api/auth/reset-password', () => {
     const e = email('reset');
     await request(httpServer)
       .post('/api/auth/register')
-      .send({ email: e, username: username('reset'), password: 'OldPass1!', termsAccepted: true });
+      .send({ email: e, username: username('reset'), password: 'OldPass1!', termsAccepted: true, ...CONSENT });
     const user = await prisma.user.findFirst({ where: { email: e } });
     userId = user!.id;
   });

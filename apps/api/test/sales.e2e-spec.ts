@@ -85,7 +85,11 @@ async function registerAndGetToken(): Promise<{ token: string; userId: string }>
   const e = email();
   await request(httpServer)
     .post('/api/auth/register')
-    .send({ email: e, username: username(), password: 'Password1!', termsAccepted: true })
+    .send({
+      email: e, username: username(), password: 'Password1!', termsAccepted: true,
+      // RegisterDto requires these since the legal-consent-versioning feature.
+      termsVersion: '2026-08-05T00:00:00.000Z', privacyVersion: '2026-08-04T00:00:00.000Z',
+    })
     .expect(201);
   await prisma.user.updateMany({ where: { email: e }, data: { emailVerified: true } });
   const res = await request(httpServer)
