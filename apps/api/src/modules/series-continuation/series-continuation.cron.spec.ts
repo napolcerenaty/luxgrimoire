@@ -40,7 +40,10 @@ describe('SeriesContinuationCron', () => {
       id: SALE_ID,
       company: { name: 'Acme Books' },
     });
-    (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([{ book: { title: 'Volume Two' } }]);
+    (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', seriesId: 'series-1', series: null } },
+    ]);
+    (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
     (prisma.pendingSeriesContinuationNotification.delete as jest.Mock).mockResolvedValue({});
   });
 
@@ -124,15 +127,44 @@ describe('SeriesContinuationCron', () => {
     ]);
     reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
     (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
-      { book: { title: 'Volume Two' } },
-      { book: { title: 'Volume Two' } },
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', seriesId: 'series-1', series: null } },
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', seriesId: 'series-1', series: null } },
     ]);
     (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
 
     await cron.processPendingNotifications();
 
     const body = (notificationsService.createNotification as jest.Mock).mock.calls[0][3];
-    expect(body).toBe('New volume available: Volume Two');
+    expect(body).toBe('Volume Two from Acme Books has been announced. Tap to view.');
+  });
+
+  it('names the series in the title when the book has one', async () => {
+    (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
+    reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
+    (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', seriesId: 'series-1', series: { name: 'The Fallen' } } },
+    ]);
+    (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
+
+    await cron.processPendingNotifications();
+
+    const title = (notificationsService.createNotification as jest.Mock).mock.calls[0][2];
+    expect(title).toBe('New volume of The Fallen');
+  });
+
+  it('appends the variant label to titles, and references the owned book the same way', async () => {
+    (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
+    reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
+    (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
+      { bookBoxCompanyId: 'company-1', variantLabel: 'Black Edition', book: { id: 'book-2', title: 'Volume Two', seriesId: 'series-1', series: null } },
+    ]);
+    (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue({ book: { title: 'Volume One' } });
+    (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
+
+    await cron.processPendingNotifications();
+
+    const body = (notificationsService.createNotification as jest.Mock).mock.calls[0][3];
+    expect(body).toBe('You have Volume One (Black Edition) — Volume Two (Black Edition) from Acme Books has been announced. Tap to view.');
   });
 
   it('deletes the row even if processing throws, so a permanently-bad row does not block future runs', async () => {

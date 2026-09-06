@@ -854,6 +854,21 @@ export interface ApiSubscriptionSeries {
   _count?: { months: number };
 }
 
+type TitleSource = { title?: string | null };
+type VariantSource = { variantLabel?: string | null };
+
+/**
+ * Appends the edition's variant label to the book title, e.g. "Fourth Wing (White Edition)".
+ * Single source of truth for this formatting — use everywhere an edition's display title is
+ * rendered instead of reading book.title directly, so a variantLabel never gets silently
+ * dropped. Shared between apps/web (UI display) and apps/api (notification copy).
+ */
+export function formatEditionDisplayTitle(book: TitleSource | null | undefined, edition: VariantSource | null | undefined): string {
+  const title = book?.title ?? '';
+  const label = edition?.variantLabel?.trim();
+  return label ? `${title} (${label})` : title;
+}
+
 export interface ApiFeatureCategory {
   id: string;
   slug: string;

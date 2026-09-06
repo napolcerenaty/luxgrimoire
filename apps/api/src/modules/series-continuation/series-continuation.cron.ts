@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { formatEditionDisplayTitle } from '@luxgrimoire/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PushService } from '../notifications/push.service';
@@ -58,16 +59,44 @@ export class SeriesContinuationCron {
       }),
       this.prisma.bookEdition.findMany({
         where: { id: { in: row.editionIds } },
-        select: { book: { select: { title: true } } },
+        select: {
+          bookBoxCompanyId: true,
+          variantLabel: true,
+          book: { select: { id: true, title: true, seriesId: true, series: { select: { name: true } } } },
+        },
       }),
     ]);
-    if (!announcement) return;
+    if (!announcement || !editions.length) return;
 
-    const titles = Array.from(new Set(editions.map((e) => e.book.title)));
+    const titles = Array.from(new Set(editions.map((e) => formatEditionDisplayTitle(e.book, e))));
     if (!titles.length) return;
 
-    const title = `New from ${announcement.company?.name ?? 'a company you follow'}`;
-    const body = `New volume${titles.length > 1 ? 's' : ''} available: ${titles.join(', ')}`;
+    const companyName = announcement.company?.name ?? 'a company you follow';
+    const seriesName = editions[0].book.series?.name;
+    const isPlural = titles.length > 1;
+
+    // Re-derive one representative book the user already owns from this same series+
+    // company+variant profile — purely for message copy ("you have X"), so the
+    // notification explains *why* it's showing up instead of reading like a generic
+    // "new stuff" blast. Mirrors SeriesContinuationService's own matching filter.
+    const owned = await this.prisma.userBookEntry.findFirst({
+      where: {
+        userId: row.userId,
+        isWishlist: false,
+        ownershipStatus: { notIn: ['SOLD', 'GIFTED_AWAY', 'BORROWED'] },
+        bookId: { notIn: editions.map((e) => e.book.id) },
+        book: { seriesId: editions[0].book.seriesId },
+        edition: { bookBoxCompanyId: editions[0].bookBoxCompanyId, variantLabel: editions[0].variantLabel },
+      },
+      select: { book: { select: { title: true } } },
+    });
+
+    const title = seriesName ? `New volume${isPlural ? 's' : ''} of ${seriesName}` : `New from ${companyName}`;
+    const newTitlesStr = titles.join(', ');
+    const ownedTitle = owned ? formatEditionDisplayTitle(owned.book, { variantLabel: editions[0].variantLabel }) : null;
+    const body = ownedTitle
+      ? `You have ${ownedTitle} — ${newTitlesStr} from ${companyName} ${isPlural ? 'have' : 'has'} been announced. Tap to view.`
+      : `${newTitlesStr} from ${companyName} ${isPlural ? 'have' : 'has'} been announced. Tap to view.`;
 
     if (settings.seriesContinuationInAppEnabled) {
       await this.notificationsService.createNotification(
