@@ -1507,7 +1507,7 @@ model PolicyAcceptance {
   docType    String // 'TERMS' | 'PRIVACY'
   version    String // source doc's updated_at (ISO) at the moment of acceptance
   acceptedAt DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id])
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([docType])
