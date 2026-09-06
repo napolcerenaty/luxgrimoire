@@ -1624,28 +1624,39 @@ export default function AdminSubscriptionsPage() {
   const [filterCompanyId, setFilterCompanyIdState] = useState<string>(() => {
     try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').companyId ?? '' } catch { return '' }
   })
+  // Discontinued subscriptions are hidden by default — this switch brings them back.
+  const [showDiscontinued, setShowDiscontinuedState] = useState<boolean>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').showDiscontinued ?? false } catch { return false }
+  })
+  const [contentStreamsOnly, setContentStreamsOnlyState] = useState<boolean>(() => {
+    try { return JSON.parse(sessionStorage.getItem(SS_KEY) ?? '{}').contentStreamsOnly ?? false } catch { return false }
+  })
 
   useEffect(() => {
     try {
-      sessionStorage.setItem(SS_KEY, JSON.stringify({ page, search, companyId: filterCompanyId }))
+      sessionStorage.setItem(SS_KEY, JSON.stringify({ page, search, companyId: filterCompanyId, showDiscontinued, contentStreamsOnly }))
     } catch { /* ignore */ }
-  }, [page, search, filterCompanyId])
+  }, [page, search, filterCompanyId, showDiscontinued, contentStreamsOnly])
 
   const setPage = (p: number) => setPageState(p)
   const setSearch = (s: string) => { setSearchState(s); setPageState(1) }
   const setFilterCompanyId = (id: string) => { setFilterCompanyIdState(id); setPageState(1) }
+  const setShowDiscontinued = (v: boolean) => { setShowDiscontinuedState(v); setPageState(1) }
+  const setContentStreamsOnly = (v: boolean) => { setContentStreamsOnlyState(v); setPageState(1) }
 
   const isManager = user?.role === 'COMPANY_MANAGER'
   const managerCompanyId = user?.managedCompanyId
 
   const { data: subsData, isLoading: subsLoading } = useQuery({
-    queryKey: ['admin', 'subscriptions', page, isManager ? managerCompanyId : null, search, filterCompanyId],
+    queryKey: ['admin', 'subscriptions', page, isManager ? managerCompanyId : null, search, filterCompanyId, showDiscontinued, contentStreamsOnly],
     queryFn: () => {
       const companyFilter = isManager && managerCompanyId
         ? `&companyId=${managerCompanyId}`
         : filterCompanyId ? `&companyId=${filterCompanyId}` : ''
       const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
-      return authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?page=${page}&pageSize=${PAGE_SIZE}&includeHidden=true${companyFilter}${searchParam}`)
+      const discontinuedParam = showDiscontinued ? '' : '&isDiscontinued=false'
+      const contentStreamParam = contentStreamsOnly ? '&isContentStream=true' : ''
+      return authFetch<PaginatedResponse<ApiSubscription>>(`/subscriptions?page=${page}&pageSize=${PAGE_SIZE}&includeHidden=true${companyFilter}${searchParam}${discontinuedParam}${contentStreamParam}`)
     },
     enabled: user !== null,
     placeholderData: keepPreviousData,
@@ -1912,9 +1923,27 @@ export default function AdminSubscriptionsPage() {
                 ))}
               </select>
             )}
-            {(search || filterCompanyId) && (
+            <label className="flex items-center gap-2 text-sm text-navy-400 cursor-pointer whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={showDiscontinued}
+                onChange={(e) => setShowDiscontinued(e.target.checked)}
+                className="accent-brand-400"
+              />
+              Show discontinued
+            </label>
+            <label className="flex items-center gap-2 text-sm text-navy-400 cursor-pointer whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={contentStreamsOnly}
+                onChange={(e) => setContentStreamsOnly(e.target.checked)}
+                className="accent-brand-400"
+              />
+              Content streams only
+            </label>
+            {(search || filterCompanyId || showDiscontinued || contentStreamsOnly) && (
               <button
-                onClick={() => { setSearchState(''); setFilterCompanyIdState(''); setPageState(1) }}
+                onClick={() => { setSearchState(''); setFilterCompanyIdState(''); setShowDiscontinuedState(false); setContentStreamsOnlyState(false); setPageState(1) }}
                 className="text-xs text-navy-400 hover:text-navy-200"
               >
                 ✕ Clear
