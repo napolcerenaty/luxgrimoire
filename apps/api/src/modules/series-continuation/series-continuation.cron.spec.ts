@@ -135,10 +135,10 @@ describe('SeriesContinuationCron', () => {
     await cron.processPendingNotifications();
 
     const body = (notificationsService.createNotification as jest.Mock).mock.calls[0][3];
-    expect(body).toBe('Volume Two from Acme Books has been announced. Tap to view.');
+    expect(body).toBe('Volume Two has been announced. Tap to view.');
   });
 
-  it('names the series in the title when the book has one', async () => {
+  it('names the series and the company in the title when the book has a series', async () => {
     (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
     reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
     (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
@@ -149,10 +149,21 @@ describe('SeriesContinuationCron', () => {
     await cron.processPendingNotifications();
 
     const title = (notificationsService.createNotification as jest.Mock).mock.calls[0][2];
-    expect(title).toBe('New volume of The Fallen');
+    expect(title).toBe('New volume of The Fallen from Acme Books');
   });
 
-  it('appends the variant label to titles, and references the owned book the same way', async () => {
+  it('falls back to a plain company-named title when the book has no series', async () => {
+    (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
+    reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
+    (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
+
+    await cron.processPendingNotifications();
+
+    const title = (notificationsService.createNotification as jest.Mock).mock.calls[0][2];
+    expect(title).toBe('New volume from Acme Books');
+  });
+
+  it('appends the variant label to titles, references the owned book the same way, and keeps the company out of the body', async () => {
     (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
     reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
     (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
@@ -164,7 +175,21 @@ describe('SeriesContinuationCron', () => {
     await cron.processPendingNotifications();
 
     const body = (notificationsService.createNotification as jest.Mock).mock.calls[0][3];
-    expect(body).toBe('You have Volume One (Black Edition) — Volume Two (Black Edition) from Acme Books has been announced. Tap to view.');
+    expect(body).toBe('You have Volume One (Black Edition) — Volume Two (Black Edition) has been announced. Tap to view.');
+    expect(body).not.toContain('Acme Books');
+  });
+
+  it('sends push with the exact same title/body as the in-app notification', async () => {
+    (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
+    reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
+    (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: true });
+
+    await cron.processPendingNotifications();
+
+    const [, , title, body] = (notificationsService.createNotification as jest.Mock).mock.calls[0];
+    const pushCall = (pushService.sendToUser as jest.Mock).mock.calls[0][1];
+    expect(pushCall.title).toBe(title);
+    expect(pushCall.body).toBe(body);
   });
 
   it('deletes the row even if processing throws, so a permanently-bad row does not block future runs', async () => {

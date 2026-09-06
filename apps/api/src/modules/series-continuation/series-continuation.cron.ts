@@ -91,12 +91,14 @@ export class SeriesContinuationCron {
       select: { book: { select: { title: true } } },
     });
 
-    const title = seriesName ? `New volume${isPlural ? 's' : ''} of ${seriesName}` : `New from ${companyName}`;
+    const title = seriesName
+      ? `New volume${isPlural ? 's' : ''} of ${seriesName} from ${companyName}`
+      : `New volume${isPlural ? 's' : ''} from ${companyName}`;
     const newTitlesStr = titles.join(', ');
     const ownedTitle = owned ? formatEditionDisplayTitle(owned.book, { variantLabel: editions[0].variantLabel }) : null;
     const body = ownedTitle
-      ? `You have ${ownedTitle} — ${newTitlesStr} from ${companyName} ${isPlural ? 'have' : 'has'} been announced. Tap to view.`
-      : `${newTitlesStr} from ${companyName} ${isPlural ? 'have' : 'has'} been announced. Tap to view.`;
+      ? `You have ${ownedTitle} — ${newTitlesStr} ${isPlural ? 'have' : 'has'} been announced. Tap to view.`
+      : `${newTitlesStr} ${isPlural ? 'have' : 'has'} been announced. Tap to view.`;
 
     if (settings.seriesContinuationInAppEnabled) {
       await this.notificationsService.createNotification(
