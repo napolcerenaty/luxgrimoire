@@ -197,7 +197,7 @@ export default function AdminBooksPage() {
           className="bg-navy-800 border border-navy-700 rounded-lg px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-400 w-72"
         />
         <input
-          type="text"
+          type="search"
           placeholder="Filter by series…"
           value={seriesFilter}
           onChange={(e) => setSeriesFilter(e.target.value)}
