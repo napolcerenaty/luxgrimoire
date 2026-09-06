@@ -103,12 +103,14 @@ SIGNATURE RULES (read before artist rules):
 - "Foiled Author Signature" means a foil-stamped facsimile of the author's signature — it is NOT a hand-signed copy. In that case:
   - Add "Foiled Author Signature" (exact phrase, capitalised) to the features array — do NOT add "signed" or "digitally signed"
   - Example: "Foiled Author Signature" → features: ["Foiled Author Signature"]
-- If the text contains phrases like "signed by the author on a page designed by @artist", "hand-signed by the author on a page designed by @artist", or similar (author signs on a page whose DESIGN is credited to @artist):
-  - Add "signed" to the features array (it IS a hand-signed copy)
-  - Add the @artist as an artist entry with role: "author signature page"
+- If the text contains phrases like "signed by the author on a page designed by @artist", "hand-signed by the author on a page designed by @artist", or similar (author signs on a dedicated page whose DESIGN is credited to @artist):
+  - PRESERVE THE WORDING — do NOT reduce this to a bare "signed". The feature = the signing phrase kept as written, up to (but not including) the artist attribution ("designed by @artist"). Normalise only a bare/vague trailing "a page" / "on a page" to "a dedicated signature page"; if the source names the page more specifically (e.g. "the title page", "a tipped-in page", "the endpapers"), keep that name instead.
+  - Add the @artist as an artist entry with role: "dedicated signature page" (or the specific page name the source used)
   - Do NOT add the author as an artist entry
-  - Example: "Signed by the author on a page designed by @apollosproblemchild" → features: ["signed"], artists: [{ name: "@apollosproblemchild", role: "author signature page" }]
-  - Example: "Hand-signed by the author on a page designed by @apollosproblemchild" → features: ["signed"], artists: [{ name: "@apollosproblemchild", role: "author signature page" }]
+  - Do NOT also add a separate "signed" feature — the preserved phrase already conveys it
+  - Example: "Signed by the author on a page designed by @apollosproblemchild" → features: ["Signed by the author on a dedicated signature page"], artists: [{ name: "@apollosproblemchild", role: "dedicated signature page" }]
+  - Example: "Hand-signed by the author on a page designed by @apollosproblemchild" → features: ["Hand-signed by the author on a dedicated signature page"], artists: [{ name: "@apollosproblemchild", role: "dedicated signature page" }]
+  - Example: "Hand-signed by the author on a tipped-in page illustrated by @artist" → features: ["Hand-signed by the author on a tipped-in page"], artists: [{ name: "@artist", role: "tipped-in page" }]
 - SIGNED PHYSICAL ITEM: If "signed" appears as an attribute of a PHYSICAL ITEM (e.g. "Custom endpapers which are signed by the author"), capture BOTH the physical item as its own separate feature AND "signed" as an additional separate feature. Never reduce a sentence describing a physical feature to just "signed" alone — the physical item must not be lost.
   - Example: "Custom endpapers which are signed by the author" → features: ["Custom endpapers", "signed"]
   - Example: "Custom signed bookplate" → features: ["signed bookplate"] (here the item IS a signed bookplate — keep as one entry, no need to split)
