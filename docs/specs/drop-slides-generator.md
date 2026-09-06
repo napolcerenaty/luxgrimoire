@@ -21,7 +21,9 @@ Niedziela wieczór. Admin wchodzi na `/admin/marketing/drop-slides` (**tylko ADM
 2. „Generuj" → zaciąga **wszystkie sales startujące lub live** w tym zakresie
    (sekcja 2).
 3. **Jeden slajd 1080×1080 na każdego salea** z tego tygodnia (sekcja 3).
-   Opcjonalnie dodatkowy slajd okładkowy z zakresem tygodnia (toggle).
+   Opcjonalnie slajd okładkowy z zakresem tygodnia **na początku** oraz
+   slajd zamykający **o tym samym layoucie co okładkowy** na końcu karuzeli
+   (wspólny toggle „okładka + zamknięcie").
 4. Podgląd (filmstrip przeskalowanych slajdów) → eksport PNG + „Kopiuj opis".
 
 **Bez filtra firmy i regionu** — zakres dat to jedyne wejście.
@@ -113,8 +115,10 @@ z bramkowaniem na `document.fonts.ready`.
   w kolumnie na mobile, tabela i filmstrip w poziomym scrollu
   (`overflow-x-auto`, `scrollbar-none` z `globals.css`).
 - `apps/web/src/components/admin/drop-slides/DropSlide.tsx` — warianty
-  `sale` (+ opcjonalnie `cover`), style inline w podzbiorze Satori; używany
-  i w podglądzie (opakowany w `transform: scale()`), i w route OG.
+  `sale` i `cover` (ten sam `cover` renderowany jako pierwszy i jako ostatni
+  slajd; ostatni może dostać linię CTA `luxgrimoire.com/sales-calendar`),
+  style inline w podzbiorze Satori; używany i w podglądzie
+  (opakowany w `transform: scale()`), i w route OG.
 - `apps/web/src/components/admin/drop-slides/slideData.ts` — typy +
   `buildCaption(slides)` + `buildHashtags()` + `saleType → label` + reguły reprintu.
 - `apps/web/src/app/(admin)/admin/marketing/drop-slides/og/route.tsx` —
@@ -143,7 +147,9 @@ z bramkowaniem na `document.fonts.ready`.
 2. **Wiersze regionów przy kilku tierach**: jeden wiersz na region, `data` =
    najwcześniejszy tier w zakresie  ·  vs  rozwijać wszystkie tiery
    (First Access / Early Access / General Sale) jako podwiersze `{nazwa} {data} {godz.}`.
-3. **Slajd okładkowy** z zakresem tygodnia: opcjonalny toggle, domyślnie włączony  ·
-   vs  bez niego (tylko slajdy per sale).
+3. **Okładka + slajd zamykający** (ten sam layout, na początku i na końcu):
+   opcjonalny toggle, domyślnie włączony  ·  vs  bez nich (tylko slajdy per sale).
+   Slajd zamykający: ten sam layout co okładka + linia CTA
+   `luxgrimoire.com/sales-calendar`  ·  vs  identyczny 1:1 z okładką.
 4. **Ścieżka renderu**: `next/og` / Satori  ·  vs  klient + `html-to-image`.
 5. **„Kopiuj opis"** (tekst posta z tej samej listy) — zostaje  ·  vs  tylko PNG.
