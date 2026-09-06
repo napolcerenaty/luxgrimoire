@@ -137,6 +137,24 @@ describe('CollectionService', () => {
       expect(data.isOriginalPrint).toBe(false);
       expect(data.saleAnnouncementEditionId).toBe('sae-1');
     });
+
+    it('flags isFirstEdition when the user had no prior non-wishlist entries', async () => {
+      (prisma.bookEdition.findUnique as jest.Mock).mockResolvedValue({ id: 'ed-1', bookId: 'book-1' });
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'e1', ownershipStatus: 'OWNED', isWishlist: false });
+      (prisma.userBookEntry.count as jest.Mock).mockResolvedValue(0);
+
+      const result = await service.addToCollection(USER, { bookEditionId: 'ed-1' } as any);
+      expect(result.isFirstEdition).toBe(true);
+    });
+
+    it('does not flag isFirstEdition when the user already owns editions', async () => {
+      (prisma.bookEdition.findUnique as jest.Mock).mockResolvedValue({ id: 'ed-1', bookId: 'book-1' });
+      (prisma.userBookEntry.create as jest.Mock).mockResolvedValue({ id: 'e1', ownershipStatus: 'OWNED', isWishlist: false });
+      (prisma.userBookEntry.count as jest.Mock).mockResolvedValue(3);
+
+      const result = await service.addToCollection(USER, { bookEditionId: 'ed-1' } as any);
+      expect(result.isFirstEdition).toBe(false);
+    });
   });
 
   // ── addToWishlist ─────────────────────────────────────────────────────────

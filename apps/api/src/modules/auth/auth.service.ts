@@ -20,7 +20,21 @@ import {
   ConsentDto,
 } from './auth.dto';
 import { MailService } from '../mail/mail.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { randomBytes, createHash } from 'crypto';
+
+/** Compact, low-cardinality label for the `signup` analytics event (raw payload still lands on User.signupSource). */
+function signupSourceLabel(raw: string | null | undefined): string {
+  if (!raw) return '(direct)';
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const val = parsed.ref ?? parsed.source ?? parsed.utm_source;
+    if (typeof val === 'string' && val.trim()) return val.trim().slice(0, 60);
+  } catch {
+    // not JSON — fall through to the raw string
+  }
+  return raw.slice(0, 60);
+}
 
 /** Constant-time hash for password reset tokens — prevents timing attacks on DB lookup */
 function hashResetToken(token: string): string {
@@ -47,6 +61,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly mail: MailService,
+    private readonly analytics: AnalyticsService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -66,6 +81,7 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
+    const signupSource = dto.signupSource?.slice(0, 512) ?? null;
     const now = new Date();
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -77,6 +93,7 @@ export class AuthService {
           termsVersion: dto.termsVersion,
           privacyAcceptedAt: now,
           privacyVersion: dto.privacyVersion,
+          signupSource,
         },
       });
       await tx.policyAcceptance.createMany({
@@ -94,6 +111,12 @@ export class AuthService {
 
     await this.prisma.emailVerificationToken.create({
       data: { userId: user.id, tokenHash, expiresAt },
+    });
+
+    this.analytics.track({
+      eventType: 'signup',
+      userId: user.id,
+      value: signupSourceLabel(signupSource),
     });
 
     try {
@@ -346,7 +369,7 @@ export class AuthService {
     });
   }
 
-  async oauthCallback(profile: OAuthProfile) {
+  async oauthCallback(profile: OAuthProfile, signupSource?: string | null) {
     const existingAccount = await this.prisma.account.findUnique({
       where: { provider_providerId: { provider: profile.provider, providerId: profile.providerId } },
       include: { user: true },
@@ -379,6 +402,7 @@ export class AuthService {
 
     const baseUsername = this.generateUsername(profile.displayName ?? profile.email ?? profile.provider);
     const username = await this.uniqueUsername(baseUsername);
+    const oauthSignupSource = signupSource?.slice(0, 512) ?? null;
 
     const newUser = await this.prisma.user.create({
       data: {
@@ -387,6 +411,7 @@ export class AuthService {
         emailVerified: !!profile.email,
         displayName: profile.displayName ?? null,
         avatarUrl: profile.avatarUrl ?? null,
+        signupSource: oauthSignupSource,
         accounts: {
           create: {
             provider: profile.provider,
@@ -396,6 +421,12 @@ export class AuthService {
           },
         },
       },
+    });
+
+    this.analytics.track({
+      eventType: 'signup',
+      userId: newUser.id,
+      value: signupSourceLabel(oauthSignupSource),
     });
 
     // Send welcome email to new OAuth users (non-fatal)

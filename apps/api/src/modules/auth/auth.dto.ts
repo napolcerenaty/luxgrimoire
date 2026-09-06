@@ -34,6 +34,12 @@ export class RegisterDto {
 
   @IsString()
   privacyVersion!: string;
+
+  /** First-touch attribution: raw `lg_src` cookie payload forwarded by the register page. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  signupSource?: string;
 }
 
 export class LoginDto {

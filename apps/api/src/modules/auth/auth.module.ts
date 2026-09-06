@@ -8,9 +8,11 @@ import { JwtStrategy } from './jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
   imports: [
+    AnalyticsModule,
     PassportModule,
     JwtModule.registerAsync({
       useFactory: () => {

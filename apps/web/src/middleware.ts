@@ -41,7 +41,49 @@ function getJwtRole(token: string): string | null {
 
 const ADMIN_ROLES = ['ADMIN', 'MODERATOR']
 
+// ─── First-touch signup attribution (growth roadmap Faza 0) ───────────────────
+const ATTRIB_COOKIE = 'lg_src'
+const ATTRIB_MAX_AGE = 60 * 60 * 24 * 30 // 30 days
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const
+
+/**
+ * If the request carries `?ref=` or any `utm_*` param and no attribution cookie is
+ * set yet, stash a compact payload as a readable (non-httpOnly) cookie. First touch
+ * wins — an existing cookie is never overwritten. The register page forwards this
+ * value to the API, which persists it on `User.signupSource`.
+ */
+function captureAttribution(request: NextRequest, res: NextResponse): void {
+  if (request.cookies.has(ATTRIB_COOKIE)) return
+
+  const sp = request.nextUrl.searchParams
+  const payload: Record<string, string> = {}
+  for (const key of UTM_KEYS) {
+    const v = sp.get(key)
+    if (v) payload[key.slice(4)] = v.slice(0, 120)
+  }
+  const ref = sp.get('ref')
+  if (ref) payload.ref = ref.slice(0, 120)
+
+  if (Object.keys(payload).length === 0) return
+
+  payload.lp = request.nextUrl.pathname.slice(0, 180)
+  payload.t = String(Date.now())
+
+  res.cookies.set(ATTRIB_COOKIE, JSON.stringify(payload), {
+    maxAge: ATTRIB_MAX_AGE,
+    sameSite: 'lax',
+    path: '/',
+    httpOnly: false,
+  })
+}
+
 export async function middleware(request: NextRequest) {
+  const res = await route(request)
+  captureAttribution(request, res)
+  return res
+}
+
+async function route(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
 
   // Always allow: maintenance page itself, admin routes, auth routes, API, static files

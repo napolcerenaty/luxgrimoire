@@ -8,6 +8,7 @@ import { OAuthButtons } from '@/components/auth/OAuthButtons'
 import { PasswordStrength, passwordStrong } from '@/components/auth/PasswordStrength'
 import { API_BASE } from '@/lib/authFetch'
 import { fetchLegalVersions, resolveTermsVersion, resolvePrivacyVersion } from '@/lib/consent'
+import { getSignupSource } from '@/lib/attribution'
 
 /** Instagram-style: letters, digits, underscores, periods; no leading/trailing/consecutive periods; 3–30 chars */
 const USERNAME_RE = /^(?!\.)(?!.*\.\.)(?!.*\.$)[a-zA-Z0-9._]{3,30}$/
@@ -61,6 +62,7 @@ export default function RegisterPage() {
           termsAccepted,
           termsVersion: resolveTermsVersion(versions),
           privacyVersion: resolvePrivacyVersion(versions),
+          signupSource: getSignupSource(),
         }),
       })
 

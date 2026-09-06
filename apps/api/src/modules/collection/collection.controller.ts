@@ -111,6 +111,15 @@ export class CollectionController {
       entityId: dto.bookEditionId ?? undefined,
       entityName: dto._entityName,
     });
+    if (result.isFirstEdition) {
+      this.analyticsService.track({
+        eventType: 'added_first_edition',
+        userId: user.id,
+        entityType: 'edition',
+        entityId: dto.bookEditionId ?? undefined,
+        entityName: dto._entityName,
+      });
+    }
     return result;
   }
 

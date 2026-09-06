@@ -7,6 +7,7 @@ import { createHash } from 'crypto';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed_password'),
@@ -22,6 +23,7 @@ describe('AuthService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let jwtService: DeepMockProxy<JwtService>;
   let mailService: DeepMockProxy<MailService>;
+  let analyticsService: DeepMockProxy<AnalyticsService>;
   let cacheStore: Map<string, unknown>;
   let cacheManager: { get: jest.Mock; set: jest.Mock };
 
@@ -30,6 +32,7 @@ describe('AuthService', () => {
     jwtService = mockDeep<JwtService>();
     mailService = mockDeep<MailService>();
     mailService.sendVerificationEmail.mockResolvedValue(undefined);
+    analyticsService = mockDeep<AnalyticsService>();
 
     // Redis cache mock backed by a local Map so rate-limit state persists within a test
     cacheStore = new Map();
@@ -45,6 +48,7 @@ describe('AuthService', () => {
       prisma as unknown as PrismaService,
       jwtService as unknown as JwtService,
       mailService as unknown as MailService,
+      analyticsService as unknown as AnalyticsService,
       cacheManager as unknown as Cache,
     );
 
@@ -111,6 +115,39 @@ describe('AuthService', () => {
           expect.objectContaining({ userId: 'u1', docType: 'PRIVACY', version: CONSENT.privacyVersion }),
         ],
       });
+    });
+
+    it('should persist signupSource and emit a signup event labelled by ref', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({ id: 'u1', email: 'new@test.com', role: 'USER', username: 'newuser' } as any);
+      prisma.emailVerificationToken.create.mockResolvedValue({} as any);
+      prisma.policyAcceptance.createMany.mockResolvedValue({ count: 2 } as any);
+
+      const signupSource = JSON.stringify({ ref: 'alice', lp: '/editions/foo', t: '1' });
+      await service.register({ email: 'new@test.com', username: 'newuser', password: 'Pass1234!', termsAccepted: true, signupSource, ...CONSENT });
+
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ signupSource }) }),
+      );
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: 'signup', userId: 'u1', value: 'alice' }),
+      );
+    });
+
+    it('should record signupSource as null and label the signup event "(direct)" when no source', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({ id: 'u1', email: 'new@test.com', role: 'USER', username: 'newuser' } as any);
+      prisma.emailVerificationToken.create.mockResolvedValue({} as any);
+      prisma.policyAcceptance.createMany.mockResolvedValue({ count: 2 } as any);
+
+      await service.register({ email: 'new@test.com', username: 'newuser', password: 'Pass1234!', termsAccepted: true, ...CONSENT });
+
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ signupSource: null }) }),
+      );
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: 'signup', value: '(direct)' }),
+      );
     });
   });
 
