@@ -52,18 +52,23 @@ nie na slajd.
   - część edycji → „Reprint: {tytuły tych edycji}"
 - **Nazwa firmy** (`company.name`) — mniejsza, nad tytułem.
 - **Nazwa salea** (`title`) — duża.
-- **Pod spodem — wiersze dat**:
-  - sale **z regionami**: jeden wiersz na region →
-    `{nazwa regionu} · {data} {godzina} · {cena}`
-  - sale **bez regionów**: jeden wiersz, **bez nazwy regionu** →
-    `{data} {godzina} · {cena}`
+- **Pod spodem — blok dat/tierów/cen**:
+  - sale **bez regionów**: pionowa lista, jeden wiersz na tier →
+    `{nazwa tieru, drobny druk}  {data} {godzina}`, a `{cena}` raz nad listą
+    (jest jedna cena)
+  - sale **z regionami**: układ **kolumnowy** — jedna kolumna na region:
+    - nagłówek kolumny = **nazwa regionu**
+    - pod nagłówkiem `{cena}` tego regionu
+    - dalej per tier (posortowane po `order`): `{nazwa tieru, drobny druk}` +
+      `{data} {godzina}`
   - `cena` = `region.basePrice ?? announcement.basePrice` + `currency`
-    (opcjonalnie `· {subscriberBasePrice} subs`)
-  - `data {godzina}` = najwcześniejszy tier tego regionu wpadający w zakres
-    (gdy żaden nie wpada — najwcześniejszy tier tego regionu); strefa z
-    `region.saleTimezone` / `announcement.saleTimezone`
-  - jeśli region ma kilka istotnych tierów (First Access + General Sale itd.) —
+    (opcjonalnie `{subscriberBasePrice} subs`)
+  - strefa z `region.saleTimezone` / `announcement.saleTimezone`
+  - próg czytelności: 2–3 kolumny mieszczą się na 1080 px; przy **≥ 4 regionach**
+    fallback do układu sekcji (region = nagłówek, tiery w wierszach pod nim) —
     patrz otwarta decyzja #2
+  - do karuzeli wchodzą wszystkie tiery salea (nie tylko startowy) — filtr
+    „startuje/live" z sekcji 2 działa na poziomie salea, nie tieru
 - **Stopka slajdu**: logo aplikacji (`/logo-light-text.png`, bez base64) +
   tekst `luxgrimoire.com`.
 
@@ -117,7 +122,8 @@ z bramkowaniem na `document.fonts.ready`.
 - `apps/web/src/components/admin/drop-slides/DropSlide.tsx` — warianty
   `sale` i `cover` (ten sam `cover` renderowany jako pierwszy i jako ostatni
   slajd; ostatni może dostać linię CTA `luxgrimoire.com/sales-calendar`),
-  style inline w podzbiorze Satori; używany i w podglądzie
+  style inline w podzbiorze Satori (układ kolumn regionów = `display:flex` z
+  dziećmi `flex-direction:column` — mieści się w Satori); używany i w podglądzie
   (opakowany w `transform: scale()`), i w route OG.
 - `apps/web/src/components/admin/drop-slides/slideData.ts` — typy +
   `buildCaption(slides)` + `buildHashtags()` + `saleType → label` + reguły reprintu.
@@ -144,9 +150,10 @@ z bramkowaniem na `document.fonts.ready`.
 ## 8. Otwarte decyzje (rekomendacja = pierwsza)
 
 1. **Domyślny zakres**: najbliższy pełny tydzień pon–niedz  ·  vs  dziś + 7 dni.
-2. **Wiersze regionów przy kilku tierach**: jeden wiersz na region, `data` =
-   najwcześniejszy tier w zakresie  ·  vs  rozwijać wszystkie tiery
-   (First Access / Early Access / General Sale) jako podwiersze `{nazwa} {data} {godz.}`.
+2. **Fallback przy dużej liczbie regionów**: kolumny do 3 regionów, przy ≥ 4
+   układ sekcji (region = nagłówek, tiery pod nim)  ·  vs  zawsze kolumny ze
+   zmniejszaną czcionką  ·  vs  twardy limit 3 regionów na slajd, reszta na
+   drugim slajdzie tego samego salea.
 3. **Okładka + slajd zamykający** (ten sam layout, na początku i na końcu):
    opcjonalny toggle, domyślnie włączony  ·  vs  bez nich (tylko slajdy per sale).
    Slajd zamykający: ten sam layout co okładka + linia CTA
