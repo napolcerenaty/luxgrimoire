@@ -41,9 +41,9 @@ describe('SeriesContinuationCron', () => {
       company: { name: 'Acme Books' },
     });
     (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
-      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', seriesId: 'series-1', series: null } },
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', volumeNumbers: [], seriesId: 'series-1', series: null } },
     ]);
-    (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.pendingSeriesContinuationNotification.delete as jest.Mock).mockResolvedValue({});
   });
 
@@ -127,8 +127,8 @@ describe('SeriesContinuationCron', () => {
     ]);
     reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
     (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
-      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', seriesId: 'series-1', series: null } },
-      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', seriesId: 'series-1', series: null } },
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', volumeNumbers: [], seriesId: 'series-1', series: null } },
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', volumeNumbers: [], seriesId: 'series-1', series: null } },
     ]);
     (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
 
@@ -142,7 +142,7 @@ describe('SeriesContinuationCron', () => {
     (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
     reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
     (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
-      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', seriesId: 'series-1', series: { name: 'The Fallen' } } },
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-2', title: 'Volume Two', volumeNumbers: [], seriesId: 'series-1', series: { name: 'The Fallen' } } },
     ]);
     (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
 
@@ -163,20 +163,97 @@ describe('SeriesContinuationCron', () => {
     expect(title).toBe('New volume from Acme Books');
   });
 
-  it('appends the variant label to titles, references the owned book the same way, and keeps the company out of the body', async () => {
+  it('exactly one owned volume: names it (and the new one) by title, personal touch', async () => {
     (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
     reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
     (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
-      { bookBoxCompanyId: 'company-1', variantLabel: 'Black Edition', book: { id: 'book-2', title: 'Volume Two', seriesId: 'series-1', series: null } },
+      { bookBoxCompanyId: 'company-1', variantLabel: 'Black Edition', book: { id: 'book-2', title: 'Volume Two', volumeNumbers: [2], seriesId: 'series-1', series: null } },
     ]);
-    (prisma.userBookEntry.findFirst as jest.Mock).mockResolvedValue({ book: { title: 'Volume One' } });
+    (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValue([
+      { bookId: 'book-1', book: { id: 'book-1', title: 'Volume One', volumeNumbers: [1] } },
+    ]);
     (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
 
     await cron.processPendingNotifications();
 
     const body = (notificationsService.createNotification as jest.Mock).mock.calls[0][3];
-    expect(body).toBe('You have Volume One (Black Edition) — Volume Two (Black Edition) has been announced. Tap to view.');
+    expect(body).toBe('You have Volume One (Black Edition) - Volume Two (Black Edition) has been announced. Tap to view.');
     expect(body).not.toContain('Acme Books');
+  });
+
+  it('two owned volumes, one new: switches to volume-number wording', async () => {
+    (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
+    reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
+    (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-3', title: 'Volume Three', volumeNumbers: [3], seriesId: 'series-1', series: null } },
+    ]);
+    (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValue([
+      { bookId: 'book-1', book: { id: 'book-1', title: 'Volume One', volumeNumbers: [1] } },
+      { bookId: 'book-2', book: { id: 'book-2', title: 'Volume Two', volumeNumbers: [2] } },
+    ]);
+    (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
+
+    await cron.processPendingNotifications();
+
+    const body = (notificationsService.createNotification as jest.Mock).mock.calls[0][3];
+    expect(body).toBe('You already own volumes 1 & 2 - volume 3 has been announced. Tap to view.');
+  });
+
+  it('three owned volumes, two new: joins each list with commas and "&"', async () => {
+    (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([
+      makeRow({ editionIds: ['edition-4', 'edition-5'] }),
+    ]);
+    reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
+    (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-4', title: 'Volume Four', volumeNumbers: [4], seriesId: 'series-1', series: null } },
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-5', title: 'Volume Five', volumeNumbers: [5], seriesId: 'series-1', series: null } },
+    ]);
+    (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValue([
+      { bookId: 'book-1', book: { id: 'book-1', title: 'Volume One', volumeNumbers: [1] } },
+      { bookId: 'book-2', book: { id: 'book-2', title: 'Volume Two', volumeNumbers: [2] } },
+      { bookId: 'book-3', book: { id: 'book-3', title: 'Volume Three', volumeNumbers: [3] } },
+    ]);
+    (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
+
+    await cron.processPendingNotifications();
+
+    const body = (notificationsService.createNotification as jest.Mock).mock.calls[0][3];
+    expect(body).toBe('You already own volumes 1, 2 & 3 - volumes 4 & 5 have been announced. Tap to view.');
+  });
+
+  it('non-contiguous owned volume numbers are listed as-is, gaps and all', async () => {
+    (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
+    reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
+    (prisma.bookEdition.findMany as jest.Mock).mockResolvedValue([
+      { bookBoxCompanyId: 'company-1', variantLabel: null, book: { id: 'book-4', title: 'Volume Four', volumeNumbers: [4], seriesId: 'series-1', series: null } },
+    ]);
+    (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValue([
+      { bookId: 'book-1', book: { id: 'book-1', title: 'Volume One', volumeNumbers: [1] } },
+      { bookId: 'book-2', book: { id: 'book-2', title: 'Volume Two', volumeNumbers: [2] } },
+      { bookId: 'book-3', book: { id: 'book-3', title: 'Volume Three', volumeNumbers: [3] } },
+      { bookId: 'book-5', book: { id: 'book-5', title: 'Volume Five', volumeNumbers: [5] } },
+    ]);
+    (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
+
+    await cron.processPendingNotifications();
+
+    const body = (notificationsService.createNotification as jest.Mock).mock.calls[0][3];
+    expect(body).toBe('You already own volumes 1, 2, 3 & 5 - volume 4 has been announced. Tap to view.');
+  });
+
+  it('falls back to the no-owned-reference body when owned volumes have no volumeNumbers set', async () => {
+    (prisma.pendingSeriesContinuationNotification.findMany as jest.Mock).mockResolvedValue([makeRow()]);
+    reminderSettingsService.getSettings.mockResolvedValue(makeSettings() as any);
+    (prisma.userBookEntry.findMany as jest.Mock).mockResolvedValue([
+      { bookId: 'book-1', book: { id: 'book-1', title: 'Volume One', volumeNumbers: [] } },
+      { bookId: 'book-0', book: { id: 'book-0', title: 'Volume Zero', volumeNumbers: [] } },
+    ]);
+    (prisma.userNotificationPreference.findUnique as jest.Mock).mockResolvedValue({ pushEnabled: false });
+
+    await cron.processPendingNotifications();
+
+    const body = (notificationsService.createNotification as jest.Mock).mock.calls[0][3];
+    expect(body).toBe('Volume Two has been announced. Tap to view.');
   });
 
   it('sends push with the exact same title/body as the in-app notification', async () => {

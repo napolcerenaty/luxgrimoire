@@ -13,6 +13,24 @@ type PendingRow = {
   editionIds: string[];
 };
 
+type BookRef = { id: string; title: string; volumeNumbers: number[] };
+
+function uniqueBooksById(books: BookRef[]): BookRef[] {
+  const map = new Map<string, BookRef>();
+  for (const b of books) map.set(b.id, b);
+  return [...map.values()];
+}
+
+function uniqueSortedNumbers(nums: number[]): number[] {
+  return [...new Set(nums)].sort((a, b) => a - b);
+}
+
+/** "1" / "1 & 2" / "1, 2 & 3" / "1, 2, 3 & 5" (handles non-contiguous gaps as-is). */
+function formatNumberList(nums: number[]): string {
+  if (nums.length <= 1) return `${nums[0] ?? ''}`;
+  return `${nums.slice(0, -1).join(', ')} & ${nums[nums.length - 1]}`;
+}
+
 @Injectable()
 export class SeriesContinuationCron {
   private readonly logger = new Logger(SeriesContinuationCron.name);
@@ -62,7 +80,7 @@ export class SeriesContinuationCron {
         select: {
           bookBoxCompanyId: true,
           variantLabel: true,
-          book: { select: { id: true, title: true, seriesId: true, series: { select: { name: true } } } },
+          book: { select: { id: true, title: true, volumeNumbers: true, seriesId: true, series: { select: { name: true } } } },
         },
       }),
     ]);
@@ -71,34 +89,54 @@ export class SeriesContinuationCron {
     const titles = Array.from(new Set(editions.map((e) => formatEditionDisplayTitle(e.book, e))));
     if (!titles.length) return;
 
+    const newBooks = uniqueBooksById(editions.map((e) => e.book));
     const companyName = announcement.company?.name ?? 'a company you follow';
     const seriesName = editions[0].book.series?.name;
-    const isPlural = titles.length > 1;
+    const isPluralNew = newBooks.length > 1;
 
-    // Re-derive one representative book the user already owns from this same series+
-    // company+variant profile — purely for message copy ("you have X"), so the
-    // notification explains *why* it's showing up instead of reading like a generic
-    // "new stuff" blast. Mirrors SeriesContinuationService's own matching filter.
-    const owned = await this.prisma.userBookEntry.findFirst({
+    // Every book the user already owns from this same series+company+variant profile —
+    // not just one — so someone with several prior volumes gets a message reflecting
+    // that, instead of an arbitrary single pick. Mirrors SeriesContinuationService's
+    // own matching filter (using the first new edition's company/variant as the profile —
+    // a debounced batch spanning different variants is a rare edge case, not handled here).
+    const ownedEntries = await this.prisma.userBookEntry.findMany({
       where: {
         userId: row.userId,
         isWishlist: false,
         ownershipStatus: { notIn: ['SOLD', 'GIFTED_AWAY', 'BORROWED'] },
-        bookId: { notIn: editions.map((e) => e.book.id) },
+        bookId: { notIn: newBooks.map((b) => b.id) },
         book: { seriesId: editions[0].book.seriesId },
         edition: { bookBoxCompanyId: editions[0].bookBoxCompanyId, variantLabel: editions[0].variantLabel },
       },
-      select: { book: { select: { title: true } } },
+      select: { bookId: true, book: { select: { id: true, title: true, volumeNumbers: true } } },
+      distinct: ['bookId'],
     });
+    const ownedBooks = ownedEntries.map((e) => e.book);
 
     const title = seriesName
-      ? `New volume${isPlural ? 's' : ''} of ${seriesName} from ${companyName}`
-      : `New volume${isPlural ? 's' : ''} from ${companyName}`;
+      ? `New volume${isPluralNew ? 's' : ''} of ${seriesName} from ${companyName}`
+      : `New volume${isPluralNew ? 's' : ''} from ${companyName}`;
     const newTitlesStr = titles.join(', ');
-    const ownedTitle = owned ? formatEditionDisplayTitle(owned.book, { variantLabel: editions[0].variantLabel }) : null;
-    const body = ownedTitle
-      ? `You have ${ownedTitle} — ${newTitlesStr} ${isPlural ? 'have' : 'has'} been announced. Tap to view.`
-      : `${newTitlesStr} ${isPlural ? 'have' : 'has'} been announced. Tap to view.`;
+
+    const ownedNums = uniqueSortedNumbers(ownedBooks.flatMap((b) => b.volumeNumbers));
+    const newNums = uniqueSortedNumbers(newBooks.flatMap((b) => b.volumeNumbers));
+
+    let body: string;
+    if (ownedBooks.length > 1 && ownedNums.length > 0 && newNums.length > 0) {
+      // Several owned volumes — name them by number, compactly, rather than every title.
+      const newIsPlural = newNums.length > 1;
+      body =
+        `You already own volume${ownedNums.length > 1 ? 's' : ''} ${formatNumberList(ownedNums)} - ` +
+        `volume${newIsPlural ? 's' : ''} ${formatNumberList(newNums)} ${newIsPlural ? 'have' : 'has'} been announced. Tap to view.`;
+    } else if (ownedBooks.length === 1) {
+      // Exactly one owned volume — name it (and the new one(s)) by title for a more personal touch.
+      const ownedTitle = formatEditionDisplayTitle(ownedBooks[0], { variantLabel: editions[0].variantLabel });
+      body = `You have ${ownedTitle} - ${newTitlesStr} ${isPluralNew ? 'have' : 'has'} been announced. Tap to view.`;
+    } else {
+      // Defensive fallback — shouldn't normally happen (enqueue already requires a match),
+      // but volumeNumbers could be empty or the matching row could be gone by send time.
+      body = `${newTitlesStr} ${isPluralNew ? 'have' : 'has'} been announced. Tap to view.`;
+    }
 
     if (settings.seriesContinuationInAppEnabled) {
       await this.notificationsService.createNotification(
