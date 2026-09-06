@@ -1,8 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { API_BASE } from '@/lib/authFetch'
+import { getSignupSource } from '@/lib/attribution'
 
 const OAUTH_BASE = API_BASE.replace(/\/api$/, '')
+const GOOGLE_BASE = `${OAUTH_BASE}/api/auth/google`
 
 interface Props { returnTo?: string }
 
@@ -10,6 +13,13 @@ export function OAuthButtons({ returnTo }: Props) {
   const handleOAuth = () => {
     if (returnTo) sessionStorage.setItem('oauth_return_to', returnTo)
   }
+
+  // Append first-touch attribution after mount to avoid a hydration mismatch.
+  const [googleHref, setGoogleHref] = useState(GOOGLE_BASE)
+  useEffect(() => {
+    const src = getSignupSource()
+    if (src) setGoogleHref(`${GOOGLE_BASE}?src=${encodeURIComponent(src)}`)
+  }, [])
 
   return (
     <div className="space-y-2">
@@ -21,7 +31,7 @@ export function OAuthButtons({ returnTo }: Props) {
 
       <div>
         <a
-          href={`${OAUTH_BASE}/api/auth/google`}
+          href={googleHref}
           onClick={handleOAuth}
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-navy-700 bg-navy-900 hover:bg-navy-800 px-3 py-2.5 text-xs font-medium text-navy-300 transition-colors"
         >

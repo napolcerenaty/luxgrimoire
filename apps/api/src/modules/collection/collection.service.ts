@@ -314,7 +314,17 @@ export class CollectionService {
     });
     recordOwnershipHistoryAsync(this.prisma, entry.id, entry.ownershipStatus, acquiredAt);
     this.statsService.markStatsStale(userId);
-    return entry;
+
+    // Activation funnel (growth roadmap Faza 0): was this the user's first real edition?
+    let isFirstEdition = false;
+    if (!entry.isWishlist) {
+      const priorCount = await this.prisma.userBookEntry.count({
+        where: { userId, isWishlist: false, id: { not: entry.id } },
+      });
+      isFirstEdition = priorCount === 0;
+    }
+
+    return { ...entry, isFirstEdition };
   }
 
   async addToWishlist(userId: string, bookEditionId: string) {

@@ -45,6 +45,20 @@ export class GoogleInitGuard implements CanActivate {
       path: '/',
     });
 
+    // First-touch attribution: the web forwards its `lg_src` cookie as `?src=` so the
+    // (cross-domain) callback can persist it on the new user. Same-domain cookie hop.
+    const req = context.switchToHttp().getRequest();
+    const src: string | undefined = req.query?.src;
+    if (src) {
+      res.setCookie('oauth_src', String(src).slice(0, 512), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: STATE_COOKIE_MAX_AGE_SECONDS,
+        path: '/',
+      });
+    }
+
     const callbackUrl = `${process.env.OAUTH_CALLBACK_BASE_URL ?? 'http://localhost:3001'}/api/auth/google/callback`;
     const params = new URLSearchParams({
       response_type: 'code',

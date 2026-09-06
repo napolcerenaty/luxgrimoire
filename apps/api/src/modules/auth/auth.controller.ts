@@ -139,8 +139,11 @@ export class AuthController {
 
   private async handleOAuthCallback(req: any, res: any) {
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    // First-touch attribution stashed by GoogleInitGuard from the `?src=` query param
+    const signupSource: string | undefined = req.cookies?.['oauth_src'];
+    if (signupSource) res.clearCookie('oauth_src', { path: '/' });
     try {
-      const result = await this.authService.oauthCallback(req.user);
+      const result = await this.authService.oauthCallback(req.user, signupSource ?? null);
       this.setAuthCookie(res, result.accessToken);
       return res.redirect(`${frontendUrl}/callback`, 302); // NO token in URL
     } catch {
