@@ -603,27 +603,6 @@ export class SubscriptionQueryDto {
   @IsBoolean()
   isContentStream?: boolean;
 
-  /** Widen the default listing (which hides content streams) to return BOTH regular
-   *  subscriptions AND content streams. Ignored if `isContentStream` is also passed. */
-  @IsOptional()
-  @Transform(({ value }) => value === true || value === 'true')
-  @IsBoolean()
-  includeContentStreams?: boolean;
-
-  /** Drop combo subscriptions (`isCombo`) and variant subscriptions (those with a
-   *  `parentSubscriptionId`) — e.g. admin pickers that filter editions by linked months,
-   *  where combos/variants never hold months of their own. */
-  @IsOptional()
-  @Transform(({ value }) => value === true || value === 'true')
-  @IsBoolean()
-  excludeComboAndVariants?: boolean;
-
-  /** Only subscriptions that have at least one linked `SubscriptionMonth`. */
-  @IsOptional()
-  @Transform(({ value }) => value === true || value === 'true')
-  @IsBoolean()
-  hasMonths?: boolean;
-
   @IsOptional()
   @IsString()
   status?: string;

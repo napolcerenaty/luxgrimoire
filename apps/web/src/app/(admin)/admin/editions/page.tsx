@@ -231,18 +231,16 @@ export default function AdminEditionsPage() {
     ? Array.isArray(companiesData) ? companiesData : companiesData.data
     : []
 
-  // Subscriptions for filter dropdown — scoped to the selected company when one is picked.
-  // Content-stream months carry linked editions too, so include content streams alongside
-  // regular subscriptions; combos/variants never hold months, so drop them and anything with
-  // no linked months (nothing to filter the table by).
-  const { data: subscriptionsData } = useQuery({
-    queryKey: ['admin', 'subscriptions-list', companyFilter],
-    queryFn: () => authFetch<{ data: { id: string; name: string }[] }>(
-      `/subscriptions?pageSize=200&includeContentStreams=true&excludeComboAndVariants=true&hasMonths=true${companyFilter ? `&companyId=${companyFilter}` : ''}`,
+  // Subscriptions for filter dropdown — dedicated lean endpoint: id+name only, includes
+  // content streams (their months carry linked editions too), drops combos/variants and
+  // month-less subscriptions. Scoped to the selected company when one is picked.
+  const { data: subscriptions = [] } = useQuery({
+    queryKey: ['admin', 'subscription-options', companyFilter],
+    queryFn: () => authFetch<{ id: string; name: string }[]>(
+      `/subscriptions/options${companyFilter ? `?companyId=${companyFilter}` : ''}`,
     ),
     enabled: !isManager,
   })
-  const subscriptions = subscriptionsData?.data ?? []
 
   // Collections for filter dropdown — scoped to the selected company when one is picked
   const { data: collectionsData } = useQuery({

@@ -71,6 +71,16 @@ export class SubscriptionsController {
     return this.subscriptionsService.findGenres(search);
   }
 
+  /** Lean id+name list for the admin Editions view's subscription filter dropdown. Includes
+   *  content streams, drops combos/variants and month-less subscriptions. Optional companyId
+   *  scopes it. Not COMPANY_MANAGER — that role's editions view hides this filter. */
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'MODERATOR')
+  @Get('options')
+  getOptions(@Query('companyId') companyId?: string) {
+    return this.subscriptionsService.getOptions(companyId);
+  }
+
   /** Earliest (year, month) any subscription plausibly needs a month for — the month pickers'
    *  lower bound, computed from data instead of a hardcoded guess. Used by both the admin gaps
    *  page and the public books-by-month page, so it's public/unauthenticated. */
