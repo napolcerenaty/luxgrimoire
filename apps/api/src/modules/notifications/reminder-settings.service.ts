@@ -25,6 +25,9 @@ export interface ReminderSettingsDto {
 
   newEditionFollowInAppEnabled?: boolean;
   newEditionFollowPushEnabled?: boolean;
+
+  seriesContinuationInAppEnabled?: boolean;
+  seriesContinuationPushEnabled?: boolean;
 }
 
 @Injectable()
@@ -55,6 +58,8 @@ export class ReminderSettingsService {
         appNotifPushEnabled: false,
         newEditionFollowInAppEnabled: true,
         newEditionFollowPushEnabled: true,
+        seriesContinuationInAppEnabled: true,
+        seriesContinuationPushEnabled: true,
       };
     }
     return s;
@@ -84,6 +89,8 @@ export class ReminderSettingsService {
         appNotifPushEnabled: dto.appNotifPushEnabled ?? false,
         newEditionFollowInAppEnabled: dto.newEditionFollowInAppEnabled ?? true,
         newEditionFollowPushEnabled: dto.newEditionFollowPushEnabled ?? true,
+        seriesContinuationInAppEnabled: dto.seriesContinuationInAppEnabled ?? true,
+        seriesContinuationPushEnabled: dto.seriesContinuationPushEnabled ?? true,
       },
       update: {
         ...(dto.renewalEnabled !== undefined && { renewalEnabled: dto.renewalEnabled }),
@@ -105,6 +112,8 @@ export class ReminderSettingsService {
         ...(dto.appNotifPushEnabled !== undefined && { appNotifPushEnabled: dto.appNotifPushEnabled }),
         ...(dto.newEditionFollowInAppEnabled !== undefined && { newEditionFollowInAppEnabled: dto.newEditionFollowInAppEnabled }),
         ...(dto.newEditionFollowPushEnabled !== undefined && { newEditionFollowPushEnabled: dto.newEditionFollowPushEnabled }),
+        ...(dto.seriesContinuationInAppEnabled !== undefined && { seriesContinuationInAppEnabled: dto.seriesContinuationInAppEnabled }),
+        ...(dto.seriesContinuationPushEnabled !== undefined && { seriesContinuationPushEnabled: dto.seriesContinuationPushEnabled }),
       },
     });
   }

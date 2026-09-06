@@ -52,6 +52,7 @@ model User {
   authorFollows            UserAuthorFollow[]
   bookFollows              UserBookFollow[]
   pendingEditionNotifications PendingEditionNotification[]
+  pendingSeriesContinuationNotifications PendingSeriesContinuationNotification[]
   purchaseDiscounts        UserPurchaseDiscount[]
   purchaseFees             UserPurchaseFee[]
   purchaseGroups           UserPurchaseGroup[]
@@ -810,6 +811,7 @@ model SaleAnnouncement {
   interests            UserSaleInterest[]
   imageAsset           MediaAsset?               @relation("SAMainImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
   extraImages          SaleAnnouncementMediaAsset[]
+  pendingSeriesContinuationNotifications PendingSeriesContinuationNotification[]
 
   @@index([companyId])
   @@index([generalSaleDate])
@@ -1314,6 +1316,11 @@ model UserReminderSettings {
   newEditionFollowInAppEnabled Boolean @default(true)
   newEditionFollowPushEnabled  Boolean @default(true)
 
+  /// No master toggle, unlike renewal/sale/bookChoice above — ownership of a prior volume is
+  /// itself the opt-in, so these two default to true (opt-out only).
+  seriesContinuationInAppEnabled Boolean @default(true)
+  seriesContinuationPushEnabled  Boolean @default(true)
+
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_reminder_settings")
@@ -1403,6 +1410,26 @@ model ScheduledReminder {
   @@index([tierId])
   @@index([entryId, choiceGroupId])
   @@map("scheduled_reminders")
+}
+
+/// Debounce buffer for series-continuation notifications: when an edition is linked to a
+/// SaleAnnouncement, matched recipients get one row per [userId, saleAnnouncementId]. A cron
+/// sweeps rows past scheduledFor, sends one combined notification listing all editionIds
+/// accumulated in the window, then deletes the row.
+model PendingSeriesContinuationNotification {
+  id                 String   @id @default(uuid())
+  userId             String
+  saleAnnouncementId String
+  editionIds         String[] @default([])
+  scheduledFor       DateTime
+  createdAt          DateTime @default(now())
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcement SaleAnnouncement @relation(fields: [saleAnnouncementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, saleAnnouncementId])
+  @@index([scheduledFor])
+  @@map("pending_series_continuation_notifications")
 }
 
 model PushSubscription {

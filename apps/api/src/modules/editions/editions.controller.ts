@@ -57,6 +57,12 @@ export class EditionsController {
   }
 
   @Public()
+  @Get('variant-labels')
+  findVariantLabels(@Query('companyId') companyId?: string, @Query('search') search?: string) {
+    return this.editionsService.findVariantLabels(companyId, search);
+  }
+
+  @Public()
   @Get('trending')
   findTrending(@Query('limit') limit?: string) {
     return this.editionsService.findTrending(limit ? parseInt(limit, 10) : undefined);

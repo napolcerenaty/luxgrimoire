@@ -747,6 +747,29 @@ export class EditionsService {
     return rows.map(r => r.publisher).filter(Boolean) as string[];
   }
 
+  /** Distinct variantLabel values used by a specific company's editions — scoped to companyId
+   *  (unlike findPublishers, which is global) since a variant name only makes sense to reuse
+   *  within the same company's own line (e.g. "White Edition" for company A vs. B aren't the
+   *  same thing). No companyId → nothing to suggest. */
+  async findVariantLabels(companyId?: string, search?: string): Promise<string[]> {
+    if (!companyId) return [];
+    const rows = await this.prisma.bookEdition.findMany({
+      where: {
+        bookBoxCompanyId: companyId,
+        variantLabel: {
+          not: null,
+          ...(search ? { contains: search, mode: 'insensitive' as const } : {}),
+        },
+        verifiedAt: { not: null },
+      },
+      select: { variantLabel: true },
+      distinct: ['variantLabel'],
+      orderBy: { variantLabel: 'asc' },
+      take: 25,
+    });
+    return rows.map(r => r.variantLabel).filter(Boolean) as string[];
+  }
+
   /** Lean fetch for admin edit form — only fields needed by the form, without monthBooks/saleEditions/book authors. */
   async findBySlugForAdmin(slug: string) {
     const edition = await this.prisma.bookEdition.findUnique({

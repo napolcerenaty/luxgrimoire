@@ -952,6 +952,8 @@ interface ReminderSettings {
   appNotifPushEnabled: boolean
   newEditionFollowInAppEnabled: boolean
   newEditionFollowPushEnabled: boolean
+  seriesContinuationInAppEnabled: boolean
+  seriesContinuationPushEnabled: boolean
 }
 
 interface PushNotifPreferences {
@@ -1026,6 +1028,7 @@ function NotificationsTab() {
     bookChoiceEnabled: false, bookChoiceInAppEnabled: true, bookChoicePushEnabled: false, bookChoiceDaysBefore: 3,
     appNotifPushEnabled: false,
     newEditionFollowInAppEnabled: true, newEditionFollowPushEnabled: true,
+    seriesContinuationInAppEnabled: true, seriesContinuationPushEnabled: true,
   }
 
   return (
@@ -1266,6 +1269,29 @@ function NotificationsTab() {
           {isSupported && isSubscribed && (
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <Toggle checked={s.newEditionFollowPushEnabled} onChange={(v) => update({ newEditionFollowPushEnabled: v })} />
+              <span className={TOGGLE_LABEL}>Push</span>
+            </label>
+          )}
+        </div>
+      </section>
+
+      {/* Series Continuation */}
+      <section className={SECTION}>
+        <div>
+          <h3 className="text-sm font-semibold text-navy-300 uppercase tracking-wide">Series Continuation</h3>
+          <p className={TOGGLE_SUBLABEL}>
+            When a company you&apos;ve bought from adds a new volume of a series you already own to a sale. On by
+            default — no need to follow anything.
+          </p>
+        </div>
+        <div className="flex items-center gap-4 pt-1">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <Toggle checked={s.seriesContinuationInAppEnabled} onChange={(v) => update({ seriesContinuationInAppEnabled: v })} />
+            <span className={TOGGLE_LABEL}>In-app</span>
+          </label>
+          {isSupported && isSubscribed && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <Toggle checked={s.seriesContinuationPushEnabled} onChange={(v) => update({ seriesContinuationPushEnabled: v })} />
               <span className={TOGGLE_LABEL}>Push</span>
             </label>
           )}
